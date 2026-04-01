@@ -1,0 +1,138 @@
+{
+  "updated_at": "2026-04-01T15:23:46.170144+07:00",
+  "skills": {
+    "task": "python MCP planning documentation architecture workflow governance",
+    "trigger": "initial",
+    "budget": 3,
+    "resolved_at": "2026-04-01T15:23:25.038771+07:00",
+    "keep": [],
+    "add": [
+      "workflow-orchestration-patterns",
+      "mcp-builder",
+      "mcp-builder-ms"
+    ],
+    "drop": [
+      "langgraph",
+      "autonomous-agent-patterns",
+      "machine-learning-ops-ml-pipeline"
+    ],
+    "skills": [
+      {
+        "name": "workflow-orchestration-patterns",
+        "category": "frontend",
+        "score": 0.016393442,
+        "chunk_count": 1,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "mcp-builder",
+        "category": "frontend",
+        "score": 0.016129032,
+        "chunk_count": 3,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "mcp-builder-ms",
+        "category": "frontend",
+        "score": 0.015873017,
+        "chunk_count": 4,
+        "reason": "added: fallback skill for low-confidence coverage"
+      }
+    ]
+  },
+  "memory": {
+    "mode": "search",
+    "query": "minder qwen plan split docs",
+    "limit": 5,
+    "include_stale": false,
+    "history": false,
+    "searched_at": "2026-04-01T15:23:46.168832+07:00",
+    "results": [
+      {
+        "id": "31c2502b-d595-4735-afd4-3fb72535d4b8",
+        "title": "Minder confirmed decisions v2",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:minder-confirmed-decisions-v2",
+        "score": 0.086393446,
+        "tags": [
+          "minder",
+          "decisions",
+          "architecture",
+          "auth",
+          "cicd",
+          "confirmed"
+        ],
+        "conflict_detected": false,
+        "content": "Minder plan v2 confirmed: Team multi-user (email+username from git), Auth mandatory (API key + JWT + RBAC), SSE transport from Phase 1, NV-Embed-v2 GGUF + Nemotron-3 GGUF mandatory (offline-first, OpenAI fallback optional), Docker sandbox mandatory for verification (subprocess dev mode), Skills seeded from external GitHub repo, CI/CD from Phase 1 (GitHub Actions + GitHub Releases + GitHub Packages/ghcr.io), Knowledge Graph Phase 3 confirmed. 9 stores total (added User Store). Plan at docs/PLAN.md v2.0 status: DECISIONS CONFIRMED."
+      },
+      {
+        "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
+        "title": "Minder plan translated and expanded",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:minder-plan-translated-and-expanded",
+        "score": 0.086129025,
+        "tags": [
+          "minder",
+          "plan",
+          "workflow",
+          "tdd",
+          "mcp",
+          "repo-state"
+        ],
+        "conflict_detected": false,
+        "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
+      },
+      {
+        "id": "32b041a0-c8c5-4cd2-b024-59e969eca609",
+        "title": "Phase 1 setup-first planning refinement",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:phase-1-setup-first-planning-refinement",
+        "score": 0.08587302,
+        "tags": [
+          "planning",
+          "phase1",
+          "setup",
+          "style",
+          "gsd"
+        ],
+        "conflict_detected": false,
+        "content": "For rental-management-ui, the user clarified that the first implementation focus should be tech stack setup, project scaffold, and project styling before deeper API work. Instead of inserting a pre-Phase-1 decimal phase, the safe planning move was to reframe Phase 1 itself and create 01-CONTEXT plus 01-01/01-02/01-03 plans covering project scaffold/providers, design tokens and shell, then auth pages and protected routing. STATE and .continue-here were updated so the next execution step is 01-01-PLAN.md while Phase 01.1 remains queued for typed API integration."
+      },
+      {
+        "id": "7ca3fa50-5809-4be8-8b5c-b38a97d5a67f",
+        "title": "Phase 04 billing plans created",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:phase-04-billing-plans-created",
+        "score": 0.08562499,
+        "tags": [
+          "gsd",
+          "planning",
+          "billing",
+          "phase-04"
+        ],
+        "conflict_detected": false,
+        "content": "Created .planning/phases/04-billing-engine-core-value with 04-RESEARCH.md, 04-VALIDATION.md, and three execution plans. Plan split is sequential: 04-01 builds billing period helpers plus metered/per-person/prorate calculation services and tests; 04-02 adds Invoice and InvoiceItem persistence, generation/regeneration API, migration, and app wiring; 04-03 adds Puppeteer-based PDF export from invoice snapshots. STATE.md now marks Phase 04 as planned and points resume continuity at 04-01-PLAN.md."
+      },
+      {
+        "id": "7677caae-4f7f-446b-af2f-05d8b30022ab",
+        "title": "Resume point after Phase 03",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:resume-point-after-phase-03",
+        "score": 0.08538462,
+        "tags": [
+          "resume",
+          "gsd",
+          "state",
+          "billing"
+        ],
+        "conflict_detected": false,
+        "content": "On 2026-03-26 resume check, .planning/STATE.md showed Phases 00-03 complete with clean git status, no HANDOFF.json, no .continue-here files, no interrupted agents, and no incomplete plans. Next logical work is Phase 04 Billing Engine; Phase 04 has no CONTEXT.md yet, so discuss-phase is the recommended first step before planning because billing/prorate edge cases are the core complexity."
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+[server]
+name = "minder"
+version = "0.1.0"
+transport = "sse"
+host = "0.0.0.0"
+port = 8080
+log_level = "info"
+
+[auth]
+enabled = true
+jwt_secret = "dev-secret-key-change-me-in-prod"
+jwt_expiry_hours = 24
+api_key_prefix = "mk_"
+default_admin_email = "admin@example.com"
+
+[embedding]
+provider = "llamacpp"
+model_name = "Qwen/Qwen3-Embedding-0.6B"
+model_path = "~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf"
+dimensions = 1024
+openai_api_key = ""
+openai_model = "text-embedding-3-small"
+
+[llm]
+provider = "llamacpp"
+model_name = "Qwen3.5-0.8B"
+model_path = "~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+context_length = 4096
+temperature = 0.1
+openai_api_key = ""
+openai_model = "gpt-4o-mini"
+
+[vector_store]
+provider = "milvus_lite"
+db_path = "~/.minder/data/milvus.db"
+
+[relational_store]
+provider = "sqlite"
+db_path = "~/.minder/data/minder.db"
+
+[retrieval]
+top_k = 10
+rerank_top_n = 5
+similarity_threshold = 0.7
+hybrid_alpha = 0.7
+
+[cache]
+enabled = true
+provider = "lru"
+max_size = 1000
+ttl_seconds = 3600
+
+[verification]
+enabled = true
+sandbox = "docker"
+timeout_seconds = 30
+docker_image = "minder-sandbox:latest"
+
+[workflow]
+enforcement = "strict"
+default_workflow = "tdd"
+repo_state_dir = ".minder"
+block_step_skips = true
+
+[seeding]
+skills_repo = ""
+skills_branch = "main"
+skills_path = "skills/"

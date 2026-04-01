@@ -1,39 +1,39 @@
 {
-  "task": "python MCP planning documentation architecture workflow governance",
+  "task": "update task breakdown and implement phase 2.1 phase 2.2",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-01T15:23:25.038771+07:00",
+  "resolved_at": "2026-04-01T17:33:17.046859+07:00",
   "keep": [],
   "add": [
-    "workflow-orchestration-patterns",
-    "mcp-builder",
-    "mcp-builder-ms"
+    "conductor-new-track",
+    "conductor-status",
+    "build"
   ],
   "drop": [
-    "langgraph",
-    "autonomous-agent-patterns",
-    "machine-learning-ops-ml-pipeline"
+    "ai-ml",
+    "rag-implementation",
+    "skill-creator-ms"
   ],
   "skills": [
     {
-      "name": "workflow-orchestration-patterns",
-      "category": "frontend",
+      "name": "conductor-new-track",
+      "category": "general",
       "score": 0.016393442,
-      "chunk_count": 1,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "mcp-builder",
+      "name": "conductor-status",
       "category": "frontend",
       "score": 0.016129032,
-      "chunk_count": 3,
+      "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "mcp-builder-ms",
+      "name": "build",
       "category": "frontend",
-      "score": 0.015873017,
-      "chunk_count": 4,
+      "score": 0.015625,
+      "chunk_count": 8,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

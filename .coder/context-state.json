@@ -1,137 +1,136 @@
 {
-  "updated_at": "2026-04-01T15:23:46.170144+07:00",
+  "updated_at": "2026-04-01T17:33:17.048136+07:00",
   "skills": {
-    "task": "python MCP planning documentation architecture workflow governance",
+    "task": "update task breakdown and implement phase 2.1 phase 2.2",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-01T15:23:25.038771+07:00",
+    "resolved_at": "2026-04-01T17:33:17.046859+07:00",
     "keep": [],
     "add": [
-      "workflow-orchestration-patterns",
-      "mcp-builder",
-      "mcp-builder-ms"
+      "conductor-new-track",
+      "conductor-status",
+      "build"
     ],
     "drop": [
-      "langgraph",
-      "autonomous-agent-patterns",
-      "machine-learning-ops-ml-pipeline"
+      "ai-ml",
+      "rag-implementation",
+      "skill-creator-ms"
     ],
     "skills": [
       {
-        "name": "workflow-orchestration-patterns",
-        "category": "frontend",
+        "name": "conductor-new-track",
+        "category": "general",
         "score": 0.016393442,
-        "chunk_count": 1,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "mcp-builder",
+        "name": "conductor-status",
         "category": "frontend",
         "score": 0.016129032,
-        "chunk_count": 3,
+        "chunk_count": 5,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "mcp-builder-ms",
+        "name": "build",
         "category": "frontend",
-        "score": 0.015873017,
-        "chunk_count": 4,
+        "score": 0.015625,
+        "chunk_count": 8,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "minder qwen plan split docs",
+    "query": "update task breakdown and implement phase 2.1 phase 2.2",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-01T15:23:46.168832+07:00",
+    "searched_at": "2026-04-01T17:33:16.679373+07:00",
     "results": [
       {
-        "id": "31c2502b-d595-4735-afd4-3fb72535d4b8",
-        "title": "Minder confirmed decisions v2",
+        "id": "90ab2152-f00b-47a9-92a0-7e47730385ea",
+        "title": "Phase 14 audit-alignment execution pattern",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-confirmed-decisions-v2",
+        "canonical_key": "document:phase-14-audit-alignment-execution-pattern",
         "score": 0.086393446,
         "tags": [
-          "minder",
-          "decisions",
-          "architecture",
-          "auth",
-          "cicd",
-          "confirmed"
+          "phase-14",
+          "execution",
+          "audit",
+          "cleanup"
         ],
         "conflict_detected": false,
-        "content": "Minder plan v2 confirmed: Team multi-user (email+username from git), Auth mandatory (API key + JWT + RBAC), SSE transport from Phase 1, NV-Embed-v2 GGUF + Nemotron-3 GGUF mandatory (offline-first, OpenAI fallback optional), Docker sandbox mandatory for verification (subprocess dev mode), Skills seeded from external GitHub repo, CI/CD from Phase 1 (GitHub Actions + GitHub Releases + GitHub Packages/ghcr.io), Knowledge Graph Phase 3 confirmed. 9 stores total (added User Store). Plan at docs/PLAN.md v2.0 status: DECISIONS CONFIRMED."
+        "content": "Final planning-audit-alignment execution should stay metadata-only: mark all completed v1 requirements as checked, keep traceability pointing to closure phases 07-13, remove stale non-v1 IDs from Phase 1 summary metadata, delete stale HANDOFF/.continue-here artifacts, and add a short 14-VERIFICATION plus 14-01-SUMMARY. After phase complete, manually patch STATE/ROADMAP/PROJECT body text because phase-complete updates frontmatter more reliably than narrative sections."
       },
       {
-        "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
-        "title": "Minder plan translated and expanded",
+        "id": "ac29c93d-91fb-462f-a386-8e39a68c74a4",
+        "title": "Lifecycle commands synced to all agent layers",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-plan-translated-and-expanded",
+        "canonical_key": "document:lifecycle-commands-synced-to-all-agent-layers",
         "score": 0.086129025,
         "tags": [
-          "minder",
-          "plan",
-          "workflow",
-          "tdd",
-          "mcp",
-          "repo-state"
+          "coder-cli",
+          "workflows",
+          "copilot",
+          "agent",
+          "lifecycle"
         ],
         "conflict_detected": false,
-        "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
+        "content": "Updated all 3 layers to include Group B lifecycle commands (new-project, map-codebase, discuss-phase, plan-phase, execute-phase, ship, progress, next, milestone) and Group C utilities (todo, stats, health, note, do). Files updated: .github/copilot-instructions.md (replaced AI Workflow Commands section with 3 groups A/B/C), .agents/workflows/full-lifecycle-delivery.md (added Lifecycle Path section with per-phase loop), .agents/workflows/execute-plan.md (added lifecycle path mode detection, coder debug on error, coder note for blockers), .agents/workflows/new-requirement.md (added scope detection: small feature vs new project with coder new-project, next steps branching), .agents/workflows/update-planning.md (added coder progress/next/health/milestone audit/note integration). All workflows now aware of both quick-path (PLAN.md) and lifecycle-path (STATE.md) modes."
       },
       {
-        "id": "32b041a0-c8c5-4cd2-b024-59e969eca609",
-        "title": "Phase 1 setup-first planning refinement",
+        "id": "3dfe3f04-6892-4020-83dd-be162cf0114d",
+        "title": "Implemented Minder Phase 2 agentic pipeline",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-1-setup-first-planning-refinement",
+        "canonical_key": "document:implemented-minder-phase-2-agentic-pipeline",
         "score": 0.08587302,
         "tags": [
-          "planning",
-          "phase1",
-          "setup",
-          "style",
-          "gsd"
+          "minder",
+          "phase-2",
+          "graph",
+          "rag",
+          "workflow",
+          "verification",
+          "tests"
         ],
         "conflict_detected": false,
-        "content": "For rental-management-ui, the user clarified that the first implementation focus should be tech stack setup, project scaffold, and project styling before deeper API work. Instead of inserting a pre-Phase-1 decimal phase, the safe planning move was to reframe Phase 1 itself and create 01-CONTEXT plus 01-01/01-02/01-03 plans covering project scaffold/providers, design tokens and shell, then auth pages and protected routing. STATE and .continue-here were updated so the next execution step is 01-01-PLAN.md while Phase 01.1 remains queued for typed API integration."
+        "content": "Closed the repo's documented Phase 2 by adding a minimal end-to-end agentic pipeline: graph state, workflow planner, planning/retrieval/reasoning/LLM/guard/verification/evaluator nodes, graph assembly, local Qwen/OpenAI fallback interfaces, history/error stores, query tools, and docker sandbox stub. Added Phase 2 unit coverage plus tests/integration/test_phase2_gate.py covering reasoned responses with sources, TDD prompt injection, docker-mode verification, unsafe output blocking, workflow step advancement, and history/error recording. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (68 passed)."
       },
       {
-        "id": "7ca3fa50-5809-4be8-8b5c-b38a97d5a67f",
-        "title": "Phase 04 billing plans created",
+        "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
+        "title": "README + CLI docs + dashboard-plan cleanup",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-04-billing-plans-created",
+        "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
         "score": 0.08562499,
         "tags": [
-          "gsd",
-          "planning",
-          "billing",
-          "phase-04"
+          "coder-cli",
+          "docs",
+          "readme",
+          "cleanup"
         ],
         "conflict_detected": false,
-        "content": "Created .planning/phases/04-billing-engine-core-value with 04-RESEARCH.md, 04-VALIDATION.md, and three execution plans. Plan split is sequential: 04-01 builds billing period helpers plus metered/per-person/prorate calculation services and tests; 04-02 adds Invoice and InvoiceItem persistence, generation/regeneration API, migration, and app wiring; 04-03 adds Puppeteer-based PDF export from invoice snapshots. STATE.md now marks Phase 04 as planned and points resume continuity at 04-01-PLAN.md."
+        "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
       },
       {
-        "id": "7677caae-4f7f-446b-af2f-05d8b30022ab",
-        "title": "Resume point after Phase 03",
+        "id": "99053e62-b1ca-4a70-98a3-e27b7b42ab20",
+        "title": "Artifact and Documentation Sync",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:resume-point-after-phase-03",
+        "canonical_key": "document:artifact-and-documentation-sync",
         "score": 0.08538462,
         "tags": [
-          "resume",
-          "gsd",
-          "state",
-          "billing"
+          "docs",
+          "sync",
+          "auth",
+          "dashboard"
         ],
         "conflict_detected": false,
-        "content": "On 2026-03-26 resume check, .planning/STATE.md showed Phases 00-03 complete with clean git status, no HANDOFF.json, no .continue-here files, no interrupted agents, and no incomplete plans. Next logical work is Phase 04 Billing Engine; Phase 04 has no CONTEXT.md yet, so discuss-phase is the recommended first step before planning because billing/prorate edge cases are the core complexity."
+        "content": "Updated implementation plan, created technical docs for Secure Mode and Dashboard, and updated project walkthrough based on latest codebase changes."
       }
     ]
   }

@@ -12,6 +12,7 @@ from minder.store.document import DocumentStore
 from minder.store.error import ErrorStore
 from minder.store.relational import RelationalStore
 from minder.store.vector import VectorStore
+from minder.tools.ingest import IngestTools
 
 
 class QueryTools:
@@ -33,6 +34,7 @@ class QueryTools:
             dimensions=min(config.embedding.dimensions, 16),
             runtime="auto",
         )
+        self._ingest_tools = IngestTools(self._document_store, self._embedding_provider)
 
     async def minder_query(
         self,
@@ -46,6 +48,7 @@ class QueryTools:
         verification_payload: dict[str, Any] | None = None,
         max_attempts: int = 2,
     ) -> dict[str, Any]:
+        await self._ingest_tools.minder_ingest_directory(repo_path, project=Path(repo_path).name)
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -70,6 +73,7 @@ class QueryTools:
             "provider": result.llm_output.get("provider"),
             "model": result.llm_output.get("model", result.llm_output.get("model_path")),
             "runtime": result.llm_output.get("runtime"),
+            "orchestration_runtime": result.metadata.get("orchestration_runtime"),
             "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
         }
@@ -77,10 +81,30 @@ class QueryTools:
     async def minder_search_code(
         self, query: str, *, repo_path: str, limit: int = 5
     ) -> list[dict[str, Any]]:
+        await self._ingest_tools.minder_ingest_directory(repo_path, project=Path(repo_path).name)
+        project_name = Path(repo_path).name
+        semantic_code_hits = await self._vector_store.search_documents(
+            self._embedding_provider.embed(query),
+            project=project_name,
+            doc_types={"code"},
+            limit=limit,
+            score_threshold=0.0,
+        )
+        if semantic_code_hits:
+            return [
+                {
+                    "path": doc["path"],
+                    "title": doc["title"],
+                    "score": doc["score"],
+                    "source_type": doc.get("doc_type", "unknown"),
+                }
+                for doc in semantic_code_hits[:limit]
+            ]
+
         state = GraphState(
             query=query,
             repo_path=repo_path,
-            metadata={"project_name": Path(repo_path).name},
+            metadata={"project_name": project_name},
         )
         retriever = RetrieverNode(
             top_k=limit,
@@ -89,6 +113,10 @@ class QueryTools:
             score_threshold=self._config.retrieval.similarity_threshold,
         )
         state = await retriever.run(state)
+        code_docs = [
+            doc for doc in state.retrieved_docs if doc.get("doc_type") == "code"
+        ]
+        docs_to_return = code_docs or state.retrieved_docs
         return [
             {
                 "path": doc["path"],
@@ -96,7 +124,7 @@ class QueryTools:
                 "score": doc["score"],
                 "source_type": doc.get("doc_type", "unknown"),
             }
-            for doc in state.retrieved_docs[:limit]
+            for doc in docs_to_return[:limit]
         ]
 
     async def minder_search_errors(

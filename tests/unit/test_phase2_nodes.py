@@ -1,5 +1,6 @@
 import uuid
 from pathlib import Path
+import subprocess
 
 import pytest
 
@@ -119,3 +120,38 @@ def test_verification_docker_runner_marks_docker_mode() -> None:
     ).run(state)
     assert verified.verification_result["runner"] == "docker"
     assert "timeout_seconds" in verified.verification_result
+
+
+def test_verification_normalizes_unsupported_language() -> None:
+    state = GraphState(query="verify", repo_path=".")
+    state.metadata["verification_payload"] = {
+        "language": "javascript",
+        "code": "console.log('ok')",
+    }
+    verified = VerificationNode(sandbox="docker").run(state)
+    assert verified.verification_result["failure_kind"] == "unsupported_language"
+    assert verified.verification_result["retryable"] is False
+
+
+def test_subprocess_runner_handles_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    runner = VerificationNode(sandbox="subprocess")
+
+    def fake_run(*args, **kwargs):  # noqa: ANN002, ANN003
+        raise subprocess.TimeoutExpired(cmd=["python"], timeout=1)
+
+    monkeypatch.setattr("minder.graph.nodes.verification.subprocess.run", fake_run)
+    state = GraphState(query="verify", repo_path=".")
+    state.metadata["verification_payload"] = {
+        "language": "python",
+        "code": "print('ok')",
+    }
+    verified = runner.run(state)
+    assert verified.verification_result["failure_kind"] == "timeout"
+    assert verified.verification_result["returncode"] == 124
+
+
+def test_docker_runner_reports_missing_binary(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("minder.graph.nodes.verification.shutil.which", lambda _: None)
+    result = DockerSandboxRunner().run_python("print('ok')", 5, ".")
+    assert result["failure_kind"] == "docker_unavailable"
+    assert result["passed"] is False

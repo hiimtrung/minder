@@ -1,3 +1,4 @@
+from .ingest import IngestTools
 from .query import QueryTools
 
-__all__ = ["QueryTools"]
+__all__ = ["IngestTools", "QueryTools"]

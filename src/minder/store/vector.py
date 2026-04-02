@@ -17,12 +17,15 @@ class VectorStore:
         query_embedding: list[float],
         *,
         project: str | None = None,
+        doc_types: set[str] | None = None,
         limit: int = 5,
         score_threshold: float = 0.0,
     ) -> list[dict[str, Any]]:
         docs = await self._document_store.list_documents(project=project)
         ranked: list[dict[str, Any]] = []
         for doc in docs:
+            if doc_types is not None and doc.doc_type not in doc_types:
+                continue
             embedding = doc.embedding if isinstance(doc.embedding, list) else None
             if not embedding:
                 continue

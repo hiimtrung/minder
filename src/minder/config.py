@@ -76,6 +76,7 @@ class WorkflowConfig(BaseModel):
     default_workflow: str = "tdd"
     repo_state_dir: str = ".minder"
     block_step_skips: bool = True
+    orchestration_runtime: str = "internal"
 
 
 class SeedingConfig(BaseModel):

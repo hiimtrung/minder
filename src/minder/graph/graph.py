@@ -4,7 +4,7 @@ from time import perf_counter
 
 from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider
-from minder.graph.edges import determine_next_edge
+from minder.graph.executor import GraphNodes, InternalGraphExecutor, LangGraphExecutorAdapter
 from minder.graph.nodes import (
     EvaluatorNode,
     GuardNode,
@@ -15,7 +15,6 @@ from minder.graph.nodes import (
     VerificationNode,
     WorkflowPlannerNode,
 )
-from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
@@ -73,54 +72,30 @@ class MinderGraph:
         self._evaluator = evaluator or EvaluatorNode()
         self._history_store = history_store or HistoryStore(store)
         self._error_store = error_store or ErrorStore(store)
+        self._nodes = GraphNodes(
+            workflow_planner=self._workflow_planner,
+            planning=self._planning,
+            retriever=self._retriever,
+            reasoning=self._reasoning,
+            llm=self._llm,
+            guard=self._guard,
+            verification=self._verification,
+            evaluator=self._evaluator,
+        )
 
     async def run(self, state: GraphState) -> GraphState:
-        max_attempts = int(state.metadata.get("max_attempts", 1))
-        state.metadata.setdefault("attempt_failures", [])
-        state.metadata["orchestration_runtime"] = graph_runtime_name()
-        state = await self._workflow_planner.run(state)
-        state = self._planning.run(state)
-        state = await self._retriever.run(state)
-
-        attempt = 0
-        while True:
-            attempt += 1
-            state.retry_count = attempt - 1
-            state = self._reasoning.run(state)
-            state = self._llm.run(state)
-            state = self._guard.run(state)
-            state = self._verification.run(state)
-            edge = determine_next_edge(state)
-            state.transition_log.append(
-                {
-                    "attempt": attempt,
-                    "edge": edge,
-                    "provider": state.llm_output.get("provider"),
-                    "fallback_used": state.metadata.get("fallback_used", False),
-                }
-            )
-            if edge != "verification_failed" or attempt >= max_attempts:
-                break
-            state.metadata["attempt_failures"].append(
-                {
-                    "attempt": attempt,
-                    "reason": state.verification_result.get(
-                        "stderr", "verification failed"
-                    ),
-                    "provider": state.llm_output.get("provider"),
-                }
-            )
-            state.metadata["retry_reason"] = state.verification_result.get(
-                "stderr", "verification failed"
-            )
-
-        state = self._evaluator.run(state)
+        executor = self._select_executor()
+        state = await executor.run(state)
 
         await self._persist_history(state)
         await self._persist_error_if_needed(state)
         await self._advance_workflow_if_needed(state)
-        state.metadata["edge"] = determine_next_edge(state)
         return state
+
+    def _select_executor(self) -> InternalGraphExecutor | LangGraphExecutorAdapter:
+        if self._config.workflow.orchestration_runtime == "langgraph":
+            return LangGraphExecutorAdapter(self._nodes)
+        return InternalGraphExecutor(self._nodes)
 
     async def _persist_history(self, state: GraphState) -> None:
         if state.session_id is None:

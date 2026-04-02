@@ -1,36 +1,40 @@
 {
-  "task": "continue phase 2.1 phase 2.2 implementation",
+  "task": "audit and close remaining phase 2 and 2.x gaps",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-02T08:18:17.570459+07:00",
-  "keep": [
-    "build",
+  "resolved_at": "2026-04-02T14:34:08.671386+07:00",
+  "keep": [],
+  "add": [
     "conductor-status",
-    "conductor-new-track"
+    "conductor-new-track",
+    "build"
   ],
-  "add": [],
-  "drop": null,
+  "drop": [
+    "docker-expert",
+    "odoo-docker-deployment",
+    "readme"
+  ],
   "skills": [
-    {
-      "name": "build",
-      "category": "frontend",
-      "score": 0.016393442,
-      "chunk_count": 16,
-      "reason": "kept active: still relevant after re-resolve"
-    },
     {
       "name": "conductor-status",
       "category": "frontend",
-      "score": 0.015625,
+      "score": 0.016393442,
       "chunk_count": 4,
-      "reason": "kept active: still relevant after re-resolve"
+      "reason": "added: fallback skill for low-confidence coverage"
     },
     {
       "name": "conductor-new-track",
       "category": "general",
-      "score": 0.014492754,
-      "chunk_count": 1,
-      "reason": "kept active: still relevant after re-resolve"
+      "score": 0.016129032,
+      "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "build",
+      "category": "frontend",
+      "score": 0.015625,
+      "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
     }
   ]
 }

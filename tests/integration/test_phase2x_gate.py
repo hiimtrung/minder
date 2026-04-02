@@ -26,6 +26,8 @@ class FakeDockerRunner:
             "runner": "docker",
             "timeout_seconds": timeout_seconds,
             "repo_path": repo_path,
+            "failure_kind": None,
+            "retryable": False,
         }
 
 
@@ -44,6 +46,8 @@ class FailOnceDockerRunner:
                 "runner": "docker",
                 "timeout_seconds": timeout_seconds,
                 "repo_path": repo_path,
+                "failure_kind": "container_error",
+                "retryable": False,
             }
         return {
             "passed": True,
@@ -53,6 +57,8 @@ class FailOnceDockerRunner:
             "runner": "docker",
             "timeout_seconds": timeout_seconds,
             "repo_path": repo_path,
+            "failure_kind": None,
+            "retryable": False,
         }
 
 
@@ -162,9 +168,11 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
     assert result["transition_log"][0]["edge"] == "verification_failed"
     assert result["transition_log"][-1]["edge"] == "complete"
     assert result["verification_result"]["runner"] == "docker"
+    assert result["verification_result"]["failure_kind"] is None
 
     code_hits = await tools.minder_search_code("work", repo_path=str(repo_path))
     assert code_hits[0]["source_type"] == "code"
+    assert code_hits[0]["path"].endswith("feature.py")
 
     fallback_graph = MinderGraph(
         store,

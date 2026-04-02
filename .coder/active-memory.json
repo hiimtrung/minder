@@ -1,41 +1,26 @@
 {
   "mode": "search",
-  "query": "continue phase 2.1 phase 2.2 implementation",
+  "query": "audit and close remaining phase 2 and 2.x gaps",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-02T08:18:17.643441+07:00",
+  "searched_at": "2026-04-02T14:34:08.849962+07:00",
   "results": [
     {
-      "id": "5e78adeb-6371-44e6-971c-8f60723f612f",
-      "title": "Corrected STATE.md phase to Phase 1",
+      "id": "27a77739-ebfd-4696-856e-7bb9d33f00d3",
+      "title": "Milestone gap closure phases for v1.0 audit",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:corrected-state-md-phase-to-phase-1",
+      "canonical_key": "document:milestone-gap-closure-phases-for-v1-0-audit",
       "score": 0.086393446,
       "tags": [
-        "rental-management-api",
-        "state",
-        "fix"
+        "planning",
+        "milestone",
+        "audit",
+        "verification"
       ],
       "conflict_detected": false,
-      "content": "Updated Current Position from Phase 4 to Phase 1 in STATE.md as Phase 0 is complete and Phase 1 is the next step."
-    },
-    {
-      "id": "99053e62-b1ca-4a70-98a3-e27b7b42ab20",
-      "title": "Artifact and Documentation Sync",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:artifact-and-documentation-sync",
-      "score": 0.086129025,
-      "tags": [
-        "docs",
-        "sync",
-        "auth",
-        "dashboard"
-      ],
-      "conflict_detected": false,
-      "content": "Updated implementation plan, created technical docs for Secure Mode and Dashboard, and updated project walkthrough based on latest codebase changes."
+      "content": "Milestone audit gaps were converted into eight closure phases. Phases 07-13 each backfill milestone-grade VERIFICATION.md evidence for original phases 0-6, and phase 14 cleans planning debt (stale REQUIREMENTS checkboxes, traceability drift, Phase 1 summary drift, and stale handoff artifacts). REQUIREMENTS traceability now points orphaned v1 requirements to phases 07-13 and billing checkboxes were reset to unchecked because the milestone audit marks all 28 requirements as unsatisfied until VERIFICATION artifacts exist."
     },
     {
       "id": "90ab2152-f00b-47a9-92a0-7e47730385ea",
@@ -43,7 +28,7 @@
       "type": "document",
       "status": "active",
       "canonical_key": "document:phase-14-audit-alignment-execution-pattern",
-      "score": 0.08587302,
+      "score": 0.086129025,
       "tags": [
         "phase-14",
         "execution",
@@ -54,41 +39,53 @@
       "content": "Final planning-audit-alignment execution should stay metadata-only: mark all completed v1 requirements as checked, keep traceability pointing to closure phases 07-13, remove stale non-v1 IDs from Phase 1 summary metadata, delete stale HANDOFF/.continue-here artifacts, and add a short 14-VERIFICATION plus 14-01-SUMMARY. After phase complete, manually patch STATE/ROADMAP/PROJECT body text because phase-complete updates frontmatter more reliably than narrative sections."
     },
     {
-      "id": "ea7aeb7f-0664-498d-8688-36a671b29f18",
-      "title": "Mapped and implemented Minder Phase 2.x baseline",
+      "id": "3b1692ac-a60b-4886-bae0-60a3de0da4eb",
+      "title": "Milestone audit passed after closure phases",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:mapped-and-implemented-minder-phase-2-x-baseline",
-      "score": 0.08562499,
+      "canonical_key": "document:milestone-audit-passed-after-closure-phases",
+      "score": 0.08587302,
       "tags": [
-        "minder",
-        "phase-2x",
-        "docs",
-        "graph",
-        "verification",
-        "tests"
+        "milestone",
+        "audit",
+        "v1.0",
+        "closure"
       ],
       "conflict_detected": false,
-      "content": "Updated docs/TASK_BREAKDOWN.md with Phase 2.1 and Phase 2.2 sections plus P2.X-VERIFY to map current work after the minimal Phase 2 closure. Implemented the first practical Phase 2.x baseline in code: added transition_log/retry_count to graph state, richer edge/provider metadata, configurable retry attempts in minder_query, fallback/provider tracking in LLMNode, runtime metadata in Qwen/OpenAI LLM wrappers, real-contract Docker runner behavior with injectable test seam, richer workflow transition artifacts, and extra history/error recording for retries and failures. Added tests/integration/test_phase2x_gate.py and updated Phase 2 tests. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (69 passed)."
+      "content": "After completing phases 07 through 14, the v1.0 milestone audit can pass with requirements 28/28, phases 15/15, integration 4/4, and flows 4/4. The key prerequisites were: dedicated VERIFICATION.md artifacts for original phases 0-6, REQUIREMENTS.md checkboxes and traceability realigned to closure phases, Phase 1 summary metadata cleaned, stale HANDOFF/.continue-here artifacts removed, and a refreshed milestone audit file committed."
     },
     {
-      "id": "3dfe3f04-6892-4020-83dd-be162cf0114d",
-      "title": "Implemented Minder Phase 2 agentic pipeline",
+      "id": "c5c12ebf-8bf9-4fcd-bf6f-744f307657a9",
+      "title": "Phase 14 planning pattern",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:implemented-minder-phase-2-agentic-pipeline",
-      "score": 0.08538462,
+      "canonical_key": "document:phase-14-planning-pattern",
+      "score": 0.08562499,
       "tags": [
-        "minder",
-        "phase-2",
-        "graph",
-        "rag",
-        "workflow",
-        "verification",
-        "tests"
+        "phase-14",
+        "planning",
+        "audit",
+        "cleanup"
       ],
       "conflict_detected": false,
-      "content": "Closed the repo's documented Phase 2 by adding a minimal end-to-end agentic pipeline: graph state, workflow planner, planning/retrieval/reasoning/LLM/guard/verification/evaluator nodes, graph assembly, local Qwen/OpenAI fallback interfaces, history/error stores, query tools, and docker sandbox stub. Added Phase 2 unit coverage plus tests/integration/test_phase2_gate.py covering reasoned responses with sources, TDD prompt injection, docker-mode verification, unsafe output blocking, workflow step advancement, and history/error recording. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (68 passed)."
+      "content": "Phase 14 should be planned as a planning-debt cleanup phase, not feature work. The plan should read the milestone audit, REQUIREMENTS.md, Phase 1 summary, and stale resume artifacts, then clean four audit-facing issues: stale v1 requirement checkboxes, stale traceability table, Phase 1 summary over-claiming AUTH-03/AUTH-04/VAL-01, and leftover HANDOFF/.continue-here artifacts. The plan should use a single execute plan with no new research and no runtime-code changes."
+    },
+    {
+      "id": "cc952b90-b814-4e8a-8fe6-8a9bd28bf15a",
+      "title": "Progress after pull on master",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:progress-after-pull-on-master",
+      "score": 0.08538462,
+      "tags": [
+        "gsd",
+        "progress",
+        "git",
+        "verification",
+        "milestone"
+      ],
+      "conflict_detected": false,
+      "content": "After pulling master to 7cfc304 on 2026-03-30, roadmap/progress shows 16/16 plans complete across phases 00-06 and milestone v1.0 implementation is effectively done. However progress is blocked by verification debt: audit-uat reports 12 unresolved UAT items across phases 03/04/05 (10 pending, 2 server-blocked), HANDOFF.json points next work to milestone verification closure, and milestone audit status is gaps_found because all 7 phases lack VERIFICATION.md artifacts. Recommended next step is verification/audit work before milestone archival, not new feature planning."
     }
   ]
 }

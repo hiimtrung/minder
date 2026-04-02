@@ -5,9 +5,13 @@ from pathlib import Path
 from typing import Any
 
 from minder.config import MinderConfig
+from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
+from minder.graph.nodes.retriever import RetrieverNode
+from minder.store.document import DocumentStore
 from minder.store.error import ErrorStore
 from minder.store.relational import RelationalStore
+from minder.store.vector import VectorStore
 
 
 class QueryTools:
@@ -22,6 +26,13 @@ class QueryTools:
         self._config = config
         self._graph = graph or MinderGraph(store, config)
         self._error_store = error_store or ErrorStore(store)
+        self._document_store = DocumentStore(store)
+        self._vector_store = VectorStore(self._document_store, self._error_store)
+        self._embedding_provider = QwenEmbeddingProvider(
+            config.embedding.model_path,
+            dimensions=min(config.embedding.dimensions, 16),
+            runtime="auto",
+        )
 
     async def minder_query(
         self,
@@ -45,6 +56,7 @@ class QueryTools:
             metadata={
                 "verification_payload": verification_payload,
                 "max_attempts": max_attempts,
+                "project_name": Path(repo_path).name,
             },
         )
         result = await self._graph.run(state)
@@ -65,9 +77,18 @@ class QueryTools:
     async def minder_search_code(
         self, query: str, *, repo_path: str, limit: int = 5
     ) -> list[dict[str, Any]]:
-        state = GraphState(query=query, repo_path=repo_path)
-        retriever = self._graph._retriever
-        state = retriever.run(state)
+        state = GraphState(
+            query=query,
+            repo_path=repo_path,
+            metadata={"project_name": Path(repo_path).name},
+        )
+        retriever = RetrieverNode(
+            top_k=limit,
+            embedding_provider=self._embedding_provider,
+            vector_store=self._vector_store,
+            score_threshold=self._config.retrieval.similarity_threshold,
+        )
+        state = await retriever.run(state)
         return [
             {
                 "path": doc["path"],

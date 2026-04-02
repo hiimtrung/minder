@@ -60,7 +60,8 @@ async def test_workflow_planner_uses_repo_state(store: RelationalStore) -> None:
     assert "Write tests before implementation" in planned.workflow_context["guidance"]
 
 
-def test_planning_and_reasoning_nodes(tmp_path: Path) -> None:
+@pytest.mark.asyncio
+async def test_planning_and_reasoning_nodes(tmp_path: Path) -> None:
     file_path = tmp_path / "service.py"
     file_path.write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
     state = GraphState(
@@ -72,7 +73,7 @@ def test_planning_and_reasoning_nodes(tmp_path: Path) -> None:
     )
 
     state = PlanningNode().run(state)
-    state = RetrieverNode(top_k=3).run(state)
+    state = await RetrieverNode(top_k=3).run(state)
     state = ReasoningNode().run(state)
 
     assert state.plan["intent"] == "code_gen"

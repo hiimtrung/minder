@@ -3,6 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from minder.graph.state import GraphState
+from minder.runtime import module_available
 
 
 class QwenLocalLLM:
@@ -23,7 +24,7 @@ class QwenLocalLLM:
         runtime = self._runtime
         model_exists = Path(self._model_path).expanduser().exists()
         if runtime == "auto":
-            runtime = "llama_cpp" if model_exists else "mock"
+            runtime = "llama_cpp" if model_exists and module_available("llama_cpp") else "mock"
 
         source_paths = [doc["path"] for doc in state.reranked_docs[:3]]
         guidance = state.workflow_context.get("guidance", "")

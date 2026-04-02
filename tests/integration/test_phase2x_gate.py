@@ -158,6 +158,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
 
     assert result["provider"] == "qwen_local"
     assert result["runtime"] in {"auto", "mock", "llama_cpp"}
+    assert result["transition_log"]
     assert result["transition_log"][0]["edge"] == "verification_failed"
     assert result["transition_log"][-1]["edge"] == "complete"
     assert result["verification_result"]["runner"] == "docker"
@@ -187,6 +188,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
     )
     assert fallback_result["provider"] == "openai_fallback"
     assert fallback_result["edge"] == "fallback_complete"
+    assert fallback_result["runtime"] in {"mock", "litellm"}
 
     history_entries = await HistoryStore(store).list_history_for_session(session_id)
     assert history_entries

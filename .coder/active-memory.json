@@ -1,18 +1,49 @@
 {
   "mode": "search",
-  "query": "update task breakdown and implement phase 2.1 phase 2.2",
+  "query": "continue phase 2.1 phase 2.2 implementation",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-01T17:33:16.679373+07:00",
+  "searched_at": "2026-04-02T08:18:17.643441+07:00",
   "results": [
+    {
+      "id": "5e78adeb-6371-44e6-971c-8f60723f612f",
+      "title": "Corrected STATE.md phase to Phase 1",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:corrected-state-md-phase-to-phase-1",
+      "score": 0.086393446,
+      "tags": [
+        "rental-management-api",
+        "state",
+        "fix"
+      ],
+      "conflict_detected": false,
+      "content": "Updated Current Position from Phase 4 to Phase 1 in STATE.md as Phase 0 is complete and Phase 1 is the next step."
+    },
+    {
+      "id": "99053e62-b1ca-4a70-98a3-e27b7b42ab20",
+      "title": "Artifact and Documentation Sync",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:artifact-and-documentation-sync",
+      "score": 0.086129025,
+      "tags": [
+        "docs",
+        "sync",
+        "auth",
+        "dashboard"
+      ],
+      "conflict_detected": false,
+      "content": "Updated implementation plan, created technical docs for Secure Mode and Dashboard, and updated project walkthrough based on latest codebase changes."
+    },
     {
       "id": "90ab2152-f00b-47a9-92a0-7e47730385ea",
       "title": "Phase 14 audit-alignment execution pattern",
       "type": "document",
       "status": "active",
       "canonical_key": "document:phase-14-audit-alignment-execution-pattern",
-      "score": 0.086393446,
+      "score": 0.08587302,
       "tags": [
         "phase-14",
         "execution",
@@ -23,21 +54,22 @@
       "content": "Final planning-audit-alignment execution should stay metadata-only: mark all completed v1 requirements as checked, keep traceability pointing to closure phases 07-13, remove stale non-v1 IDs from Phase 1 summary metadata, delete stale HANDOFF/.continue-here artifacts, and add a short 14-VERIFICATION plus 14-01-SUMMARY. After phase complete, manually patch STATE/ROADMAP/PROJECT body text because phase-complete updates frontmatter more reliably than narrative sections."
     },
     {
-      "id": "ac29c93d-91fb-462f-a386-8e39a68c74a4",
-      "title": "Lifecycle commands synced to all agent layers",
+      "id": "ea7aeb7f-0664-498d-8688-36a671b29f18",
+      "title": "Mapped and implemented Minder Phase 2.x baseline",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:lifecycle-commands-synced-to-all-agent-layers",
-      "score": 0.086129025,
+      "canonical_key": "document:mapped-and-implemented-minder-phase-2-x-baseline",
+      "score": 0.08562499,
       "tags": [
-        "coder-cli",
-        "workflows",
-        "copilot",
-        "agent",
-        "lifecycle"
+        "minder",
+        "phase-2x",
+        "docs",
+        "graph",
+        "verification",
+        "tests"
       ],
       "conflict_detected": false,
-      "content": "Updated all 3 layers to include Group B lifecycle commands (new-project, map-codebase, discuss-phase, plan-phase, execute-phase, ship, progress, next, milestone) and Group C utilities (todo, stats, health, note, do). Files updated: .github/copilot-instructions.md (replaced AI Workflow Commands section with 3 groups A/B/C), .agents/workflows/full-lifecycle-delivery.md (added Lifecycle Path section with per-phase loop), .agents/workflows/execute-plan.md (added lifecycle path mode detection, coder debug on error, coder note for blockers), .agents/workflows/new-requirement.md (added scope detection: small feature vs new project with coder new-project, next steps branching), .agents/workflows/update-planning.md (added coder progress/next/health/milestone audit/note integration). All workflows now aware of both quick-path (PLAN.md) and lifecycle-path (STATE.md) modes."
+      "content": "Updated docs/TASK_BREAKDOWN.md with Phase 2.1 and Phase 2.2 sections plus P2.X-VERIFY to map current work after the minimal Phase 2 closure. Implemented the first practical Phase 2.x baseline in code: added transition_log/retry_count to graph state, richer edge/provider metadata, configurable retry attempts in minder_query, fallback/provider tracking in LLMNode, runtime metadata in Qwen/OpenAI LLM wrappers, real-contract Docker runner behavior with injectable test seam, richer workflow transition artifacts, and extra history/error recording for retries and failures. Added tests/integration/test_phase2x_gate.py and updated Phase 2 tests. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (69 passed)."
     },
     {
       "id": "3dfe3f04-6892-4020-83dd-be162cf0114d",
@@ -45,7 +77,7 @@
       "type": "document",
       "status": "active",
       "canonical_key": "document:implemented-minder-phase-2-agentic-pipeline",
-      "score": 0.08587302,
+      "score": 0.08538462,
       "tags": [
         "minder",
         "phase-2",
@@ -57,38 +89,6 @@
       ],
       "conflict_detected": false,
       "content": "Closed the repo's documented Phase 2 by adding a minimal end-to-end agentic pipeline: graph state, workflow planner, planning/retrieval/reasoning/LLM/guard/verification/evaluator nodes, graph assembly, local Qwen/OpenAI fallback interfaces, history/error stores, query tools, and docker sandbox stub. Added Phase 2 unit coverage plus tests/integration/test_phase2_gate.py covering reasoned responses with sources, TDD prompt injection, docker-mode verification, unsafe output blocking, workflow step advancement, and history/error recording. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (68 passed)."
-    },
-    {
-      "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
-      "title": "README + CLI docs + dashboard-plan cleanup",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
-      "score": 0.08562499,
-      "tags": [
-        "coder-cli",
-        "docs",
-        "readme",
-        "cleanup"
-      ],
-      "conflict_detected": false,
-      "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
-    },
-    {
-      "id": "99053e62-b1ca-4a70-98a3-e27b7b42ab20",
-      "title": "Artifact and Documentation Sync",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:artifact-and-documentation-sync",
-      "score": 0.08538462,
-      "tags": [
-        "docs",
-        "sync",
-        "auth",
-        "dashboard"
-      ],
-      "conflict_detected": false,
-      "content": "Updated implementation plan, created technical docs for Secure Mode and Dashboard, and updated project walkthrough based on latest codebase changes."
     }
   ]
 }

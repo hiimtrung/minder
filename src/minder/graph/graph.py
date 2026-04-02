@@ -3,6 +3,7 @@ from __future__ import annotations
 from time import perf_counter
 
 from minder.config import MinderConfig
+from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph.edges import determine_next_edge
 from minder.graph.nodes import (
     EvaluatorNode,
@@ -14,12 +15,15 @@ from minder.graph.nodes import (
     VerificationNode,
     WorkflowPlannerNode,
 )
+from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
 from minder.store.error import ErrorStore
 from minder.store.history import HistoryStore
 from minder.store.relational import RelationalStore
+from minder.store.vector import VectorStore
+from minder.store.document import DocumentStore
 
 
 class MinderGraph:
@@ -43,7 +47,19 @@ class MinderGraph:
         self._config = config
         self._workflow_planner = workflow_planner or WorkflowPlannerNode(store)
         self._planning = planning or PlanningNode()
-        self._retriever = retriever or RetrieverNode(top_k=config.retrieval.top_k)
+        document_store = DocumentStore(store)
+        vector_store = VectorStore(document_store, ErrorStore(store))
+        embedder = QwenEmbeddingProvider(
+            config.embedding.model_path,
+            dimensions=min(config.embedding.dimensions, 16),
+            runtime="auto",
+        )
+        self._retriever = retriever or RetrieverNode(
+            top_k=config.retrieval.top_k,
+            embedding_provider=embedder,
+            vector_store=vector_store,
+            score_threshold=config.retrieval.similarity_threshold,
+        )
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
             primary=QwenLocalLLM(config.llm.model_path),
@@ -61,9 +77,10 @@ class MinderGraph:
     async def run(self, state: GraphState) -> GraphState:
         max_attempts = int(state.metadata.get("max_attempts", 1))
         state.metadata.setdefault("attempt_failures", [])
+        state.metadata["orchestration_runtime"] = graph_runtime_name()
         state = await self._workflow_planner.run(state)
         state = self._planning.run(state)
-        state = self._retriever.run(state)
+        state = await self._retriever.run(state)
 
         attempt = 0
         while True:

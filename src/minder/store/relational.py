@@ -129,6 +129,32 @@ class RelationalStore:
             await sess.execute(delete(User).where(User.id == user_id))
 
     # ------------------------------------------------------------------
+    # Skill
+    # ------------------------------------------------------------------
+
+    async def create_skill(self, **kwargs) -> Skill:
+        async with self._session() as sess:
+            skill = Skill(**kwargs)
+            sess.add(skill)
+            await sess.flush()
+            await sess.refresh(skill)
+            return skill
+
+    async def get_skill_by_id(self, skill_id: uuid.UUID) -> Optional[Skill]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Skill).where(Skill.id == skill_id))
+            return result.scalar_one_or_none()
+
+    async def list_skills(self) -> List[Skill]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Skill))
+            return list(result.scalars().all())
+
+    async def delete_skill(self, skill_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            await sess.execute(delete(Skill).where(Skill.id == skill_id))
+
+    # ------------------------------------------------------------------
     # Session
     # ------------------------------------------------------------------
 

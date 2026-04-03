@@ -18,6 +18,7 @@ from typing import Tuple
 
 import jwt
 from passlib.context import CryptContext  # type: ignore[import-untyped]
+from passlib.exc import UnknownHashError  # type: ignore[import-untyped]
 
 from minder.config import MinderConfig
 from minder.models.user import User
@@ -146,7 +147,11 @@ class AuthService:
         """
         users = await self._store.list_users(active_only=False)
         for user in users:
-            if self._verify_secret(api_key, user.api_key_hash):
+            try:
+                matches = self._verify_secret(api_key, user.api_key_hash)
+            except UnknownHashError:
+                continue
+            if matches:
                 if not user.is_active:
                     raise AuthError("AUTH_USER_INACTIVE", "User account is inactive")
                 await self._store.update_user(user.id, last_login=datetime.now(UTC))

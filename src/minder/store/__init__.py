@@ -11,3 +11,6 @@ __all__ = [
     "RelationalStore",
     "VectorStore",
 ]
+from .repo_state import RepoStateStore
+
+__all__ = ["RepoStateStore"]

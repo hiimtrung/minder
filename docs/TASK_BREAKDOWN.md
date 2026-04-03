@@ -37,6 +37,36 @@
 > - **Runnable local flow today**: ingest repo -> run `minder_query` / `minder_search_code` / `minder_search_errors` -> optional workflow-aware reasoning -> verification contract -> history/error persistence.
 > - **Not yet runnable as originally specified for Phase 1**: authenticated MCP server over SSE/stdio with deployment stack and CI/release automation.
 
+### Phase 1 Progress Tracker
+
+Use this table as the working control board for Phase 1. Update `Status`, `Wave`, `Blocker`, and `Last update` after every implementation wave.
+
+| Task | Owner | Wave | Status | Blocker | Last update |
+|---|---|---|---|---|---|
+| `P1-T01` Project Initialization | `PE` | `done` | `DONE` | `-` | `Python 3.14 baseline verified` |
+| `P1-T02` Configuration System | `PE` | `done` | `DONE` | `-` | `Config tests passing` |
+| `P1-T03` Data Models | `BE` | `done` | `DONE` | `-` | `Model coverage in place` |
+| `P1-T04` Relational Store (SQLite) | `BE` | `done` | `DONE` | `-` | `CRUD and tests in place` |
+| `P1-T05` Auth Layer | `BE` | `done` | `DONE` | `-` | `JWT/RBAC/API key flow implemented` |
+| `P1-T06` SSE Transport | `1` | `PARTIAL` | `Actual SSE server lifecycle/network listener still missing` | `Wave 1 transport facade + tests committed` |
+| `P1-T07` Stdio Transport | `1` | `PARTIAL` | `Real stdio server lifecycle still missing` | `Wave 1 transport facade + tests committed` |
+| `P1-T08` Auth Middleware for SSE | `1` | `PARTIAL` | `Not yet bound to real SSE connection/session lifecycle` | `Dispatch-path auth integration completed` |
+| `P1-T09` Embedding Layer (Qwen GGUF) | `backlog` | `PARTIAL` | `Model provisioning/runtime environment not closed` | `Optional llama_cpp path exists` |
+| `P1-T10` Embedding Fallback (OpenAI) | `done` | `DONE` | `-` | `Fallback provider exists` |
+| `P1-T11` Vector Store (Milvus Lite) | `backlog` | `PARTIAL` | `Real Milvus Lite deployment path not packaged` | `Vector substrate exists` |
+| `P1-T12` Repository-Local State Management | `2` | `DONE` | `-` | `Wave 2 repo-state store + integration test completed` |
+| `P1-T13` Workflow Engine (Basic) | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Workflow tool module + repo-state persistence completed` |
+| `P1-T14` Memory & Search Tools (Basic) | `2` | `DONE` | `-` | `Memory/search modules + integration test completed` |
+| `P1-T15` Auth MCP Tools | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Auth tool module contract completed` |
+| `P1-T16` Session Tools | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Session tool module contract completed` |
+| `P1-T17` Skill Seeding | `3` | `NOT STARTED` | `Script missing` | `Planned after tool surface` |
+| `P1-T18` Model Download Script | `3` | `NOT STARTED` | `Script missing` | `Planned after tool surface` |
+| `P1-T19` Docker Development Stack | `3` | `PARTIAL` | `docker/Dockerfile and docker-compose.dev.yml missing` | `Sandbox image only` |
+| `P1-T20` GitHub Actions CI | `3` | `NOT STARTED` | `.github/workflows/ci.yml missing` | `Planned with deployment assets` |
+| `P1-T21` GitHub Actions Release | `3` | `NOT STARTED` | `.github/workflows/release.yml missing` | `Planned with deployment assets` |
+| `P1-T22` Admin Creation Script | `3` | `NOT STARTED` | `Script missing` | `Planned with bootstrap scripts` |
+| `P1-VERIFY` Phase 1 Acceptance Test | `4` | `NOT STARTED` | `Depends on Waves 1-3` | `Gate added after implementation` |
+
 ### Phase 1 Status Map
 
 | Task | Status | Notes |
@@ -52,11 +82,11 @@
 | `P1-T09` Embedding Layer (Qwen GGUF) | `PARTIAL` | Interface and optional `llama_cpp` runtime path exist; production model provisioning is not bundled yet. |
 | `P1-T10` Embedding Fallback (OpenAI) | `DONE` | OpenAI fallback provider exists in [`src/minder/embedding/openai.py`](/Users/trungtran/ai-agents/minder/src/minder/embedding/openai.py). |
 | `P1-T11` Vector Store (Milvus Lite) | `PARTIAL` | Vector search substrate exists in [`src/minder/store/vector.py`](/Users/trungtran/ai-agents/minder/src/minder/store/vector.py), but repo does not yet ship a real Milvus Lite deployment path. |
-| `P1-T12` Repository-Local State Management | `NOT STARTED` | `src/minder/store/repo_state.py` and `.minder/` state persistence are still missing. |
-| `P1-T13` Workflow Engine (Basic) | `PARTIAL` | Workflow state exists in relational models and graph orchestration, but `src/minder/tools/workflow.py` MCP tool surface is still missing. |
-| `P1-T14` Memory & Search Tools (Basic) | `PARTIAL` | Search/query capabilities exist, but dedicated `memory.py` and `search.py` tool modules from the original spec are missing. |
-| `P1-T15` Auth MCP Tools | `NOT STARTED` | `src/minder/tools/auth.py` does not exist yet. |
-| `P1-T16` Session Tools | `NOT STARTED` | `src/minder/tools/session.py` does not exist yet. |
+| `P1-T12` Repository-Local State Management | `DONE` | [`src/minder/store/repo_state.py`](/Users/trungtran/ai-agents/minder/src/minder/store/repo_state.py) now persists `.minder/workflow.json`, `context.json`, `relationships.json`, and `artifacts/` with round-trip integration coverage. |
+| `P1-T13` Workflow Engine (Basic) | `PARTIAL` | [`src/minder/tools/workflow.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/workflow.py) now provides workflow get/step/update/guard with DB + repo-state persistence, but full MCP transport exposure is still pending. |
+| `P1-T14` Memory & Search Tools (Basic) | `DONE` | [`src/minder/tools/memory.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/memory.py) and [`src/minder/tools/search.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/search.py) now exist with semantic recall/list/delete flow and integration coverage. |
+| `P1-T15` Auth MCP Tools | `PARTIAL` | [`src/minder/tools/auth.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/auth.py) now provides login/whoami/manage module contracts, but transport registration as MCP tools is still pending. |
+| `P1-T16` Session Tools | `PARTIAL` | [`src/minder/tools/session.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/session.py) now provides create/save/restore/context module contracts, but transport registration as MCP tools is still pending. |
 | `P1-T17` Skill Seeding | `NOT STARTED` | `scripts/seed_skills.py` does not exist yet. |
 | `P1-T18` Model Download Script | `NOT STARTED` | `scripts/download_models.sh` does not exist yet. |
 | `P1-T19` Docker Development Stack | `PARTIAL` | [`docker/Dockerfile.sandbox`](/Users/trungtran/ai-agents/minder/docker/Dockerfile.sandbox) exists for verification, but `docker/Dockerfile` and `docker/docker-compose.dev.yml` are missing. |

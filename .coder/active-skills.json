@@ -1,38 +1,38 @@
 {
-  "task": "mypy type errors",
+  "task": "minder setup and run",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-03T11:34:00.387659+07:00",
+  "resolved_at": "2026-04-03T11:42:36.163217+07:00",
   "keep": [],
   "add": [
-    "lint-and-validate",
-    "telegram",
-    "cc-skill-project-guidelines-example"
+    "observability-monitoring-monitor-setup",
+    "documentation-templates",
+    "azure-ai-voicelive-ts"
   ],
   "drop": [
-    "context-agent",
-    "cred-omega",
-    "context-manager"
+    "devcontainer-setup",
+    "blockrun",
+    "whatsapp-cloud-api"
   ],
   "skills": [
     {
-      "name": "lint-and-validate",
+      "name": "observability-monitoring-monitor-setup",
       "category": "general",
       "score": 0.016393442,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "telegram",
+      "name": "documentation-templates",
       "category": "general",
-      "score": 0.016393442,
-      "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "cc-skill-project-guidelines-example",
-      "category": "frontend",
       "score": 0.016129032,
+      "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "azure-ai-voicelive-ts",
+      "category": "general",
+      "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

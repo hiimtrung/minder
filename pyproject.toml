@@ -3,7 +3,7 @@ name = "minder"
 version = "0.1.0"
 description = "Minder is an AI MCP server for manage your LLM flow development and memory of AI agent."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
     "aiosqlite>=0.21.0",
     "mcp>=1.26.0",

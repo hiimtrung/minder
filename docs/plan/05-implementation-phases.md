@@ -4,7 +4,7 @@
 
 | Component          | Technology                                         | Reason                                         |
 | ------------------ | -------------------------------------------------- | ---------------------------------------------- |
-| Language           | Python 3.12+                                       | Native fit for LangGraph and ML tooling        |
+| Language           | Python 3.14+                                       | Native fit for LangGraph and ML tooling        |
 | MCP SDK            | Official Python `mcp` SDK                          | MCP protocol support                           |
 | Orchestrator       | LangGraph                                          | Graph-based agentic workflow engine            |
 | Vector DB          | Milvus Lite to Milvus Standalone                   | Lightweight start with scale path              |

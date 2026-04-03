@@ -178,7 +178,7 @@ Runs on every pull request and push to main.
 
 ```yaml
 1. Checkout
-2. Setup Python 3.12 and uv
+2. Setup Python 3.14 and uv
 3. Install dependencies
 4. Ruff lint and format check
 5. Type check

@@ -24,7 +24,7 @@
 
 #### P1-T01: Project Initialization
 - **Owner**: `PE`
-- **Requirement**: Initialize Python 3.12+ project with `uv`, configure `ruff` (lint + format), `mypy` (type check), `pytest`. Create `pyproject.toml`, directory structure per `06-operations-and-delivery.md`.
+- **Requirement**: Initialize Python 3.14+ project with `uv`, configure `ruff` (lint + format), `mypy` (type check), `pytest`. Create `pyproject.toml`, directory structure per `06-operations-and-delivery.md`.
 - **Result**: Running `uv sync`, `ruff check .`, `mypy src/`, and `pytest` all pass on an empty project. Directory structure matches spec.
 
 #### P1-T02: Configuration System
@@ -119,7 +119,7 @@
 
 #### P1-T20: GitHub Actions CI
 - **Owner**: `PE`
-- **Requirement**: Create `.github/workflows/ci.yml` — checkout, setup Python 3.12 + uv, install deps, ruff lint, mypy, unit tests, integration tests, coverage report, Docker build verification.
+- **Requirement**: Create `.github/workflows/ci.yml` — checkout, setup Python 3.14 + uv, install deps, ruff lint, mypy, unit tests, integration tests, coverage report, Docker build verification.
 - **Result**: CI runs on PR and push to main. All steps pass. Coverage report generated.
 
 #### P1-T21: GitHub Actions Release

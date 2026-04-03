@@ -1,40 +1,40 @@
 {
-  "updated_at": "2026-04-03T11:34:01.823931+07:00",
+  "updated_at": "2026-04-03T11:42:37.203881+07:00",
   "skills": {
-    "task": "mypy type errors",
+    "task": "minder setup and run",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-03T11:34:00.387659+07:00",
+    "resolved_at": "2026-04-03T11:42:36.163217+07:00",
     "keep": [],
     "add": [
-      "lint-and-validate",
-      "telegram",
-      "cc-skill-project-guidelines-example"
+      "observability-monitoring-monitor-setup",
+      "documentation-templates",
+      "azure-ai-voicelive-ts"
     ],
     "drop": [
-      "context-agent",
-      "cred-omega",
-      "context-manager"
+      "devcontainer-setup",
+      "blockrun",
+      "whatsapp-cloud-api"
     ],
     "skills": [
       {
-        "name": "lint-and-validate",
+        "name": "observability-monitoring-monitor-setup",
         "category": "general",
         "score": 0.016393442,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "telegram",
+        "name": "documentation-templates",
         "category": "general",
-        "score": 0.016393442,
-        "chunk_count": 1,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "cc-skill-project-guidelines-example",
-        "category": "frontend",
         "score": 0.016129032,
+        "chunk_count": 1,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "azure-ai-voicelive-ts",
+        "category": "general",
+        "score": 0.015873017,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
@@ -42,93 +42,96 @@
   },
   "memory": {
     "mode": "search",
-    "query": "verification node typing",
+    "query": "run application instructions",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-03T11:34:01.822175+07:00",
+    "searched_at": "2026-04-03T11:42:37.2034+07:00",
     "results": [
       {
-        "id": "2859f47f-59bc-4198-b4ca-1bc1702a9221",
-        "title": "Zalo step key semantics cleaned for 5-step flow",
+        "id": "480bcc8b-5999-45dc-83f1-24374fe8d109",
+        "title": "Phase 1 - Tasks 01 to 03 Implementation",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:zalo-step-key-semantics-cleaned-for-5-step-flow",
+        "canonical_key": "document:phase-1-tasks-01-to-03-implementation",
         "score": 0.086393446,
         "tags": [
-          "findtourgoUI",
-          "zalo",
-          "i18n",
-          "refactor",
-          "step-flow"
+          "phase1",
+          "config",
+          "models"
         ],
         "conflict_detected": false,
-        "content": "Refactored Zalo i18n step keys to match the actual 5-step flow instead of only changing display text. Domain verification now uses step4Title/Description/Line1-3/RetryNote, webhook setup now uses step5Title/Description/Line1-4/ErrorNote, and the old Zalo step4 generate-webhook keys plus step6 webhook keys were removed from locales. Updated StepDomainVerification and StepEnableWebhook to use the new keys across en/vi/ja/zh/id."
+        "content": "Completed initialization with uv, Pydantic configuration, and SQLAlchemy models for User, Skill, Session, Workflow, Repository, History, Error, Document, Rule, Feedback. Set up pytest tests."
       },
       {
-        "id": "f2c887f2-c96c-41da-afe8-129463dcf8b4",
-        "title": "Frontend ConnectedApp-first migration complete (findtourgoUI)",
+        "id": "50d3e869-5306-4195-b7f2-f820e7847b2e",
+        "title": "Phase 9-17 CLI Commands Implemented",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:frontend-connectedapp-first-migration-complete-findtourgoui",
+        "canonical_key": "document:phase-9-17-cli-commands-implemented",
         "score": 0.086129025,
         "tags": [
-          "findtourgoUI",
-          "channels",
-          "connected-app",
-          "migration",
-          "frontend"
+          "coder-cli",
+          "phases",
+          "lifecycle",
+          "implementation"
         ],
         "conflict_detected": false,
-        "content": "nectedAppEntity[]; (7) All channel wizards (Facebook, WhatsApp, Line, Zalo, Inquiry, Email, LiveChat): use primaryChannel?.externalId, primaryChannel?.metadata, appDetails.verifyToken instead of flat channelDetails; (8) URL param channelId now holds connected_app.id in edit mode; (9) POST createChannel returns ConnectChannelResponseModel = {webhookUrl?, verifyToken?, channels[]}; (10) TypeScript compilation passes with zero errors after all changes."
+        "content": "h/runNote/runDo - project utilities). All commands registered in main.go. go build + go vet both pass clean. STATE.md format: frontmatter fields + ## Decisions/Blockers/Backlog/PRs sections. XML plan format: \u003cplan id name phase\u003e\u003cobjective\u003e\u003cfiles\u003e\u003ctasks\u003e\u003ctask type name\u003e\u003caction\u003e\u003cverify\u003e\u003cdone\u003e. Wave-based execution groups plans by dependencies. Pattern: loadState()/saveState() for all STATE.md mutations."
       },
       {
-        "id": "7ecf5a90-848d-4f06-ba32-453a5eb4bc21",
-        "title": "ConnectChannelUseCase refactor — phân tách private methods",
+        "id": "a6d00cbc-cd8d-4cbe-b95c-6067549efbf7",
+        "title": "coder CLI — state.go + cmd_new_project.go + cmd_map_codebase.go (Phases 9 \u0026 10)",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:connectchannelusecase-refactor-ph-n-t-ch-private-methods",
-        "score": 0.08587302,
-        "tags": [
-          "omi-channel-be",
-          "channels",
-          "refactor",
-          "connect-channel"
-        ],
-        "conflict_detected": false,
-        "content": "Refactored ConnectChannelUseCase thành 8 private methods rõ ràng: assertSupportedChannelType, prepareCredentials (tách prepareInquiryCredentials vs prepareStandardCredentials), assertNoDuplicateChannel, resolveAndValidateCredentials, verifyWithProvider, buildChannelEntity, persistChannel, publishEvents. Dùng Set constants NO_WEBHOOK_CHANNEL_TYPES và SKIP_EXTERNAL_VALIDATION_TYPES thay boolean flags rải rác. Import ChannelMetadata cho đúng type trong buildChannelEntity. execute() giờ chỉ còn 9 dòng điều phối. File: src/modules/channels/application/use-cases/connect-channel.use-case.ts"
-      },
-      {
-        "id": "706815de-3a4c-4b1a-aba2-4abf9a7a77ca",
-        "title": "InboxSidebarProvider readability refactor",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:inboxsidebarprovider-readability-refactor",
+        "canonical_key": "document:coder-cli-state-go-cmd-new-project-go-cmd-map-codebase-go-phases-9-10",
         "score": 0.08562499,
         "tags": [
-          "findtourgo",
-          "inboxes",
-          "readability"
+          "coder",
+          "cli",
+          "golang",
+          "new-project",
+          "map-codebase",
+          "state",
+          "phase-9",
+          "phase-10"
         ],
         "conflict_detected": false,
-        "content": "Extracted helper functions and centralized repeated queue/upsert logic in InboxSidebarProvider for better readability with unchanged behavior."
+        "content": "Implemented three new files for the coder CLI (cmd/coder/). state.go: shared ProjectState struct (project, current_phase, step, decisions, blockers, backlog, PRs map), RoadmapPhase, coderPath(), loadState(), saveState(), loadRoadmap(), phaseDir(), ensurePhaseDir(), projectExists(). All .coder/ paths route through coderPath(). cmd_new_project.go: runNewProject() — flags: --auto, --prd, --resume. Guards against re-init via projectExists(). Interactive deep Q\u0026A via ChatStream loop (bufio.Scanner, blank×2 or 'done' to exit). Generates REQUIREMENTS.md then ROADMAP.md via streaming LLM, with [Y/n/edit] approval gates. Writes PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md (phase=1, step=discuss). Uses getChatClient(cfg) pattern. cmd_map_codebase.go: runMapCodebase() — flag: --refresh, positional area arg. Four sequential ChatStream focus passes (tech→STACK.md, arch→ARCHITECTURE.md, quality→CONVENTIONS.md, concerns→CONCERNS.md) written to .coder/codebase/."
       },
       {
-        "id": "d5777aca-38e3-46b7-86e1-a7de5e17a4f4",
-        "title": "Facebook webhook GET verification pattern",
+        "id": "3e02ae2c-94d0-4202-8237-55960502806e",
+        "title": "WhatsApp setup guide 6-step i18n rollout",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:facebook-webhook-get-verification-pattern",
+        "canonical_key": "document:whatsapp-setup-guide-6-step-i18n-rollout",
         "score": 0.08538462,
         "tags": [
-          "omni-channel-api",
-          "facebook",
-          "webhook",
-          "verification",
-          "nestjs"
+          "findtourgoUI",
+          "whatsapp",
+          "i18n",
+          "connect-wizard"
         ],
         "conflict_detected": false,
-        "content": "Implemented Messenger Verification Requests flow only: parse hub.mode, hub.verify_token, hub.challenge in FacebookWebhookController GET and delegate to VerifyFacebookWebhookUseCase. Use case validates mode=subscribe, channel type FACEBOOK, verify token via WebhookValidatorService, returns plain challenge string. Registered controller and use case in webhooks.module.ts. Kept changes scoped to verification flow only."
+        "content": "Rebuilt StepConfigureChannel to use new guideStep keys matching 6-step template with case split and verify+save webhook instruction; added guideStep keys in en/vi/id/ja/zh locales; validated with yarn lint (next lint + tsc)."
+      },
+      {
+        "id": "e60b3393-5f0a-4155-965b-90a0d75ee786",
+        "title": "Refactor config loading to config.go in truyentt",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:refactor-config-loading-to-config-go-in-truyentt",
+        "score": 0.08515151,
+        "tags": [
+          "truyentt",
+          "golang",
+          "config",
+          "refactor",
+          "mysql",
+          "gorm"
+        ],
+        "conflict_detected": false,
+        "content": "Centralized environment loading in config/config.go with Configuration struct containing Server and MySQL sections. Added LoadConfigFromEnv, env parsing helpers, and server port normalization. Simplified config/mysql.go to only connection creation. Updated main.go to load unified config and run Gin using appConfig.Server.Port. Verified with go fmt and go test ./...."
       }
     ]
   }

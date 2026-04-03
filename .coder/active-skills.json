@@ -1,36 +1,37 @@
 {
-  "task": "fix langgraph pydantic v1 warning on python 3.14",
+  "task": "update architecture plan for milvus standalone mongodb redis docker compose",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-03T15:33:25.238777+07:00",
-  "keep": [
-    "langgraph",
-    "llm-application-dev-langchain-agent"
-  ],
+  "resolved_at": "2026-04-03T15:58:34.975666+07:00",
+  "keep": [],
   "add": [
-    "clarity-gate"
+    "azure-cosmos-db-py",
+    "devops-deploy",
+    "comfyui-gateway"
   ],
   "drop": [
-    "voice-ai-development"
+    "langgraph",
+    "llm-application-dev-langchain-agent",
+    "clarity-gate"
   ],
   "skills": [
     {
-      "name": "langgraph",
-      "category": "frontend",
+      "name": "azure-cosmos-db-py",
+      "category": "backend",
       "score": 0.016393442,
-      "chunk_count": 2,
-      "reason": "kept active: still relevant after re-resolve"
+      "chunk_count": 5,
+      "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "llm-application-dev-langchain-agent",
-      "category": "general",
+      "name": "devops-deploy",
+      "category": "backend",
       "score": 0.016129032,
-      "chunk_count": 3,
-      "reason": "kept active: still relevant after re-resolve"
+      "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "clarity-gate",
-      "category": "general",
+      "name": "comfyui-gateway",
+      "category": "backend",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

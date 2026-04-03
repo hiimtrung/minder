@@ -14,11 +14,25 @@
 | **ML/RAG Engineer** | `ML` | Embedding, LLM integration, LangGraph pipeline, retrieval, reranking, learning |
 | **Frontend/DevOps Engineer** | `FE` | Dashboard (backend + frontend), observability, monitoring, load testing |
 
+## Architecture Direction Update — 2026-04-03
+
+The project target runtime stack is now:
+
+- **MongoDB** as the primary operational/document store, replacing the current SQLite-backed relational store.
+- **Redis** as the runtime cache/session/coordination layer, delivered as a Docker image in local and deployment environments.
+- **Milvus Standalone** as the vector database, replacing the previous Milvus Lite/local-file assumption.
+- **Docker Compose** as the baseline deployment shape for local development and single-node environments, with explicit upgrade seams toward multi-service and clustered deployment later.
+
+This means the current codebase should be read as:
+
+- **Implemented baseline**: SQLite-backed operational store, local vector substrate, and Docker/dev-server scaffolding.
+- **Target architecture before Phase 3 sign-off**: MongoDB + Redis + Milvus Standalone all running through Docker Compose, with config and repository abstractions shaped so Milvus can later be promoted to cluster/distributed mode without rewriting the application layer.
+
 ---
 
 ## Phase 1 — Foundation: MCP Server, Auth, Search, CI/CD
 
-**Goal**: Deliver a working SSE-first MCP server with auth, repo-local state, basic search, and CI/CD.
+**Goal**: Deliver a working SSE-first MCP server with auth, repo-local state, containerized stateful services, basic search, and CI/CD.
 
 **Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
@@ -29,15 +43,18 @@
 > Phase 1 is **not closed yet**. The repository currently has the data/config/auth foundation and a usable local query pipeline, but several original Phase 1 deliverables are still missing or only partially implemented, especially:
 > - MCP transport layer (`SSE`, `stdio`)
 > - repo-local `.minder/` state store
+> - migration from SQLite-backed operational persistence to MongoDB
+> - Redis runtime layer for cache/session/coordination
+> - migration from local vector substrate / Milvus Lite assumption to Milvus Standalone
 > - standalone workflow/memory/auth/session MCP tool surface
 > - deployment automation (`docker/Dockerfile`, `docker-compose.dev.yml`)
 > - CI/CD and release workflows under `.github/workflows/`
 > - bootstrap scripts such as `seed_skills.py`, `download_models.sh`, `create_admin.py`
 >
 > The codebase should currently be read as:
-> - **Implemented foundation**: config, models, relational store, auth service/RBAC, embedding providers, vector/document/history/error stores, graph pipeline, query/search/ingest tools, Docker sandbox contract.
+> - **Implemented foundation**: config, models, SQLite-backed store, auth service/RBAC, embedding providers, vector/document/history/error stores, graph pipeline, query/search/ingest tools, Docker sandbox contract.
 > - **Runnable local flow today**: ingest repo -> run `minder_query` / `minder_search_code` / `minder_search_errors` -> optional workflow-aware reasoning -> verification contract -> history/error persistence.
-> - **Not yet runnable as originally specified for Phase 1**: authenticated MCP server over SSE/stdio with deployment stack and CI/release automation.
+> - **Not yet runnable as now targeted for Phase 1 sign-off**: authenticated MCP server over SSE/stdio with MongoDB + Redis + Milvus Standalone running in Docker Compose and verified CI/release automation.
 
 ### Phase 1 Status Map
 
@@ -46,14 +63,16 @@
 | `P1-T01` Project Initialization | `DONE` | `uv`, `ruff`, `mypy`, `pytest`, project layout, Python 3.14 baseline are in place. |
 | `P1-T02` Configuration System | `DONE` | [`src/minder/config.py`](/Users/trungtran/ai-agents/minder/src/minder/config.py) exists with tested settings sections. |
 | `P1-T03` Data Models | `DONE` | Core SQLAlchemy/Pydantic models are present under [`src/minder/models/`](/Users/trungtran/ai-agents/minder/src/minder/models). |
-| `P1-T04` Relational Store (SQLite) | `DONE` | Async relational store exists in [`src/minder/store/relational.py`](/Users/trungtran/ai-agents/minder/src/minder/store/relational.py). |
+| `P1-T04` Primary Operational Store (MongoDB) | `PARTIAL` | Current baseline is still SQLite in [`src/minder/store/relational.py`](/Users/trungtran/ai-agents/minder/src/minder/store/relational.py); target has changed to MongoDB-backed repositories. |
+| `P1-T04A` MongoDB Repository Migration | `NOT STARTED` | Need repository adapters, persistence models, indexes, and migration path from current SQLite dev data. |
 | `P1-T05` Auth Layer | `DONE` | Auth service, JWT helpers, API key hashing, and RBAC are implemented under [`src/minder/auth/`](/Users/trungtran/ai-agents/minder/src/minder/auth). |
 | `P1-T06` SSE Transport | `PARTIAL` | [`src/minder/transport/sse.py`](/Users/trungtran/ai-agents/minder/src/minder/transport/sse.py) now exists with transport facade, tool registration, dispatch, and integration tests; network listener wiring is still pending. |
 | `P1-T07` Stdio Transport | `PARTIAL` | [`src/minder/transport/stdio.py`](/Users/trungtran/ai-agents/minder/src/minder/transport/stdio.py) now exists with the same dispatch contract as SSE; real stdio server lifecycle wiring is still pending. |
 | `P1-T08` Auth Middleware for SSE | `PARTIAL` | [`src/minder/auth/middleware.py`](/Users/trungtran/ai-agents/minder/src/minder/auth/middleware.py) is now integrated into the transport dispatch path and covered by transport tests, but not yet bound to an actual SSE server connection lifecycle. |
 | `P1-T09` Embedding Layer (Qwen GGUF) | `PARTIAL` | Interface and optional `llama_cpp` runtime path exist; production model provisioning is not bundled yet. |
 | `P1-T10` Embedding Fallback (OpenAI) | `DONE` | OpenAI fallback provider exists in [`src/minder/embedding/openai.py`](/Users/trungtran/ai-agents/minder/src/minder/embedding/openai.py). |
-| `P1-T11` Vector Store (Milvus Lite) | `PARTIAL` | Vector search substrate exists in [`src/minder/store/vector.py`](/Users/trungtran/ai-agents/minder/src/minder/store/vector.py), but repo does not yet ship a real Milvus Lite deployment path. |
+| `P1-T11` Vector Store (Milvus Standalone) | `PARTIAL` | Vector search substrate exists in [`src/minder/store/vector.py`](/Users/trungtran/ai-agents/minder/src/minder/store/vector.py), but deployment target is now Milvus Standalone rather than Milvus Lite. |
+| `P1-T11A` Redis Runtime Layer | `NOT STARTED` | Need Redis-backed cache/session/coordination layer plus config and Docker Compose wiring. |
 | `P1-T12` Repository-Local State Management | `DONE` | [`src/minder/store/repo_state.py`](/Users/trungtran/ai-agents/minder/src/minder/store/repo_state.py) now persists `.minder/workflow.json`, `context.json`, `relationships.json`, and `artifacts/` with round-trip integration coverage. |
 | `P1-T13` Workflow Engine (Basic) | `PARTIAL` | [`src/minder/tools/workflow.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/workflow.py) now provides workflow get/step/update/guard and is registered through [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
 | `P1-T14` Memory & Search Tools (Basic) | `DONE` | [`src/minder/tools/memory.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/memory.py) and [`src/minder/tools/search.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/search.py) now exist with semantic recall/list/delete flow and integration coverage. |
@@ -61,7 +80,7 @@
 | `P1-T16` Session Tools | `PARTIAL` | [`src/minder/tools/session.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/session.py) now provides create/save/restore/context and is registered through [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
 | `P1-T17` Skill Seeding | `PARTIAL` | [`scripts/seed_skills.py`](/Users/trungtran/ai-agents/minder/scripts/seed_skills.py) now imports local skill directories with idempotence coverage; real remote clone path is implemented but not yet exercised in tests. |
 | `P1-T18` Model Download Script | `PARTIAL` | [`scripts/download_models.sh`](/Users/trungtran/ai-agents/minder/scripts/download_models.sh) now exists with skip/checksum contract, but has not yet been executed in verification. |
-| `P1-T19` Docker Development Stack | `PARTIAL` | [`docker/Dockerfile`](/Users/trungtran/ai-agents/minder/docker/Dockerfile) and [`docker/docker-compose.dev.yml`](/Users/trungtran/ai-agents/minder/docker/docker-compose.dev.yml) now exist and point to [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but `docker compose up` has not been exercised yet. |
+| `P1-T19` Docker Development Stack | `PARTIAL` | Current Compose stack only runs the app container; target now requires app + MongoDB + Redis + Milvus Standalone + supporting dependencies. |
 | `P1-T20` GitHub Actions CI | `PARTIAL` | [`ci.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/ci.yml) now exists with uv/lint/type/test/docker steps, but has not yet run on GitHub. |
 | `P1-T21` GitHub Actions Release | `PARTIAL` | [`release.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/release.yml) now exists for tag-based ghcr release, but has not yet run on a real tag. |
 | `P1-T22` Admin Creation Script | `DONE` | [`scripts/create_admin.py`](/Users/trungtran/ai-agents/minder/scripts/create_admin.py) now exists with idempotent creation contract and integration coverage. |
@@ -79,17 +98,28 @@ The repository currently supports this **local development flow**, which is broa
 6. Run verification through subprocess or Docker contract in [`src/minder/graph/nodes/verification.py`](/Users/trungtran/ai-agents/minder/src/minder/graph/nodes/verification.py).
 7. Inspect and smoke-test the end-to-end local flow using [`scripts/phase2_manual_smoke.py`](/Users/trungtran/ai-agents/minder/scripts/phase2_manual_smoke.py).
 
+The **target runtime flow before Phase 3** is:
+
+1. `docker compose -f docker/docker-compose.dev.yml up` starts Minder, MongoDB, Redis, and Milvus Standalone together.
+2. Minder connects to MongoDB for user/session/workflow/history/error/document metadata.
+3. Minder connects to Redis for cache/session/runtime coordination concerns.
+4. Minder connects to Milvus Standalone for vector insert/search on skills, documents, and errors.
+5. The same application-layer tools and graph pipeline run on top of those containerized backends.
+
 ### Phase 1 Closure Work Still Needed
 
 Before Phase 1 can be considered closed against the original spec, the remaining work is:
 
 1. Build real MCP transports for `SSE` and `stdio`.
-2. Expose workflow, memory, auth, and session MCP tools as standalone tool modules.
-3. Add repo-local `.minder/` state persistence.
-4. Add bootstrap scripts for admin creation, skill seeding, and model download.
-5. Add development deployment assets: `docker/Dockerfile` and `docker/docker-compose.dev.yml`.
-6. Add CI and release workflows under `.github/workflows/`.
-7. Add and pass `tests/integration/test_phase1_gate.py`.
+2. Replace the SQLite operational store with MongoDB-backed repositories.
+3. Add Redis as a runtime service for cache/session/coordination.
+4. Replace Milvus Lite/local assumptions with Milvus Standalone packaging and config.
+5. Expose workflow, memory, auth, and session MCP tools as standalone tool modules.
+6. Add repo-local `.minder/` state persistence.
+7. Add bootstrap scripts for admin creation, skill seeding, and model download.
+8. Expand development deployment assets so Docker Compose runs all stateful services.
+9. Add CI and release workflows under `.github/workflows/`.
+10. Add and pass `tests/integration/test_phase1_gate.py` against the new runtime shape.
 
 ### Tasks
 
@@ -108,10 +138,15 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 - **Requirement**: Implement all Pydantic/SQLAlchemy models in `src/minder/models/` — User, Skill, Session, Workflow, Repository, RepositoryWorkflowState, History, Error, Document, Rule, Feedback, Metadata. Follow schemas from `03-data-model-and-tools.md`.
 - **Result**: All models instantiate correctly, fields match spec, serialization/deserialization works. Unit tests validate all field types and constraints.
 
-#### P1-T04: Relational Store (SQLite)
+#### P1-T04: Primary Operational Store (MongoDB)
 - **Owner**: `BE`
-- **Requirement**: Implement `src/minder/store/relational.py` with SQLite backend. CRUD operations for User, Session, Workflow, Repository, and RepositoryWorkflowState. Use async SQLAlchemy.
-- **Result**: All CRUD operations work. Data persists across restarts. Unit tests cover create, read, update, delete, and query by filters.
+- **Requirement**: Replace the SQLite-backed operational persistence path with MongoDB-backed repositories for User, Session, Workflow, Repository, RepositoryWorkflowState, History, Error, and Document metadata. Preserve the existing application/tool contracts while changing the infrastructure layer.
+- **Result**: Operational data persists in MongoDB. CRUD and query flows work through repository adapters. Existing application-layer tests remain green with Mongo-backed implementations.
+
+#### P1-T04A: MongoDB Repository Migration
+- **Owner**: `BE` + `PE`
+- **Requirement**: Add MongoDB models, indexes, config, bootstrap wiring, and a migration/backfill path from the current SQLite development dataset. Ensure Docker Compose includes a MongoDB service and app startup waits for it correctly.
+- **Result**: The dev stack boots with MongoDB, repositories initialize cleanly, and migration/backfill tooling exists for local environments.
 
 #### P1-T05: Auth Layer — User, API Keys, JWT, RBAC
 - **Owner**: `BE`
@@ -143,10 +178,15 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 - **Requirement**: Implement `src/minder/embedding/openai.py` — OpenAI `text-embedding-3-small` as optional fallback. Same interface as Qwen embedder. Auto-fallback when local model fails and OpenAI key is configured.
 - **Result**: When Qwen unavailable and API key set, OpenAI embeddings are used transparently. Unit test validates fallback logic.
 
-#### P1-T11: Vector Store (Milvus Lite)
+#### P1-T11: Vector Store (Milvus Standalone)
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/store/vector.py` — Milvus Lite integration. Collections for skills, documents, errors. Insert, search by vector, delete. Score threshold filtering.
-- **Result**: Vectors insert and search correctly. Top-K results return with scores. Threshold filtering works. Unit tests cover insert, search, delete, and filtering.
+- **Requirement**: Replace the Milvus Lite/local-file assumption with Milvus Standalone integration. Collections for skills, documents, and errors must connect to a containerized Milvus service configured through app settings and Docker Compose.
+- **Result**: Vectors insert and search correctly against Milvus Standalone. Top-K results return with scores. Threshold filtering works. Unit and integration tests cover insert, search, delete, and filtering.
+
+#### P1-T11A: Redis Runtime Layer
+- **Owner**: `BE` + `PE`
+- **Requirement**: Add Redis-backed runtime capabilities for cache/session/coordination concerns. Define what state is authoritative in MongoDB vs cached in Redis, wire config and health checks, and run Redis as a Compose-managed image.
+- **Result**: Redis is part of the dev stack, the app can read/write its runtime cache/session layer, and cache failure modes are explicit and testable.
 
 #### P1-T12: Repository-Local State Management
 - **Owner**: `BE`
@@ -175,7 +215,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 #### P1-T17: Skill Seeding
 - **Owner**: `PE`
-- **Requirement**: Implement `scripts/seed_skills.py` — clone external GitHub repo, parse skills from configured path, import into Milvus Lite with embeddings.
+- **Requirement**: Implement `scripts/seed_skills.py` — clone external GitHub repo, parse skills from configured path, and import embeddings into Milvus Standalone.
 - **Result**: Skills from external repo are importable. Duplicates are handled. Script is idempotent. Integration test validates import.
 
 #### P1-T18: Model Download Script
@@ -185,8 +225,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 #### P1-T19: Docker Development Stack
 - **Owner**: `PE`
-- **Requirement**: Create `docker/Dockerfile`, `docker/docker-compose.dev.yml`. Container runs Minder server with SSE transport. Volume mounts for dev. Include model download in build.
-- **Result**: `docker compose -f docker/docker-compose.dev.yml up` starts Minder. MCP client connects via SSE to container.
+- **Requirement**: Create and maintain `docker/Dockerfile`, `docker/docker-compose.dev.yml`. Compose must run Minder server, MongoDB, Redis, and Milvus Standalone together with the required volumes, environment, health checks, and service dependencies. Keep the shape upgradeable toward larger-scale deployment later.
+- **Result**: `docker compose -f docker/docker-compose.dev.yml up` starts the full local stack. Minder connects to all backing services and serves MCP over SSE.
 
 #### P1-T20: GitHub Actions CI
 - **Owner**: `PE`
@@ -212,10 +252,12 @@ Before Phase 1 can be considered closed against the original spec, the remaining
   2. Admin user is created via script
   3. Client connects via SSE, authenticates, receives JWT
   4. Workflow tools report current step and next step
-  5. Memory store → semantic search → recall works
-  6. Repository-local `.minder/` state writes and restores
-  7. CI pipeline passes on GitHub Actions
-- **Result**: All 7 checks pass. Phase 1 is complete.
+  5. MongoDB is the active operational store
+  6. Redis is reachable and runtime cache/session operations work
+  7. Memory store → semantic search → recall works through Milvus Standalone
+  8. Repository-local `.minder/` state writes and restores
+  9. CI pipeline passes on GitHub Actions
+- **Result**: All 9 checks pass. Phase 1 is complete.
 
 ---
 
@@ -518,20 +560,20 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 ### Tasks
 
-#### P4-T01: PostgreSQL Migration
+#### P4-T01: MongoDB Production Topology Upgrade
 - **Owner**: `PE`
-- **Requirement**: Implement `src/minder/migration/alembic/` — migrate from SQLite to PostgreSQL. Alembic migrations for all tables. Config switch between SQLite (dev) and PostgreSQL (prod).
-- **Result**: All data operations work on PostgreSQL. Migrations run forward and backward. Integration tests pass on both backends.
+- **Requirement**: Upgrade the MongoDB deployment path from single-node dev usage to production-ready topology options such as replica set and, later, sharded deployment. Add operational scripts, readiness checks, backup/restore guidance, and environment-specific config.
+- **Result**: All operational data flows work on the production MongoDB topology. Rollout and recovery procedures are documented and tested.
 
-#### P4-T02: Milvus Standalone Migration
+#### P4-T02: Milvus Cluster Upgrade Path
 - **Owner**: `PE`
-- **Requirement**: Update `src/minder/store/vector.py` — support Milvus Standalone alongside Milvus Lite. Config switch. Data migration script.
-- **Result**: Vector operations work on Milvus Standalone. Performance improved for concurrent access. Integration tests pass.
+- **Requirement**: Evolve the vector store deployment from Milvus Standalone to a cluster-ready topology. Keep the application contract stable while introducing config, deployment, and migration guidance for larger datasets and higher concurrency.
+- **Result**: Vector operations continue to work while the deployment can be promoted from Milvus Standalone to clustered Milvus without application-layer rewrites.
 
-#### P4-T03: Redis Cache Layer
+#### P4-T03: Redis HA Cache Layer
 - **Owner**: `PE`
-- **Requirement**: Implement `src/minder/cache/redis.py` — Redis caching for embeddings, search results, and session data. TTL-based expiry. Configurable via `cache.provider = "redis"`.
-- **Result**: Cache hit avoids re-computation. TTL expiry works. LRU fallback when Redis unavailable. Unit tests cover cache logic.
+- **Requirement**: Extend the Phase 1 Redis runtime layer toward production-ready operation: persistence settings, eviction strategy, health checks, failover strategy, and cache/session usage policies. Keep `cache.provider = "redis"` configurable across environments.
+- **Result**: Cache hit avoids re-computation. TTL expiry works. Redis runtime behavior is production-documented and tested under failure scenarios.
 
 #### P4-T04: Rate Limiting and Quotas
 - **Owner**: `BE`
@@ -545,7 +587,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 #### P4-T06: Production Docker Compose
 - **Owner**: `PE`
-- **Requirement**: Create `docker/docker-compose.prod.yml` — Minder server, PostgreSQL, Milvus Standalone, Redis. Health checks, restart policies, volume management.
+- **Requirement**: Create `docker/docker-compose.prod.yml` — Minder server, MongoDB, Milvus Standalone or cluster-ready Milvus deployment, and Redis. Health checks, restart policies, secrets handling, and volume management must reflect the new runtime stack.
 - **Result**: `docker compose -f docker/docker-compose.prod.yml up` starts full production stack. Health checks pass.
 
 #### P4-T07: Dashboard Backend API
@@ -587,7 +629,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
   2. Workflow is assigned to a repo and state is visible
   3. 50 concurrent users operate without errors
   4. Metrics, audit logs, and tracing work end-to-end
-  5. PostgreSQL and Milvus Standalone handle production load
+  5. MongoDB, Redis, and Milvus deployment choices handle production load
   6. Security review passes with no critical findings
 - **Result**: All 6 checks pass. Phase 4 is complete.
 
@@ -650,12 +692,12 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 | Phase | Tasks | Verification | Key Deliverable |
 |---|---|---|---|
-| **Phase 1** | 22 tasks | P1-VERIFY | Working MCP server with auth, search, workflow, CI/CD |
+| **Phase 1** | 24 tasks | P1-VERIFY | Working MCP server with auth, search, workflow, containerized infra, CI/CD |
 | **Phase 2** | 15 tasks | P2-VERIFY | Full LangGraph agentic pipeline with verification |
 | **Phase 3** | 12 tasks | P3-VERIFY | Advanced retrieval, knowledge graph, ingestion |
 | **Phase 4** | 12 tasks | P4-VERIFY | Production scale, dashboard, security |
 | **Phase 5** | 6 tasks | P5-VERIFY | Self-improving learning system |
-| **Total** | **67 tasks** | **5 gates** | **Production-ready Minder MCP server** |
+| **Total** | **69 tasks** | **5 gates** | **Production-ready Minder MCP server** |
 
 ### Task Distribution
 

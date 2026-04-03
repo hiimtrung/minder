@@ -1,97 +1,93 @@
 {
   "mode": "search",
-  "query": "fix langgraph pydantic v1 warning on python 3.14",
+  "query": "update architecture plan for milvus standalone mongodb redis docker compose",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-03T15:33:25.336671+07:00",
+  "searched_at": "2026-04-03T15:58:35.096089+07:00",
   "results": [
     {
-      "id": "67de27ee-e54b-497b-a1a5-c64a7f02b3fe",
-      "title": "Added optional real LangGraph adapter path",
+      "id": "a63af393-efd3-486f-8b39-987fbb80054d",
+      "title": "omi-channel-be repository exploration",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:added-optional-real-langgraph-adapter-path",
+      "canonical_key": "document:omi-channel-be-repository-exploration",
       "score": 0.086393446,
       "tags": [
-        "minder",
-        "phase-2.1",
-        "langgraph",
-        "adapter",
-        "tests"
+        "repository-exploration",
+        "architecture",
+        "nestjs"
       ],
       "conflict_detected": false,
-      "content": "Continued Phase 2.1 by upgrading LangGraphExecutorAdapter from metadata-only to an optional real adapter path. Added generic runtime attr loading, graph runtime StateGraph loader, and adapter behavior that uses real langgraph.graph.StateGraph when available while safely falling back to InternalGraphExecutor otherwise. Added targeted runtime tests with fake StateGraph coverage and verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (77 passed)."
+      "content": "NestJS monolith with clean-architecture style modules under src/modules; app bootstraps in src/main.ts with URI versioning and swagger at /docs; infra includes PostgreSQL(TypeORM), MongoDB(Mongoose), Redis, SQS+RabbitMQ, websockets via Redis adapter; tests are sparse (7 specs total incl 1 e2e)."
     },
     {
-      "id": "55b22e2c-bdf2-49c7-998c-ef1a803aea88",
-      "title": "Fixed mypy type error in verification node and untyped function in rbac",
+      "id": "aac7071c-de25-485c-8238-b6ce944d1ca6",
+      "title": "Migrate truyentt from modules to pure clean architecture",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:fixed-mypy-type-error-in-verification-node-and-untyped-function-in-rbac",
+      "canonical_key": "document:migrate-truyentt-from-modules-to-pure-clean-architecture",
       "score": 0.086129025,
       "tags": [
-        "mypy",
-        "typing",
-        "verification",
-        "rbac"
+        "truyentt",
+        "golang",
+        "clean-architecture",
+        "refactor",
+        "internal"
       ],
       "conflict_detected": false,
-      "content": "Resolved a mypy type assignment error in src/minder/graph/nodes/verification.py by declaring failure_kind as Optional[str] at the method start. Also added type hints to the rbac decorator wrapper in src/minder/auth/rbac.py to satisfy --check-untyped-defs."
+      "content": "Refactored runtime structure to internal clean architecture only. Added internal/domain (article, category, chapter entities + repository ports), internal/application (DTOs and use cases/services), internal/infrastructure/persistence/mysql (GORM repository adapters), and internal/presentation/http (handlers + route composition). Updated main.go to register routes via internal/presentation/http. Removed all legacy modules/**/*.go files so project no longer uses modules folder. Preserved existing endpoints and article pagination/filter logic plus chapters by article_id endpoint. Verified with go test ./... and modules/**/*.go search returns none."
     },
     {
-      "id": "c3ec43ad-09dc-4517-8ed7-8a5db757dc56",
-      "title": "Python 3.14 baseline upgrade",
+      "id": "6375c2ef-aa9c-42e2-85f3-5c8f84483c3c",
+      "title": "Align OMS config module and datasource with omni pattern",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:python-3-14-baseline-upgrade",
+      "canonical_key": "document:align-oms-config-module-and-datasource-with-omni-pattern",
       "score": 0.08587302,
       "tags": [
-        "python",
-        "uv",
-        "venv",
-        "upgrade",
-        "phase2"
+        "oms-api",
+        "nestjs",
+        "config",
+        "typeorm",
+        "migrations"
       ],
       "conflict_detected": false,
-      "content": "Upgraded minder from Python 3.12 to 3.14. Updated .python-version to 3.14, raised requires-python in pyproject.toml and uv.lock to \u003e=3.14, switched docker/Dockerfile.sandbox to python:3.14-slim, and updated planning docs that referenced 3.12. Recreated the uv-managed .venv on CPython 3.14.3 with uv sync --python 3.14.3. Verified the upgrade with uv run ruff check ., uv run mypy src, and uv run pytest; all passed with 85 tests green on Python 3.14.3."
+      "content": "Updated OMS NestJS configuration to omni-style: added global ConfigModule.forRoot in src/app.module.ts; enhanced env parsing in src/config/env.config.ts with DB_* and DATABASE_* alias support plus DATABASE_SSL and DATABASE_SSL_REJECT_UNAUTHORIZED; updated src/config/typeorm.ts runtime config to use ssl and disable runtime migrations (migrations: [], migrationsRun:false); updated src/infrastructure/postgres/data-source.ts for CLI migrations with ssl and single default DataSource export. Added @nestjs/config and joi dependencies. Verified with yarn build and yarn migration:run (all migrations executed successfully)."
     },
     {
-      "id": "b79b7381-89b1-46e8-ba9d-b9739e9d98b0",
-      "title": "Git branch for recaptcha locale patch",
+      "id": "cf5ef277-e4f3-4b6f-9005-281be90d9c48",
+      "title": "Create dedicated OMS config module and centralize datasource options",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:git-branch-for-recaptcha-locale-patch",
+      "canonical_key": "document:create-dedicated-oms-config-module-and-centralize-datasource-options",
       "score": 0.08562499,
       "tags": [
-        "findtourgo",
-        "git",
-        "branch",
-        "commit",
-        "recaptcha"
+        "oms-api",
+        "config-module",
+        "typeorm",
+        "datasource"
       ],
       "conflict_detected": false,
-      "content": "Created branch codex/recaptcha-locale and committed the GoogleRecaptcha locale propagation change as d4c070d4 with message Pass locale into GoogleRecaptcha. Pre-commit ran lint-staged with prettier and eslint --fix successfully before commit."
+      "content": "Added src/config/config.module.ts as a global config module patterned after omni-channel-api using Nest ConfigModule.forRoot with env file precedence and cache. AppModule now imports AppConfigModule instead of inline ConfigModule setup. Refactored src/config/typeorm.ts to centralize common options and export runtime typeOrmConfig (no runtime migrations) plus typeOrmCliConfig (with migrations for CLI). Updated src/infrastructure/postgres/data-source.ts to instantiate DataSource from typeOrmCliConfig with a single default export. Verified with yarn build and yarn migration:show."
     },
     {
-      "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
-      "title": "Compose runtime activation uses auto runtimes with safe fallback",
+      "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
+      "title": "Minder plan translated and expanded",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+      "canonical_key": "document:minder-plan-translated-and-expanded",
       "score": 0.08538462,
       "tags": [
         "minder",
-        "phase1",
-        "phase2",
-        "compose",
-        "runtime",
-        "llama-cpp",
-        "langgraph",
-        "litellm"
+        "plan",
+        "workflow",
+        "tdd",
+        "mcp",
+        "repo-state"
       ],
       "conflict_detected": false,
-      "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
+      "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
     }
   ]
 }

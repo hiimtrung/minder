@@ -1,137 +1,140 @@
 {
-  "updated_at": "2026-04-03T11:42:37.203881+07:00",
+  "updated_at": "2026-04-03T11:48:58.957658+07:00",
   "skills": {
-    "task": "minder setup and run",
+    "task": "minder features and architecture",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-03T11:42:36.163217+07:00",
+    "resolved_at": "2026-04-03T11:48:58.276741+07:00",
     "keep": [],
     "add": [
+      "build",
+      "context-management-context-save",
+      "context-manager"
+    ],
+    "drop": [
       "observability-monitoring-monitor-setup",
       "documentation-templates",
       "azure-ai-voicelive-ts"
     ],
-    "drop": [
-      "devcontainer-setup",
-      "blockrun",
-      "whatsapp-cloud-api"
-    ],
     "skills": [
       {
-        "name": "observability-monitoring-monitor-setup",
-        "category": "general",
+        "name": "build",
+        "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 1,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "documentation-templates",
+        "name": "context-management-context-save",
         "category": "general",
         "score": 0.016129032,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "azure-ai-voicelive-ts",
-        "category": "general",
+        "name": "context-manager",
+        "category": "backend",
         "score": 0.015873017,
-        "chunk_count": 1,
+        "chunk_count": 3,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "run application instructions",
+    "query": "minder capabilities",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-03T11:42:37.2034+07:00",
+    "searched_at": "2026-04-03T11:48:58.95698+07:00",
     "results": [
       {
-        "id": "480bcc8b-5999-45dc-83f1-24374fe8d109",
-        "title": "Phase 1 - Tasks 01 to 03 Implementation",
+        "id": "0633f679-9b83-4236-8820-c593ce83fe2a",
+        "title": "Minder project architecture plan",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-1-tasks-01-to-03-implementation",
+        "canonical_key": "document:minder-project-architecture-plan",
         "score": 0.086393446,
         "tags": [
-          "phase1",
-          "config",
-          "models"
+          "minder",
+          "architecture",
+          "rag",
+          "mcp",
+          "langgraph",
+          "plan"
         ],
         "conflict_detected": false,
-        "content": "Completed initialization with uv, Pydantic configuration, and SQLAlchemy models for User, Skill, Session, Workflow, Repository, History, Error, Document, Rule, Feedback. Set up pytest tests."
+        "content": "Minder is a Full Agentic RAG MCP Server built with Python + LangGraph + Milvus + NV-Embed-v2 + Nemotron-3 Nano-4B GGUF. Architecture: MCP Transport Layer → LangGraph Orchestrator (Planning, Retriever, Reranker, Reasoning, LLM, Guard, Verification, Evaluator nodes) → Multi-tier Data Layer (Vector/Milvus, Relational/SQLite, Document/JSONL, Graph, Cache). 8 memory stores: Skill, History, Error, Session, Metadata, Document, Rule, Feedback. 5 implementation phases: Foundation → Agentic Pipeline → Advanced Retrieval + Knowledge Graph → Scale + Production → Self-Improvement. Plan stored at docs/PLAN.md."
       },
       {
-        "id": "50d3e869-5306-4195-b7f2-f820e7847b2e",
-        "title": "Phase 9-17 CLI Commands Implemented",
+        "id": "31c2502b-d595-4735-afd4-3fb72535d4b8",
+        "title": "Minder confirmed decisions v2",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-9-17-cli-commands-implemented",
+        "canonical_key": "document:minder-confirmed-decisions-v2",
         "score": 0.086129025,
         "tags": [
-          "coder-cli",
-          "phases",
-          "lifecycle",
-          "implementation"
+          "minder",
+          "decisions",
+          "architecture",
+          "auth",
+          "cicd",
+          "confirmed"
         ],
         "conflict_detected": false,
-        "content": "h/runNote/runDo - project utilities). All commands registered in main.go. go build + go vet both pass clean. STATE.md format: frontmatter fields + ## Decisions/Blockers/Backlog/PRs sections. XML plan format: \u003cplan id name phase\u003e\u003cobjective\u003e\u003cfiles\u003e\u003ctasks\u003e\u003ctask type name\u003e\u003caction\u003e\u003cverify\u003e\u003cdone\u003e. Wave-based execution groups plans by dependencies. Pattern: loadState()/saveState() for all STATE.md mutations."
+        "content": "Minder plan v2 confirmed: Team multi-user (email+username from git), Auth mandatory (API key + JWT + RBAC), SSE transport from Phase 1, NV-Embed-v2 GGUF + Nemotron-3 GGUF mandatory (offline-first, OpenAI fallback optional), Docker sandbox mandatory for verification (subprocess dev mode), Skills seeded from external GitHub repo, CI/CD from Phase 1 (GitHub Actions + GitHub Releases + GitHub Packages/ghcr.io), Knowledge Graph Phase 3 confirmed. 9 stores total (added User Store). Plan at docs/PLAN.md v2.0 status: DECISIONS CONFIRMED."
       },
       {
-        "id": "a6d00cbc-cd8d-4cbe-b95c-6067549efbf7",
-        "title": "coder CLI — state.go + cmd_new_project.go + cmd_map_codebase.go (Phases 9 \u0026 10)",
+        "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
+        "title": "Minder switched to Qwen plan split",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:coder-cli-state-go-cmd-new-project-go-cmd-map-codebase-go-phases-9-10",
+        "canonical_key": "document:minder-switched-to-qwen-plan-split",
+        "score": 0.08587302,
+        "tags": [
+          "minder",
+          "plan",
+          "qwen",
+          "docs",
+          "split"
+        ],
+        "conflict_detected": false,
+        "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
+      },
+      {
+        "id": "fb95ba9d-c826-4ba2-8b63-4b82346826f0",
+        "title": "Instruction updates for memory lifecycle commands",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:instruction-updates-for-memory-lifecycle-commands",
         "score": 0.08562499,
         "tags": [
-          "coder",
-          "cli",
-          "golang",
-          "new-project",
-          "map-codebase",
-          "state",
-          "phase-9",
-          "phase-10"
+          "instructions",
+          "agents",
+          "skills",
+          "memory",
+          "lifecycle",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Implemented three new files for the coder CLI (cmd/coder/). state.go: shared ProjectState struct (project, current_phase, step, decisions, blockers, backlog, PRs map), RoadmapPhase, coderPath(), loadState(), saveState(), loadRoadmap(), phaseDir(), ensurePhaseDir(), projectExists(). All .coder/ paths route through coderPath(). cmd_new_project.go: runNewProject() — flags: --auto, --prd, --resume. Guards against re-init via projectExists(). Interactive deep Q\u0026A via ChatStream loop (bufio.Scanner, blank×2 or 'done' to exit). Generates REQUIREMENTS.md then ROADMAP.md via streaming LLM, with [Y/n/edit] approval gates. Writes PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md (phase=1, step=discuss). Uses getChatClient(cfg) pattern. cmd_map_codebase.go: runMapCodebase() — flag: --refresh, positional area arg. Four sequential ChatStream focus passes (tech→STACK.md, arch→ARCHITECTURE.md, quality→CONVENTIONS.md, concerns→CONCERNS.md) written to .coder/codebase/."
+        "content": "Updated the source instruction layer to match new memory lifecycle commands. Refreshed .agents workflow guidance so agents now distinguish between coder memory store for new knowledge, coder memory verify for reconfirming an existing memory, coder memory supersede or store --replace-active for replacing active truth, and coder memory audit when conflicts or stale active memories may remain. Also updated the coder-cli skill and architecture doc to describe the new memory endpoints, conflict-aware retrieval behavior, and lifecycle-aware context injection expectations."
       },
       {
-        "id": "3e02ae2c-94d0-4202-8237-55960502806e",
-        "title": "WhatsApp setup guide 6-step i18n rollout",
+        "id": "3ee55dca-6874-4780-b12c-014a34b734e2",
+        "title": "LINE configure step uses split checklist cards",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:whatsapp-setup-guide-6-step-i18n-rollout",
+        "canonical_key": "document:line-configure-step-uses-split-checklist-cards",
         "score": 0.08538462,
         "tags": [
-          "findtourgoUI",
-          "whatsapp",
+          "findtourgo",
+          "line",
+          "ui",
           "i18n",
-          "connect-wizard"
+          "checklist"
         ],
         "conflict_detected": false,
-        "content": "Rebuilt StepConfigureChannel to use new guideStep keys matching 6-step template with case split and verify+save webhook instruction; added guideStep keys in en/vi/id/ja/zh locales; validated with yarn lint (next lint + tsc)."
-      },
-      {
-        "id": "e60b3393-5f0a-4155-965b-90a0d75ee786",
-        "title": "Refactor config loading to config.go in truyentt",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:refactor-config-loading-to-config-go-in-truyentt",
-        "score": 0.08515151,
-        "tags": [
-          "truyentt",
-          "golang",
-          "config",
-          "refactor",
-          "mysql",
-          "gorm"
-        ],
-        "conflict_detected": false,
-        "content": "Centralized environment loading in config/config.go with Configuration struct containing Server and MySQL sections. Added LoadConfigFromEnv, env parsing helpers, and server port normalization. Simplified config/mysql.go to only connection creation. Updated main.go to load unified config and run Gin using appConfig.Server.Port. Verified with go fmt and go test ./...."
+        "content": "Refactored LINE StepConfigureChannel to match the WhatsApp readiness-card pattern. Replaced the old single checkbox with three atom-based checklist cards backed by per-item state in LineConnect, enabled Next only when all checklist items are checked, moved checklist styling into channelThemes, and updated lineSetup i18n keys across en/vi/ja/id/zh."
       }
     ]
   }

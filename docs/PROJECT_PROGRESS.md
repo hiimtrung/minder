@@ -9,7 +9,7 @@
 
 | Phase | Goal | Status | Current wave | Main blocker | Notes |
 |---|---|---|---|---|---|
-| `Phase 1` | Foundation: MCP server, auth, search, CI/CD | `IN PROGRESS` | `Wave 3 next` | Dev stack, CI/release assets, final MCP wiring, acceptance gate | Waves 1-2 are complete. |
+| `Phase 1` | Foundation: MCP server, auth, search, CI/CD | `IN PROGRESS` | `Wave 4 code complete` | Real SSE/stdio runtime validation plus Docker/GitHub execution proof | Waves 1-4 code and local tests are complete. |
 | `Phase 2` | Agentic pipeline: reasoning, retrieval, verification | `FUNCTIONALLY COMPLETE` | `closed baseline` | Runtime fidelity and deployment environment | Minimal end-to-end path is implemented and tested. |
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `PARTIAL` | `baseline complete` | Real LangGraph + llama_cpp + LiteLLM environment | Optional real runtime paths exist; environment is not fully provisioned. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `PARTIAL` | `baseline complete` | Production-grade Docker/runtime packaging | Retrieval, repo ingest, and verification contracts exist. |
@@ -45,7 +45,7 @@
 | `P1-T20` GitHub Actions CI | `3` | `PARTIAL` | `Workflow file created but not exercised on GitHub yet` | `ci.yml added with lint/type/test/docker steps` |
 | `P1-T21` GitHub Actions Release | `3` | `PARTIAL` | `Workflow file created but not exercised on a real tag yet` | `release.yml added for ghcr + GitHub Release` |
 | `P1-T22` Admin Creation Script | `3` | `DONE` | `-` | `Idempotent create_admin contract implemented and tested` |
-| `P1-VERIFY` Phase 1 Acceptance Test | `4` | `NOT STARTED` | `Depends on Waves 1-3` | `Gate added after implementation` |
+| `P1-VERIFY` Phase 1 Acceptance Test | `4` | `PARTIAL` | `Runtime-backed proof for Docker/GitHub/SSE listener still pending` | `Local phase1 gate implemented and passing` |
 
 ---
 

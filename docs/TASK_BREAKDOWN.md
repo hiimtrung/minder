@@ -65,7 +65,7 @@
 | `P1-T20` GitHub Actions CI | `PARTIAL` | [`ci.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/ci.yml) now exists with uv/lint/type/test/docker steps, but has not yet run on GitHub. |
 | `P1-T21` GitHub Actions Release | `PARTIAL` | [`release.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/release.yml) now exists for tag-based ghcr release, but has not yet run on a real tag. |
 | `P1-T22` Admin Creation Script | `DONE` | [`scripts/create_admin.py`](/Users/trungtran/ai-agents/minder/scripts/create_admin.py) now exists with idempotent creation contract and integration coverage. |
-| `P1-VERIFY` Phase 1 Acceptance Test | `NOT STARTED` | `tests/integration/test_phase1_gate.py` does not exist yet. |
+| `P1-VERIFY` Phase 1 Acceptance Test | `PARTIAL` | [`tests/integration/test_phase1_gate.py`](/Users/trungtran/ai-agents/minder/tests/integration/test_phase1_gate.py) now exists and passes as a local acceptance baseline, but runtime-backed proof for Docker/GitHub/SSE listener is still pending. |
 
 ### Current Runnable Flow
 

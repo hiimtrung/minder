@@ -54,8 +54,11 @@ class QwenEmbeddingProvider:
         llama_cls = load_attr("llama_cpp", "Llama")
         if llama_cls is None:
             return None
-        self._client = llama_cls(
-            model_path=str(Path(self._model_path).expanduser()),
-            embedding=True,
-        )
+        try:
+            self._client = llama_cls(
+                model_path=str(Path(self._model_path).expanduser()),
+                embedding=True,
+            )
+        except Exception:
+            return None
         return self._client

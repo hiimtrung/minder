@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 from pathlib import Path
 from typing import Any
 
 from minder.auth.service import AuthService
 from minder.config import MinderConfig, Settings
+from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.graph.runtime import graph_runtime_name
+from minder.llm.openai import OpenAIFallbackLLM
+from minder.llm.qwen import QwenLocalLLM
 from minder.store.relational import RelationalStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
@@ -206,22 +209,59 @@ def build_transport(
     return transport
 
 
-async def _run() -> None:
+def runtime_summary(config: MinderConfig) -> dict[str, object]:
+    llm = QwenLocalLLM(config.llm.model_path, runtime="auto")
+    embedder = QwenEmbeddingProvider(
+        config.embedding.model_path,
+        dimensions=min(config.embedding.dimensions, 16),
+        runtime="auto",
+    )
+    fallback = OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model, runtime="auto")
+    return {
+        "transport": config.server.transport,
+        "host": config.server.host,
+        "port": config.server.port,
+        "orchestration_runtime_requested": config.workflow.orchestration_runtime,
+        "orchestration_runtime_effective": graph_runtime_name(config.workflow.orchestration_runtime),
+        "llm_model_path": str(Path(config.llm.model_path).expanduser()),
+        "llm_runtime_effective": llm.generate(
+            type(
+                "StubState",
+                (),
+                {
+                    "reranked_docs": [],
+                    "workflow_context": {},
+                    "plan": {},
+                    "query": "runtime probe",
+                },
+            )()
+        )["runtime"],
+        "embedding_model_path": str(Path(config.embedding.model_path).expanduser()),
+        "embedding_runtime_effective": embedder.runtime,
+        "openai_fallback_configured": fallback.available(),
+        "openai_fallback_runtime_effective": fallback.runtime,
+    }
+
+
+def _run() -> None:
     config = Settings()
     store = build_store(config)
-    await store.init_db()
+    import asyncio
+
+    asyncio.run(store.init_db())
     transport = build_transport(config=config, store=store)
+    print("Minder runtime summary:", runtime_summary(config), flush=True)
     try:
         if transport.transport_name == "stdio":
             transport.app.run(transport="stdio")
         else:
             transport.app.run(transport="sse")
     finally:
-        await store.dispose()
+        asyncio.run(store.dispose())
 
 
 def main() -> None:
-    asyncio.run(_run())
+    _run()
 
 
 if __name__ == "__main__":

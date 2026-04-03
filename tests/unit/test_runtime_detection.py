@@ -1,11 +1,14 @@
 import pytest
 
 import minder.graph.executor as executor_module
+import minder.graph.graph as graph_module
 import minder.graph.runtime as graph_runtime_module
 import minder.llm.openai as openai_module
 import minder.llm.qwen as qwen_module
 import minder.embedding.qwen as qwen_embedding_module
+from minder.config import MinderConfig
 from minder.graph.executor import GraphNodes, InternalGraphExecutor, LangGraphExecutorAdapter
+from minder.graph.graph import MinderGraph
 from minder.graph.nodes import (
     EvaluatorNode,
     GuardNode,
@@ -225,3 +228,40 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
     state = await LangGraphExecutorAdapter(nodes).run(state)
     assert state.metadata["orchestration_runtime"] == "langgraph"
     assert state.metadata["fake_langgraph"] is True
+
+
+@pytest.mark.asyncio
+async def test_minder_graph_defaults_to_auto_runtimes(
+    monkeypatch: pytest.MonkeyPatch,
+    store: RelationalStore,
+) -> None:
+    captured: dict[str, object] = {}
+
+    class CaptureQwen:
+        def __init__(self, model_path: str, fail: bool = False, runtime: str = "mock") -> None:
+            captured["qwen_runtime"] = runtime
+
+        def generate(self, state):  # noqa: ANN001, ANN201
+            return {
+                "text": "ok",
+                "sources": [],
+                "provider": "qwen_local",
+                "model": "Qwen3.5-0.8B",
+                "runtime": "mock",
+                "stream": ["ok"],
+            }
+
+    class CaptureFallback:
+        def __init__(self, api_key: str | None, model: str, runtime: str = "mock") -> None:
+            captured["fallback_runtime"] = runtime
+
+        def available(self) -> bool:
+            return False
+
+    monkeypatch.setattr(graph_module, "QwenLocalLLM", CaptureQwen)
+    monkeypatch.setattr(graph_module, "OpenAIFallbackLLM", CaptureFallback)
+
+    MinderGraph(store, MinderConfig())
+
+    assert captured["qwen_runtime"] == "auto"
+    assert captured["fallback_runtime"] == "auto"

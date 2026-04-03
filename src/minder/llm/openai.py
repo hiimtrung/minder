@@ -44,16 +44,20 @@ class OpenAIFallbackLLM:
         completion = self._litellm_completion()
         if completion is None:
             return fallback
-        response = completion(
-            model=self._model,
-            api_key=self._api_key,
-            messages=[
-                {
-                    "role": "user",
-                    "content": str(state.reasoning_output.get("prompt") or state.query),
-                }
-            ],
-        )
+        reasoning_output = getattr(state, "reasoning_output", {}) or {}
+        try:
+            response = completion(
+                model=self._model,
+                api_key=self._api_key,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": str(reasoning_output.get("prompt") or state.query),
+                    }
+                ],
+            )
+        except Exception:
+            return fallback
         choices = getattr(response, "choices", None)
         if choices is None and isinstance(response, dict):
             choices = response.get("choices", [])

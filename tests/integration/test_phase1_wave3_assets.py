@@ -136,8 +136,12 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
 
     assert dockerfile.exists()
     assert "minder.server" in dockerfile.read_text(encoding="utf-8")
+    assert "PYTHONPATH=/app/src" in dockerfile.read_text(encoding="utf-8")
     assert compose.exists()
     assert "minder" in compose.read_text(encoding="utf-8")
+    assert "PYTHONPATH: /app/src" in compose.read_text(encoding="utf-8")
+    assert "MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph" in compose.read_text(encoding="utf-8")
+    assert "MINDER_LLM__MODEL_PATH: /root/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf" in compose.read_text(encoding="utf-8")
     assert ci_workflow.exists()
     assert "uv run pytest" in ci_workflow.read_text(encoding="utf-8")
     assert release_workflow.exists()

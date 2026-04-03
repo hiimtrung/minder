@@ -54,7 +54,8 @@ class QwenLocalLLM:
         if client is None:
             return fallback
 
-        prompt = state.reasoning_output.get("prompt") or state.query
+        reasoning_output = getattr(state, "reasoning_output", {}) or {}
+        prompt = reasoning_output.get("prompt") or state.query
         response = client.create_completion(
             prompt=str(prompt),
             max_tokens=256,
@@ -71,5 +72,8 @@ class QwenLocalLLM:
         llama_cls = load_attr("llama_cpp", "Llama")
         if llama_cls is None:
             return None
-        self._client = llama_cls(model_path=str(Path(self._model_path).expanduser()))
+        try:
+            self._client = llama_cls(model_path=str(Path(self._model_path).expanduser()))
+        except Exception:
+            return None
         return self._client

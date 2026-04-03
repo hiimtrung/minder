@@ -12,6 +12,11 @@ services:
       MINDER_SERVER__PORT: 8080
       MINDER_RELATIONAL_STORE__DB_PATH: /data/minder.db
       MINDER_VECTOR_STORE__DB_PATH: /data/milvus.db
+      MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
+      MINDER_EMBEDDING__MODEL_PATH: /root/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf
+      MINDER_LLM__MODEL_PATH: /root/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
+      MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      PYTHONPATH: /app/src
     volumes:
       - ../src:/app/src
       - ../scripts:/app/scripts

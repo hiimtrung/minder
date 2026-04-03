@@ -61,8 +61,12 @@ class MinderGraph:
         )
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path),
-            fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
+            primary=QwenLocalLLM(config.llm.model_path, runtime="auto"),
+            fallback=OpenAIFallbackLLM(
+                config.llm.openai_api_key,
+                config.llm.openai_model,
+                runtime="auto",
+            ),
         )
         self._guard = guard or GuardNode()
         self._verification = verification or VerificationNode(

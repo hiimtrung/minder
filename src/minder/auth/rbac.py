@@ -10,7 +10,7 @@ The decorated function must receive the authenticated `user` as a keyword arg.
 """
 
 import functools
-from typing import Callable
+from typing import Any, Callable
 
 from minder.auth.service import AuthError, ROLE_HIERARCHY, UserRole
 from minder.models.user import User
@@ -27,7 +27,7 @@ def require_role(min_role: UserRole) -> Callable:
 
     def decorator(func: Callable) -> Callable:
         @functools.wraps(func)
-        async def wrapper(*args, **kwargs):
+        async def wrapper(*args: Any, **kwargs: Any) -> Any:
             user: User | None = kwargs.get("user")
             if user is None:
                 raise AuthError(

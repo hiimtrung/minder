@@ -1,91 +1,92 @@
 {
   "mode": "search",
-  "query": "audit and close remaining phase 2 and 2.x gaps",
+  "query": "verification node typing",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-02T14:34:08.849962+07:00",
+  "searched_at": "2026-04-03T11:34:01.822175+07:00",
   "results": [
     {
-      "id": "27a77739-ebfd-4696-856e-7bb9d33f00d3",
-      "title": "Milestone gap closure phases for v1.0 audit",
+      "id": "2859f47f-59bc-4198-b4ca-1bc1702a9221",
+      "title": "Zalo step key semantics cleaned for 5-step flow",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:milestone-gap-closure-phases-for-v1-0-audit",
+      "canonical_key": "document:zalo-step-key-semantics-cleaned-for-5-step-flow",
       "score": 0.086393446,
       "tags": [
-        "planning",
-        "milestone",
-        "audit",
-        "verification"
+        "findtourgoUI",
+        "zalo",
+        "i18n",
+        "refactor",
+        "step-flow"
       ],
       "conflict_detected": false,
-      "content": "Milestone audit gaps were converted into eight closure phases. Phases 07-13 each backfill milestone-grade VERIFICATION.md evidence for original phases 0-6, and phase 14 cleans planning debt (stale REQUIREMENTS checkboxes, traceability drift, Phase 1 summary drift, and stale handoff artifacts). REQUIREMENTS traceability now points orphaned v1 requirements to phases 07-13 and billing checkboxes were reset to unchecked because the milestone audit marks all 28 requirements as unsatisfied until VERIFICATION artifacts exist."
+      "content": "Refactored Zalo i18n step keys to match the actual 5-step flow instead of only changing display text. Domain verification now uses step4Title/Description/Line1-3/RetryNote, webhook setup now uses step5Title/Description/Line1-4/ErrorNote, and the old Zalo step4 generate-webhook keys plus step6 webhook keys were removed from locales. Updated StepDomainVerification and StepEnableWebhook to use the new keys across en/vi/ja/zh/id."
     },
     {
-      "id": "90ab2152-f00b-47a9-92a0-7e47730385ea",
-      "title": "Phase 14 audit-alignment execution pattern",
+      "id": "f2c887f2-c96c-41da-afe8-129463dcf8b4",
+      "title": "Frontend ConnectedApp-first migration complete (findtourgoUI)",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-14-audit-alignment-execution-pattern",
+      "canonical_key": "document:frontend-connectedapp-first-migration-complete-findtourgoui",
       "score": 0.086129025,
       "tags": [
-        "phase-14",
-        "execution",
-        "audit",
-        "cleanup"
+        "findtourgoUI",
+        "channels",
+        "connected-app",
+        "migration",
+        "frontend"
       ],
       "conflict_detected": false,
-      "content": "Final planning-audit-alignment execution should stay metadata-only: mark all completed v1 requirements as checked, keep traceability pointing to closure phases 07-13, remove stale non-v1 IDs from Phase 1 summary metadata, delete stale HANDOFF/.continue-here artifacts, and add a short 14-VERIFICATION plus 14-01-SUMMARY. After phase complete, manually patch STATE/ROADMAP/PROJECT body text because phase-complete updates frontmatter more reliably than narrative sections."
+      "content": "nectedAppEntity[]; (7) All channel wizards (Facebook, WhatsApp, Line, Zalo, Inquiry, Email, LiveChat): use primaryChannel?.externalId, primaryChannel?.metadata, appDetails.verifyToken instead of flat channelDetails; (8) URL param channelId now holds connected_app.id in edit mode; (9) POST createChannel returns ConnectChannelResponseModel = {webhookUrl?, verifyToken?, channels[]}; (10) TypeScript compilation passes with zero errors after all changes."
     },
     {
-      "id": "3b1692ac-a60b-4886-bae0-60a3de0da4eb",
-      "title": "Milestone audit passed after closure phases",
+      "id": "7ecf5a90-848d-4f06-ba32-453a5eb4bc21",
+      "title": "ConnectChannelUseCase refactor — phân tách private methods",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:milestone-audit-passed-after-closure-phases",
+      "canonical_key": "document:connectchannelusecase-refactor-ph-n-t-ch-private-methods",
       "score": 0.08587302,
       "tags": [
-        "milestone",
-        "audit",
-        "v1.0",
-        "closure"
+        "omi-channel-be",
+        "channels",
+        "refactor",
+        "connect-channel"
       ],
       "conflict_detected": false,
-      "content": "After completing phases 07 through 14, the v1.0 milestone audit can pass with requirements 28/28, phases 15/15, integration 4/4, and flows 4/4. The key prerequisites were: dedicated VERIFICATION.md artifacts for original phases 0-6, REQUIREMENTS.md checkboxes and traceability realigned to closure phases, Phase 1 summary metadata cleaned, stale HANDOFF/.continue-here artifacts removed, and a refreshed milestone audit file committed."
+      "content": "Refactored ConnectChannelUseCase thành 8 private methods rõ ràng: assertSupportedChannelType, prepareCredentials (tách prepareInquiryCredentials vs prepareStandardCredentials), assertNoDuplicateChannel, resolveAndValidateCredentials, verifyWithProvider, buildChannelEntity, persistChannel, publishEvents. Dùng Set constants NO_WEBHOOK_CHANNEL_TYPES và SKIP_EXTERNAL_VALIDATION_TYPES thay boolean flags rải rác. Import ChannelMetadata cho đúng type trong buildChannelEntity. execute() giờ chỉ còn 9 dòng điều phối. File: src/modules/channels/application/use-cases/connect-channel.use-case.ts"
     },
     {
-      "id": "c5c12ebf-8bf9-4fcd-bf6f-744f307657a9",
-      "title": "Phase 14 planning pattern",
+      "id": "706815de-3a4c-4b1a-aba2-4abf9a7a77ca",
+      "title": "InboxSidebarProvider readability refactor",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-14-planning-pattern",
+      "canonical_key": "document:inboxsidebarprovider-readability-refactor",
       "score": 0.08562499,
       "tags": [
-        "phase-14",
-        "planning",
-        "audit",
-        "cleanup"
+        "findtourgo",
+        "inboxes",
+        "readability"
       ],
       "conflict_detected": false,
-      "content": "Phase 14 should be planned as a planning-debt cleanup phase, not feature work. The plan should read the milestone audit, REQUIREMENTS.md, Phase 1 summary, and stale resume artifacts, then clean four audit-facing issues: stale v1 requirement checkboxes, stale traceability table, Phase 1 summary over-claiming AUTH-03/AUTH-04/VAL-01, and leftover HANDOFF/.continue-here artifacts. The plan should use a single execute plan with no new research and no runtime-code changes."
+      "content": "Extracted helper functions and centralized repeated queue/upsert logic in InboxSidebarProvider for better readability with unchanged behavior."
     },
     {
-      "id": "cc952b90-b814-4e8a-8fe6-8a9bd28bf15a",
-      "title": "Progress after pull on master",
+      "id": "d5777aca-38e3-46b7-86e1-a7de5e17a4f4",
+      "title": "Facebook webhook GET verification pattern",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:progress-after-pull-on-master",
+      "canonical_key": "document:facebook-webhook-get-verification-pattern",
       "score": 0.08538462,
       "tags": [
-        "gsd",
-        "progress",
-        "git",
+        "omni-channel-api",
+        "facebook",
+        "webhook",
         "verification",
-        "milestone"
+        "nestjs"
       ],
       "conflict_detected": false,
-      "content": "After pulling master to 7cfc304 on 2026-03-30, roadmap/progress shows 16/16 plans complete across phases 00-06 and milestone v1.0 implementation is effectively done. However progress is blocked by verification debt: audit-uat reports 12 unresolved UAT items across phases 03/04/05 (10 pending, 2 server-blocked), HANDOFF.json points next work to milestone verification closure, and milestone audit status is gaps_found because all 7 phases lack VERIFICATION.md artifacts. Recommended next step is verification/audit work before milestone archival, not new feature planning."
+      "content": "Implemented Messenger Verification Requests flow only: parse hub.mode, hub.verify_token, hub.challenge in FacebookWebhookController GET and delegate to VerifyFacebookWebhookUseCase. Use case validates mode=subscribe, channel type FACEBOOK, verify token via WebhookValidatorService, returns plain challenge string. Registered controller and use case in webhooks.module.ts. Kept changes scoped to verification flow only."
     }
   ]
 }

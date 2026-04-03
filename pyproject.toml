@@ -1,7 +1,7 @@
 [project]
 name = "minder"
 version = "0.1.0"
-description = "Add your description here"
+description = "Minder is an AI MCP server for manage your LLM flow development and memory of AI agent."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

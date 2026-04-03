@@ -1,39 +1,39 @@
 {
-  "task": "audit and close remaining phase 2 and 2.x gaps",
+  "task": "mypy type errors",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-02T14:34:08.671386+07:00",
+  "resolved_at": "2026-04-03T11:34:00.387659+07:00",
   "keep": [],
   "add": [
-    "conductor-status",
-    "conductor-new-track",
-    "build"
+    "lint-and-validate",
+    "telegram",
+    "cc-skill-project-guidelines-example"
   ],
   "drop": [
-    "docker-expert",
-    "odoo-docker-deployment",
-    "readme"
+    "context-agent",
+    "cred-omega",
+    "context-manager"
   ],
   "skills": [
     {
-      "name": "conductor-status",
-      "category": "frontend",
-      "score": 0.016393442,
-      "chunk_count": 4,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "conductor-new-track",
+      "name": "lint-and-validate",
       "category": "general",
-      "score": 0.016129032,
-      "chunk_count": 3,
+      "score": 0.016393442,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "build",
+      "name": "telegram",
+      "category": "general",
+      "score": 0.016393442,
+      "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "cc-skill-project-guidelines-example",
       "category": "frontend",
-      "score": 0.015625,
-      "chunk_count": 3,
+      "score": 0.016129032,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

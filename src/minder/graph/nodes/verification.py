@@ -90,6 +90,7 @@ class DockerSandboxRunner:
             cwd=cwd,
             check=False,
         )
+        failure_kind: str | None = None
         if inspect.returncode != 0:
             failure_kind = "image_missing"
             stderr = inspect.stderr or f"docker image '{self._image}' not available"

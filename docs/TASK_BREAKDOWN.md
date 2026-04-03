@@ -20,6 +20,8 @@
 
 **Goal**: Deliver a working SSE-first MCP server with auth, repo-local state, basic search, and CI/CD.
 
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
+
 ### Current Implementation Audit
 
 > **Current status as of 2026-04-03**: `IN PROGRESS`
@@ -37,36 +39,6 @@
 > - **Runnable local flow today**: ingest repo -> run `minder_query` / `minder_search_code` / `minder_search_errors` -> optional workflow-aware reasoning -> verification contract -> history/error persistence.
 > - **Not yet runnable as originally specified for Phase 1**: authenticated MCP server over SSE/stdio with deployment stack and CI/release automation.
 
-### Phase 1 Progress Tracker
-
-Use this table as the working control board for Phase 1. Update `Status`, `Wave`, `Blocker`, and `Last update` after every implementation wave.
-
-| Task | Owner | Wave | Status | Blocker | Last update |
-|---|---|---|---|---|---|
-| `P1-T01` Project Initialization | `PE` | `done` | `DONE` | `-` | `Python 3.14 baseline verified` |
-| `P1-T02` Configuration System | `PE` | `done` | `DONE` | `-` | `Config tests passing` |
-| `P1-T03` Data Models | `BE` | `done` | `DONE` | `-` | `Model coverage in place` |
-| `P1-T04` Relational Store (SQLite) | `BE` | `done` | `DONE` | `-` | `CRUD and tests in place` |
-| `P1-T05` Auth Layer | `BE` | `done` | `DONE` | `-` | `JWT/RBAC/API key flow implemented` |
-| `P1-T06` SSE Transport | `1` | `PARTIAL` | `Actual SSE server lifecycle/network listener still missing` | `Wave 1 transport facade + tests committed` |
-| `P1-T07` Stdio Transport | `1` | `PARTIAL` | `Real stdio server lifecycle still missing` | `Wave 1 transport facade + tests committed` |
-| `P1-T08` Auth Middleware for SSE | `1` | `PARTIAL` | `Not yet bound to real SSE connection/session lifecycle` | `Dispatch-path auth integration completed` |
-| `P1-T09` Embedding Layer (Qwen GGUF) | `backlog` | `PARTIAL` | `Model provisioning/runtime environment not closed` | `Optional llama_cpp path exists` |
-| `P1-T10` Embedding Fallback (OpenAI) | `done` | `DONE` | `-` | `Fallback provider exists` |
-| `P1-T11` Vector Store (Milvus Lite) | `backlog` | `PARTIAL` | `Real Milvus Lite deployment path not packaged` | `Vector substrate exists` |
-| `P1-T12` Repository-Local State Management | `2` | `DONE` | `-` | `Wave 2 repo-state store + integration test completed` |
-| `P1-T13` Workflow Engine (Basic) | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Workflow tool module + repo-state persistence completed` |
-| `P1-T14` Memory & Search Tools (Basic) | `2` | `DONE` | `-` | `Memory/search modules + integration test completed` |
-| `P1-T15` Auth MCP Tools | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Auth tool module contract completed` |
-| `P1-T16` Session Tools | `2` | `PARTIAL` | `Final MCP transport registration still missing` | `Session tool module contract completed` |
-| `P1-T17` Skill Seeding | `3` | `NOT STARTED` | `Script missing` | `Planned after tool surface` |
-| `P1-T18` Model Download Script | `3` | `NOT STARTED` | `Script missing` | `Planned after tool surface` |
-| `P1-T19` Docker Development Stack | `3` | `PARTIAL` | `docker/Dockerfile and docker-compose.dev.yml missing` | `Sandbox image only` |
-| `P1-T20` GitHub Actions CI | `3` | `NOT STARTED` | `.github/workflows/ci.yml missing` | `Planned with deployment assets` |
-| `P1-T21` GitHub Actions Release | `3` | `NOT STARTED` | `.github/workflows/release.yml missing` | `Planned with deployment assets` |
-| `P1-T22` Admin Creation Script | `3` | `NOT STARTED` | `Script missing` | `Planned with bootstrap scripts` |
-| `P1-VERIFY` Phase 1 Acceptance Test | `4` | `NOT STARTED` | `Depends on Waves 1-3` | `Gate added after implementation` |
-
 ### Phase 1 Status Map
 
 | Task | Status | Notes |
@@ -83,16 +55,16 @@ Use this table as the working control board for Phase 1. Update `Status`, `Wave`
 | `P1-T10` Embedding Fallback (OpenAI) | `DONE` | OpenAI fallback provider exists in [`src/minder/embedding/openai.py`](/Users/trungtran/ai-agents/minder/src/minder/embedding/openai.py). |
 | `P1-T11` Vector Store (Milvus Lite) | `PARTIAL` | Vector search substrate exists in [`src/minder/store/vector.py`](/Users/trungtran/ai-agents/minder/src/minder/store/vector.py), but repo does not yet ship a real Milvus Lite deployment path. |
 | `P1-T12` Repository-Local State Management | `DONE` | [`src/minder/store/repo_state.py`](/Users/trungtran/ai-agents/minder/src/minder/store/repo_state.py) now persists `.minder/workflow.json`, `context.json`, `relationships.json`, and `artifacts/` with round-trip integration coverage. |
-| `P1-T13` Workflow Engine (Basic) | `PARTIAL` | [`src/minder/tools/workflow.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/workflow.py) now provides workflow get/step/update/guard with DB + repo-state persistence, but full MCP transport exposure is still pending. |
+| `P1-T13` Workflow Engine (Basic) | `PARTIAL` | [`src/minder/tools/workflow.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/workflow.py) now provides workflow get/step/update/guard and is registered through [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
 | `P1-T14` Memory & Search Tools (Basic) | `DONE` | [`src/minder/tools/memory.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/memory.py) and [`src/minder/tools/search.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/search.py) now exist with semantic recall/list/delete flow and integration coverage. |
-| `P1-T15` Auth MCP Tools | `PARTIAL` | [`src/minder/tools/auth.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/auth.py) now provides login/whoami/manage module contracts, but transport registration as MCP tools is still pending. |
-| `P1-T16` Session Tools | `PARTIAL` | [`src/minder/tools/session.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/session.py) now provides create/save/restore/context module contracts, but transport registration as MCP tools is still pending. |
-| `P1-T17` Skill Seeding | `NOT STARTED` | `scripts/seed_skills.py` does not exist yet. |
-| `P1-T18` Model Download Script | `NOT STARTED` | `scripts/download_models.sh` does not exist yet. |
-| `P1-T19` Docker Development Stack | `PARTIAL` | [`docker/Dockerfile.sandbox`](/Users/trungtran/ai-agents/minder/docker/Dockerfile.sandbox) exists for verification, but `docker/Dockerfile` and `docker/docker-compose.dev.yml` are missing. |
-| `P1-T20` GitHub Actions CI | `NOT STARTED` | `.github/workflows/ci.yml` does not exist yet. |
-| `P1-T21` GitHub Actions Release | `NOT STARTED` | `.github/workflows/release.yml` does not exist yet. |
-| `P1-T22` Admin Creation Script | `NOT STARTED` | `scripts/create_admin.py` does not exist yet. |
+| `P1-T15` Auth MCP Tools | `PARTIAL` | [`src/minder/tools/auth.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/auth.py) now provides login/whoami/manage and is registered through [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
+| `P1-T16` Session Tools | `PARTIAL` | [`src/minder/tools/session.py`](/Users/trungtran/ai-agents/minder/src/minder/tools/session.py) now provides create/save/restore/context and is registered through [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
+| `P1-T17` Skill Seeding | `PARTIAL` | [`scripts/seed_skills.py`](/Users/trungtran/ai-agents/minder/scripts/seed_skills.py) now imports local skill directories with idempotence coverage; real remote clone path is implemented but not yet exercised in tests. |
+| `P1-T18` Model Download Script | `PARTIAL` | [`scripts/download_models.sh`](/Users/trungtran/ai-agents/minder/scripts/download_models.sh) now exists with skip/checksum contract, but has not yet been executed in verification. |
+| `P1-T19` Docker Development Stack | `PARTIAL` | [`docker/Dockerfile`](/Users/trungtran/ai-agents/minder/docker/Dockerfile) and [`docker/docker-compose.dev.yml`](/Users/trungtran/ai-agents/minder/docker/docker-compose.dev.yml) now exist and point to [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py), but `docker compose up` has not been exercised yet. |
+| `P1-T20` GitHub Actions CI | `PARTIAL` | [`ci.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/ci.yml) now exists with uv/lint/type/test/docker steps, but has not yet run on GitHub. |
+| `P1-T21` GitHub Actions Release | `PARTIAL` | [`release.yml`](/Users/trungtran/ai-agents/minder/.github/workflows/release.yml) now exists for tag-based ghcr release, but has not yet run on a real tag. |
+| `P1-T22` Admin Creation Script | `DONE` | [`scripts/create_admin.py`](/Users/trungtran/ai-agents/minder/scripts/create_admin.py) now exists with idempotent creation contract and integration coverage. |
 | `P1-VERIFY` Phase 1 Acceptance Test | `NOT STARTED` | `tests/integration/test_phase1_gate.py` does not exist yet. |
 
 ### Current Runnable Flow
@@ -251,6 +223,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Goal**: Deliver end-to-end agentic pipeline with workflow-aware reasoning and Docker-based verification.
 
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
+
 ### Tasks
 
 #### P2-T01: LangGraph State Definition
@@ -347,6 +321,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Goal**: Replace the current minimal internal pipeline with the real Phase 2 runtime stack while preserving the existing Phase 2 tool surface.
 
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
+
 ### Tasks
 
 #### P2.1-T01: LangGraph Runtime Replacement
@@ -389,6 +365,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ## Phase 2.2 — Verification, Retrieval, and Workflow Closure
 
 **Goal**: Close the remaining Phase 2 gaps in retrieval, Docker verification, and workflow enforcement so Phase 3 can assume a real agentic foundation.
+
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
 ### Tasks
 
@@ -452,6 +430,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ## Phase 3 — Advanced Retrieval, Knowledge Graph, Process Intelligence
 
 **Goal**: Improve retrieval quality and add relationship-aware repository intelligence.
+
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
 ### Tasks
 
@@ -534,6 +514,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Goal**: Production-ready for teams with a dashboard for workflow administration.
 
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
+
 ### Tasks
 
 #### P4-T01: PostgreSQL Migration
@@ -614,6 +596,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ## Phase 5 — Learning and Self-Improvement
 
 **Goal**: Let Minder learn from workflows, failures, and feedback to improve over time.
+
+**Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
 ### Tasks
 

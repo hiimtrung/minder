@@ -1,0 +1,22 @@
+FROM python:3.14-slim
+
+ENV UV_LINK_MODE=copy
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+COPY pyproject.toml uv.lock README.md /app/
+COPY src /app/src
+COPY scripts /app/scripts
+
+RUN uv sync --frozen
+
+EXPOSE 8080
+
+CMD ["uv", "run", "python", "-m", "minder.server"]

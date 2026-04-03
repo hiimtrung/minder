@@ -1,0 +1,22 @@
+services:
+  minder:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: minder-dev:latest
+    ports:
+      - "8080:8080"
+    environment:
+      MINDER_SERVER__TRANSPORT: sse
+      MINDER_SERVER__HOST: 0.0.0.0
+      MINDER_SERVER__PORT: 8080
+      MINDER_RELATIONAL_STORE__DB_PATH: /data/minder.db
+      MINDER_VECTOR_STORE__DB_PATH: /data/milvus.db
+    volumes:
+      - ../src:/app/src
+      - ../scripts:/app/scripts
+      - minder-data:/data
+      - ${HOME}/.minder/models:/root/.minder/models
+
+volumes:
+  minder-data:

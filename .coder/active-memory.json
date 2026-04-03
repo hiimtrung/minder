@@ -1,98 +1,97 @@
 {
   "mode": "search",
-  "query": "minder capabilities",
+  "query": "fix langgraph pydantic v1 warning on python 3.14",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-03T11:48:58.95698+07:00",
+  "searched_at": "2026-04-03T15:33:25.336671+07:00",
   "results": [
     {
-      "id": "0633f679-9b83-4236-8820-c593ce83fe2a",
-      "title": "Minder project architecture plan",
+      "id": "67de27ee-e54b-497b-a1a5-c64a7f02b3fe",
+      "title": "Added optional real LangGraph adapter path",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-project-architecture-plan",
+      "canonical_key": "document:added-optional-real-langgraph-adapter-path",
       "score": 0.086393446,
       "tags": [
         "minder",
-        "architecture",
-        "rag",
-        "mcp",
+        "phase-2.1",
         "langgraph",
-        "plan"
+        "adapter",
+        "tests"
       ],
       "conflict_detected": false,
-      "content": "Minder is a Full Agentic RAG MCP Server built with Python + LangGraph + Milvus + NV-Embed-v2 + Nemotron-3 Nano-4B GGUF. Architecture: MCP Transport Layer → LangGraph Orchestrator (Planning, Retriever, Reranker, Reasoning, LLM, Guard, Verification, Evaluator nodes) → Multi-tier Data Layer (Vector/Milvus, Relational/SQLite, Document/JSONL, Graph, Cache). 8 memory stores: Skill, History, Error, Session, Metadata, Document, Rule, Feedback. 5 implementation phases: Foundation → Agentic Pipeline → Advanced Retrieval + Knowledge Graph → Scale + Production → Self-Improvement. Plan stored at docs/PLAN.md."
+      "content": "Continued Phase 2.1 by upgrading LangGraphExecutorAdapter from metadata-only to an optional real adapter path. Added generic runtime attr loading, graph runtime StateGraph loader, and adapter behavior that uses real langgraph.graph.StateGraph when available while safely falling back to InternalGraphExecutor otherwise. Added targeted runtime tests with fake StateGraph coverage and verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (77 passed)."
     },
     {
-      "id": "31c2502b-d595-4735-afd4-3fb72535d4b8",
-      "title": "Minder confirmed decisions v2",
+      "id": "55b22e2c-bdf2-49c7-998c-ef1a803aea88",
+      "title": "Fixed mypy type error in verification node and untyped function in rbac",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-confirmed-decisions-v2",
+      "canonical_key": "document:fixed-mypy-type-error-in-verification-node-and-untyped-function-in-rbac",
       "score": 0.086129025,
       "tags": [
-        "minder",
-        "decisions",
-        "architecture",
-        "auth",
-        "cicd",
-        "confirmed"
+        "mypy",
+        "typing",
+        "verification",
+        "rbac"
       ],
       "conflict_detected": false,
-      "content": "Minder plan v2 confirmed: Team multi-user (email+username from git), Auth mandatory (API key + JWT + RBAC), SSE transport from Phase 1, NV-Embed-v2 GGUF + Nemotron-3 GGUF mandatory (offline-first, OpenAI fallback optional), Docker sandbox mandatory for verification (subprocess dev mode), Skills seeded from external GitHub repo, CI/CD from Phase 1 (GitHub Actions + GitHub Releases + GitHub Packages/ghcr.io), Knowledge Graph Phase 3 confirmed. 9 stores total (added User Store). Plan at docs/PLAN.md v2.0 status: DECISIONS CONFIRMED."
+      "content": "Resolved a mypy type assignment error in src/minder/graph/nodes/verification.py by declaring failure_kind as Optional[str] at the method start. Also added type hints to the rbac decorator wrapper in src/minder/auth/rbac.py to satisfy --check-untyped-defs."
     },
     {
-      "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
-      "title": "Minder switched to Qwen plan split",
+      "id": "c3ec43ad-09dc-4517-8ed7-8a5db757dc56",
+      "title": "Python 3.14 baseline upgrade",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-switched-to-qwen-plan-split",
+      "canonical_key": "document:python-3-14-baseline-upgrade",
       "score": 0.08587302,
       "tags": [
-        "minder",
-        "plan",
-        "qwen",
-        "docs",
-        "split"
+        "python",
+        "uv",
+        "venv",
+        "upgrade",
+        "phase2"
       ],
       "conflict_detected": false,
-      "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
+      "content": "Upgraded minder from Python 3.12 to 3.14. Updated .python-version to 3.14, raised requires-python in pyproject.toml and uv.lock to \u003e=3.14, switched docker/Dockerfile.sandbox to python:3.14-slim, and updated planning docs that referenced 3.12. Recreated the uv-managed .venv on CPython 3.14.3 with uv sync --python 3.14.3. Verified the upgrade with uv run ruff check ., uv run mypy src, and uv run pytest; all passed with 85 tests green on Python 3.14.3."
     },
     {
-      "id": "fb95ba9d-c826-4ba2-8b63-4b82346826f0",
-      "title": "Instruction updates for memory lifecycle commands",
+      "id": "b79b7381-89b1-46e8-ba9d-b9739e9d98b0",
+      "title": "Git branch for recaptcha locale patch",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:instruction-updates-for-memory-lifecycle-commands",
+      "canonical_key": "document:git-branch-for-recaptcha-locale-patch",
       "score": 0.08562499,
       "tags": [
-        "instructions",
-        "agents",
-        "skills",
-        "memory",
-        "lifecycle",
-        "docs"
+        "findtourgo",
+        "git",
+        "branch",
+        "commit",
+        "recaptcha"
       ],
       "conflict_detected": false,
-      "content": "Updated the source instruction layer to match new memory lifecycle commands. Refreshed .agents workflow guidance so agents now distinguish between coder memory store for new knowledge, coder memory verify for reconfirming an existing memory, coder memory supersede or store --replace-active for replacing active truth, and coder memory audit when conflicts or stale active memories may remain. Also updated the coder-cli skill and architecture doc to describe the new memory endpoints, conflict-aware retrieval behavior, and lifecycle-aware context injection expectations."
+      "content": "Created branch codex/recaptcha-locale and committed the GoogleRecaptcha locale propagation change as d4c070d4 with message Pass locale into GoogleRecaptcha. Pre-commit ran lint-staged with prettier and eslint --fix successfully before commit."
     },
     {
-      "id": "3ee55dca-6874-4780-b12c-014a34b734e2",
-      "title": "LINE configure step uses split checklist cards",
+      "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
+      "title": "Compose runtime activation uses auto runtimes with safe fallback",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:line-configure-step-uses-split-checklist-cards",
+      "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
       "score": 0.08538462,
       "tags": [
-        "findtourgo",
-        "line",
-        "ui",
-        "i18n",
-        "checklist"
+        "minder",
+        "phase1",
+        "phase2",
+        "compose",
+        "runtime",
+        "llama-cpp",
+        "langgraph",
+        "litellm"
       ],
       "conflict_detected": false,
-      "content": "Refactored LINE StepConfigureChannel to match the WhatsApp readiness-card pattern. Replaced the old single checkbox with three atom-based checklist cards backed by per-item state in LineConnect, enabled Next only when all checklist items are checked, moved checklist styling into channelThemes, and updated lineSetup i18n keys across en/vi/ja/id/zh."
+      "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
     }
   ]
 }

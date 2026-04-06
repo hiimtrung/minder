@@ -2,6 +2,7 @@ from .evaluator import EvaluatorNode
 from .guard import GuardNode
 from .llm import LLMNode
 from .planning import PlanningNode
+from .reranker import RerankerNode
 from .reasoning import ReasoningNode
 from .retriever import RetrieverNode
 from .verification import (
@@ -18,6 +19,7 @@ __all__ = [
     "LLMNode",
     "PlanningNode",
     "ReasoningNode",
+    "RerankerNode",
     "RetrieverNode",
     "SubprocessVerificationRunner",
     "VerificationNode",

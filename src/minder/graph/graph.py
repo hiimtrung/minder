@@ -11,6 +11,7 @@ from minder.graph.nodes import (
     LLMNode,
     PlanningNode,
     ReasoningNode,
+    RerankerNode,
     RetrieverNode,
     VerificationNode,
     WorkflowPlannerNode,
@@ -30,6 +31,7 @@ class MinderGraph:
         workflow_planner: WorkflowPlannerNode | None = None,
         planning: PlanningNode | None = None,
         retriever: RetrieverNode | None = None,
+        reranker: RerankerNode | None = None,
         reasoning: ReasoningNode | None = None,
         llm: LLMNode | None = None,
         guard: GuardNode | None = None,
@@ -55,6 +57,7 @@ class MinderGraph:
             vector_store=vector_store,
             score_threshold=config.retrieval.similarity_threshold,
         )
+        self._reranker = reranker  # None by default; pass RerankerNode(...) to activate
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
             primary=QwenLocalLLM(config.llm.model_path, runtime="auto"),
@@ -76,6 +79,7 @@ class MinderGraph:
             workflow_planner=self._workflow_planner,
             planning=self._planning,
             retriever=self._retriever,
+            reranker=self._reranker,
             reasoning=self._reasoning,
             llm=self._llm,
             guard=self._guard,

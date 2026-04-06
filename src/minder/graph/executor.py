@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from minder.graph.edges import determine_next_edge
 from minder.graph.nodes import (
@@ -9,6 +9,7 @@ from minder.graph.nodes import (
     LLMNode,
     PlanningNode,
     ReasoningNode,
+    RerankerNode,
     RetrieverNode,
     VerificationNode,
     WorkflowPlannerNode,
@@ -27,6 +28,7 @@ class GraphNodes:
     guard: GuardNode
     verification: VerificationNode
     evaluator: EvaluatorNode
+    reranker: RerankerNode | None = field(default=None)
 
 
 class InternalGraphExecutor:
@@ -40,6 +42,8 @@ class InternalGraphExecutor:
         state = await self._nodes.workflow_planner.run(state)
         state = self._nodes.planning.run(state)
         state = await self._nodes.retriever.run(state)
+        if self._nodes.reranker is not None:
+            state = await self._nodes.reranker.run(state)
 
         attempt = 0
         while True:

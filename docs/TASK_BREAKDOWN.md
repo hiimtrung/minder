@@ -475,80 +475,154 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
+### Wave Plan
+
+| Wave | Focus | Tasks | Status |
+|---|---|---|---|
+| `P3-Wave1` | Retrieval Infrastructure | P3-T04, P3-T02, P3-T03, P3-T01, P3-T07, P3-T08 | `UP NEXT` |
+| `P3-Wave2` | Knowledge Graph & Extended Stores | P3-T05, P3-T06 | `BACKLOG` |
+| `P3-Wave3` | Ingestion Expansion & Repo Relationships | P3-T09, P3-T10 | `BACKLOG` |
+| `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | P3-T11, P3-T12 | `BACKLOG` |
+| `P3-Wave5` | P3 Verification Gate | P3-VERIFY | `BACKLOG` |
+
 ### Tasks
 
-#### P3-T01: Reranking (Cross-Encoder)
-- **Owner**: `ML`
-- **Requirement**: Implement `src/minder/graph/nodes/reranker.py` — cross-encoder reranking with `sentence-transformers`, diversity filtering with MMR, recency weighting.
-- **Result**: Reranked results are more relevant than raw vector search. Unit tests compare MRR before/after reranking.
+---
 
-#### P3-T02: BM25 Hybrid Retrieval
-- **Owner**: `ML`
-- **Requirement**: Implement `src/minder/retrieval/hybrid.py` — combine vector search with BM25 keyword search. Configurable alpha weighting.
-- **Result**: Hybrid search improves recall for keyword-heavy queries. Unit tests validate alpha blending.
+#### Wave 1 — Retrieval Infrastructure
 
-#### P3-T03: Multi-Hop Retrieval
+##### P3-T04: MMR Diversity Filtering
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/retrieval/multi_hop.py` — iterative retrieval that uses first-hop results to refine the query for second-hop.
-- **Result**: Multi-hop returns results unreachable by single-hop. Unit tests validate iterative refinement.
+- **File**: `src/minder/retrieval/mmr.py`
+- **Requirement**: Implement Maximal Marginal Relevance — re-rank a candidate list by balancing relevance to the query against similarity to already-selected results. Configurable `lambda_mult` (0 = max diversity, 1 = max relevance). Pure-Python, no external deps.
+- **Result**: Top-N results are diverse, not repetitive. Unit tests validate diversity vs. pure relevance ordering with controlled similarity matrices.
 
-#### P3-T04: MMR Diversity Filtering
+##### P3-T02: BM25 Hybrid Retrieval
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/retrieval/mmr.py` — Maximal Marginal Relevance to reduce redundancy in results.
-- **Result**: Top-N results are diverse, not repetitive. Unit tests validate diversity scoring.
+- **File**: `src/minder/retrieval/hybrid.py`
+- **Requirement**: Implement `HybridRetriever` that combines vector-search scores with BM25 keyword scores. Configurable `alpha` (0 = pure BM25, 1 = pure vector). BM25 implemented in pure Python (no external index server). Normalized RRF or linear blend.
+- **Result**: Hybrid search improves recall for keyword-heavy queries versus pure vector search. Unit tests validate alpha=0, alpha=1, and alpha=0.5 blending with synthetic documents.
 
-#### P3-T05: Knowledge Graph Store
+##### P3-T03: Multi-Hop Retrieval
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
+- **Owner**: `ML`
+- **File**: `src/minder/retrieval/multi_hop.py`
+- **Requirement**: Implement `MultiHopRetriever` — first hop retrieves top-K candidates; second hop generates an expanded query from first-hop content, then retrieves again and merges de-duplicated results. Max hops configurable (default 2).
+- **Result**: Multi-hop returns documents unreachable by single-hop when the link is only visible via intermediate content. Unit tests validate iterative refinement with a stub retriever.
+
+##### P3-T01: Reranking (Cross-Encoder)
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
+- **Owner**: `ML`
+- **File**: `src/minder/graph/nodes/reranker.py`
+- **Requirement**: Implement `RerankerNode` — takes `state.retrieved_docs`, scores each document against the query using cosine similarity (real `sentence-transformers` cross-encoder when available, else mock score passthrough). Applies MMR after scoring. Writes `state.reranked_docs`. Integrates into graph between Retriever and Reasoning nodes.
+- **Result**: `state.reranked_docs` is more relevant and diverse than raw `state.retrieved_docs`. Unit tests cover real path (monkeypatch) and mock fallback. Graph integration test confirms node fires between retriever and reasoning.
+
+##### P3-T07: AST-Aware Code Chunking
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
+- **Owner**: `ML`
+- **File**: `src/minder/chunking/code_splitter.py`
+- **Requirement**: Implement `CodeSplitter` — parse Python source into AST, chunk by top-level function/class boundaries. Prepend module-level imports to each chunk for self-containedness. TypeScript and Java: fallback to line-based splitting at `{`/`}` depth=0 boundaries. Return list of `CodeChunk(content, start_line, end_line, symbol_name, language)`.
+- **Result**: Python chunks align with `def`/`class` boundaries with imports preserved. Unit tests validate Python (real AST), TypeScript (line-based), and Java (line-based).
+
+##### P3-T08: Text Chunking
+- **Wave**: `P3-Wave1`
+- **Status**: `NOT STARTED`
+- **Owner**: `ML`
+- **File**: `src/minder/chunking/splitter.py`
+- **Requirement**: Implement `TextSplitter` — sliding-window chunking with configurable `chunk_size` (default 512 tokens estimated by char/4) and `overlap` (default 64). Markdown-aware: prefer split at heading boundaries when possible. Returns list of `TextChunk(content, start_char, end_char)`.
+- **Result**: Documents chunk at heading boundaries when possible. Overlap preserves context across chunks. Unit tests validate size constraints, overlap, and markdown heading splitting.
+
+---
+
+#### Wave 2 — Knowledge Graph & Extended Stores
+
+##### P3-T05: Knowledge Graph Store
+- **Wave**: `P3-Wave2`
+- **Status**: `NOT STARTED`
 - **Owner**: `BE`
-- **Requirement**: Implement `src/minder/store/graph.py` — store entities and relationships (modules, services, ownership, dependencies). Query by entity, by relationship type, by path.
-- **Result**: Nodes and edges store and query correctly. Graph traversal works. Unit tests cover CRUD and traversal.
+- **File**: `src/minder/store/graph.py`
+- **Requirement**: Implement `KnowledgeGraphStore` backed by SQLite (dev) / MongoDB (prod). Entities: nodes with `id`, `type` (module, service, file, owner), `name`, `metadata`. Edges: `source_id`, `target_id`, `relation` (depends_on, owns, imports, calls), `weight`. Methods: `add_node`, `add_edge`, `get_node`, `get_neighbors`, `get_path`, `query_by_type`, `upsert_node`. Add SQLAlchemy models (`GraphNode`, `GraphEdge`) to `models/`.
+- **Result**: Nodes and edges store and query correctly. Neighbor traversal and type queries work. Unit tests cover CRUD, traversal, and upsert idempotence.
 
-#### P3-T06: Document, Rule, Feedback Stores
+##### P3-T06: Rule and Feedback Stores
+- **Wave**: `P3-Wave2`
+- **Status**: `NOT STARTED`
 - **Owner**: `BE`
-- **Requirement**: Implement `src/minder/store/document.py`, `src/minder/store/rule.py`, `src/minder/store/feedback.py` — full CRUD per schema in `03-data-model-and-tools.md`.
-- **Result**: All three stores work with CRUD. Documents chunk and embed. Rules filter by scope. Feedback links to entities. Unit tests cover all operations.
+- **Files**: `src/minder/store/rule.py`, `src/minder/store/feedback.py`
+- **Requirement**: `RuleStore` — CRUD for `Rule` SQLAlchemy model (already in `models/rule.py`); `list_by_scope(scope)`, `list_active()`. `FeedbackStore` — add `Feedback` SQLAlchemy model (schema in `models/rule.py` as `FeedbackSchema`); CRUD + `list_by_entity(entity_type, entity_id)`, `average_rating(entity_id)`. Both wired into `RelationalStore` and `IOperationalStore` interface.
+- **Result**: Rules filter by scope and active flag. Feedback aggregates rating per entity. Unit tests cover all methods.
 
-#### P3-T07: AST-Aware Code Chunking
-- **Owner**: `ML`
-- **Requirement**: Implement `src/minder/chunking/code_splitter.py` — parse code into AST, chunk by function/class boundaries. Preserve import context. Support Python, TypeScript, Java.
-- **Result**: Code chunks align with function/class boundaries. Imports are preserved. Unit tests validate for each supported language.
+---
 
-#### P3-T08: Text Chunking
-- **Owner**: `ML`
-- **Requirement**: Implement `src/minder/chunking/splitter.py` — LangChain text splitters for markdown, prose, and config files. Configurable chunk size and overlap.
-- **Result**: Documents chunk with configurable size. Overlap preserves context. Unit tests validate chunking.
+#### Wave 3 — Ingestion Expansion & Repository Relationships
 
-#### P3-T09: Ingestion Tools
+##### P3-T09: Ingestion Tools Expansion
+- **Wave**: `P3-Wave3`
+- **Status**: `PARTIAL` (`minder_ingest_file` + `minder_ingest_directory` done)
 - **Owner**: `BE`
-- **Requirement**: Implement `src/minder/tools/ingest.py` — `minder_ingest_file`, `minder_ingest_directory`, `minder_ingest_url`, `minder_ingest_git`, `minder_seed_skills`. Chunk → embed → store pipeline.
-- **Result**: Files, directories, URLs, and git repos ingest end-to-end. Duplicates handled. Integration test validates ingestion pipeline.
+- **File**: `src/minder/tools/ingest.py`
+- **Requirement**: Add `minder_ingest_url` — fetch via `httpx`, detect content type, chunk via `TextSplitter`, embed, upsert to document store. Add `minder_ingest_git` — shallow `git clone` to temp dir, call `minder_ingest_directory`, cleanup. Both use the same chunk→embed→store pipeline as existing methods.
+- **Result**: URLs and git repos ingest end-to-end through the unified pipeline. Integration test validates ingestion and retrieval of URL and git content.
 
-#### P3-T10: Repository Relationship Tracking
+##### P3-T10: Repository Relationship Tracking
+- **Wave**: `P3-Wave3`
+- **Status**: `NOT STARTED`
 - **Owner**: `BE`
-- **Requirement**: Scan repositories for module structure, service dependencies, ownership info. Store in knowledge graph. Update on re-scan.
-- **Result**: Repo scan produces graph of modules and dependencies. Re-scan updates graph. Unit tests validate scan and graph output.
+- **File**: `src/minder/tools/repo_scanner.py`
+- **Requirement**: Implement `RepoScanner` — walk repository, parse Python `import` statements via AST, identify module→module dependency edges. Detect service boundaries via `pyproject.toml` / `package.json` presence. Write discovered nodes (file, module) and edges (imports, depends_on) into `KnowledgeGraphStore`. Re-scan is idempotent (upsert).
+- **Result**: Scanning a Python repo produces a graph of module import relationships. Re-scan updates existing nodes/edges without duplicates. Unit tests validate scan output against a synthetic fixture repo.
 
-#### P3-T11: MCP Resources and Prompts
+---
+
+#### Wave 4 — MCP Resources, Prompts & Workflow Intelligence
+
+##### P3-T11: MCP Resources and Prompts
+- **Wave**: `P3-Wave4`
+- **Status**: `NOT STARTED`
 - **Owner**: `BE`
-- **Requirement**: Implement `src/minder/resources/` (skills, repos, stats) and `src/minder/prompts/` (debug, review, explain, tdd_step). Expose as MCP resources and prompts.
-- **Result**: MCP client can read resources and use prompt templates. Integration test validates resource and prompt access.
+- **Files**: `src/minder/resources/__init__.py`, `src/minder/prompts/__init__.py`
+- **Requirement**: Resources: `skills` (list all skills with title/tags), `repos` (list repos with workflow state), `stats` (query count, avg latency, error rate from history). Prompts: `debug` (structured debug prompt template), `review` (code review checklist template), `explain` (explain code template), `tdd_step` (TDD step guidance injecting current workflow step). Register resources and prompts via transport's MCP `app` object.
+- **Result**: MCP client can call `resources/list`, `resources/read`, `prompts/list`, `prompts/get`. Integration test validates all 4 resources and 4 prompt templates are accessible.
 
-#### P3-T12: Workflow Intelligence Enhancement
+##### P3-T12: Workflow Intelligence Enhancement
+- **Wave**: `P3-Wave4`
+- **Status**: `NOT STARTED`
 - **Owner**: `BE` + `ML`
-- **Requirement**: Workflow engine uses repo relationships and artifact lineage to provide richer guidance. Example: "Module X depends on Y, which has failing tests."
-- **Result**: Workflow guidance includes dependency-aware context. Integration test validates enriched guidance.
+- **File**: `src/minder/graph/nodes/workflow_planner.py`
+- **Requirement**: Extend `WorkflowPlannerNode.run()` to optionally query `KnowledgeGraphStore` for the current repo — retrieve module dependencies, failing test artifacts, and ownership relationships. Inject dependency-aware context into `state.workflow_context["guidance"]`. Gracefully no-ops when graph store is not provided (backwards compatible).
+- **Result**: When graph store is present, workflow guidance includes dependency context such as "Module X imports Y which has unresolved guard failures." Unit tests validate enriched guidance with a stub graph store and that the node still runs without a graph store.
 
-### Phase 3 Verification Gate
+---
 
-#### P3-VERIFY: Phase 3 Acceptance Test
+#### Wave 5 — P3 Verification Gate
+
+##### P3-VERIFY: Phase 3 Acceptance Test
+- **Wave**: `P3-Wave5`
+- **Status**: `NOT STARTED`
 - **Owner**: `ML` + `BE`
-- **Requirement**: Write and run `tests/integration/test_phase3_gate.py`:
-  1. Multi-hop query across code + docs returns relevant cross-references
-  2. Hybrid search improves MRR@10 over pure vector search
-  3. Knowledge graph stores and queries repo relationships
-  4. Ingestion pipeline processes a real repository
-  5. MCP resources and prompts are accessible
-  6. Workflow guidance includes dependency-aware context
-- **Result**: All 6 checks pass. Phase 3 is complete.
+- **File**: `tests/integration/test_phase3_gate.py`
+- **Requirement**: Write and run `tests/integration/test_phase3_gate.py` validating all Wave 1–4 deliverables:
+  1. MMR produces more diverse results than raw cosine ranking
+  2. Hybrid search (alpha=0.5) outperforms pure vector search MRR@5 on keyword-heavy queries
+  3. Multi-hop retrieval finds documents reachable only via intermediate content
+  4. Reranker node fires and `reranked_docs` differs from `retrieved_docs` when duplicates present
+  5. Code splitter chunks Python at function/class boundaries with imports preserved
+  6. Text splitter respects chunk size and overlap constraints
+  7. Knowledge graph stores nodes + edges and traversal returns correct neighbors
+  8. Rule store filters by scope; feedback store aggregates rating
+  9. `minder_ingest_url` and `minder_ingest_git` complete without error on synthetic inputs
+  10. Repo scanner produces import-graph edges for a synthetic Python fixture
+  11. MCP resources `skills`, `repos`, `stats` are accessible via transport
+  12. MCP prompts `debug`, `review`, `explain`, `tdd_step` render correctly
+  13. Workflow guidance includes dependency context when graph store is provided
+- **Result**: All 13 checks pass. Phase 3 is complete.
 
 ---
 

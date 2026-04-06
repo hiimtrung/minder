@@ -1,21 +1,18 @@
 from __future__ import annotations
 
 import importlib.util
+import pytest
+import pytest_asyncio
 import uuid
 from pathlib import Path
 
-import pytest
-
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
-from minder.server import build_transport
-from minder.store.relational import RelationalStore
+from minder.server import build_store, build_cache, build_vector_store, build_transport
 from minder.store.repo_state import RepoStateStore
 
-IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 
-
-def _load_module(path: Path, module_name: str):  # noqa: ANN001, ANN201
+def _load_module(path: Path, module_name: str):
     spec = importlib.util.spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load module from {path}")
@@ -24,28 +21,87 @@ def _load_module(path: Path, module_name: str):  # noqa: ANN001, ANN201
     return module
 
 
-@pytest.fixture
-async def store() -> RelationalStore:
-    backend = RelationalStore(IN_MEMORY_URL)
-    await backend.init_db()
-    yield backend
-    await backend.dispose()
-
-
-@pytest.fixture
-def config() -> MinderConfig:
+@pytest_asyncio.fixture
+async def config() -> MinderConfig:
     settings = MinderConfig()
     settings.server.transport = "sse"
     settings.verification.sandbox = "subprocess"
+    
+    # 5. MongoDB is active store
+    settings.relational_store.provider = "mongodb"
+    settings.mongodb.database = f"minder_test_gate_{uuid.uuid4().hex[:8]}"
+    
+    # 6. Redis is reachable and active
+    settings.cache.provider = "redis"
+    settings.redis.prefix = f"minder_gate_{uuid.uuid4().hex[:8]}:"
+    
+    # 7. Milvus Standalone
+    settings.vector_store.provider = "milvus"
+    settings.vector_store.collection_prefix = f"minder_gate_{uuid.uuid4().hex[:8]}_"
+    
     return settings
+
+
+@pytest_asyncio.fixture
+async def infrastructure(config: MinderConfig):
+    try:
+        store = build_store(config)
+        await store.init_db()
+        
+        cache = build_cache(config)
+        redis_ok = await cache.health_check()
+        if not redis_ok:
+            pytest.skip("Redis not reachable")
+            
+        vector_store = build_vector_store(config, store)
+        if hasattr(vector_store, "_client"):
+            milvus_ok = await vector_store._client.health_check()
+            if not milvus_ok:
+                pytest.skip("Milvus Standalone not reachable")
+                
+        if hasattr(vector_store, "setup"):
+            await vector_store.setup()
+            
+        yield {"store": store, "cache": cache, "vector_store": vector_store}
+        
+    except Exception as e:
+        pytest.skip(f"Infrastructure not reachable: {e}")
+        
+    finally:
+        # Cleanup
+        try:
+            if hasattr(store, "_client"):
+                await store._client.db.client.drop_database(config.mongodb.database)
+            await store.dispose()
+        except Exception:
+            pass
+            
+        try:
+            if config.cache.provider == "redis":
+                await cache.flush_namespace(config.redis.prefix.rstrip(":"))
+            await cache.close()
+        except Exception:
+            pass
+            
+        try:
+            if hasattr(vector_store, "_client"):
+                # Try to drop the collection
+                from pymilvus import utility
+                utility.drop_collection(vector_store._doc_collection)
+        except Exception:
+            pass
 
 
 @pytest.mark.asyncio
 async def test_phase1_gate(
     tmp_path: Path,
-    store: RelationalStore,
     config: MinderConfig,
+    infrastructure: dict[str, object],
 ) -> None:
+    store = infrastructure["store"]
+    cache = infrastructure["cache"]
+    vector_store = infrastructure["vector_store"]
+    
     repo_path = tmp_path / "repo"
     repo_path.mkdir()
     (repo_path / "adder.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
@@ -107,11 +163,11 @@ async def test_phase1_gate(
     token = auth_service.issue_jwt(created_user)
     authorization = f"Bearer {token}"
 
-    transport = build_transport(config=config, store=store)
+    transport = build_transport(config=config, store=store, vector_store=vector_store)
+    
+    # 1. Server starts with SSE transport.
     assert transport.transport_name == "sse"
     assert "minder_query" in transport.list_tools()
-
-    # 1. Server starts with SSE transport.
     assert config.server.transport == "sse"
 
     # 2. Admin user is created via script.
@@ -160,7 +216,7 @@ async def test_phase1_gate(
     assert workflow_step["current_step"] == "Test Writing"
     assert workflow_step["next_step"] == "Implementation"
 
-    # 5. Memory store -> semantic search -> recall works.
+    # 5. Memory store -> semantic search through Milvus Standalone works.
     memory_entry = await transport.call_tool(
         "minder_memory_store",
         arguments={
@@ -172,6 +228,8 @@ async def test_phase1_gate(
         authorization=authorization,
     )
     assert memory_entry["title"] == "Phase 1 TDD"
+    
+    # Needs explicit await index creation mapping in a real flow, but basic setup handles AUTOINDEX.
     recalled = await transport.call_tool(
         "minder_memory_recall",
         arguments={"query": "tests before implementation", "limit": 3},

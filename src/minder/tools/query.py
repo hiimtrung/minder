@@ -22,19 +22,24 @@ class QueryTools:
         config: MinderConfig,
         graph: MinderGraph | None = None,
         error_store: ErrorStore | None = None,
+        vector_store: Any | None = None,
     ) -> None:
         self._store = store
         self._config = config
         self._graph = graph or MinderGraph(store, config)
         self._error_store = error_store or ErrorStore(store)
         self._document_store = DocumentStore(store)
-        self._vector_store = VectorStore(self._document_store, self._error_store)
+        self._vector_store = vector_store or VectorStore(self._document_store, self._error_store)
         self._embedding_provider = QwenEmbeddingProvider(
             config.embedding.model_path,
             dimensions=min(config.embedding.dimensions, 16),
             runtime="auto",
         )
-        self._ingest_tools = IngestTools(self._document_store, self._embedding_provider)
+        self._ingest_tools = IngestTools(
+            self._document_store, 
+            self._embedding_provider,
+            vector_store=self._vector_store,
+        )
 
     async def minder_query(
         self,

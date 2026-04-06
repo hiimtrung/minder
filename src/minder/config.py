@@ -41,13 +41,29 @@ class LLMConfig(BaseModel):
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str = "milvus_lite"
-    db_path: str = "~/.minder/data/milvus.db"
+    provider: str = "milvus_lite"  # "milvus" (standalone) | "milvus_lite" | "memory"
+    db_path: str = "~/.minder/data/milvus.db"  # used by milvus_lite only
+    uri: str = "http://localhost:19530"  # used by milvus standalone
+    collection_prefix: str = "minder_"
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "sqlite"
-    db_path: str = "~/.minder/data/minder.db"
+    provider: str = "sqlite"  # "sqlite" | "mongodb"
+    db_path: str = "~/.minder/data/minder.db"  # used by sqlite only
+
+
+class MongoDBConfig(BaseModel):
+    uri: str = "mongodb://localhost:27017"
+    database: str = "minder"
+    min_pool_size: int = 5
+    max_pool_size: int = 50
+
+
+class RedisConfig(BaseModel):
+    uri: str = "redis://localhost:6379/0"
+    prefix: str = "minder:"
+    session_ttl: int = 86400
+    cache_ttl: int = 3600
 
 
 class RetrievalConfig(BaseModel):
@@ -59,8 +75,8 @@ class RetrievalConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     enabled: bool = True
-    provider: str = "lru"
-    max_size: int = 1000
+    provider: str = "lru"  # "lru" | "redis"
+    max_size: int = 1000  # used by lru only
     ttl_seconds: int = 3600
 
 
@@ -92,6 +108,8 @@ class Settings(BaseSettings):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
+    mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
+    redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     verification: VerificationConfig = Field(default_factory=VerificationConfig)
@@ -99,6 +117,7 @@ class Settings(BaseSettings):
     seeding: SeedingConfig = Field(default_factory=SeedingConfig)
 
     model_config = SettingsConfigDict(
+        env_prefix="MINDER_",
         env_nested_delimiter="__", 
         toml_file="minder.toml"
     )

@@ -33,10 +33,24 @@ openai_model = "gpt-4o-mini"
 [vector_store]
 provider = "milvus_lite"
 db_path = "~/.minder/data/milvus.db"
+uri = "http://localhost:19530"
+collection_prefix = "minder_"
 
 [relational_store]
 provider = "sqlite"
 db_path = "~/.minder/data/minder.db"
+
+[mongodb]
+uri = "mongodb://localhost:27017"
+database = "minder"
+min_pool_size = 5
+max_pool_size = 50
+
+[redis]
+uri = "redis://localhost:6379/0"
+prefix = "minder:"
+session_ttl = 86400
+cache_ttl = 3600
 
 [retrieval]
 top_k = 10

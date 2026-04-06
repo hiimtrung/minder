@@ -12,11 +12,11 @@ RUN apt-get update \
 
 RUN pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock README.md /app/
+COPY pyproject.toml uv.lock README.md minder.toml /app/
+RUN uv sync --frozen
+
 COPY src /app/src
 COPY scripts /app/scripts
-
-RUN uv sync --frozen
 
 EXPOSE 8080
 

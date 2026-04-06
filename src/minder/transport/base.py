@@ -1,3 +1,4 @@
+import logging
 import inspect
 from dataclasses import dataclass
 from typing import Any, Callable
@@ -8,6 +9,9 @@ from minder.auth.middleware import AuthMiddleware
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.models.user import User
+from minder.auth.context import get_current_user
+
+logger = logging.getLogger(__name__)
 
 ToolHandler = Callable[..., Any]
 
@@ -52,12 +56,32 @@ class BaseTransport:
             description=description,
         )
 
-        async def wrapped_tool(**kwargs: Any) -> dict[str, Any] | list[Any] | str | int | float | bool | None:
+        # We need to wrap the handler to inject auth logic, but we must
+        # preserve the original signature so FastMCP can generate the tool schema correctly.
+        import functools
+
+        @functools.wraps(handler)
+        async def wrapped_tool(*args: Any, **kwargs: Any) -> Any:
+            # Authorization might come from _authorization in MCP CallTool params
+            authorization = kwargs.pop("_authorization", None)
+            
+            # Reconstruct arguments for call_tool
+            sig = inspect.signature(handler)
+            bound = sig.bind_partial(*args, **kwargs)
             return await self.call_tool(
                 name,
-                arguments=kwargs,
-                authorization=kwargs.pop("_authorization", None),
+                arguments=bound.arguments,
+                authorization=authorization,
             )
+
+        # Modify the signature of wrapped_tool to remove 'user' parameter
+        # so FastMCP doesn't try to validate its presence in client requests.
+        orig_sig = inspect.signature(handler)
+        new_params = [
+            p for p in orig_sig.parameters.values() 
+            if p.name != "user"
+        ]
+        wrapped_tool.__signature__ = orig_sig.replace(parameters=new_params)  # type: ignore
 
         self._server.add_tool(
             wrapped_tool,
@@ -93,9 +117,23 @@ class BaseTransport:
     ) -> User | None:
         if not registered.require_auth:
             return None
+        
+        # 1. Try context first (set by middleware or previous call in same task)
+        context_user = get_current_user()
+        if context_user is not None:
+            logger.info(f"BaseTransport: found user in context: {context_user.email}")
+            return context_user
+
+        # 2. Fallback to explicit authorization header if provided
         if self._middleware is None:
+            logger.error("BaseTransport: Transport requires auth but no AuthService was configured")
             raise RuntimeError("Transport requires auth but no AuthService was configured")
-        return await self._middleware.authenticate(authorization)
+        
+        logger.debug(f"BaseTransport: no user in context, checking header: {authorization[:10] if authorization else 'None'}")
+        user = await self._middleware.authenticate(authorization)
+        if user:
+            logger.info(f"BaseTransport: authenticated from header: {user.email}")
+        return user
 
 
 async def _invoke(handler: ToolHandler, **kwargs: Any) -> Any:

@@ -9,9 +9,15 @@ SUPPORTED_SUFFIXES = {".py", ".md", ".txt", ".json", ".toml", ".yml", ".yaml"}
 
 
 class IngestTools:
-    def __init__(self, document_store: DocumentStore, embedding_provider: EmbeddingProvider) -> None:
+    def __init__(
+        self, 
+        document_store: DocumentStore, 
+        embedding_provider: EmbeddingProvider,
+        vector_store: Any | None = None,
+    ) -> None:
         self._document_store = document_store
         self._embedding_provider = embedding_provider
+        self._vector_store = vector_store
 
     async def minder_ingest_file(self, path: str, *, project: str | None = None) -> dict[str, object]:
         file_path = Path(path)
@@ -28,6 +34,20 @@ class IngestTools:
             chunks={"size": len(content)},
             embedding=embedding,
         )
+        
+        if self._vector_store and hasattr(self._vector_store, "upsert_document") and embedding:
+            await self._vector_store.upsert_document(
+                doc_id=document.id,
+                embedding=embedding,
+                payload={
+                    "title": file_path.name,
+                    "content": content,
+                    "doc_type": doc_type,
+                    "source_path": str(file_path),
+                    "project": target_project,
+                }
+            )
+            
         return {
             "document_id": document.id,
             "path": str(file_path),
@@ -57,10 +77,22 @@ class IngestTools:
             ingested_paths.add(str(file_path))
             ingested_count += 1
 
+        # We first need to get the list of documents that WILL be deleted
+        docs_to_delete = []
+        if self._vector_store and hasattr(self._vector_store, "delete_documents"):
+            existing = await self._document_store.list_documents(project=target_project)
+            docs_to_delete = [
+                doc.id for doc in existing 
+                if doc.source_path not in ingested_paths
+            ]
+
         await self._document_store.delete_documents_not_in_paths(
             project=target_project,
             keep_paths=ingested_paths,
         )
+        
+        if docs_to_delete and self._vector_store and hasattr(self._vector_store, "delete_documents"):
+            await self._vector_store.delete_documents(docs_to_delete)
         return {
             "project": target_project,
             "ingested_count": ingested_count,

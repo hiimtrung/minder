@@ -1,93 +1,96 @@
 {
   "mode": "search",
-  "query": "update architecture plan for milvus standalone mongodb redis docker compose",
+  "query": "ci-cd",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-03T15:58:35.096089+07:00",
+  "searched_at": "2026-04-06T11:30:45.835272+07:00",
   "results": [
     {
-      "id": "a63af393-efd3-486f-8b39-987fbb80054d",
-      "title": "omi-channel-be repository exploration",
+      "id": "3dd2d13d-a499-4c2b-ac92-443563f8cfa7",
+      "title": "share company staff directory hook for inbox ui",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:omi-channel-be-repository-exploration",
+      "canonical_key": "document:share-company-staff-directory-hook-for-inbox-ui",
       "score": 0.086393446,
       "tags": [
-        "repository-exploration",
-        "architecture",
-        "nestjs"
+        "findtourgoUI",
+        "omni-channel",
+        "staff",
+        "hook",
+        "refactor"
       ],
       "conflict_detected": false,
-      "content": "NestJS monolith with clean-architecture style modules under src/modules; app bootstraps in src/main.ts with URI versioning and swagger at /docs; infra includes PostgreSQL(TypeORM), MongoDB(Mongoose), Redis, SQS+RabbitMQ, websockets via Redis adapter; tests are sparse (7 specs total incl 1 e2e)."
+      "content": "Created useCompanyStaffDirectory hook to centralize company staff query, options mapping, and id-to-name resolution. Refactored ConversationHeader and SystemMessage to reuse it, reducing duplicate queries/mapping logic. Files: src/hooks/common/useCompanyStaffDirectory.ts, src/app/[locale]/(company)/company/[companyId]/inboxes/_sections/ConversationHeader.tsx, src/app/[locale]/(company)/company/[companyId]/inboxes/_components/message-renderers/SystemMessage.tsx"
     },
     {
-      "id": "aac7071c-de25-485c-8238-b6ce944d1ca6",
-      "title": "Migrate truyentt from modules to pure clean architecture",
+      "id": "fa4d8f71-7381-4f14-a73b-f7d4283d1a34",
+      "title": "OMS API products module extended with skus and images",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:migrate-truyentt-from-modules-to-pure-clean-architecture",
+      "canonical_key": "document:oms-api-products-module-extended-with-skus-and-images",
       "score": 0.086129025,
-      "tags": [
-        "truyentt",
-        "golang",
-        "clean-architecture",
-        "refactor",
-        "internal"
-      ],
-      "conflict_detected": false,
-      "content": "Refactored runtime structure to internal clean architecture only. Added internal/domain (article, category, chapter entities + repository ports), internal/application (DTOs and use cases/services), internal/infrastructure/persistence/mysql (GORM repository adapters), and internal/presentation/http (handlers + route composition). Updated main.go to register routes via internal/presentation/http. Removed all legacy modules/**/*.go files so project no longer uses modules folder. Preserved existing endpoints and article pagination/filter logic plus chapters by article_id endpoint. Verified with go test ./... and modules/**/*.go search returns none."
-    },
-    {
-      "id": "6375c2ef-aa9c-42e2-85f3-5c8f84483c3c",
-      "title": "Align OMS config module and datasource with omni pattern",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:align-oms-config-module-and-datasource-with-omni-pattern",
-      "score": 0.08587302,
       "tags": [
         "oms-api",
         "nestjs",
-        "config",
-        "typeorm",
-        "migrations"
+        "products",
+        "sku",
+        "images",
+        "multi-tenant"
       ],
       "conflict_detected": false,
-      "content": "Updated OMS NestJS configuration to omni-style: added global ConfigModule.forRoot in src/app.module.ts; enhanced env parsing in src/config/env.config.ts with DB_* and DATABASE_* alias support plus DATABASE_SSL and DATABASE_SSL_REJECT_UNAUTHORIZED; updated src/config/typeorm.ts runtime config to use ssl and disable runtime migrations (migrations: [], migrationsRun:false); updated src/infrastructure/postgres/data-source.ts for CLI migrations with ssl and single default DataSource export. Added @nestjs/config and joi dependencies. Verified with yarn build and yarn migration:run (all migrations executed successfully)."
+      "content": "Extended Products module to support product_skus and product_images under organization-scoped routes. Added domain models/repositories, DTOs, use-cases create/list for skus and images, TypeORM entities and repositories, module provider wiring, controller endpoints under /v1/organizations/:organizationId/products/:productId/(skus|images), and migration 1771000003000-CreateProductSkusAndImagesTables with FK to products and unique (product_id, sku_code). Preserved existing products endpoints and company ownership checks via findByIdInOrganization. Verified with yarn lint, yarn build, yarn test."
     },
     {
-      "id": "cf5ef277-e4f3-4b6f-9005-281be90d9c48",
-      "title": "Create dedicated OMS config module and centralize datasource options",
+      "id": "9b184b0f-ceb3-4440-9a02-8dea0ff156e2",
+      "title": "Configurations use GetOrCreateCompanyUseCase for externalCompanyId",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:create-dedicated-oms-config-module-and-centralize-datasource-options",
+      "canonical_key": "document:configurations-use-getorcreatecompanyusecase-for-externalcompanyid",
+      "score": 0.08587302,
+      "tags": [
+        "omi-channel-be",
+        "nestjs",
+        "configurations",
+        "companies",
+        "usecase"
+      ],
+      "conflict_detected": false,
+      "content": "Replaced GetCompanyByIdUseCase with GetOrCreateCompanyUseCase in public channel configuration use cases so configurations module auto-ensures local company records when resolving externalCompanyId. Files: src/modules/configurations/application/use-cases/get-public-channel-configuration.use-case.ts, get-public-channels.use-case.ts, upsert-public-channels-configuration.use-case.ts"
+    },
+    {
+      "id": "d2e9d893-5441-465a-9986-645dbc21730f",
+      "title": "CRM customerSource partner i18n key",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:crm-customersource-partner-i18n-key",
       "score": 0.08562499,
       "tags": [
-        "oms-api",
-        "config-module",
-        "typeorm",
-        "datasource"
+        "findtourgoUI",
+        "crm",
+        "i18n",
+        "customer",
+        "missing-keys"
       ],
       "conflict_detected": false,
-      "content": "Added src/config/config.module.ts as a global config module patterned after omni-channel-api using Nest ConfigModule.forRoot with env file precedence and cache. AppModule now imports AppConfigModule instead of inline ConfigModule setup. Refactored src/config/typeorm.ts to centralize common options and export runtime typeOrmConfig (no runtime migrations) plus typeOrmCliConfig (with migrations for CLI). Updated src/infrastructure/postgres/data-source.ts to instantiate DataSource from typeOrmCliConfig with a single default export. Verified with yarn build and yarn migration:show."
+      "content": "Added missing enum.customerSource.partner translations across en/vi/id/ja/zh in findtourgoUI. The CRM customer account form/detail screens resolve source labels via t('enum.customerSource.'), so partner must exist under customerSource in every locale, not only under customerType/customerStage."
     },
     {
-      "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
-      "title": "Minder plan translated and expanded",
+      "id": "4549cfd4-9891-49b8-bacb-15c7ed9f1bfa",
+      "title": "OMS API products module company-scoped",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-plan-translated-and-expanded",
+      "canonical_key": "document:oms-api-products-module-company-scoped",
       "score": 0.08538462,
       "tags": [
-        "minder",
-        "plan",
-        "workflow",
-        "tdd",
-        "mcp",
-        "repo-state"
+        "oms-api",
+        "nestjs",
+        "products",
+        "multi-tenant",
+        "organization"
       ],
       "conflict_detected": false,
-      "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
+      "content": "Implemented clean-architecture Products module in NestJS scoped by organization/company. Added Product domain model and repository contract, DTO and use-cases (create/get/list), TypeORM entity and repository, controller routes under /v1/organizations/:organizationId/products, module wiring in AppModule, and migration 1771000002000-CreateProductsTable with FK to organizations and unique (organization_id, sku). Validation includes name, productType, sku, and optional image/description/color/size/storage/isCustom/status. Verified with yarn lint, yarn build, yarn test."
     }
   ]
 }

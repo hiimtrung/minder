@@ -1,15 +1,18 @@
 from __future__ import annotations
 
 import uuid
+import sys
 from pathlib import Path
 from typing import Any
 
 from minder.auth.service import AuthService
+from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
 from minder.config import MinderConfig, Settings
 from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
+from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
 from minder.store.relational import RelationalStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
@@ -21,7 +24,23 @@ from minder.tools.memory import MemoryTools
 from minder.transport import SSETransport, StdioTransport
 
 
-def build_store(config: MinderConfig) -> RelationalStore:
+def build_store(config: MinderConfig) -> IOperationalStore:
+    """Build the operational store based on config provider setting."""
+    provider = config.relational_store.provider
+
+    if provider == "mongodb":
+        from minder.store.mongodb.client import MongoClient
+        from minder.store.mongodb.operational_store import MongoOperationalStore
+
+        client = MongoClient(
+            uri=config.mongodb.uri,
+            database=config.mongodb.database,
+            min_pool_size=config.mongodb.min_pool_size,
+            max_pool_size=config.mongodb.max_pool_size,
+        )
+        return MongoOperationalStore(client)  # type: ignore[return-value]
+
+    # Default: SQLite via SQLAlchemy
     db_path = config.relational_store.db_path
     if db_path.startswith(("sqlite+", "postgresql+", "postgres://")):
         db_url = db_path
@@ -29,13 +48,45 @@ def build_store(config: MinderConfig) -> RelationalStore:
         expanded = Path(db_path).expanduser()
         expanded.parent.mkdir(parents=True, exist_ok=True)
         db_url = f"sqlite+aiosqlite:///{expanded}"
-    return RelationalStore(db_url)
+    return RelationalStore(db_url)  # type: ignore[return-value]
+
+
+def build_cache(config: MinderConfig) -> ICacheProvider:
+    """Build the cache provider based on config."""
+    if config.cache.provider == "redis":
+        return RedisCacheProvider(
+            uri=config.redis.uri,
+            prefix=config.redis.prefix,
+            default_ttl=config.redis.cache_ttl,
+        )  # type: ignore[return-value]
+    return LRUCacheProvider(
+        max_size=config.cache.max_size,
+        default_ttl=config.cache.ttl_seconds,
+    )  # type: ignore[return-value]
+
+
+def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVectorStore:
+    """Build the vector store based on config provider setting."""
+    from minder.store.vector import VectorStore
+    from minder.store.document import DocumentStore
+    from minder.store.error import ErrorStore
+    
+    if config.vector_store.provider == "milvus":
+        from minder.store.milvus.client import MilvusClient
+        from minder.store.milvus.vector_store import MilvusVectorStore
+        client = MilvusClient(uri=config.vector_store.uri)
+        return MilvusVectorStore(client, prefix=config.vector_store.collection_prefix)
+        
+    doc_store = DocumentStore(store)  # type: ignore[arg-type]
+    error_store = ErrorStore(store)  # type: ignore[arg-type]
+    return VectorStore(doc_store, error_store)  # type: ignore[return-value]
 
 
 def build_transport(
     *,
     config: MinderConfig,
-    store: RelationalStore,
+    store: IOperationalStore,
+    vector_store: IVectorStore,
 ) -> SSETransport | StdioTransport:
     auth_service = AuthService(store, config)
     repo_state_store = RepoStateStore(config.workflow.repo_state_dir)
@@ -44,7 +95,9 @@ def build_transport(
     workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
     search_tools = SearchTools(store, config)
-    query_tools = QueryTools(store, config)
+
+    async def minder_ping(message: str) -> str:
+        return f"pong: {message}"
 
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
@@ -55,11 +108,11 @@ def build_transport(
     async def minder_auth_login(api_key: str) -> dict[str, str]:
         return await auth_tools.minder_auth_login(api_key)
 
-    async def minder_auth_whoami(*, user) -> dict[str, str]:  # noqa: ANN001
+    async def minder_auth_whoami(*, user=None) -> dict[str, Any]:  # noqa: ANN001
         token = auth_service.issue_jwt(user)
         return await auth_tools.minder_auth_whoami(token)
 
-    async def minder_auth_manage(*, user, action: str) -> dict[str, object]:  # noqa: ANN001
+    async def minder_auth_manage(*, user=None, action: str) -> dict[str, object]:  # noqa: ANN001
         return await auth_tools.minder_auth_manage(actor_user_id=user.id, action=action)
 
     async def minder_session_create(
@@ -145,25 +198,25 @@ def build_transport(
             language=language,
         )
 
-    async def minder_memory_recall(*, user, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
+    async def minder_memory_recall(*, user=None, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await memory_tools.minder_memory_recall(query, limit=limit)
 
-    async def minder_memory_list(*, user) -> list[dict[str, Any]]:  # noqa: ANN001
+    async def minder_memory_list(*, user=None) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await memory_tools.minder_memory_list()
 
-    async def minder_memory_delete(*, user, skill_id: str) -> dict[str, bool]:  # noqa: ANN001
+    async def minder_memory_delete(*, user=None, skill_id: str) -> dict[str, bool]:  # noqa: ANN001
         del user
         return await memory_tools.minder_memory_delete(skill_id)
 
-    async def minder_search(*, user, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
+    async def minder_search(*, user=None, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await search_tools.minder_search(query, limit=limit)
 
     async def minder_query(
         *,
-        user,
+        user=None,
         query: str,
         repo_path: str,
         session_id: str | None = None,
@@ -174,18 +227,28 @@ def build_transport(
             query,
             repo_path=repo_path,
             session_id=uuid.UUID(session_id) if session_id else None,
-            user_id=user.id,
+            user_id=user.id if user else None,
             repo_id=uuid.UUID(repo_id) if repo_id else None,
             workflow_name=workflow_name,
         )
 
-    async def minder_search_code(*, user, query: str, repo_path: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
+    async def minder_search_code(*, user=None, query: str, repo_path: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await query_tools.minder_search_code(query, repo_path=repo_path, limit=limit)
 
-    async def minder_search_errors(*, user, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
+    async def minder_search_errors(*, user=None, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await query_tools.minder_search_errors(query, limit=limit)
+
+    async def minder_auth_ping(message: str) -> str:
+        return f"auth pong: {message}"
+    
+    transport.register_tool(
+        "minder_auth_ping",
+        minder_auth_ping,
+        require_auth=True,
+        description="Verify authentication round-trip.",
+    )
 
     transport.register_tool("minder_auth_login", minder_auth_login, require_auth=False)
     transport.register_tool("minder_auth_whoami", minder_auth_whoami, require_auth=True)
@@ -244,20 +307,40 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
 
 
 def _run() -> None:
+    import logging
+    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     config = Settings()
     store = build_store(config)
+    vector_store = build_vector_store(config, store)
+    cache = build_cache(config)
     import asyncio
 
     asyncio.run(store.init_db())
-    transport = build_transport(config=config, store=store)
-    print("Minder runtime summary:", runtime_summary(config), flush=True)
+    if hasattr(vector_store, "setup"):
+        asyncio.run(vector_store.setup())
+        
+    transport = build_transport(config=config, store=store, vector_store=vector_store)
+    store_type = config.relational_store.provider
+    cache_type = config.cache.provider
+    print(
+        f"Minder store={store_type} cache={cache_type} transport={transport.transport_name} host={config.server.host}:{config.server.port}",
+        file=sys.stderr,
+        flush=True,
+    )
+    print("Minder runtime summary:", runtime_summary(config), file=sys.stderr, flush=True)
     try:
         if transport.transport_name == "stdio":
             transport.app.run(transport="stdio")
         else:
-            transport.app.run(transport="sse")
+            print(f"Starting SSE on {config.server.host}:{config.server.port}", file=sys.stderr, flush=True)
+            if hasattr(transport, "run"):
+                import asyncio
+                asyncio.run(transport.run())
+            else:
+                transport.app.run(transport="sse")
     finally:
         asyncio.run(store.dispose())
+        asyncio.run(cache.close())
 
 
 def main() -> None:

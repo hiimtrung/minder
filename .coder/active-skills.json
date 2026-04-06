@@ -1,38 +1,38 @@
 {
-  "task": "update architecture plan for milvus standalone mongodb redis docker compose",
+  "task": "ci-cd",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-03T15:58:34.975666+07:00",
+  "resolved_at": "2026-04-06T11:30:45.625413+07:00",
   "keep": [],
   "add": [
-    "azure-cosmos-db-py",
-    "devops-deploy",
-    "comfyui-gateway"
+    "claude-code-expert",
+    "github-workflow-automation",
+    "terraform-skill"
   ],
   "drop": [
-    "langgraph",
-    "llm-application-dev-langchain-agent",
-    "clarity-gate"
+    "arm-cortex-expert",
+    "molykit",
+    "coder-cli"
   ],
   "skills": [
     {
-      "name": "azure-cosmos-db-py",
-      "category": "backend",
+      "name": "claude-code-expert",
+      "category": "general",
       "score": 0.016393442,
-      "chunk_count": 5,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "devops-deploy",
-      "category": "backend",
-      "score": 0.016129032,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "comfyui-gateway",
-      "category": "backend",
-      "score": 0.015873017,
+      "name": "github-workflow-automation",
+      "category": "general",
+      "score": 0.016129032,
+      "chunk_count": 6,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "terraform-skill",
+      "category": "general",
+      "score": 0.015625,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

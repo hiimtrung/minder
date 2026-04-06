@@ -287,5 +287,5 @@ async def test_phase1_gate(
 
     # 7. CI pipeline contract exists in GitHub Actions.
     ci_content = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")
-    assert "uv run pytest" in ci_content
-    assert "uv run mypy src" in ci_content
+    assert "make test" in ci_content
+    assert "make lint" in ci_content

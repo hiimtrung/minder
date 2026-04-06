@@ -41,8 +41,8 @@ class SSEAuthMiddleware:
                                 params = data.setdefault("params", {})
                                 args = params.setdefault("arguments", {})
                                 # Only inject if not already present
-                                if "_authorization" not in args:
-                                    args["_authorization"] = auth_token
+                                if "minder_authorization" not in args:
+                                    args["minder_authorization"] = auth_token
                                     new_body = json.dumps(data).encode("utf-8")
                                     message["body"] = new_body
                         except Exception:

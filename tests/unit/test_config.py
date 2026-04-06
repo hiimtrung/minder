@@ -8,8 +8,8 @@ def test_default_config_loading():
     assert settings.embedding.dimensions == 1024
 
 def test_env_override(monkeypatch):
-    monkeypatch.setenv("SERVER__PORT", "9999")
-    monkeypatch.setenv("AUTH__JWT_SECRET", "super-secret")
+    monkeypatch.setenv("MINDER_SERVER__PORT", "9999")
+    monkeypatch.setenv("MINDER_AUTH__JWT_SECRET", "super-secret")
 
     settings = Settings()
 

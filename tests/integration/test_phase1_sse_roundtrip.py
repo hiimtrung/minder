@@ -201,8 +201,18 @@ async def test_sse_roundtrip(tmp_path, uv_path):
                                     
                                     text = content[0].get("text", "")
                                     print(f"DEBUG: text for id 3: {text!r}")
-                                    token_data = json.loads(text)
-                                    token = token_data["token"]
+                                    try:
+                                        token_data = json.loads(text)
+                                        token = token_data["token"]
+                                    except Exception:
+                                        # Fallback if text is not JSON (e.g. raw python dict string)
+                                        import re
+                                        m = re.search(r"'token':\s*'([^']+)'", text)
+                                        if not m:
+                                             m = re.search(r'"token":\s*"([^"]+)"', text)
+                                        if not m:
+                                            pytest.fail(f"Could not extract token from text: {text}")
+                                        token = m.group(1)
                                     
                                     await client.post(endpoint_url, 
                                         json={

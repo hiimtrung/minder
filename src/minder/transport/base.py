@@ -62,8 +62,8 @@ class BaseTransport:
 
         @functools.wraps(handler)
         async def wrapped_tool(*args: Any, **kwargs: Any) -> Any:
-            # Authorization might come from _authorization in MCP CallTool params
-            authorization = kwargs.pop("_authorization", None)
+            # Authorization might come from minder_authorization in MCP CallTool params
+            authorization = kwargs.pop("minder_authorization", None)
             
             # Reconstruct arguments for call_tool
             sig = inspect.signature(handler)
@@ -81,6 +81,15 @@ class BaseTransport:
             p for p in orig_sig.parameters.values() 
             if p.name != "user"
         ]
+        # Inject minder_authorization into the signature so FastMCP doesn't strip it.
+        new_params.append(
+            inspect.Parameter(
+                "minder_authorization",
+                kind=inspect.Parameter.KEYWORD_ONLY,
+                default=None,
+                annotation=str | None,
+            )
+        )
         wrapped_tool.__signature__ = orig_sig.replace(parameters=new_params)  # type: ignore
 
         self._server.add_tool(

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from minder.config import MinderConfig
-from minder.server import build_transport
+from minder.server import build_transport, build_vector_store
 from minder.store.relational import RelationalStore
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
@@ -118,7 +118,8 @@ async def test_server_build_transport_registers_expected_tools(
         ttl=3600,
     )
 
-    transport = build_transport(config=config, store=store)
+    vector_store = build_vector_store(config=config, store=store)
+    transport = build_transport(config=config, store=store, vector_store=vector_store)
     tool_names = transport.list_tools()
 
     assert "minder_auth_login" in tool_names
@@ -143,7 +144,7 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     assert "MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph" in compose.read_text(encoding="utf-8")
     assert "MINDER_LLM__MODEL_PATH: /root/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf" in compose.read_text(encoding="utf-8")
     assert ci_workflow.exists()
-    assert "uv run pytest" in ci_workflow.read_text(encoding="utf-8")
+    assert "make test" in ci_workflow.read_text(encoding="utf-8")
     assert release_workflow.exists()
     assert "ghcr.io" in release_workflow.read_text(encoding="utf-8")
     assert download_script.exists()

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from time import perf_counter
-from typing import cast
 
 from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider
@@ -19,7 +18,7 @@ from minder.graph.nodes import (
 from minder.graph.state import GraphState
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
-from minder.store.interfaces import IOperationalStore, IDocumentRepository, IErrorRepository, IHistoryRepository
+from minder.store.interfaces import IOperationalStore, IErrorRepository, IHistoryRepository
 
 
 class MinderGraph:

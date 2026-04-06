@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider

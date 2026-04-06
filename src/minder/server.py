@@ -5,7 +5,7 @@ import logging
 import sys
 import uuid
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from minder.auth.service import AuthService
 from minder.cache.providers import LRUCacheProvider, RedisCacheProvider

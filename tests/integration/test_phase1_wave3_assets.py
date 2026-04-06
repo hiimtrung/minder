@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -74,6 +75,50 @@ async def test_seed_skills_script_imports_local_skill_directory(
 
     assert seeded["imported"] == 2
     assert reseeded["skipped"] >= 2
+
+
+@pytest.mark.asyncio
+async def test_seed_skills_script_git_clone_path(
+    store: RelationalStore, config: MinderConfig, tmp_path: Path
+) -> None:
+    """Git-clone path: subprocess.run is called with git clone when the source
+    is not a local path.  We monkeypatch the module's subprocess attribute to
+    write synthetic skill files into the temp dir instead of hitting the network."""
+
+    module = _load_module(Path("scripts/seed_skills.py"), "seed_skills_script_clone")
+
+    def _fake_git_clone(
+        cmd: list[str], *, check: bool, capture_output: bool, text: bool
+    ) -> subprocess.CompletedProcess:  # type: ignore[type-arg]
+        """Simulate `git clone --depth 1 <url> <dest>` by writing files."""
+        assert cmd[0] == "git"
+        assert "clone" in cmd
+        dest = Path(cmd[-1])
+        (dest / "architecture.md").write_text(
+            "# Architecture\nClean arch rules.\n", encoding="utf-8"
+        )
+        (dest / "testing.md").write_text(
+            "# Testing\nWrite tests first.\n", encoding="utf-8"
+        )
+        return subprocess.CompletedProcess(cmd, returncode=0, stdout="", stderr="")
+
+    # Patch subprocess.run on the dynamically loaded module's own subprocess reference
+    original_run = module.subprocess.run
+    module.subprocess.run = _fake_git_clone  # type: ignore[method-assign]
+    try:
+        fake_repo_url = "https://github.com/example/skills-repo.git"
+        seeded = await module.seed_skills(store, config, fake_repo_url)
+
+        assert seeded["imported"] == 2
+        assert seeded["skipped"] == 0
+
+        # Second run: same URL, same titles → all skipped (idempotent)
+        reseeded = await module.seed_skills(store, config, fake_repo_url)
+
+        assert reseeded["imported"] == 0
+        assert reseeded["skipped"] == 2
+    finally:
+        module.subprocess.run = original_run  # type: ignore[method-assign]
 
 
 @pytest.mark.asyncio

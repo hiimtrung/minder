@@ -3,11 +3,11 @@ from __future__ import annotations
 from typing import Any
 
 from minder.graph.state import GraphState
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 
 
 class WorkflowPlannerNode:
-    def __init__(self, store: RelationalStore) -> None:
+    def __init__(self, store: IOperationalStore) -> None:
         self._store = store
 
     async def run(self, state: GraphState) -> GraphState:

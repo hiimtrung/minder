@@ -8,7 +8,7 @@ from minder.runtime import load_attr, module_available
 
 
 class QwenEmbeddingProvider:
-    def __init__(self, model_path: str, dimensions: int = 16, runtime: str = "mock") -> None:
+    def __init__(self, model_path: str, dimensions: int = 1024, runtime: str = "mock") -> None:
         self._model_path = model_path
         self._dimensions = dimensions
         self._runtime = runtime

@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from minder.embedding.base import EmbeddingProvider
-from minder.store.document import DocumentStore
+from minder.store.interfaces import IDocumentRepository
 
 SUPPORTED_SUFFIXES = {".py", ".md", ".txt", ".json", ".toml", ".yml", ".yaml"}
 
@@ -12,7 +12,7 @@ SUPPORTED_SUFFIXES = {".py", ".md", ".txt", ".json", ".toml", ".yml", ".yaml"}
 class IngestTools:
     def __init__(
         self, 
-        document_store: DocumentStore, 
+        document_store: IDocumentRepository, 
         embedding_provider: EmbeddingProvider,
         vector_store: Any | None = None,
     ) -> None:

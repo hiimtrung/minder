@@ -4,13 +4,11 @@ import math
 import uuid
 from typing import Any
 
-from minder.store.document import DocumentStore
-from minder.store.error import ErrorStore
-from minder.store.interfaces import IVectorStore
+from minder.store.interfaces import IVectorStore, IDocumentRepository, IErrorRepository
 
 
 class VectorStore(IVectorStore):
-    def __init__(self, document_store: DocumentStore, error_store: ErrorStore) -> None:
+    def __init__(self, document_store: IDocumentRepository, error_store: IErrorRepository) -> None:
         self._document_store = document_store
         self._error_store = error_store
 

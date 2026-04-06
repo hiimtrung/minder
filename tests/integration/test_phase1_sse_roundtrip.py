@@ -1,4 +1,5 @@
 import asyncio
+import sys
 import json
 import pytest
 import shutil
@@ -24,6 +25,7 @@ async def test_sse_roundtrip(tmp_path, uv_path):
     env["MINDER_SERVER__TRANSPORT"] = "sse"
     env["MINDER_SERVER__HOST"] = "127.0.0.1"
     env["MINDER_SERVER__PORT"] = str(port)
+    env["MINDER_SERVER__LOG_LEVEL"] = "DEBUG"
     env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent / "src")
     
     # Use a real file for SQLite so we can seed it before starting the server
@@ -40,7 +42,7 @@ async def test_sse_roundtrip(tmp_path, uv_path):
     seed_env = env.copy()
     seed_env["PYTHONPATH"] = str(Path(__file__).parent.parent.parent / "src")
     seed_res = subprocess.run(
-        [uv_path, "run", "python", "scripts/create_admin.py", 
+        [sys.executable, "scripts/create_admin.py", 
          "--email", "admin@example.com", 
          "--username", "admin", 
          "--display-name", "Admin"],
@@ -60,14 +62,20 @@ async def test_sse_roundtrip(tmp_path, uv_path):
          pytest.fail(f"Could not find API key in seed output: {seed_res.stdout}")
     
     print(f"DEBUG: Seeded admin with key: {api_key}")
+    print(f"DEBUG: DB file size: {db_file.stat().st_size} bytes")
+    if db_file.stat().st_size == 0:
+        pytest.fail("Database file is empty after seeding!")
 
     stderr_log = tmp_path / "server_stderr.log"
     stderr_file = open(stderr_log, "w")
     
+    stdout_log = tmp_path / "server_stdout.log"
+    stdout_file = open(stdout_log, "w")
+    
     process = subprocess.Popen(
-        [uv_path, "run", "python", "-m", "minder.server"],
+        [sys.executable, "-u", "-m", "minder.server"],
         stdin=subprocess.PIPE,
-        stdout=subprocess.PIPE,
+        stdout=stdout_file,
         stderr=stderr_file,
         cwd=str(Path(__file__).parent.parent.parent),
         env=env,
@@ -248,7 +256,7 @@ async def test_sse_roundtrip(tmp_path, uv_path):
 
                     # Check auth success for id 4
                     data4 = responses[4]
-                    assert data4.get("result", {}).get("isError") is None # Success
+                    assert data4.get("result", {}).get("isError") is not True  # Success: isError is False or absent
                     content_text4 = data4["result"]["content"][0]["text"]
                     assert "auth pong: authed hello" in content_text4
                     
@@ -265,5 +273,8 @@ async def test_sse_roundtrip(tmp_path, uv_path):
             process.kill()
         
         stderr_file.close()
+        stdout_file.close()
+        if stdout_log.exists():
+            print(f"DEBUG: SERVER STDOUT:\n{stdout_log.read_text()}")
         if stderr_log.exists():
             print(f"DEBUG: SERVER STDERR:\n{stderr_log.read_text()}")

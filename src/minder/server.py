@@ -14,8 +14,6 @@ from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
-from minder.store.document import DocumentStore
-from minder.store.error import ErrorStore
 from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
 from minder.store.vector import VectorStore
 from minder.store.relational import RelationalStore
@@ -79,10 +77,7 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
         client = MilvusClient(uri=config.vector_store.uri)
         return MilvusVectorStore(client, prefix=config.vector_store.collection_prefix)
         
-    rel_store = cast(RelationalStore, store)
-    doc_store = DocumentStore(rel_store)
-    error_store = ErrorStore(rel_store)
-    return VectorStore(doc_store, error_store)
+    return VectorStore(store, store)
 
 
 def build_transport(
@@ -241,7 +236,8 @@ def build_transport(
         del user
         return await query_tools.minder_search_errors(query, limit=limit)
 
-    async def minder_auth_ping(message: str) -> str:
+    async def minder_auth_ping(message: str, *, user=None) -> str:  # noqa: ANN001
+        del user
         return f"auth pong: {message}"
     
     transport.register_tool(
@@ -277,7 +273,7 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
     llm = QwenLocalLLM(config.llm.model_path, runtime="auto")
     embedder = QwenEmbeddingProvider(
         config.embedding.model_path,
-        dimensions=min(config.embedding.dimensions, 16),
+        dimensions=config.embedding.dimensions,
         runtime="auto",
     )
     fallback = OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model, runtime="auto")
@@ -308,15 +304,20 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
 
 
 def _run() -> None:
-    logging.basicConfig(level=logging.INFO, stream=sys.stderr)
+    print("MINDER SERVER STARTING", file=sys.stderr, flush=True)
     config = Settings()
+    log_level = getattr(logging, config.server.log_level.upper(), logging.INFO)
+    logging.basicConfig(level=log_level, stream=sys.stderr)
     store = build_store(config)
-    vector_store = build_vector_store(config, store)
-    cache = build_cache(config)
-
+    print(f"MINDER DB URL: {config.relational_store.db_path}", file=sys.stderr, flush=True)
     asyncio.run(store.init_db())
+    vector_store = build_vector_store(config, store)
     if hasattr(vector_store, "setup"):
         asyncio.run(vector_store.setup())
+    cache = build_cache(config)
+
+    admin = asyncio.run(store.get_user_by_username("admin"))
+    print(f"MINDER ADMIN EXISTS: {admin is not None}", file=sys.stderr, flush=True)
         
     transport = build_transport(config=config, store=store, vector_store=vector_store)
     store_type = config.relational_store.provider

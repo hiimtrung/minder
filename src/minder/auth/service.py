@@ -134,18 +134,10 @@ class AuthService:
     # ------------------------------------------------------------------
 
     async def authenticate_api_key(self, api_key: str) -> User:
-        """
-        Authenticate with a plaintext API key.
-
-        Scans active users and verifies bcrypt hashes.  Suitable for low
-        write-frequency auth (MCP connect).  For high-throughput use-cases,
-        add an indexed prefix column.
-
-        Raises:
-            AuthError(AUTH_INVALID_KEY) on mismatch.
-            AuthError(AUTH_USER_INACTIVE) if account is disabled.
-        """
         users = await self._store.list_users(active_only=False)
+        import logging
+        logger = logging.getLogger("minder.auth")
+        logger.debug(f"Checking API key against {len(users)} users")
         for user in users:
             try:
                 matches = self._verify_secret(api_key, user.api_key_hash)

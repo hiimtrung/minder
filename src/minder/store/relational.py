@@ -8,9 +8,11 @@ URL examples:
   Postgres: postgresql+asyncpg://user:pass@host/db
 """
 
+import math
 import uuid
+from collections import Counter
 from contextlib import asynccontextmanager
-from typing import AsyncGenerator, List, Optional
+from typing import Any, AsyncGenerator, List, Optional, cast
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import (
@@ -325,3 +327,214 @@ class RelationalStore:
                     RepositoryWorkflowState.id == state_id
                 )
             )
+    # ------------------------------------------------------------------
+    # Document
+    # ------------------------------------------------------------------
+
+    async def create_document(
+        self,
+        title: str,
+        content: str,
+        doc_type: str,
+        source_path: str,
+        project: str,
+        *,
+        chunks: dict[str, Any] | None = None,
+        embedding: list[float] | None = None,
+    ) -> Document:
+        async with self._session() as sess:
+            document = Document(
+                id=uuid.uuid4(),
+                title=title,
+                content=content,
+                doc_type=doc_type,
+                source_path=source_path,
+                chunks=chunks or {},
+                embedding=embedding,
+                project=project,
+            )
+            sess.add(document)
+            await sess.flush()
+            await sess.refresh(document)
+            return document
+
+    async def get_document_by_path(
+        self, source_path: str, *, project: str | None = None
+    ) -> Document | None:
+        async with self._session() as sess:
+            stmt = select(Document).where(Document.source_path == source_path)
+            if project is not None:
+                stmt = stmt.where(Document.project == project)
+            result = await sess.execute(stmt)
+            return result.scalar_one_or_none()
+
+    async def list_documents(self, project: str | None = None) -> list[Document]:
+        async with self._session() as sess:
+            stmt = select(Document)
+            if project is not None:
+                stmt = stmt.where(Document.project == project)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
+    async def upsert_document(
+        self,
+        *,
+        title: str,
+        content: str,
+        doc_type: str,
+        source_path: str,
+        project: str,
+        chunks: dict[str, Any] | None = None,
+        embedding: list[float] | None = None,
+    ) -> Document:
+        existing = await self.get_document_by_path(source_path, project=project)
+        if existing is None:
+            return await self.create_document(
+                title=title,
+                content=content,
+                doc_type=doc_type,
+                source_path=source_path,
+                project=project,
+                chunks=chunks,
+                embedding=embedding,
+            )
+
+        async with self._session() as sess:
+            await sess.execute(
+                update(Document)
+                .where(Document.id == existing.id)
+                .values(
+                    title=title,
+                    content=content,
+                    doc_type=doc_type,
+                    chunks=chunks or {},
+                    embedding=embedding,
+                    project=project,
+                )
+            )
+            result = await sess.execute(select(Document).where(Document.id == existing.id))
+            return result.scalar_one()
+
+    async def delete_documents_not_in_paths(
+        self, *, project: str, keep_paths: set[str]
+    ) -> None:
+        async with self._session() as sess:
+            stmt = delete(Document).where(Document.project == project)
+            if keep_paths:
+                stmt = stmt.where(Document.source_path.not_in(keep_paths))
+            await sess.execute(stmt)
+
+    # ------------------------------------------------------------------
+    # History
+    # ------------------------------------------------------------------
+
+    async def create_history(
+        self,
+        session_id: uuid.UUID,
+        role: str,
+        content: str,
+        reasoning_trace: str | None = None,
+        tool_calls: dict[str, Any] | None = None,
+        tokens_used: int = 0,
+        latency_ms: int = 0,
+    ) -> History:
+        async with self._session() as sess:
+            history = History(
+                id=uuid.uuid4(),
+                session_id=session_id,
+                role=role,
+                content=content,
+                reasoning_trace=reasoning_trace,
+                tool_calls=tool_calls or {},
+                tokens_used=tokens_used,
+                latency_ms=latency_ms,
+            )
+            sess.add(history)
+            await sess.flush()
+            await sess.refresh(history)
+            return history
+
+    async def list_history_for_session(self, session_id: uuid.UUID) -> list[History]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(History).where(History.session_id == session_id)
+            )
+            return list(result.scalars().all())
+
+    async def list_history_for_user(self, user_id: uuid.UUID) -> list[History]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(History)
+                .join(Session, Session.id == History.session_id)
+                .where(Session.user_id == user_id)
+            )
+            return list(result.scalars().all())
+
+    # ------------------------------------------------------------------
+    # Error
+    # ------------------------------------------------------------------
+
+    async def create_error(
+        self,
+        error_code: str,
+        error_message: str,
+        stack_trace: str | None = None,
+        context: dict[str, Any] | None = None,
+        resolution: str | None = None,
+        embedding: list[float] | None = None,
+        resolved: bool = False,
+    ) -> Error:
+        async with self._session() as sess:
+            error = Error(
+                id=uuid.uuid4(),
+                error_code=error_code,
+                error_message=error_message,
+                stack_trace=stack_trace,
+                context=context or {},
+                resolution=resolution,
+                embedding=embedding,
+                resolved=resolved,
+            )
+            sess.add(error)
+            await sess.flush()
+            await sess.refresh(error)
+            return error
+
+    async def list_errors(self) -> list[Error]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Error))
+            return list(result.scalars().all())
+
+    async def search_errors(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
+        rows = await self.list_errors()
+        query_vector = self._text_vector(query)
+        ranked = []
+        for row in rows:
+            text = f"{row.error_code} {row.error_message} {row.context}"
+            score = self._cosine_similarity(query_vector, self._text_vector(text))
+            ranked.append(
+                {
+                    "id": row.id,
+                    "error_code": row.error_code,
+                    "error_message": row.error_message,
+                    "resolution": row.resolution,
+                    "score": round(score, 4),
+                }
+            )
+        ranked.sort(key=lambda item: cast(float, item["score"]), reverse=True)
+        return ranked[:limit]
+
+    @staticmethod
+    def _text_vector(text: str) -> Counter[str]:
+        return Counter(token for token in text.lower().split() if len(token) > 2)
+
+    @staticmethod
+    def _cosine_similarity(left: Counter[str], right: Counter[str]) -> float:
+        if not left or not right:
+            return 0.0
+        numerator = sum(left[key] * right[key] for key in left.keys() & right.keys())
+        left_norm = math.sqrt(sum(value * value for value in left.values()))
+        right_norm = math.sqrt(sum(value * value for value in right.values()))
+        if left_norm == 0 or right_norm == 0:
+            return 0.0
+        return numerator / (left_norm * right_norm)

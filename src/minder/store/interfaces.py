@@ -246,6 +246,9 @@ class IOperationalStore(
     IWorkflowRepository,
     IRepositoryRepo,
     IWorkflowStateRepository,
+    IDocumentRepository,
+    IHistoryRepository,
+    IErrorRepository,
     Protocol,
 ):
     """

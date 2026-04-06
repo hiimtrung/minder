@@ -19,12 +19,7 @@ from minder.graph.nodes import (
 from minder.graph.state import GraphState
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
-from minder.store.document import DocumentStore
-from minder.store.error import ErrorStore
-from minder.store.history import HistoryStore
-from minder.store.interfaces import IOperationalStore
-from minder.store.relational import RelationalStore
-from minder.store.vector import VectorStore
+from minder.store.interfaces import IOperationalStore, IDocumentRepository, IErrorRepository, IHistoryRepository
 
 
 class MinderGraph:
@@ -41,19 +36,18 @@ class MinderGraph:
         guard: GuardNode | None = None,
         verification: VerificationNode | None = None,
         evaluator: EvaluatorNode | None = None,
-        history_store: HistoryStore | None = None,
-        error_store: ErrorStore | None = None,
+        history_store: IHistoryRepository | None = None,
+        error_store: IErrorRepository | None = None,
     ) -> None:
-        rel_store = cast(RelationalStore, store)
+        from minder.store.vector import VectorStore
         self._store = store
         self._config = config
-        self._workflow_planner = workflow_planner or WorkflowPlannerNode(rel_store)
+        self._workflow_planner = workflow_planner or WorkflowPlannerNode(store)
         self._planning = planning or PlanningNode()
-        document_store = DocumentStore(rel_store)
-        vector_store = VectorStore(document_store, ErrorStore(rel_store))
+        vector_store = VectorStore(store, store)
         embedder = QwenEmbeddingProvider(
             config.embedding.model_path,
-            dimensions=min(config.embedding.dimensions, 16),
+            dimensions=config.embedding.dimensions,
             runtime="auto",
         )
         self._retriever = retriever or RetrieverNode(
@@ -77,8 +71,8 @@ class MinderGraph:
             timeout_seconds=config.verification.timeout_seconds,
         )
         self._evaluator = evaluator or EvaluatorNode()
-        self._history_store = history_store or HistoryStore(rel_store)
-        self._error_store = error_store or ErrorStore(rel_store)
+        self._history_store = history_store or store
+        self._error_store = error_store or store
         self._nodes = GraphNodes(
             workflow_planner=self._workflow_planner,
             planning=self._planning,

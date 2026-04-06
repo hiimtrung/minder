@@ -8,8 +8,6 @@ from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
-from minder.store.document import DocumentStore
-from minder.store.error import ErrorStore
 from minder.store.interfaces import IOperationalStore, IVectorStore
 from minder.tools.ingest import IngestTools
 
@@ -20,25 +18,20 @@ class QueryTools:
         store: IOperationalStore,
         config: MinderConfig,
         graph: MinderGraph | None = None,
-        error_store: ErrorStore | None = None,
         vector_store: IVectorStore | None = None,
     ) -> None:
         from minder.store.vector import VectorStore
-        from minder.store.relational import RelationalStore
-        rel_store = cast(RelationalStore, store)
         self._store = store
         self._config = config
         self._graph = graph or MinderGraph(store, config)
-        self._error_store = error_store or ErrorStore(rel_store)
-        self._document_store = DocumentStore(rel_store)
-        self._vector_store = vector_store or VectorStore(self._document_store, self._error_store)
+        self._vector_store = vector_store or VectorStore(store, store)
         self._embedding_provider = QwenEmbeddingProvider(
             config.embedding.model_path,
-            dimensions=min(config.embedding.dimensions, 16),
+            dimensions=config.embedding.dimensions,
             runtime="auto",
         )
         self._ingest_tools = IngestTools(
-            self._document_store, 
+            self._store, 
             self._embedding_provider,
             vector_store=self._vector_store,
         )
@@ -137,7 +130,7 @@ class QueryTools:
     async def minder_search_errors(
         self, query: str, *, limit: int = 5
     ) -> list[dict[str, Any]]:
-        return await self._error_store.search_errors(query, limit=limit)
+        return await self._store.search_errors(query, limit=limit)
 
     @staticmethod
     def discover_repo_files(repo_path: str) -> list[str]:

@@ -22,7 +22,7 @@ from passlib.exc import UnknownHashError  # type: ignore[import-untyped]
 
 from minder.config import MinderConfig
 from minder.models.user import User
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 
 # ---------------------------------------------------------------------------
 # Role hierarchy
@@ -68,7 +68,7 @@ _pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 class AuthService:
     """Stateless auth service. Injected with store + config at construction."""
 
-    def __init__(self, store: RelationalStore, config: MinderConfig) -> None:
+    def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
         self._store = store
         self._config = config
 

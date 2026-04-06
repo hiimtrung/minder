@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from minder.embedding.base import EmbeddingProvider
 from minder.store.document import DocumentStore

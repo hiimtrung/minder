@@ -77,7 +77,7 @@ class RedisCacheProvider:
     async def health_check(self) -> bool:
         """Ping Redis to check connectivity."""
         try:
-            return bool(await self._client.ping())
+            return bool(await self._client.ping())  # type: ignore[misc]
         except Exception:
             return False
 

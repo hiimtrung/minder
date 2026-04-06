@@ -1,7 +1,7 @@
 """
 Milvus Collections — schema definitions.
 """
-from pymilvus import CollectionSchema, DataType, FieldSchema
+from pymilvus import CollectionSchema, DataType, FieldSchema  # type: ignore[import-untyped]
 
 def get_document_schema(dimensions: int = 1024) -> CollectionSchema:
     fields = [

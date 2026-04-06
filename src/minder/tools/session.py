@@ -4,11 +4,11 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 
 
 class SessionTools:
-    def __init__(self, store: RelationalStore) -> None:
+    def __init__(self, store: IOperationalStore) -> None:
         self._store = store
 
     async def minder_session_create(

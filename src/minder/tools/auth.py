@@ -3,11 +3,11 @@ from __future__ import annotations
 import uuid
 
 from minder.auth.service import AuthService
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 
 
 class AuthTools:
-    def __init__(self, store: RelationalStore, auth_service: AuthService) -> None:
+    def __init__(self, store: IOperationalStore, auth_service: AuthService) -> None:
         self._store = store
         self._auth = auth_service
 

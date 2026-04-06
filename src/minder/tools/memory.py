@@ -6,11 +6,11 @@ from typing import Any
 
 from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 
 
 class MemoryTools:
-    def __init__(self, store: RelationalStore, config: MinderConfig) -> None:
+    def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
         self._store = store
         self._embedder = QwenEmbeddingProvider(
             config.embedding.model_path,

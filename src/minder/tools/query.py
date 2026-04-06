@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from minder.config import MinderConfig
 from minder.embedding.qwen import QwenEmbeddingProvider
@@ -10,25 +10,27 @@ from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
 from minder.store.document import DocumentStore
 from minder.store.error import ErrorStore
-from minder.store.relational import RelationalStore
-from minder.store.vector import VectorStore
+from minder.store.interfaces import IOperationalStore, IVectorStore
 from minder.tools.ingest import IngestTools
 
 
 class QueryTools:
     def __init__(
         self,
-        store: RelationalStore,
+        store: IOperationalStore,
         config: MinderConfig,
         graph: MinderGraph | None = None,
         error_store: ErrorStore | None = None,
-        vector_store: Any | None = None,
+        vector_store: IVectorStore | None = None,
     ) -> None:
+        from minder.store.vector import VectorStore
+        from minder.store.relational import RelationalStore
+        rel_store = cast(RelationalStore, store)
         self._store = store
         self._config = config
         self._graph = graph or MinderGraph(store, config)
-        self._error_store = error_store or ErrorStore(store)
-        self._document_store = DocumentStore(store)
+        self._error_store = error_store or ErrorStore(rel_store)
+        self._document_store = DocumentStore(rel_store)
         self._vector_store = vector_store or VectorStore(self._document_store, self._error_store)
         self._embedding_provider = QwenEmbeddingProvider(
             config.embedding.model_path,

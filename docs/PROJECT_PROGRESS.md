@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-03
+> **Last updated**: 2026-04-06
 
 ---
 
@@ -9,8 +9,8 @@
 
 | Phase | Goal | Status | Current wave | Main blocker | Notes |
 |---|---|---|---|---|---|
-| `Phase 1` | Foundation: MCP server, auth, search, CI/CD | `IN PROGRESS` | `architecture reset queued` | Stack target changed to MongoDB + Redis + Milvus Standalone in Docker Compose | Earlier Waves 1-4 remain useful, but storage/deployment sign-off must be reworked. |
-| `Phase 2` | Agentic pipeline: reasoning, retrieval, verification | `FUNCTIONALLY COMPLETE` | `closed baseline` | Runtime fidelity and deployment environment | Minimal end-to-end path is implemented and tested. |
+| `Phase 1` | Foundation: MCP server, auth, search, CI/CD | `DONE` | `foundation closed` | - | Stack transitioned to MongoDB + Redis + Milvus Standalone. CI/CD and transport layers verified. |
+| `Phase 2` | Agentic pipeline: reasoning, retrieval, verification | `IN PROGRESS` | `runtime integration` | Runtime fidelity and environment provisioning | Minimal end-to-end path is implemented; moving to real model paths. |
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `PARTIAL` | `baseline complete` | Real LangGraph + llama_cpp + LiteLLM environment | Optional real runtime paths exist; environment is not fully provisioned. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `PARTIAL` | `baseline complete` | Production-grade Docker/runtime packaging | Retrieval, repo ingest, and verification contracts exist. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `NOT STARTED` | `backlog` | Depends on Phase 2.x sign-off | No dedicated implementation wave has started. |

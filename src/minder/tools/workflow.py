@@ -3,12 +3,12 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import IOperationalStore
 from minder.store.repo_state import RepoStateStore
 
 
 class WorkflowTools:
-    def __init__(self, store: RelationalStore, repo_state_store: RepoStateStore) -> None:
+    def __init__(self, store: IOperationalStore, repo_state_store: RepoStateStore) -> None:
         self._store = store
         self._repo_state = repo_state_store
 

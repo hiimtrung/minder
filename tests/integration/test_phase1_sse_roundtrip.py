@@ -5,7 +5,6 @@ import shutil
 import subprocess
 import os
 import httpx
-import time
 from pathlib import Path
 
 @pytest.fixture(scope="module")

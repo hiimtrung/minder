@@ -99,7 +99,6 @@ async def test_phase1_gate(
     infrastructure: dict[str, object],
 ) -> None:
     store = infrastructure["store"]
-    cache = infrastructure["cache"]
     vector_store = infrastructure["vector_store"]
     
     repo_path = tmp_path / "repo"

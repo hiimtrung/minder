@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import uuid
+import asyncio
+import logging
 import sys
+import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from minder.auth.service import AuthService
 from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
@@ -12,7 +14,10 @@ from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
+from minder.store.document import DocumentStore
+from minder.store.error import ErrorStore
 from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
+from minder.store.vector import VectorStore
 from minder.store.relational import RelationalStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
@@ -58,18 +63,15 @@ def build_cache(config: MinderConfig) -> ICacheProvider:
             uri=config.redis.uri,
             prefix=config.redis.prefix,
             default_ttl=config.redis.cache_ttl,
-        )  # type: ignore[return-value]
+        )
     return LRUCacheProvider(
         max_size=config.cache.max_size,
         default_ttl=config.cache.ttl_seconds,
-    )  # type: ignore[return-value]
+    )
 
 
 def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVectorStore:
     """Build the vector store based on config provider setting."""
-    from minder.store.vector import VectorStore
-    from minder.store.document import DocumentStore
-    from minder.store.error import ErrorStore
     
     if config.vector_store.provider == "milvus":
         from minder.store.milvus.client import MilvusClient
@@ -77,9 +79,10 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
         client = MilvusClient(uri=config.vector_store.uri)
         return MilvusVectorStore(client, prefix=config.vector_store.collection_prefix)
         
-    doc_store = DocumentStore(store)  # type: ignore[arg-type]
-    error_store = ErrorStore(store)  # type: ignore[arg-type]
-    return VectorStore(doc_store, error_store)  # type: ignore[return-value]
+    rel_store = cast(RelationalStore, store)
+    doc_store = DocumentStore(rel_store)
+    error_store = ErrorStore(rel_store)
+    return VectorStore(doc_store, error_store)
 
 
 def build_transport(
@@ -95,9 +98,7 @@ def build_transport(
     workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
     search_tools = SearchTools(store, config)
-
-    async def minder_ping(message: str) -> str:
-        return f"pong: {message}"
+    query_tools = QueryTools(store, config, vector_store=vector_store)
 
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
@@ -307,13 +308,11 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
 
 
 def _run() -> None:
-    import logging
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     config = Settings()
     store = build_store(config)
     vector_store = build_vector_store(config, store)
     cache = build_cache(config)
-    import asyncio
 
     asyncio.run(store.init_db())
     if hasattr(vector_store, "setup"):
@@ -334,7 +333,6 @@ def _run() -> None:
         else:
             print(f"Starting SSE on {config.server.host}:{config.server.port}", file=sys.stderr, flush=True)
             if hasattr(transport, "run"):
-                import asyncio
                 asyncio.run(transport.run())
             else:
                 transport.app.run(transport="sse")

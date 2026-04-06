@@ -5,7 +5,7 @@ from typing import Any
 import uvicorn
 from starlette.applications import Starlette
 from minder.auth.context import set_current_user
-from minder.auth.service import AuthError, AuthService
+from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.transport.base import BaseTransport
 

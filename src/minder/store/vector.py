@@ -1,16 +1,35 @@
 from __future__ import annotations
 
 import math
+import uuid
 from typing import Any
 
 from minder.store.document import DocumentStore
 from minder.store.error import ErrorStore
+from minder.store.interfaces import IVectorStore
 
 
-class VectorStore:
+class VectorStore(IVectorStore):
     def __init__(self, document_store: DocumentStore, error_store: ErrorStore) -> None:
         self._document_store = document_store
         self._error_store = error_store
+
+    async def upsert_document(
+        self,
+        doc_id: uuid.UUID,
+        embedding: list[float],
+        payload: dict[str, Any],
+    ) -> None:
+        """Not supported in Relational VectorStore."""
+        pass
+
+    async def delete_documents(self, doc_ids: list[uuid.UUID]) -> None:
+        """Not supported in Relational VectorStore."""
+        pass
+    
+    async def setup(self) -> None:
+        """No setup needed for Relational VectorStore."""
+        pass
 
     async def search_documents(
         self,

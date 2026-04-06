@@ -38,7 +38,7 @@ async def test_milvus():
     finally:
         try:
             connections.disconnect("default")
-        except:
+        except Exception:
             pass
 
 async def main():

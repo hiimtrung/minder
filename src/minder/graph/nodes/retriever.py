@@ -6,7 +6,7 @@ from typing import cast
 
 from minder.embedding.base import EmbeddingProvider
 from minder.graph.state import GraphState
-from minder.store.vector import VectorStore
+from minder.store.interfaces import IVectorStore
 
 
 class RetrieverNode:
@@ -15,7 +15,7 @@ class RetrieverNode:
         top_k: int = 5,
         *,
         embedding_provider: EmbeddingProvider | None = None,
-        vector_store: VectorStore | None = None,
+        vector_store: IVectorStore | None = None,
         score_threshold: float = 0.0,
     ) -> None:
         self._top_k = top_k

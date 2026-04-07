@@ -2,6 +2,7 @@ from .auth import AuthTools
 from .ingest import IngestTools
 from .memory import MemoryTools
 from .query import QueryTools
+from .repo_scanner import RepoScanner
 from .search import SearchTools
 from .session import SessionTools
 from .workflow import WorkflowTools
@@ -11,6 +12,7 @@ __all__ = [
     "IngestTools",
     "MemoryTools",
     "QueryTools",
+    "RepoScanner",
     "SearchTools",
     "SessionTools",
     "WorkflowTools",

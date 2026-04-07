@@ -14,6 +14,8 @@ from minder.embedding.qwen import QwenEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.llm.qwen import QwenLocalLLM
+from minder.prompts import PromptRegistry
+from minder.resources import ResourceRegistry
 from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
 from minder.store.vector import VectorStore
 from minder.store.relational import RelationalStore
@@ -266,6 +268,13 @@ def build_transport(
     transport.register_tool("minder_query", minder_query, require_auth=True)
     transport.register_tool("minder_search_code", minder_search_code, require_auth=True)
     transport.register_tool("minder_search_errors", minder_search_errors, require_auth=True)
+
+    # ------------------------------------------------------------------
+    # P3-T11: Register MCP resources and prompts
+    # ------------------------------------------------------------------
+    ResourceRegistry.register(transport.app, store)
+    PromptRegistry.register(transport.app)
+
     return transport
 
 

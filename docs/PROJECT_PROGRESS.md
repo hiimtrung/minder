@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-07 (P3-Wave3 complete — 200/200 unit tests pass)
+> **Last updated**: 2026-04-07 (P3-Wave4 complete — 231/231 unit tests pass)
 
 ---
 
@@ -13,7 +13,7 @@
 | `Phase 2` | Agentic pipeline: reasoning, retrieval, verification | `DONE` | `pipeline closed` | - | Full pipeline implemented and verified; runtime fidelity via auto-detect + monkeypatch tests. |
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
-| `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `IN PROGRESS` | `Wave 4 — MCP Resources, Prompts & Workflow Intelligence` | - | Wave 1+2+3 complete: retrieval infra + graph/rule/feedback stores + ingest_url/ingest_git/RepoScanner — 200 unit tests pass. |
+| `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `IN PROGRESS` | `Wave 5 — P3 Verification Gate` | - | Wave 1+2+3+4 complete: retrieval infra + graph/rule/feedback stores + ingest_url/ingest_git/RepoScanner + MCP resources/prompts + WorkflowPlannerNode graph enrichment — 231 unit tests pass. |
 | `Phase 4` | Production scale, multi-user, dashboard | `NOT STARTED` | `backlog` | Depends on Phase 3 and production deployment choices | Planning exists only in breakdown docs. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
@@ -66,8 +66,8 @@
 | `P3-Wave1` | Retrieval Infrastructure | `P3-T04` MMR, `P3-T02` BM25 hybrid, `P3-T03` multi-hop, `P3-T01` reranker, `P3-T07` code chunking, `P3-T08` text chunking | `DONE` |
 | `P3-Wave2` | Knowledge Graph & Extended Stores | `P3-T05` graph store, `P3-T06` rule + feedback stores, wire interfaces | `DONE` |
 | `P3-Wave3` | Ingestion Expansion & Repo Relationships | `P3-T09` ingest_url + ingest_git, `P3-T10` relationship tracking | `DONE` |
-| `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | `P3-T11` resources + prompts, `P3-T12` workflow enrichment | `UP NEXT` |
-| `P3-Wave5` | P3 Verification Gate | `P3-VERIFY` test_phase3_gate.py | `BACKLOG` |
+| `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | `P3-T11` resources + prompts, `P3-T12` workflow enrichment | `DONE` |
+| `P3-Wave5` | P3 Verification Gate | `P3-VERIFY` test_phase3_gate.py | `UP NEXT` |
 
 ---
 
@@ -105,8 +105,8 @@
 | `P3-T08` Text Chunking | `P3-Wave1` | `DONE` | - | `src/minder/chunking/splitter.py`; markdown-heading-aware + sliding window |
 | `P3-T09` Ingestion Tools Expansion | `P3-Wave3` | `DONE` | - | `ingest_url` (httpx+HTML strip+TextSplitter), `ingest_git` (shallow clone→ingest_dir→cleanup); httpx added to deps |
 | `P3-T10` Repository Relationship Tracking | `P3-Wave3` | `DONE` | - | `src/minder/tools/repo_scanner.py`; walk repo, AST import extraction, service-boundary detection via pyproject.toml/package.json, idempotent upsert to KnowledgeGraphStore |
-| `P3-T11` MCP Resources and Prompts | `P3-Wave4` | `NOT STARTED` | Depends on Wave 1-3 | `src/minder/resources/`, `src/minder/prompts/` |
-| `P3-T12` Workflow Intelligence Enhancement | `P3-Wave4` | `NOT STARTED` | Depends on Wave 2-3 | Dependency-aware guidance |
+| `P3-T11` MCP Resources and Prompts | `P3-Wave4` | `DONE` | - | `src/minder/resources/__init__.py` (skills/repos/stats), `src/minder/prompts/__init__.py` (debug/review/explain/tdd_step); wired in `server.py` |
+| `P3-T12` Workflow Intelligence Enhancement | `P3-Wave4` | `DONE` | - | `WorkflowPlannerNode` accepts optional `graph_store`; queries service nodes + depends_on edges; appends dependency+failing-test guidance; fully backwards-compatible |
 | `P3-VERIFY` Phase 3 Acceptance Test | `P3-Wave5` | `NOT STARTED` | All waves complete | `tests/integration/test_phase3_gate.py` |
 
 ## Phase 4-5 Snapshot

@@ -30,12 +30,21 @@ from .error import Error as Error, ErrorSchema as ErrorSchema
 # Document
 from .document import Document as Document, DocumentSchema as DocumentSchema
 
-# Rules & Misc
+# Rules, Feedback & Misc
 from .rule import (
+    Feedback as Feedback,
     FeedbackSchema as FeedbackSchema,
     MetadataSchema as MetadataSchema,
     Rule as Rule,
     RuleSchema as RuleSchema,
+)
+
+# Knowledge Graph
+from .graph import (
+    GraphEdge as GraphEdge,
+    GraphEdgeSchema as GraphEdgeSchema,
+    GraphNode as GraphNode,
+    GraphNodeSchema as GraphNodeSchema,
 )
 
 __all__ = [
@@ -44,7 +53,12 @@ __all__ = [
     "DocumentSchema",
     "Error",
     "ErrorSchema",
+    "Feedback",
     "FeedbackSchema",
+    "GraphEdge",
+    "GraphEdgeSchema",
+    "GraphNode",
+    "GraphNodeSchema",
     "History",
     "HistorySchema",
     "MetadataSchema",

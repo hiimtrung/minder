@@ -186,6 +186,87 @@ class IErrorRepository(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Rule Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class IRuleRepository(Protocol):
+    async def create_rule(self, **kwargs: Any) -> Any: ...
+    async def get_rule_by_id(self, rule_id: uuid.UUID) -> Any | None: ...
+    async def list_rules(self) -> list[Any]: ...
+    async def list_by_scope(self, scope: str) -> list[Any]: ...
+    async def list_active(self) -> list[Any]: ...
+    async def update_rule(self, rule_id: uuid.UUID, **kwargs: Any) -> Any | None: ...
+    async def delete_rule(self, rule_id: uuid.UUID) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Feedback Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class IFeedbackRepository(Protocol):
+    async def create_feedback(self, **kwargs: Any) -> Any: ...
+    async def get_feedback_by_id(self, feedback_id: uuid.UUID) -> Any | None: ...
+    async def list_feedback(self) -> list[Any]: ...
+    async def list_by_entity(self, entity_type: str, entity_id: uuid.UUID) -> list[Any]: ...
+    async def average_rating(self, entity_id: uuid.UUID) -> float | None: ...
+    async def update_feedback(self, feedback_id: uuid.UUID, **kwargs: Any) -> Any | None: ...
+    async def delete_feedback(self, feedback_id: uuid.UUID) -> None: ...
+
+
+# ---------------------------------------------------------------------------
+# Knowledge Graph Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class IGraphRepository(Protocol):
+    async def add_node(
+        self, node_type: str, name: str, metadata: dict[str, Any] | None = None, node_id: uuid.UUID | None = None
+    ) -> Any: ...
+    async def upsert_node(
+        self, node_type: str, name: str, metadata: dict[str, Any] | None = None
+    ) -> Any: ...
+    async def get_node(self, node_id: uuid.UUID) -> Any | None: ...
+    async def get_node_by_name(self, node_type: str, name: str) -> Any | None: ...
+    async def query_by_type(self, node_type: str) -> list[Any]: ...
+    async def delete_node(self, node_id: uuid.UUID) -> None: ...
+    async def add_edge(
+        self,
+        source_id: uuid.UUID,
+        target_id: uuid.UUID,
+        relation: str,
+        weight: float = 1.0,
+        edge_id: uuid.UUID | None = None,
+    ) -> Any: ...
+    async def upsert_edge(
+        self,
+        source_id: uuid.UUID,
+        target_id: uuid.UUID,
+        relation: str,
+        weight: float = 1.0,
+    ) -> Any: ...
+    async def delete_edge(self, edge_id: uuid.UUID) -> None: ...
+    async def get_neighbors(
+        self,
+        node_id: uuid.UUID,
+        *,
+        direction: str = "out",
+        relation: str | None = None,
+    ) -> list[Any]: ...
+    async def get_path(
+        self,
+        source_id: uuid.UUID,
+        target_id: uuid.UUID,
+        *,
+        max_depth: int = 6,
+    ) -> list[Any]: ...
+
+
+# ---------------------------------------------------------------------------
 # Cache Provider (for Redis)
 # ---------------------------------------------------------------------------
 
@@ -249,6 +330,8 @@ class IOperationalStore(
     IDocumentRepository,
     IHistoryRepository,
     IErrorRepository,
+    IRuleRepository,
+    IFeedbackRepository,
     Protocol,
 ):
     """

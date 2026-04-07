@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-06 (P3-Wave1 complete — 35/35 unit tests pass)
+> **Last updated**: 2026-04-07 (P3-Wave2 complete — 183/183 unit tests pass)
 
 ---
 
@@ -13,7 +13,7 @@
 | `Phase 2` | Agentic pipeline: reasoning, retrieval, verification | `DONE` | `pipeline closed` | - | Full pipeline implemented and verified; runtime fidelity via auto-detect + monkeypatch tests. |
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
-| `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `IN PROGRESS` | `Wave 2 — Knowledge Graph & Extended Stores` | - | Wave 1 complete: MMR, BM25 hybrid, multi-hop, reranker, code/text chunking — 35 unit tests pass. |
+| `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `IN PROGRESS` | `Wave 3 — Ingestion Expansion & Repo Relationships` | - | Wave 1+2 complete: retrieval infra + graph/rule/feedback stores — 71 unit tests pass. |
 | `Phase 4` | Production scale, multi-user, dashboard | `NOT STARTED` | `backlog` | Depends on Phase 3 and production deployment choices | Planning exists only in breakdown docs. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
@@ -64,8 +64,8 @@
 |---|---|---|---|
 | `Wave 8` | ~~SSE/Stdio real round-trip tests~~ | `CLOSED` — all transport round-trips verified 2026-04-06 | `DONE` |
 | `P3-Wave1` | Retrieval Infrastructure | `P3-T04` MMR, `P3-T02` BM25 hybrid, `P3-T03` multi-hop, `P3-T01` reranker, `P3-T07` code chunking, `P3-T08` text chunking | `DONE` |
-| `P3-Wave2` | Knowledge Graph & Extended Stores | `P3-T05` graph store, `P3-T06` rule + feedback stores, wire interfaces | `UP NEXT` |
-| `P3-Wave3` | Ingestion Expansion & Repo Relationships | `P3-T09` ingest_url + ingest_git, `P3-T10` relationship tracking | `BACKLOG` |
+| `P3-Wave2` | Knowledge Graph & Extended Stores | `P3-T05` graph store, `P3-T06` rule + feedback stores, wire interfaces | `DONE` |
+| `P3-Wave3` | Ingestion Expansion & Repo Relationships | `P3-T09` ingest_url + ingest_git, `P3-T10` relationship tracking | `UP NEXT` |
 | `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | `P3-T11` resources + prompts, `P3-T12` workflow enrichment | `BACKLOG` |
 | `P3-Wave5` | P3 Verification Gate | `P3-VERIFY` test_phase3_gate.py | `BACKLOG` |
 
@@ -99,8 +99,8 @@
 | `P3-T02` BM25 Hybrid Retrieval | `P3-Wave1` | `DONE` | - | `src/minder/retrieval/hybrid.py`; pure-Python BM25, alpha-blended with vector scores |
 | `P3-T03` Multi-Hop Retrieval | `P3-Wave1` | `DONE` | - | `src/minder/retrieval/multi_hop.py`; iterative query expansion, dedup by path, hop tagging |
 | `P3-T04` MMR Diversity Filtering | `P3-Wave1` | `DONE` | - | `src/minder/retrieval/mmr.py`; pure-Python greedy MMR, score fallback when no embeddings |
-| `P3-T05` Knowledge Graph Store | `P3-Wave2` | `NOT STARTED` | Depends on Wave 1 | `src/minder/store/graph.py` |
-| `P3-T06` Rule + Feedback Stores | `P3-Wave2` | `NOT STARTED` | Depends on Wave 1 | `store/rule.py`, `store/feedback.py`; models already exist |
+| `P3-T05` Knowledge Graph Store | `P3-Wave2` | `DONE` | - | `src/minder/store/graph.py`; `models/graph.py`; add_node/edge, upsert, BFS traversal, get_path |
+| `P3-T06` Rule + Feedback Stores | `P3-Wave2` | `DONE` | - | `store/rule.py`, `store/feedback.py`; Feedback ORM added; wired into RelationalStore + IOperationalStore |
 | `P3-T07` AST-Aware Code Chunking | `P3-Wave1` | `DONE` | - | `src/minder/chunking/code_splitter.py`; Python ast + brace-depth for TS/Java |
 | `P3-T08` Text Chunking | `P3-Wave1` | `DONE` | - | `src/minder/chunking/splitter.py`; markdown-heading-aware + sliding window |
 | `P3-T09` Ingestion Tools Expansion | `P3-Wave3` | `PARTIAL` | Depends on Wave 1+2 | `ingest_file`+`ingest_dir` done; missing `ingest_url`, `ingest_git` |

@@ -26,6 +26,7 @@ from minder.models import (
     Base,
     Document,
     Error,
+    Feedback,
     History,
     Repository,
     RepositoryWorkflowState,
@@ -39,6 +40,7 @@ from minder.models import (
 _REGISTERED_MODELS = (
     Document,
     Error,
+    Feedback,
     History,
     Repository,
     RepositoryWorkflowState,
@@ -538,3 +540,108 @@ class RelationalStore:
         if left_norm == 0 or right_norm == 0:
             return 0.0
         return numerator / (left_norm * right_norm)
+
+    # ------------------------------------------------------------------
+    # Rule
+    # ------------------------------------------------------------------
+
+    async def create_rule(self, **kwargs: Any) -> Rule:
+        async with self._session() as sess:
+            rule = Rule(**kwargs)
+            sess.add(rule)
+            await sess.flush()
+            await sess.refresh(rule)
+            return rule
+
+    async def get_rule_by_id(self, rule_id: uuid.UUID) -> Optional[Rule]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Rule).where(Rule.id == rule_id))
+            return result.scalar_one_or_none()
+
+    async def list_rules(self) -> List[Rule]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Rule))
+            return list(result.scalars().all())
+
+    async def list_by_scope(self, scope: str) -> List[Rule]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Rule).where(Rule.scope == scope))
+            return list(result.scalars().all())
+
+    async def list_active(self) -> List[Rule]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Rule).where(Rule.active.is_(True)))
+            return list(result.scalars().all())
+
+    async def update_rule(self, rule_id: uuid.UUID, **kwargs: Any) -> Optional[Rule]:
+        async with self._session() as sess:
+            await sess.execute(update(Rule).where(Rule.id == rule_id).values(**kwargs))
+            result = await sess.execute(select(Rule).where(Rule.id == rule_id))
+            return result.scalar_one_or_none()
+
+    async def delete_rule(self, rule_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            await sess.execute(delete(Rule).where(Rule.id == rule_id))
+
+    # ------------------------------------------------------------------
+    # Feedback
+    # ------------------------------------------------------------------
+
+    async def create_feedback(self, **kwargs: Any) -> Feedback:
+        async with self._session() as sess:
+            fb = Feedback(**kwargs)
+            sess.add(fb)
+            await sess.flush()
+            await sess.refresh(fb)
+            return fb
+
+    async def get_feedback_by_id(self, feedback_id: uuid.UUID) -> Optional[Feedback]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(Feedback).where(Feedback.id == feedback_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def list_feedback(self) -> List[Feedback]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Feedback))
+            return list(result.scalars().all())
+
+    async def list_by_entity(
+        self, entity_type: str, entity_id: uuid.UUID
+    ) -> List[Feedback]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(Feedback).where(
+                    Feedback.entity_type == entity_type,
+                    Feedback.entity_id == entity_id,
+                )
+            )
+            return list(result.scalars().all())
+
+    async def average_rating(self, entity_id: uuid.UUID) -> Optional[float]:
+        from sqlalchemy import func as sa_func
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(sa_func.avg(Feedback.rating)).where(
+                    Feedback.entity_id == entity_id
+                )
+            )
+            avg = result.scalar_one_or_none()
+            return float(avg) if avg is not None else None
+
+    async def update_feedback(
+        self, feedback_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[Feedback]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(Feedback).where(Feedback.id == feedback_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(Feedback).where(Feedback.id == feedback_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def delete_feedback(self, feedback_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            await sess.execute(delete(Feedback).where(Feedback.id == feedback_id))

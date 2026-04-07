@@ -303,22 +303,31 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
     }
 
 
-def _run() -> None:
+async def _async_run() -> None:
+    """Single-loop async entrypoint.
+
+    All async operations (store init, vector setup, admin check, transport
+    lifecycle, teardown) run inside ONE event loop.  This is required when
+    using Motor (MongoDB async driver): AsyncIOMotorClient binds to the loop
+    that is current at first use.  Multiple asyncio.run() calls each create
+    and immediately close a fresh loop, causing Motor's run_in_executor to
+    schedule work on an already-closed loop → RuntimeError.
+    """
     print("MINDER SERVER STARTING", file=sys.stderr, flush=True)
     config = Settings()
     log_level = getattr(logging, config.server.log_level.upper(), logging.INFO)
     logging.basicConfig(level=log_level, stream=sys.stderr)
     store = build_store(config)
     print(f"MINDER DB URL: {config.relational_store.db_path}", file=sys.stderr, flush=True)
-    asyncio.run(store.init_db())
+    await store.init_db()
     vector_store = build_vector_store(config, store)
     if hasattr(vector_store, "setup"):
-        asyncio.run(vector_store.setup())
+        await vector_store.setup()
     cache = build_cache(config)
 
-    admin = asyncio.run(store.get_user_by_username("admin"))
+    admin = await store.get_user_by_username("admin")
     print(f"MINDER ADMIN EXISTS: {admin is not None}", file=sys.stderr, flush=True)
-        
+
     transport = build_transport(config=config, store=store, vector_store=vector_store)
     store_type = config.relational_store.provider
     cache_type = config.cache.provider
@@ -334,12 +343,17 @@ def _run() -> None:
         else:
             print(f"Starting SSE on {config.server.host}:{config.server.port}", file=sys.stderr, flush=True)
             if hasattr(transport, "run"):
-                asyncio.run(transport.run())
+                await transport.run()
             else:
                 transport.app.run(transport="sse")
     finally:
-        asyncio.run(store.dispose())
-        asyncio.run(cache.close())
+        await store.dispose()
+        await cache.close()
+
+
+def _run() -> None:
+    """Synchronous entrypoint — delegates everything to _async_run()."""
+    asyncio.run(_async_run())
 
 
 def main() -> None:

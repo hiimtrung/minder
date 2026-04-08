@@ -4,6 +4,18 @@ from .base import Base as Base
 # User
 from .user import User as User, UserSchema as UserSchema
 
+# Client/Auth Gateway
+from .client import (
+    AuditLog as AuditLog,
+    AuditLogSchema as AuditLogSchema,
+    Client as Client,
+    ClientApiKey as ClientApiKey,
+    ClientApiKeySchema as ClientApiKeySchema,
+    ClientSchema as ClientSchema,
+    ClientSession as ClientSession,
+    ClientSessionSchema as ClientSessionSchema,
+)
+
 # Skill
 from .skill import Skill as Skill, SkillSchema as SkillSchema
 
@@ -49,6 +61,14 @@ from .graph import (
 
 __all__ = [
     "Base",
+    "AuditLog",
+    "AuditLogSchema",
+    "Client",
+    "ClientApiKey",
+    "ClientApiKeySchema",
+    "ClientSchema",
+    "ClientSession",
+    "ClientSessionSchema",
     "Document",
     "DocumentSchema",
     "Error",

@@ -1,6 +1,7 @@
 import pytest
 
 from minder.auth.service import AuthService
+from minder.auth.service import UserRole
 from minder.config import MinderConfig
 from minder.store.relational import RelationalStore
 from minder.transport import SSETransport, StdioTransport
@@ -95,3 +96,44 @@ async def test_stdio_transport_uses_same_dispatch_contract(
 
     assert result == {"message": "hello", "user_id": str(user.id)}
     assert "echo" in transport.list_tools()
+
+
+@pytest.mark.asyncio
+async def test_sse_transport_dispatches_tool_with_authenticated_client_principal(
+    store: RelationalStore, config: MinderConfig
+) -> None:
+    auth = AuthService(store, config)
+    admin, _ = await auth.register_user(
+        email="principal-admin@example.com",
+        username="principal_admin",
+        display_name="Principal Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_api_key = await auth.register_client(
+        name="Codex Local",
+        slug="codex-local",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query"],
+    )
+    exchange = await auth.exchange_client_api_key(
+        client_api_key,
+        requested_scopes=["minder_query"],
+    )
+    transport = SSETransport(config=config, auth_service=auth)
+
+    async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
+        return {
+            "principal_type": principal.principal_type,
+            "principal_id": str(principal.principal_id),
+            "scopes": principal.scopes,
+        }
+
+    transport.register_tool("inspect_principal", inspect_principal, require_auth=True)
+
+    result = await transport.call_tool(
+        "inspect_principal",
+        authorization=f"Bearer {exchange['access_token']}",
+    )
+
+    assert result["principal_type"] == "client"
+    assert result["scopes"] == ["minder_query"]

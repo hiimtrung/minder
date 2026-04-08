@@ -12,6 +12,7 @@ from .graph import KnowledgeGraphStore
 from .history import HistoryStore
 from .interfaces import (
     ICacheProvider,
+    IClientRepository,
     IDocumentRepository,
     IErrorRepository,
     IFeedbackRepository,
@@ -35,6 +36,7 @@ from .vector import VectorStore
 __all__ = [
     # Domain interfaces
     "ICacheProvider",
+    "IClientRepository",
     "IDocumentRepository",
     "IErrorRepository",
     "IFeedbackRepository",

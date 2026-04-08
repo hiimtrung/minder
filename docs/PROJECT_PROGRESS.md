@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P3-Wave5 complete — 233 passed, 14 skipped)
+> **Last updated**: 2026-04-08 (P4.0-Wave1 complete — 238 passed, 14 skipped)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `DONE` | `closed` | - | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable. |
-| `Phase 4` | Production scale, multi-user, dashboard | `NOT STARTED` | `backlog` | Depends on Phase 3 and production deployment choices | Planning exists only in breakdown docs. |
+| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4.0-Wave1 complete` | Dashboard backend/frontend not started yet | Client registry, token exchange, and principal-aware gateway auth foundation implemented; dashboard and HTTP admin APIs remain. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
 ---
@@ -113,5 +113,27 @@
 
 | Phase | Status | Notes |
 |---|---|---|
-| `Phase 4` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started. |
+| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) drafted; `P4.0-Wave1` shipped client registry, client API key exchange, principal-aware transport auth, and auth tools foundation. |
 | `Phase 5` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started. |
+
+## Phase 4.0 Tracker
+
+| Task | Wave | Status | Blocker | Notes |
+|---|---|---|---|---|
+| `P4.0-T01` Client Registry Domain | `P4.0-Wave1` | `DONE` | - | Added `Client`, `ClientApiKey`, `ClientSession`, `AuditLog` models plus relational and MongoDB store adapters. |
+| `P4.0-T02` Token Exchange API | `P4.0-Wave1` | `PARTIAL` | No standalone HTTP admin/gateway API yet | Token exchange is implemented in `AuthService` and exposed through auth tools; dedicated `/v1/auth/token-exchange` HTTP surface remains. |
+| `P4.0-T03` Principal-Based Gateway Auth | `P4.0-Wave1` | `DONE` | - | Added `Principal`, `AdminUserPrincipal`, `ClientPrincipal`; transport now authenticates user or client principals without breaking existing `user` handlers. |
+| `P4.0-T04` Redis-Backed Client Session Layer | `P4.0-Wave1` | `PARTIAL` | Redis path not yet exercised in dedicated tests | Client session state is cache-aware and will use Redis via injected cache provider; current tests exercise the fallback LRU path. |
+| `P4.0-T05` Dashboard Backend for Client Management | `P4.0-Wave2` | `NOT STARTED` | Depends on API surface decisions | Not started. |
+| `P4.0-T06` Dashboard Frontend for Client/API Key Management | `P4.0-Wave3` | `NOT STARTED` | Depends on backend APIs | Not started. |
+| `P4.0-T07` MCP Onboarding Templates | `P4.0-Wave3` | `NOT STARTED` | Depends on dashboard UX | Not started. |
+| `P4.0-T08` Audit and Revocation Hardening | `P4.0-Wave2` | `PARTIAL` | Needs dashboard views and broader audit coverage | Core audit log entities and auth events exist; broader event coverage still pending. |
+| `P4.0-VERIFY` End-to-End MCP Client Onboarding Gate | `P4.0-Wave4` | `NOT STARTED` | Depends on dashboard + gateway HTTP surface | Not started. |
+
+## Recommended Next Waves
+
+| Wave | Focus | Tasks | Status |
+|---|---|---|---|
+| `P4.0-Wave2` | Gateway HTTP/Admin Backend | `P4.0-T02`, `P4.0-T04`, `P4.0-T05`, `P4.0-T08` | `READY` |
+| `P4.0-Wave3` | Dashboard Frontend + Onboarding | `P4.0-T06`, `P4.0-T07` | `BACKLOG` |
+| `P4.0-Wave4` | End-to-End Verification | `P4.0-VERIFY` | `BACKLOG` |

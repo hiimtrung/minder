@@ -4,7 +4,7 @@ from typing import Any
 
 import uvicorn
 from starlette.applications import Starlette
-from minder.auth.context import set_current_user
+from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.transport.base import BaseTransport
@@ -23,11 +23,13 @@ class SSEAuthMiddleware:
 
         headers = dict(scope.get("headers", []))
         auth_header = headers.get(b"authorization")
+        client_key_header = headers.get(b"x-minder-client-key")
         
         # If we have an auth header and it's a POST, 
         # we'll intercept the body to inject the authorization token as a hidden param.
-        if auth_header and scope["method"] == "POST":
-            auth_token = auth_header.decode("utf-8")
+        if (auth_header or client_key_header) and scope["method"] == "POST":
+            auth_token = auth_header.decode("utf-8") if auth_header else None
+            client_key = client_key_header.decode("utf-8") if client_key_header else None
              
             async def wrapped_receive() -> Any:
                 message = await receive()
@@ -41,21 +43,27 @@ class SSEAuthMiddleware:
                                 params = data.setdefault("params", {})
                                 args = params.setdefault("arguments", {})
                                 # Only inject if not already present
-                                if "minder_authorization" not in args:
+                                if auth_token and "minder_authorization" not in args:
                                     args["minder_authorization"] = auth_token
-                                    new_body = json.dumps(data).encode("utf-8")
-                                    message["body"] = new_body
+                                if client_key and "minder_client_key" not in args:
+                                    args["minder_client_key"] = client_key
+                                new_body = json.dumps(data).encode("utf-8")
+                                message["body"] = new_body
                         except Exception:
                             pass # Fallback to original body if parsing fails
                 return message
              
             # Also set the context var just in case it can propagate
             try:
-                token = auth_token.strip()
-                if token.lower().startswith("bearer "):
-                    token = token[7:].strip()
-                user = await self.auth_service.get_user_from_jwt(token)
-                set_current_user(user)
+                if client_key:
+                    principal = await self.auth_service.get_principal_from_client_key(client_key)
+                else:
+                    assert auth_token is not None
+                    token = auth_token.strip()
+                    if token.lower().startswith("bearer "):
+                        token = token[7:].strip()
+                    principal = await self.auth_service.get_principal_from_token(token)
+                set_current_principal(principal)
             except Exception:
                 pass
 

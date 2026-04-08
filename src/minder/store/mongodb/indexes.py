@@ -17,6 +17,23 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:  # type: ignore[type
     await users.create_index([("username", ASCENDING)], unique=True)
     await users.create_index([("company_id", ASCENDING)])
 
+    # Clients
+    clients = db["clients"]
+    await clients.create_index([("slug", ASCENDING)], unique=True)
+    await clients.create_index([("created_by_user_id", ASCENDING)])
+
+    client_api_keys = db["client_api_keys"]
+    await client_api_keys.create_index([("client_id", ASCENDING)])
+    await client_api_keys.create_index([("status", ASCENDING)])
+
+    client_sessions = db["client_sessions"]
+    await client_sessions.create_index([("client_id", ASCENDING)])
+    await client_sessions.create_index([("access_token_id", ASCENDING)], unique=True)
+
+    audit_logs = db["audit_logs"]
+    await audit_logs.create_index([("actor_id", ASCENDING)])
+    await audit_logs.create_index([("event_type", ASCENDING)])
+
     # Skills
     skills = db["skills"]
     await skills.create_index([("company_id", ASCENDING)])

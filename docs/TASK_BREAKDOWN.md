@@ -632,6 +632,63 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Progress tracker**: [`docs/PROJECT_PROGRESS.md`](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
 
+**Phase 4.0 design doc**: [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
+
+### Phase 4.0 — MCP Gateway Auth and Dashboard Foundation
+
+**Goal**: Remove the current MCP onboarding friction by introducing a client-aware gateway model, token exchange, and an admin dashboard for client/API key management.
+
+#### P4.0-T01: Client Registry Domain
+- **Owner**: `BE`
+- **Requirement**: Add durable domain models and repository contracts for `Client`, `ClientApiKey`, `ClientSession`, and `AuditLog`. Support status, scopes, repo constraints, creator metadata, and key lifecycle state.
+- **Result**: Machine clients become a first-class concept in the domain model without breaking the current user-oriented auth flow.
+
+#### P4.0-T02: Token Exchange API
+- **Owner**: `BE`
+- **Requirement**: Implement `POST /v1/auth/token-exchange` to exchange a client API key for a short-lived access token. Add expiry, revoke, and optional refresh semantics.
+- **Result**: MCP clients can bootstrap access without manually calling `minder_auth_login`.
+
+#### P4.0-T03: Principal-Based Gateway Auth
+- **Owner**: `BE`
+- **Requirement**: Evolve the transport/auth layer from a `User` assumption to a `Principal` abstraction that supports `AdminUserPrincipal` and `ClientPrincipal`. Enforce tool and repo scopes per principal.
+- **Result**: Authenticated tool calls can be attributed and authorized for both humans and machine clients.
+
+#### P4.0-T04: Redis-Backed Client Session Layer
+- **Owner**: `BE` + `PE`
+- **Requirement**: Use Redis for short-lived client access token/session state, revocation checks, and exchange throttling. Keep MongoDB as the durable metadata source of truth.
+- **Result**: Client auth remains fast on hot paths and revocation semantics are explicit.
+
+#### P4.0-T05: Dashboard Backend for Client Management
+- **Owner**: `FE`
+- **Requirement**: Add backend endpoints for admin login, client CRUD, API key issue/revoke/rotate, audit queries, health checks, and connection testing.
+- **Result**: The dashboard has a backend contract that can fully manage machine clients and their credentials.
+
+#### P4.0-T06: Dashboard Frontend for Client/API Key Management
+- **Owner**: `FE`
+- **Requirement**: Build admin UI for login, client registry, API key creation/rotation/revocation, scope assignment, onboarding instructions, and recent activity.
+- **Result**: Admins can manage MCP clients without shell scripts or direct DB access.
+
+#### P4.0-T07: MCP Onboarding Templates
+- **Owner**: `FE`
+- **Requirement**: Provide copy-paste onboarding templates and connection guidance for Codex, VS Code Copilot-style MCP clients, Claude Desktop, and generic MCP consumers.
+- **Result**: External clients can connect using dashboard instructions alone.
+
+#### P4.0-T08: Audit and Revocation Hardening
+- **Owner**: `BE`
+- **Requirement**: Record token exchange, auth failures, tool usage, revocations, and scope denials with enough detail for incident review and support.
+- **Result**: Every client action is attributable and revocation is observable.
+
+#### P4.0-VERIFY: End-to-End MCP Client Onboarding Gate
+- **Owner**: `BE` + `FE` + `PE`
+- **Requirement**: Add `tests/e2e/test_phase4_gateway_auth.py` and manual dashboard verification that prove:
+  1. Admin can sign into the dashboard
+  2. Admin can create a client and issue an API key
+  3. A client can exchange API key for access token
+  4. A protected MCP tool call succeeds without manual login choreography
+  5. Revocation blocks further access
+  6. Audit logs capture the full flow
+- **Result**: Phase 4.0 is complete and external MCP onboarding becomes simple enough for real team usage.
+
 ### Tasks
 
 #### P4-T01: MongoDB Production Topology Upgrade
@@ -769,9 +826,9 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 | **Phase 1** | 24 tasks | P1-VERIFY | Working MCP server with auth, search, workflow, containerized infra, CI/CD |
 | **Phase 2** | 15 tasks | P2-VERIFY | Full LangGraph agentic pipeline with verification |
 | **Phase 3** | 12 tasks | P3-VERIFY | Advanced retrieval, knowledge graph, ingestion |
-| **Phase 4** | 12 tasks | P4-VERIFY | Production scale, dashboard, security |
+| **Phase 4** | 20 tasks | P4-VERIFY | Production scale, dashboard, security, MCP gateway auth onboarding |
 | **Phase 5** | 6 tasks | P5-VERIFY | Self-improving learning system |
-| **Total** | **69 tasks** | **5 gates** | **Production-ready Minder MCP server** |
+| **Total** | **77 tasks** | **5 gates** | **Production-ready Minder MCP server** |
 
 ### Task Distribution
 

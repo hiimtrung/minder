@@ -145,6 +145,133 @@ class MongoOperationalStore:
         await self._db.users.delete_one({"_id": _uuid_to_str(user_id)})
 
     # ------------------------------------------------------------------
+    # Client Gateway
+    # ------------------------------------------------------------------
+
+    async def create_client(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        if "created_by_user_id" in kwargs and isinstance(kwargs["created_by_user_id"], uuid.UUID):
+            kwargs["created_by_user_id"] = _uuid_to_str(kwargs["created_by_user_id"])
+        kwargs.setdefault("description", "")
+        kwargs.setdefault("status", "active")
+        kwargs.setdefault("transport_modes", ["sse", "stdio"])
+        kwargs.setdefault("tool_scopes", [])
+        kwargs.setdefault("repo_scopes", [])
+        kwargs.setdefault("workflow_scopes", [])
+        kwargs.setdefault("rate_limit_policy", {})
+        kwargs.setdefault("created_at", _now())
+        kwargs.setdefault("updated_at", _now())
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.clients.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def get_client_by_id(self, client_id: uuid.UUID) -> _MongoDoc | None:
+        doc = await self._db.clients.find_one({"_id": _uuid_to_str(client_id)})
+        return _to_doc(doc) if doc else None
+
+    async def get_client_by_slug(self, slug: str) -> _MongoDoc | None:
+        doc = await self._db.clients.find_one({"slug": slug})
+        return _to_doc(doc) if doc else None
+
+    async def list_clients(self) -> list[_MongoDoc]:
+        cursor = self._db.clients.find()
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def update_client(self, client_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+        if not kwargs:
+            return await self.get_client_by_id(client_id)
+        kwargs["updated_at"] = _now()
+        await self._db.clients.update_one(
+            {"_id": _uuid_to_str(client_id)},
+            {"$set": kwargs},
+        )
+        return await self.get_client_by_id(client_id)
+
+    async def create_client_api_key(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        for uuid_field in ("client_id", "created_by_user_id"):
+            if uuid_field in kwargs and isinstance(kwargs[uuid_field], uuid.UUID):
+                kwargs[uuid_field] = _uuid_to_str(kwargs[uuid_field])
+        kwargs.setdefault("status", "active")
+        kwargs.setdefault("last_used_at", None)
+        kwargs.setdefault("created_at", _now())
+        kwargs.setdefault("expires_at", None)
+        kwargs.setdefault("revoked_at", None)
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.client_api_keys.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def list_client_api_keys(self, client_id: uuid.UUID) -> list[_MongoDoc]:
+        cursor = self._db.client_api_keys.find({"client_id": _uuid_to_str(client_id)})
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def update_client_api_key(self, key_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+        if not kwargs:
+            doc = await self._db.client_api_keys.find_one({"_id": _uuid_to_str(key_id)})
+            return _to_doc(doc) if doc else None
+        await self._db.client_api_keys.update_one(
+            {"_id": _uuid_to_str(key_id)},
+            {"$set": kwargs},
+        )
+        doc = await self._db.client_api_keys.find_one({"_id": _uuid_to_str(key_id)})
+        return _to_doc(doc) if doc else None
+
+    async def create_client_session(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        if "client_id" in kwargs and isinstance(kwargs["client_id"], uuid.UUID):
+            kwargs["client_id"] = _uuid_to_str(kwargs["client_id"])
+        kwargs.setdefault("status", "active")
+        kwargs.setdefault("scopes", [])
+        kwargs.setdefault("issued_at", _now())
+        kwargs.setdefault("last_seen_at", None)
+        kwargs.setdefault("session_metadata", {})
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.client_sessions.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def get_client_session_by_token_id(self, token_id: str) -> _MongoDoc | None:
+        doc = await self._db.client_sessions.find_one({"access_token_id": token_id})
+        return _to_doc(doc) if doc else None
+
+    async def update_client_session(self, session_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+        if not kwargs:
+            doc = await self._db.client_sessions.find_one({"_id": _uuid_to_str(session_id)})
+            return _to_doc(doc) if doc else None
+        await self._db.client_sessions.update_one(
+            {"_id": _uuid_to_str(session_id)},
+            {"$set": kwargs},
+        )
+        doc = await self._db.client_sessions.find_one({"_id": _uuid_to_str(session_id)})
+        return _to_doc(doc) if doc else None
+
+    async def create_audit_log(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        kwargs.setdefault("audit_metadata", {})
+        kwargs.setdefault("created_at", _now())
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.audit_logs.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def list_audit_logs(self, *, actor_id: str | None = None) -> list[_MongoDoc]:
+        query: dict[str, Any] = {}
+        if actor_id is not None:
+            query["actor_id"] = actor_id
+        cursor = self._db.audit_logs.find(query)
+        return [_to_doc(doc) async for doc in cursor]
+
+    # ------------------------------------------------------------------
     # Skill
     # ------------------------------------------------------------------
 

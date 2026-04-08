@@ -8,6 +8,7 @@ Usage:
 
 from typing import Optional
 
+from minder.auth.principal import Principal
 from minder.auth.service import AuthError, AuthService
 from minder.models.user import User
 
@@ -56,3 +57,14 @@ class AuthMiddleware:
         """
         token = self.extract_bearer_token(authorization)
         return await self._auth.get_user_from_jwt(token)
+
+    async def authenticate_principal(
+        self,
+        authorization: Optional[str] = None,
+        *,
+        client_key: Optional[str] = None,
+    ) -> Principal:
+        if client_key and client_key.strip():
+            return await self._auth.get_principal_from_client_key(client_key.strip())
+        token = self.extract_bearer_token(authorization)
+        return await self._auth.get_principal_from_token(token)

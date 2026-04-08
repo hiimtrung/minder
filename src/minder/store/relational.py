@@ -23,7 +23,11 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from minder.models import (
+    AuditLog,
     Base,
+    Client,
+    ClientApiKey,
+    ClientSession,
     Document,
     Error,
     Feedback,
@@ -38,6 +42,10 @@ from minder.models import (
 )
 
 _REGISTERED_MODELS = (
+    AuditLog,
+    Client,
+    ClientApiKey,
+    ClientSession,
     Document,
     Error,
     Feedback,
@@ -271,6 +279,105 @@ class RelationalStore:
     async def delete_repository(self, repo_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(Repository).where(Repository.id == repo_id))
+
+    # ------------------------------------------------------------------
+    # Client Gateway
+    # ------------------------------------------------------------------
+
+    async def create_client(self, **kwargs) -> Client:
+        async with self._session() as sess:
+            client = Client(**kwargs)
+            sess.add(client)
+            await sess.flush()
+            await sess.refresh(client)
+            return client
+
+    async def get_client_by_id(self, client_id: uuid.UUID) -> Optional[Client]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Client).where(Client.id == client_id))
+            return result.scalar_one_or_none()
+
+    async def get_client_by_slug(self, slug: str) -> Optional[Client]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Client).where(Client.slug == slug))
+            return result.scalar_one_or_none()
+
+    async def list_clients(self) -> List[Client]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Client))
+            return list(result.scalars().all())
+
+    async def update_client(self, client_id: uuid.UUID, **kwargs) -> Optional[Client]:
+        async with self._session() as sess:
+            await sess.execute(update(Client).where(Client.id == client_id).values(**kwargs))
+            result = await sess.execute(select(Client).where(Client.id == client_id))
+            return result.scalar_one_or_none()
+
+    async def create_client_api_key(self, **kwargs) -> ClientApiKey:
+        async with self._session() as sess:
+            key = ClientApiKey(**kwargs)
+            sess.add(key)
+            await sess.flush()
+            await sess.refresh(key)
+            return key
+
+    async def list_client_api_keys(self, client_id: uuid.UUID) -> List[ClientApiKey]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(ClientApiKey).where(ClientApiKey.client_id == client_id)
+            )
+            return list(result.scalars().all())
+
+    async def update_client_api_key(self, key_id: uuid.UUID, **kwargs) -> Optional[ClientApiKey]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(ClientApiKey).where(ClientApiKey.id == key_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(ClientApiKey).where(ClientApiKey.id == key_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def create_client_session(self, **kwargs) -> ClientSession:
+        async with self._session() as sess:
+            client_session = ClientSession(**kwargs)
+            sess.add(client_session)
+            await sess.flush()
+            await sess.refresh(client_session)
+            return client_session
+
+    async def get_client_session_by_token_id(self, token_id: str) -> Optional[ClientSession]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(ClientSession).where(ClientSession.access_token_id == token_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def update_client_session(self, session_id: uuid.UUID, **kwargs) -> Optional[ClientSession]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(ClientSession).where(ClientSession.id == session_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(ClientSession).where(ClientSession.id == session_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def create_audit_log(self, **kwargs) -> AuditLog:
+        async with self._session() as sess:
+            audit_log = AuditLog(**kwargs)
+            sess.add(audit_log)
+            await sess.flush()
+            await sess.refresh(audit_log)
+            return audit_log
+
+    async def list_audit_logs(self, *, actor_id: str | None = None) -> List[AuditLog]:
+        async with self._session() as sess:
+            stmt = select(AuditLog)
+            if actor_id is not None:
+                stmt = stmt.where(AuditLog.actor_id == actor_id)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
 
     # ------------------------------------------------------------------
     # RepositoryWorkflowState

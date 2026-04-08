@@ -87,8 +87,9 @@ def build_transport(
     config: MinderConfig,
     store: IOperationalStore,
     vector_store: IVectorStore,
+    cache: ICacheProvider | None = None,
 ) -> SSETransport | StdioTransport:
-    auth_service = AuthService(store, config)
+    auth_service = AuthService(store, config, cache=cache)
     repo_state_store = RepoStateStore(config.workflow.repo_state_dir)
     auth_tools = AuthTools(store, auth_service)
     session_tools = SessionTools(store)
@@ -106,12 +107,39 @@ def build_transport(
     async def minder_auth_login(api_key: str) -> dict[str, str]:
         return await auth_tools.minder_auth_login(api_key)
 
+    async def minder_auth_exchange_client_key(
+        client_api_key: str,
+        requested_scopes: list[str] | None = None,
+    ) -> dict[str, object]:
+        return await auth_tools.minder_auth_exchange_client_key(
+            client_api_key,
+            requested_scopes=requested_scopes,
+        )
+
     async def minder_auth_whoami(*, user=None) -> dict[str, Any]:  # noqa: ANN001
         token = auth_service.issue_jwt(user)
         return await auth_tools.minder_auth_whoami(token)
 
     async def minder_auth_manage(*, user=None, action: str) -> dict[str, object]:  # noqa: ANN001
         return await auth_tools.minder_auth_manage(actor_user_id=user.id, action=action)
+
+    async def minder_auth_create_client(
+        *,
+        user,
+        name: str,
+        slug: str,
+        description: str = "",
+        tool_scopes: list[str] | None = None,
+        repo_scopes: list[str] | None = None,
+    ) -> dict[str, object]:  # noqa: ANN001
+        return await auth_tools.minder_auth_create_client(
+            actor_user_id=user.id,
+            name=name,
+            slug=slug,
+            description=description,
+            tool_scopes=tool_scopes,
+            repo_scopes=repo_scopes,
+        )
 
     async def minder_session_create(
         *, user, repo_id: str | None = None, project_context: dict[str, Any] | None = None  # noqa: ANN001
@@ -250,8 +278,14 @@ def build_transport(
     )
 
     transport.register_tool("minder_auth_login", minder_auth_login, require_auth=False)
+    transport.register_tool(
+        "minder_auth_exchange_client_key",
+        minder_auth_exchange_client_key,
+        require_auth=False,
+    )
     transport.register_tool("minder_auth_whoami", minder_auth_whoami, require_auth=True)
     transport.register_tool("minder_auth_manage", minder_auth_manage, require_auth=True)
+    transport.register_tool("minder_auth_create_client", minder_auth_create_client, require_auth=True)
     transport.register_tool("minder_session_create", minder_session_create, require_auth=True)
     transport.register_tool("minder_session_save", minder_session_save, require_auth=True)
     transport.register_tool("minder_session_restore", minder_session_restore, require_auth=True)
@@ -326,7 +360,7 @@ async def _async_run() -> None:
     admin = await store.get_user_by_username("admin")
     print(f"MINDER ADMIN EXISTS: {admin is not None}", file=sys.stderr, flush=True)
 
-    transport = build_transport(config=config, store=store, vector_store=vector_store)
+    transport = build_transport(config=config, store=store, vector_store=vector_store, cache=cache)
     store_type = config.relational_store.provider
     cache_type = config.cache.provider
     print(

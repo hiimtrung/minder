@@ -18,6 +18,8 @@ class AuthConfig(BaseModel):
     jwt_secret: str = "dev-secret-key-change-me-in-prod"
     jwt_expiry_hours: int = 24
     api_key_prefix: str = "mk_"
+    client_api_key_prefix: str = "mkc_"
+    client_token_expiry_minutes: int = 60
     default_admin_email: str = "admin@example.com"
 
 

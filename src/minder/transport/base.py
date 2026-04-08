@@ -6,10 +6,10 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from minder.auth.middleware import AuthMiddleware
+from minder.auth.principal import AdminUserPrincipal, Principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
-from minder.models.user import User
-from minder.auth.context import get_current_user
+from minder.auth.context import get_current_principal
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,7 @@ class BaseTransport:
         async def wrapped_tool(*args: Any, **kwargs: Any) -> Any:
             # Authorization might come from minder_authorization in MCP CallTool params
             authorization = kwargs.pop("minder_authorization", None)
+            client_key = kwargs.pop("minder_client_key", None)
             
             # Reconstruct arguments for call_tool
             sig = inspect.signature(handler)
@@ -72,6 +73,7 @@ class BaseTransport:
                 name,
                 arguments=bound.arguments,
                 authorization=authorization,
+                client_key=client_key,
             )
 
         # Modify the signature of wrapped_tool to remove 'user' parameter
@@ -79,12 +81,20 @@ class BaseTransport:
         orig_sig = inspect.signature(handler)
         new_params = [
             p for p in orig_sig.parameters.values() 
-            if p.name != "user"
+            if p.name not in {"user", "principal"}
         ]
         # Inject minder_authorization into the signature so FastMCP doesn't strip it.
         new_params.append(
             inspect.Parameter(
                 "minder_authorization",
+                kind=inspect.Parameter.KEYWORD_ONLY,
+                default=None,
+                annotation=str | None,
+            )
+        )
+        new_params.append(
+            inspect.Parameter(
+                "minder_client_key",
                 kind=inspect.Parameter.KEYWORD_ONLY,
                 default=None,
                 annotation=str | None,
@@ -108,45 +118,72 @@ class BaseTransport:
         *,
         arguments: dict[str, Any] | None = None,
         authorization: str | None = None,
+        client_key: str | None = None,
     ) -> Any:
         if name not in self._tools:
             raise KeyError(f"Unknown tool: {name}")
 
         registered = self._tools[name]
         kwargs = dict(arguments or {})
-        user = await self._authenticate_if_required(registered, authorization)
-        if user is not None:
-            kwargs["user"] = user
+        principal = await self._authenticate_if_required(registered, authorization, client_key)
+        if principal is not None:
+            kwargs["principal"] = principal
+            if isinstance(principal, AdminUserPrincipal) and principal.user is not None:
+                kwargs["user"] = principal.user
         return await _invoke(registered.handler, **kwargs)
 
     async def _authenticate_if_required(
         self,
         registered: RegisteredTool,
         authorization: str | None,
-    ) -> User | None:
+        client_key: str | None,
+    ) -> Principal | None:
         if not registered.require_auth:
             return None
         
         # 1. Try context first (set by middleware or previous call in same task)
-        context_user = get_current_user()
-        if context_user is not None:
-            logger.info(f"BaseTransport: found user in context: {context_user.email}")
-            return context_user
+        context_principal = get_current_principal()
+        if context_principal is not None:
+            logger.info(
+                "BaseTransport: found principal in context: %s",
+                context_principal.principal_type,
+            )
+            return context_principal
 
         # 2. Fallback to explicit authorization header if provided
         if self._middleware is None:
             logger.error("BaseTransport: Transport requires auth but no AuthService was configured")
             raise RuntimeError("Transport requires auth but no AuthService was configured")
         
-        logger.debug(f"BaseTransport: no user in context, checking header: {authorization[:10] if authorization else 'None'}")
-        user = await self._middleware.authenticate(authorization)
-        if user:
-            logger.info(f"BaseTransport: authenticated from header: {user.email}")
-        return user
+        logger.debug(
+            "BaseTransport: no principal in context, checking auth header/client key",
+        )
+        principal = await self._middleware.authenticate_principal(
+            authorization,
+            client_key=client_key,
+        )
+        logger.info(
+            "BaseTransport: authenticated principal from request: %s",
+            principal.principal_type,
+        )
+        return principal
 
 
 async def _invoke(handler: ToolHandler, **kwargs: Any) -> Any:
-    result = handler(**kwargs)
+    signature = inspect.signature(handler)
+    accepts_var_kw = any(
+        parameter.kind == inspect.Parameter.VAR_KEYWORD
+        for parameter in signature.parameters.values()
+    )
+    if accepts_var_kw:
+        filtered_kwargs = kwargs
+    else:
+        filtered_kwargs = {
+            key: value
+            for key, value in kwargs.items()
+            if key in signature.parameters
+        }
+    result = handler(**filtered_kwargs)
     if inspect.isawaitable(result):
         return await result
     return result

@@ -12,17 +12,19 @@ Error codes follow the project standard:
 
 import secrets
 import uuid
+import json
 from datetime import UTC, datetime, timedelta
 from enum import Enum
-from typing import Tuple
+from typing import Any, Tuple
 
 import jwt
 from passlib.context import CryptContext  # type: ignore[import-untyped]
 from passlib.exc import UnknownHashError  # type: ignore[import-untyped]
 
+from minder.auth.principal import AdminUserPrincipal, ClientPrincipal, Principal
 from minder.config import MinderConfig
 from minder.models.user import User
-from minder.store.interfaces import IOperationalStore
+from minder.store.interfaces import ICacheProvider, IOperationalStore
 
 # ---------------------------------------------------------------------------
 # Role hierarchy
@@ -68,9 +70,16 @@ _pwd_context = CryptContext(schemes=["pbkdf2_sha256"], deprecated="auto")
 class AuthService:
     """Stateless auth service. Injected with store + config at construction."""
 
-    def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
+    def __init__(
+        self,
+        store: IOperationalStore,
+        config: MinderConfig,
+        cache: ICacheProvider | None = None,
+    ) -> None:
         self._store = store
         self._config = config
+        self._cache = cache
+        self._client_session_cache: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -81,6 +90,10 @@ class AuthService:
         token = secrets.token_urlsafe(32)
         return f"{self._config.auth.api_key_prefix}{token}"
 
+    def _generate_client_api_key(self) -> str:
+        token = secrets.token_urlsafe(32)
+        return f"{self._config.auth.client_api_key_prefix}{token}"
+
     @staticmethod
     def _hash_secret(secret: str) -> str:
         return _pwd_context.hash(secret)
@@ -88,6 +101,23 @@ class AuthService:
     @staticmethod
     def _verify_secret(secret: str, hashed: str) -> bool:
         return _pwd_context.verify(secret, hashed)
+
+    async def _session_store_set(self, key: str, value: dict[str, Any], ttl_seconds: int) -> None:
+        encoded = json.dumps(value, default=str)
+        if self._cache is not None:
+            await self._cache.set(key, encoded, ttl=ttl_seconds)
+            return
+        self._client_session_cache[key] = encoded
+
+    async def _session_store_get(self, key: str) -> dict[str, Any] | None:
+        raw: str | None
+        if self._cache is not None:
+            raw = await self._cache.get(key)
+        else:
+            raw = self._client_session_cache.get(key)
+        if raw is None:
+            return None
+        return json.loads(raw)
 
     # ------------------------------------------------------------------
     # Registration
@@ -150,6 +180,161 @@ class AuthService:
                 return user
         raise AuthError("AUTH_INVALID_KEY", "Invalid API key")
 
+    async def register_client(
+        self,
+        *,
+        name: str,
+        slug: str,
+        created_by_user_id: uuid.UUID,
+        description: str = "",
+        owner_team: str | None = None,
+        transport_modes: list[str] | None = None,
+        tool_scopes: list[str] | None = None,
+        repo_scopes: list[str] | None = None,
+        workflow_scopes: list[str] | None = None,
+        rate_limit_policy: dict[str, Any] | None = None,
+    ) -> tuple[Any, str]:
+        if await self._store.get_client_by_slug(slug):
+            raise AuthError("AUTH_CLIENT_EXISTS", f"Client slug '{slug}' is already registered")
+
+        creator = await self._store.get_user_by_id(created_by_user_id)
+        if creator is None:
+            raise AuthError("AUTH_USER_NOT_FOUND", "Creator user not found")
+
+        client = await self._store.create_client(
+            id=uuid.uuid4(),
+            name=name,
+            slug=slug,
+            description=description,
+            status="active",
+            created_by_user_id=created_by_user_id,
+            owner_team=owner_team,
+            transport_modes=transport_modes or ["sse", "stdio"],
+            tool_scopes=tool_scopes or [],
+            repo_scopes=repo_scopes or [],
+            workflow_scopes=workflow_scopes or [],
+            rate_limit_policy=rate_limit_policy or {},
+        )
+        client_api_key = self._generate_client_api_key()
+        await self._store.create_client_api_key(
+            id=uuid.uuid4(),
+            client_id=client.id,
+            key_prefix=client_api_key[:12],
+            secret_hash=self._hash_secret(client_api_key),
+            status="active",
+            created_by_user_id=created_by_user_id,
+        )
+        await self._store.create_audit_log(
+            id=uuid.uuid4(),
+            actor_type="admin_user",
+            actor_id=str(created_by_user_id),
+            event_type="client.created",
+            resource_type="client",
+            resource_id=str(client.id),
+            outcome="success",
+            audit_metadata={"slug": slug},
+        )
+        return client, client_api_key
+
+    async def revoke_client_api_keys(self, client_id: uuid.UUID) -> None:
+        now = datetime.now(UTC)
+        for key in await self._store.list_client_api_keys(client_id):
+            await self._store.update_client_api_key(
+                key.id,
+                status="revoked",
+                revoked_at=now,
+            )
+
+    async def authenticate_client_api_key(self, client_api_key: str) -> Any:
+        if not client_api_key.startswith(self._config.auth.client_api_key_prefix):
+            raise AuthError("AUTH_INVALID_CLIENT_KEY", "Invalid client API key")
+
+        clients = await self._store.list_clients()
+        for client in clients:
+            if getattr(client, "status", "active") != "active":
+                continue
+            for key in await self._store.list_client_api_keys(client.id):
+                if getattr(key, "status", "active") != "active":
+                    continue
+                try:
+                    matches = self._verify_secret(client_api_key, key.secret_hash)
+                except UnknownHashError:
+                    continue
+                if matches:
+                    await self._store.update_client_api_key(
+                        key.id,
+                        last_used_at=datetime.now(UTC),
+                    )
+                    return client
+        raise AuthError("AUTH_INVALID_CLIENT_KEY", "Invalid client API key")
+
+    async def exchange_client_api_key(
+        self,
+        client_api_key: str,
+        *,
+        requested_scopes: list[str] | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        client = await self.authenticate_client_api_key(client_api_key)
+        allowed_scopes = list(getattr(client, "tool_scopes", []))
+        requested = requested_scopes or allowed_scopes
+        effective_scopes = [scope for scope in requested if scope in allowed_scopes]
+        if not effective_scopes:
+            effective_scopes = allowed_scopes
+
+        now = datetime.now(UTC)
+        expires_at = now + timedelta(minutes=self._config.auth.client_token_expiry_minutes)
+        token_id = str(uuid.uuid4())
+        session = await self._store.create_client_session(
+            id=uuid.uuid4(),
+            client_id=client.id,
+            access_token_id=token_id,
+            status="active",
+            scopes=effective_scopes,
+            issued_at=now,
+            expires_at=expires_at,
+            last_seen_at=now,
+            session_metadata=metadata or {},
+        )
+        await self._session_store_set(
+            f"client_session:{token_id}",
+            {
+                "client_id": str(client.id),
+                "client_slug": client.slug,
+                "scopes": effective_scopes,
+                "repo_scope": list(getattr(client, "repo_scopes", [])),
+                "session_id": str(session.id),
+            },
+            ttl_seconds=self._config.auth.client_token_expiry_minutes * 60,
+        )
+        payload = {
+            "sub": str(client.id),
+            "ptype": "client",
+            "slug": client.slug,
+            "scopes": effective_scopes,
+            "repo_scope": list(getattr(client, "repo_scopes", [])),
+            "jti": token_id,
+            "iat": now,
+            "exp": expires_at,
+        }
+        token = jwt.encode(payload, self._config.auth.jwt_secret, algorithm="HS256")
+        await self._store.create_audit_log(
+            id=uuid.uuid4(),
+            actor_type="client",
+            actor_id=str(client.id),
+            event_type="client.token_exchanged",
+            resource_type="client_session",
+            resource_id=str(session.id),
+            outcome="success",
+            audit_metadata={"scopes": effective_scopes},
+        )
+        return {
+            "access_token": token,
+            "expires_in": self._config.auth.client_token_expiry_minutes * 60,
+            "token_type": "Bearer",
+            "client_id": str(client.id),
+        }
+
     # ------------------------------------------------------------------
     # JWT
     # ------------------------------------------------------------------
@@ -198,6 +383,43 @@ class AuthService:
         if not user.is_active:
             raise AuthError("AUTH_USER_INACTIVE", "User account is inactive")
         return user
+
+    async def get_principal_from_token(self, token: str) -> Principal:
+        payload = self.validate_jwt(token)
+        if payload.get("ptype") == "client":
+            token_id = payload.get("jti")
+            if not token_id:
+                raise AuthError("AUTH_TOKEN_INVALID", "Client token missing jti")
+            cached = await self._session_store_get(f"client_session:{token_id}")
+            if cached is None:
+                raise AuthError("AUTH_TOKEN_INVALID", "Client session not found or expired")
+            client = await self._store.get_client_by_id(uuid.UUID(payload["sub"]))
+            if client is None or getattr(client, "status", "active") != "active":
+                raise AuthError("AUTH_CLIENT_NOT_FOUND", "Client referenced by token not found")
+            session = await self._store.get_client_session_by_token_id(token_id)
+            if session is not None:
+                await self._store.update_client_session(session.id, last_seen_at=datetime.now(UTC))
+            return ClientPrincipal(
+                client_id=client.id,
+                client_slug=client.slug,
+                scopes=list(cached.get("scopes", [])),
+                repo_scope=list(cached.get("repo_scope", [])),
+                metadata={"session_id": cached.get("session_id")},
+            )
+        user = await self.get_user_from_jwt(token)
+        return AdminUserPrincipal(user)
+
+    async def get_principal_from_client_key(
+        self,
+        client_api_key: str,
+        *,
+        requested_scopes: list[str] | None = None,
+    ) -> Principal:
+        exchange = await self.exchange_client_api_key(
+            client_api_key,
+            requested_scopes=requested_scopes,
+        )
+        return await self.get_principal_from_token(exchange["access_token"])
 
     # ------------------------------------------------------------------
     # Key rotation

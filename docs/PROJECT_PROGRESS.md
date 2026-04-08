@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P4.0-Wave4 complete — 246 passed, 14 skipped)
+> **Last updated**: 2026-04-08 (P4-Wave1 rate limiting complete — 250 passed, 14 skipped)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `DONE` | `closed` | - | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable. |
-| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `Phase 4.0 closed` | Broader Phase 4 scale/observability/load tasks remain | The MCP gateway auth/dashboard sub-phase is fully implemented and verified; remaining Phase 4 work is outside the onboarding/auth slice. |
+| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4-Wave1` | Observability, prod compose, load, and security backlog remain | `Phase 4.0` is closed; broader Phase 4 has now started with rate limiting and quota enforcement on MCP tool calls. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
 ---
@@ -113,8 +113,26 @@
 
 | Phase | Status | Notes |
 |---|---|---|
-| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) drafted; `P4.0-Wave1..4` are now complete, including the end-to-end onboarding verification gate. |
+| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; broader Phase 4 execution has started with `P4-T04` rate limiting. |
 | `Phase 5` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started. |
+
+## Phase 4 Tracker
+
+| Task | Wave | Status | Blocker | Notes |
+|---|---|---|---|---|
+| `P4-T01` MongoDB Production Topology | `backlog` | `NOT STARTED` | `Depends on production deployment wave` | Operational store works locally; production topology hardening has not started. |
+| `P4-T02` Milvus Cluster-Ready Deployment | `backlog` | `NOT STARTED` | `Depends on production compose wave` | Current Milvus Standalone baseline is working; cluster-ready promotion path remains open. |
+| `P4-T03` Redis HA Cache Layer | `backlog` | `NOT STARTED` | `Depends on production deployment wave` | Redis runtime works, but HA/persistence/failover policy is still backlog. |
+| `P4-T04` Rate Limiting and Quotas | `P4-Wave1` | `DONE` | `-` | Added `RateLimiter`, role-based per-tool thresholds, transport enforcement, and full-suite verification (`250 passed, 14 skipped`). |
+| `P4-T05` Observability Stack | `backlog` | `NOT STARTED` | `Depends on dashboard and prod runtime metrics shape` | OpenTelemetry, Prometheus, and structured logs are not implemented yet. |
+| `P4-T06` Production Docker Compose | `backlog` | `NOT STARTED` | `Depends on observability and infra decisions` | Dev compose exists; production compose and secrets handling do not. |
+| `P4-T07` Dashboard Backend API | `backlog` | `NOT STARTED` | `Phase 4.0 HTTP/admin surface is narrower than full dashboard API` | Phase 4.0 added onboarding/admin endpoints, but broader dashboard CRUD/API work remains. |
+| `P4-T08` Dashboard Frontend — Workflow Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Full workflow management UI is still backlog. |
+| `P4-T09` Dashboard Frontend — Repository & User Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Only lightweight Phase 4.0 dashboard exists today. |
+| `P4-T10` Dashboard Frontend — Observability | `backlog` | `NOT STARTED` | `Depends on metrics/audit backend` | No observability UI yet. |
+| `P4-T11` Load Testing | `backlog` | `NOT STARTED` | `Depends on observability and prod stack` | No k6/locust suite yet. |
+| `P4-T12` Security Review | `backlog` | `NOT STARTED` | `Best done after rate limiting and observability` | No formal security review report yet. |
+| `P4-VERIFY` Phase 4 Acceptance Test | `backlog` | `NOT STARTED` | `Depends on P4-T01..T12` | `tests/e2e/test_phase4_gate.py` has not been implemented. |
 
 ## Phase 4.0 Tracker
 
@@ -134,6 +152,11 @@
 
 | Wave | Focus | Tasks | Status |
 |---|---|---|---|
+| `P4-Wave1` | Rate Limiting and Quotas | `P4-T04` | `DONE` |
+| `P4-Wave2` | Observability Foundation | `P4-T05` | `BACKLOG` |
+| `P4-Wave3` | Production Runtime and Compose | `P4-T01`, `P4-T02`, `P4-T03`, `P4-T06` | `BACKLOG` |
+| `P4-Wave4` | Full Dashboard Expansion | `P4-T07`, `P4-T08`, `P4-T09`, `P4-T10` | `BACKLOG` |
+| `P4-Wave5` | Load, Security, Verification | `P4-T11`, `P4-T12`, `P4-VERIFY` | `BACKLOG` |
 | `P4.0-Wave2` | Gateway HTTP/Admin Backend | `P4.0-T02`, `P4.0-T04`, `P4.0-T05`, `P4.0-T08` | `DONE` |
 | `P4.0-Wave3` | Dashboard Frontend + Onboarding | `P4.0-T05`, `P4.0-T06`, `P4.0-T07`, `P4.0-T08` | `DONE` |
 | `P4.0-Wave4` | End-to-End Verification | `P4.0-VERIFY` | `DONE` |

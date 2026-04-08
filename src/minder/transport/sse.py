@@ -8,6 +8,7 @@ from starlette.routing import BaseRoute
 from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.store.interfaces import ICacheProvider
 from minder.transport.base import BaseTransport
 
 logger = logging.getLogger(__name__)
@@ -82,8 +83,9 @@ class SSETransport(BaseTransport):
         config: MinderConfig,
         auth_service: AuthService | None = None,
         extra_routes: list[BaseRoute] | None = None,
+        cache_provider: ICacheProvider | None = None,
     ) -> None:
-        super().__init__(config=config, auth_service=auth_service)
+        super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
         self._extra_routes = list(extra_routes or [])
 
     async def run(self) -> None:

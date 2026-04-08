@@ -82,6 +82,15 @@ class CacheConfig(BaseModel):
     ttl_seconds: int = 3600
 
 
+class RateLimitConfig(BaseModel):
+    enabled: bool = False
+    window_seconds: int = 60
+    admin_limit: int = 120
+    member_limit: int = 60
+    readonly_limit: int = 20
+    client_limit: int = 90
+
+
 class VerificationConfig(BaseModel):
     enabled: bool = True
     sandbox: str = "docker"
@@ -114,6 +123,7 @@ class Settings(BaseSettings):
     redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
+    rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     verification: VerificationConfig = Field(default_factory=VerificationConfig)
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     seeding: SeedingConfig = Field(default_factory=SeedingConfig)

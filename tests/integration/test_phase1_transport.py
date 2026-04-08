@@ -137,3 +137,41 @@ async def test_sse_transport_dispatches_tool_with_authenticated_client_principal
 
     assert result["principal_type"] == "client"
     assert result["scopes"] == ["minder_query"]
+
+
+@pytest.mark.asyncio
+async def test_transport_enforces_rate_limit_for_member_user(
+    store: RelationalStore,
+    config: MinderConfig,
+) -> None:
+    config.rate_limit.enabled = True
+    config.rate_limit.member_limit = 1
+    auth = AuthService(store, config)
+    user, _ = await auth.register_user(
+        email="rate-user@example.com",
+        username="rate_user",
+        display_name="Rate User",
+    )
+    token = auth.issue_jwt(user)
+    transport = SSETransport(config=config, auth_service=auth)
+
+    async def echo(*, user, message: str):  # noqa: ANN001, ANN202
+        return {"message": message, "user_id": str(user.id)}
+
+    transport.register_tool("rate_echo", echo, require_auth=True)
+
+    first = await transport.call_tool(
+        "rate_echo",
+        arguments={"message": "first"},
+        authorization=f"Bearer {token}",
+    )
+    assert first["message"] == "first"
+
+    with pytest.raises(Exception) as exc:
+        await transport.call_tool(
+            "rate_echo",
+            arguments={"message": "second"},
+            authorization=f"Bearer {token}",
+        )
+
+    assert getattr(exc.value, "code", None) == "AUTH_RATE_LIMITED"

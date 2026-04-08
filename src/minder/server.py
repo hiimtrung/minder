@@ -105,12 +105,13 @@ def build_transport(
 
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
-        transport = StdioTransport(config=config, auth_service=auth_service)
+        transport = StdioTransport(config=config, auth_service=auth_service, cache_provider=cache)
     else:
         transport = SSETransport(
             config=config,
             auth_service=auth_service,
             extra_routes=build_http_routes(config=config, store=store, cache=cache),
+            cache_provider=cache,
         )
 
     async def minder_auth_login(api_key: str) -> dict[str, str]:

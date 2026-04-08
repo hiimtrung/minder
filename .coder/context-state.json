@@ -1,138 +1,141 @@
 {
-  "updated_at": "2026-04-06T11:30:45.835945+07:00",
+  "updated_at": "2026-04-08T15:42:27.327246+07:00",
   "skills": {
-    "task": "ci-cd",
+    "task": "browser admin login flow dashboard cookie auth",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-06T11:30:45.625413+07:00",
+    "resolved_at": "2026-04-08T15:42:27.202503+07:00",
     "keep": [],
     "add": [
-      "claude-code-expert",
-      "github-workflow-automation",
-      "terraform-skill"
+      "azure-identity-java",
+      "azure-identity-ts",
+      "xss-html-injection"
     ],
     "drop": [
-      "arm-cortex-expert",
-      "molykit",
-      "coder-cli"
+      "readme",
+      "environment-setup-guide",
+      "devcontainer-setup"
     ],
     "skills": [
       {
-        "name": "claude-code-expert",
+        "name": "azure-identity-java",
         "category": "general",
         "score": 0.016393442,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "github-workflow-automation",
-        "category": "general",
+        "name": "azure-identity-ts",
+        "category": "backend",
         "score": 0.016129032,
-        "chunk_count": 6,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "terraform-skill",
+        "name": "xss-html-injection",
         "category": "general",
-        "score": 0.015625,
-        "chunk_count": 1,
+        "score": 0.015873017,
+        "chunk_count": 3,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "ci-cd",
+    "query": "browser admin login flow dashboard cookie auth",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-06T11:30:45.835272+07:00",
+    "searched_at": "2026-04-08T15:42:27.324864+07:00",
     "results": [
       {
-        "id": "3dd2d13d-a499-4c2b-ac92-443563f8cfa7",
-        "title": "share company staff directory hook for inbox ui",
+        "id": "eb5452ba-3c33-4f73-ab46-d6e97d3fac67",
+        "title": "Backend login and auth UI cleanup",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:share-company-staff-directory-hook-for-inbox-ui",
+        "canonical_key": "document:backend-login-and-auth-ui-cleanup",
         "score": 0.086393446,
         "tags": [
-          "findtourgoUI",
-          "omni-channel",
-          "staff",
-          "hook",
-          "refactor"
+          "auth",
+          "nextjs",
+          "backend-login",
+          "route-handler",
+          "ui-cleanup",
+          "phase-01.1"
         ],
         "conflict_detected": false,
-        "content": "Created useCompanyStaffDirectory hook to centralize company staff query, options mapping, and id-to-name resolution. Refactored ConversationHeader and SystemMessage to reuse it, reducing duplicate queries/mapping logic. Files: src/hooks/common/useCompanyStaffDirectory.ts, src/app/[locale]/(company)/company/[companyId]/inboxes/_sections/ConversationHeader.tsx, src/app/[locale]/(company)/company/[companyId]/inboxes/_components/message-renderers/SystemMessage.tsx"
+        "content": "Integrated real backend login into the Next.js auth flow, added a dedicated /auth/logout route handler for safe cookie clearing on stale/401 sessions, removed the mock-style sign-up screen, and simplified the sign-in UI to a single professional login card aligned to the frontend integration contract and screen API map. Also tightened auth/session and contract typing using live Swagger and payload checks from localhost:3001."
       },
       {
-        "id": "fa4d8f71-7381-4f14-a73b-f7d4283d1a34",
-        "title": "OMS API products module extended with skus and images",
+        "id": "db20b323-e6d8-429f-a94f-40ca3efedef6",
+        "title": "FindTourGo NextAuth migration assessment",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:oms-api-products-module-extended-with-skus-and-images",
+        "canonical_key": "document:findtourgo-nextauth-migration-assessment",
         "score": 0.086129025,
+        "tags": [
+          "findtourgo",
+          "auth",
+          "nextauth",
+          "authjs",
+          "migration",
+          "frontend"
+        ],
+        "conflict_detected": false,
+        "content": "Assessed FindTourGo auth for migration to Auth.js/NextAuth. Current frontend is heavily coupled to client-side JWT cookies and browser-side Bearer attachment: AuthService reads/writes access/refresh/deviceSession cookies, ApiClient attaches Authorization from browser state, AuthProvider runs proactive refresh timer, and many React Query hooks gate on useSession(). NextAuth migration is feasible, but a full cutover is high-risk unless API calls move server-side or backend tokens are intentionally exposed through the Auth.js session. Recommended approach is phased/hybrid: 1) add Auth.js with Credentials provider against existing backend login/refresh endpoints, 2) use it first for middleware/server guards and session normalization, 3) bridge existing useSession consumers, 4) gradually move sensitive API calls behind Next.js route handlers/server actions, 5) only then retire custom cookie/timer/interceptor logic. Main architectural caveat: Auth.js docs recommend attaching backend bearer"
+      },
+      {
+        "id": "0dc05d3a-381d-4c01-af57-5fa6ad6fd6da",
+        "title": "Auth \u0026 Client Tracking with --secure mode in coder/coder-node",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:auth-client-tracking-with-secure-mode-in-coder-coder-node",
+        "score": 0.08587302,
+        "tags": [
+          "coder",
+          "golang",
+          "authentication",
+          "secure-mode",
+          "bearer-token",
+          "client-tracking"
+        ],
+        "conflict_detected": false,
+        "content": "ection, URL sanitisation), cmd/coder/cmd_login.go (registration flow with bootstrap token prompt + git identity detection), cmd/coder/config.go (Auth.AccessToken field in Config, passed to httpclient.NewClient and httpclient.NewSkillClient), cmd/coder-node/main.go (SECURE_MODE=true env var, bootstrap token printed once on first startup, httpmiddleware.Auth wraps the HTTP mux). HTTP clients updated: NewClient(baseURL, accessToken) and NewSkillClient(baseURL, accessToken) — addAuth() helper injects Bearer header on every request. logActivity() called at start of runMemoryStore, runMemorySearch, runSkillSearch, runSkillIngest."
+      },
+      {
+        "id": "a27ac4c0-b241-487f-b2ac-231e667ae242",
+        "title": "OMS API implemented JWT login refresh and session/login history",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:oms-api-implemented-jwt-login-refresh-and-session-login-history",
+        "score": 0.08562499,
         "tags": [
           "oms-api",
           "nestjs",
-          "products",
-          "sku",
-          "images",
-          "multi-tenant"
+          "auth",
+          "jwt",
+          "refresh-token",
+          "sessions"
         ],
         "conflict_detected": false,
-        "content": "Extended Products module to support product_skus and product_images under organization-scoped routes. Added domain models/repositories, DTOs, use-cases create/list for skus and images, TypeORM entities and repositories, module provider wiring, controller endpoints under /v1/organizations/:organizationId/products/:productId/(skus|images), and migration 1771000003000-CreateProductSkusAndImagesTables with FK to products and unique (product_id, sku_code). Preserved existing products endpoints and company ownership checks via findByIdInOrganization. Verified with yarn lint, yarn build, yarn test."
+        "content": "Added full auth flow in users module: POST /v1/users/login and POST /v1/users/refresh-token with JWT access+refresh tokens via @nestjs/jwt. Introduced LoginUseCase and RefreshTokenUseCase, DTOs (login, refresh-token, auth-tokens-response), password hash verification utility, and auth token utilities (secret/ttl/session id/hash). Extended UserRepository with findAuthByEmail, session persistence, session rotation, and login history methods. Added TypeORM entities user_sessions and user_login_history, wired them in UsersModule, and implemented repository methods in TypeormUserRepository. Added migration 1771000007000-CreateUserSessionsAndLoginHistory.ts. Added route limits for login (5/min) and refresh-token (10/min). Validation passed: yarn lint, yarn build, yarn test (11 suites)."
       },
       {
-        "id": "9b184b0f-ceb3-4440-9a02-8dea0ff156e2",
-        "title": "Configurations use GetOrCreateCompanyUseCase for externalCompanyId",
+        "id": "e5e01708-bc45-49b5-9f93-835a6fea5e60",
+        "title": "OMS API added throttling for register and password-reset endpoints",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:configurations-use-getorcreatecompanyusecase-for-externalcompanyid",
-        "score": 0.08587302,
-        "tags": [
-          "omi-channel-be",
-          "nestjs",
-          "configurations",
-          "companies",
-          "usecase"
-        ],
-        "conflict_detected": false,
-        "content": "Replaced GetCompanyByIdUseCase with GetOrCreateCompanyUseCase in public channel configuration use cases so configurations module auto-ensures local company records when resolving externalCompanyId. Files: src/modules/configurations/application/use-cases/get-public-channel-configuration.use-case.ts, get-public-channels.use-case.ts, upsert-public-channels-configuration.use-case.ts"
-      },
-      {
-        "id": "d2e9d893-5441-465a-9986-645dbc21730f",
-        "title": "CRM customerSource partner i18n key",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:crm-customersource-partner-i18n-key",
-        "score": 0.08562499,
-        "tags": [
-          "findtourgoUI",
-          "crm",
-          "i18n",
-          "customer",
-          "missing-keys"
-        ],
-        "conflict_detected": false,
-        "content": "Added missing enum.customerSource.partner translations across en/vi/id/ja/zh in findtourgoUI. The CRM customer account form/detail screens resolve source labels via t('enum.customerSource.'), so partner must exist under customerSource in every locale, not only under customerType/customerStage."
-      },
-      {
-        "id": "4549cfd4-9891-49b8-bacb-15c7ed9f1bfa",
-        "title": "OMS API products module company-scoped",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:oms-api-products-module-company-scoped",
+        "canonical_key": "document:oms-api-added-throttling-for-register-and-password-reset-endpoints",
         "score": 0.08538462,
         "tags": [
           "oms-api",
           "nestjs",
-          "products",
-          "multi-tenant",
-          "organization"
+          "security",
+          "rate-limit",
+          "throttler"
         ],
         "conflict_detected": false,
-        "content": "Implemented clean-architecture Products module in NestJS scoped by organization/company. Added Product domain model and repository contract, DTO and use-cases (create/get/list), TypeORM entity and repository, controller routes under /v1/organizations/:organizationId/products, module wiring in AppModule, and migration 1771000002000-CreateProductsTable with FK to organizations and unique (organization_id, sku). Validation includes name, productType, sku, and optional image/description/color/size/storage/isCustom/status. Verified with yarn lint, yarn build, yarn test."
+        "content": "Installed @nestjs/throttler and configured global ThrottlerModule + APP_GUARD(ThrottlerGuard) in src/app.module.ts with baseline 120 req/min. Added endpoint-specific limits in src/modules/users/presentation/users.controller.ts: POST /v1/users/register = 5/min, POST /v1/users/password-reset/request = 3/min, POST /v1/users/password-reset/confirm = 5/min. There is currently no login endpoint in src, so no login-specific decorator was applied. Validation passed with yarn lint, yarn build, yarn test."
       }
     ]
   }

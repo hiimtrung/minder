@@ -99,6 +99,64 @@ async def test_stdio_transport_uses_same_dispatch_contract(
 
 
 @pytest.mark.asyncio
+async def test_stdio_transport_can_authenticate_client_principal_from_env(
+    store: RelationalStore,
+    config: MinderConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = AuthService(store, config)
+    admin, _ = await auth.register_user(
+        email="stdio-client-admin@example.com",
+        username="stdio_client_admin",
+        display_name="Stdio Client Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_api_key = await auth.register_client(
+        name="Stdio Client",
+        slug="stdio-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["inspect_principal"],
+    )
+    monkeypatch.setenv("MINDER_CLIENT_API_KEY", client_api_key)
+    transport = StdioTransport(config=config, auth_service=auth)
+
+    async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
+        return {
+            "principal_type": principal.principal_type,
+            "principal_id": str(principal.principal_id),
+            "scopes": principal.scopes,
+        }
+
+    transport.register_tool("inspect_principal", inspect_principal, require_auth=True)
+
+    result = await transport.call_tool("inspect_principal")
+
+    assert result["principal_type"] == "client"
+    assert result["scopes"] == ["inspect_principal"]
+
+
+@pytest.mark.asyncio
+async def test_stdio_transport_rejects_invalid_client_key_from_env(
+    store: RelationalStore,
+    config: MinderConfig,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    auth = AuthService(store, config)
+    monkeypatch.setenv("MINDER_CLIENT_API_KEY", "mkc_invalid_key")
+    transport = StdioTransport(config=config, auth_service=auth)
+
+    async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
+        return {"principal_type": principal.principal_type}
+
+    transport.register_tool("inspect_principal", inspect_principal, require_auth=True)
+
+    with pytest.raises(Exception) as exc:
+        await transport.call_tool("inspect_principal")
+
+    assert getattr(exc.value, "code", None) == "AUTH_INVALID_CLIENT_KEY"
+
+
+@pytest.mark.asyncio
 async def test_sse_transport_dispatches_tool_with_authenticated_client_principal(
     store: RelationalStore, config: MinderConfig
 ) -> None:

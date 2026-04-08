@@ -119,7 +119,7 @@ When the client uses SSE with X-Minder-Client-Key
 Then authenticated tool calls succeed under a ClientPrincipal
 
 Given a valid client_api_key
-When the client uses stdio with the documented env var or startup argument
+When the client uses stdio with the documented `MINDER_CLIENT_API_KEY` environment variable
 Then authenticated tool calls succeed under a ClientPrincipal
 
 Given an invalid or revoked client_api_key
@@ -191,7 +191,6 @@ And the request is rejected with an auth error
 
 ## Open Questions
 
-- [ ] What is the canonical stdio bootstrap mechanism for `client_api_key`: environment variable, command-line arg, or both?
 - [ ] Should admin recovery rotate only the API key, or also invalidate active dashboard cookies/JWT sessions?
 - [ ] Should `/setup` require a deployment bootstrap secret in addition to “no admin exists”, or is “first admin wins” acceptable for the initial local/self-hosted target?
 
@@ -204,3 +203,4 @@ And the request is rejected with an auth error
 | 2026-04-08 | Keep admin auth API-key based instead of introducing passwords | The current system already uses API keys as the primary admin credential; adding passwords would create a second auth model and widen scope unnecessarily. |
 | 2026-04-08 | Keep `/v1/auth/token-exchange` even after direct client auth | Short-lived tokens still matter for some clients and future policy controls. |
 | 2026-04-08 | Treat SSE direct client auth as baseline, not new scope | The codebase already supports `X-Minder-Client-Key`; the remaining work is parity, hardening, and productization. |
+| 2026-04-08 | Use `MINDER_CLIENT_API_KEY` as the canonical stdio bootstrap mechanism | Environment-based bootstrap is the simplest cross-client path for local stdio integrations and keeps the transport contract explicit. |

@@ -126,6 +126,9 @@ class BaseTransport:
     def list_tools(self) -> list[str]:
         return sorted(self._tools)
 
+    def _default_client_key(self) -> str | None:
+        return None
+
     async def call_tool(
         self,
         name: str,
@@ -139,7 +142,8 @@ class BaseTransport:
 
         registered = self._tools[name]
         kwargs = dict(arguments or {})
-        principal = await self._authenticate_if_required(registered, authorization, client_key)
+        effective_client_key = client_key or self._default_client_key()
+        principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
         if principal is not None:
             if self._rate_limiter.enabled():
                 await self._rate_limiter.enforce(principal=principal, tool_name=name)

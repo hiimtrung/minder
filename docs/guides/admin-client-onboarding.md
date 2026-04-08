@@ -178,6 +178,22 @@ Expected response:
 }
 ```
 
+### Stdio client bootstrap
+
+For stdio-based local integrations, export:
+
+```bash
+export MINDER_CLIENT_API_KEY="mkc_..."
+```
+
+Then start the stdio transport with:
+
+```bash
+MINDER_SERVER__TRANSPORT=stdio UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+```
+
+Protected tool calls will resolve the client principal from `MINDER_CLIENT_API_KEY` without calling `/v1/auth/token-exchange` first.
+
 ## 8. Open the dashboard
 
 The dashboard is at:

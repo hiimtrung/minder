@@ -1,3 +1,5 @@
+import os
+
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.store.interfaces import ICacheProvider
@@ -15,3 +17,7 @@ class StdioTransport(BaseTransport):
         cache_provider: ICacheProvider | None = None,
     ) -> None:
         super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
+
+    def _default_client_key(self) -> str | None:
+        client_key = os.getenv("MINDER_CLIENT_API_KEY", "").strip()
+        return client_key or None

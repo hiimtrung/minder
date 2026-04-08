@@ -140,6 +140,11 @@ class RelationalStore:
         async with self._session() as sess:
             await sess.execute(delete(User).where(User.id == user_id))
 
+    async def has_admin_users(self) -> bool:
+        async with self._session() as sess:
+            result = await sess.execute(select(select(User).where(User.role == "admin").exists()))
+            return result.scalar_one_or_none() or False
+
     # ------------------------------------------------------------------
     # Skill
     # ------------------------------------------------------------------

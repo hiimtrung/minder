@@ -19,6 +19,14 @@ Today you cannot yet:
 
 The current admin bootstrap is still API-key based, but once the first admin key exists, browser login is available.
 
+If the admin API key is lost later, recover it with:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml exec minder \
+  uv run python scripts/reset_admin_api_key.py \
+  --username admin
+```
+
 ## 1. Create the admin user
 
 If this is a fresh deployment, open:

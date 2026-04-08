@@ -109,7 +109,15 @@ docker compose -f docker/docker-compose.dev.yml logs minder
 
 ### I lost the first admin API key
 
-At the moment, first-run browser setup exists, but the dedicated recovery script is still pending. Until that lands, use the originally saved admin key or rotate access through an existing authenticated admin path.
+Run:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml exec minder \
+  uv run python scripts/reset_admin_api_key.py \
+  --username admin
+```
+
+The command rotates the admin API key and prints the new `mk_...` value once.
 
 ### SSE does not respond
 

@@ -128,7 +128,8 @@ class AuthService:
         email: str,
         username: str,
         display_name: str,
-        role: UserRole = UserRole.MEMBER,
+        role: UserRole | str = UserRole.MEMBER,
+        password: str | None = None,
     ) -> Tuple[User, str]:
         """
         Create a new user account.
@@ -146,18 +147,24 @@ class AuthService:
         if await self._store.get_user_by_username(username):
             raise AuthError("AUTH_USER_EXISTS", f"Username '{username}' is already taken")
 
-        api_key = self._generate_api_key()
+        role_str = role.value if isinstance(role, UserRole) else str(role)
+
+        api_key = password if password else self._generate_api_key()
         user = await self._store.create_user(
             id=uuid.uuid4(),
             email=email,
             username=username,
             display_name=display_name,
             api_key_hash=self._hash_secret(api_key),
-            role=role.value,
+            role=role_str,
             is_active=True,
             settings={},
         )
         return user, api_key
+
+    async def has_admin_users(self) -> bool:
+        """Check if any admin users exist in the system."""
+        return await self._store.has_admin_users()
 
     # ------------------------------------------------------------------
     # Authentication

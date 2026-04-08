@@ -334,7 +334,10 @@ async def test_dashboard_login_page_renders_without_auth(
     store: RelationalStore,
     config: MinderConfig,
     cache: LRUCacheProvider,
+    auth: AuthService,
 ) -> None:
+    # Must have at least one admin to avoid /setup redirect
+    await auth.register_user(email="admin@test.com", username="admin", display_name="Admin", role=UserRole.ADMIN)
     app = build_http_app(config=config, store=store, cache=cache)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:

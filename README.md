@@ -129,6 +129,6 @@ UV_CACHE_DIR=.uv-cache uv run pytest
 
 ## Current UX Limits
 
-- Fresh bootstrap is available in-browser through `/setup`, but CLI recovery for lost admin API keys is still pending
+- Fresh bootstrap is available in-browser through `/setup`, and admin API-key recovery is available through `scripts/reset_admin_api_key.py`
 - Browser login is now available for `/dashboard`, but full dashboard CRUD/workflow/repository management is still broader `Phase 4` work
 - Full workflow/repository/user management UI belongs to broader `Phase 4`, not the completed `Phase 4.0` onboarding slice

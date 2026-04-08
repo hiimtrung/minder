@@ -144,6 +144,10 @@ class MongoOperationalStore:
     async def delete_user(self, user_id: uuid.UUID) -> None:
         await self._db.users.delete_one({"_id": _uuid_to_str(user_id)})
 
+    async def has_admin_users(self) -> bool:
+        doc = await self._db.users.find_one({"role": "admin"})
+        return doc is not None
+
     # ------------------------------------------------------------------
     # Client Gateway
     # ------------------------------------------------------------------

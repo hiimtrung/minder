@@ -30,7 +30,7 @@ from minder.tools.memory import MemoryTools
 from minder.transport import SSETransport, StdioTransport
 from starlette.applications import Starlette
 from starlette.requests import Request
-from starlette.responses import JSONResponse
+from starlette.responses import HTMLResponse, JSONResponse
 from starlette.routing import BaseRoute, Route
 
 
@@ -331,6 +331,35 @@ def build_http_routes(
     middleware = AuthMiddleware(auth_service)
     auth_tools = AuthTools(store, auth_service)
 
+    def _serialize_client(client: Any) -> dict[str, Any]:
+        return {
+            "id": str(client.id),
+            "name": client.name,
+            "slug": client.slug,
+            "description": getattr(client, "description", ""),
+            "status": client.status,
+            "tool_scopes": list(client.tool_scopes),
+            "repo_scopes": list(client.repo_scopes),
+            "workflow_scopes": list(getattr(client, "workflow_scopes", [])),
+            "transport_modes": list(getattr(client, "transport_modes", [])),
+        }
+
+    def _onboarding_templates(client: Any) -> dict[str, str]:
+        exchange_url = "/v1/auth/token-exchange"
+        query_hint = client.tool_scopes[0] if client.tool_scopes else "minder_query"
+        return {
+            "codex": (
+                f'{{"server_url":"http://localhost:8080/sse","client_api_key":"<mkc_...>",'
+                f'"bootstrap_path":"{exchange_url}","client_slug":"{client.slug}","preferred_tool":"{query_hint}"}}'
+            ),
+            "copilot": (
+                f'{{"type":"mcp","url":"http://localhost:8080/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}'
+            ),
+            "claude_desktop": (
+                f'{{"mcpServers":{{"minder":{{"url":"http://localhost:8080/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}}}}}'
+            ),
+        }
+
     async def _admin_user_from_request(request: Request) -> Any:
         authorization = request.headers.get("Authorization")
         user = await middleware.authenticate(authorization)
@@ -348,6 +377,21 @@ def build_http_routes(
         )
         return JSONResponse(exchange)
 
+    async def gateway_test_connection(request: Request) -> JSONResponse:
+        payload = await request.json()
+        client_api_key = payload["client_api_key"]
+        try:
+            client = await auth_service.authenticate_client_api_key(client_api_key)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse(
+            {
+                "ok": True,
+                "client": _serialize_client(client),
+                "templates": _onboarding_templates(client),
+            }
+        )
+
     async def list_clients(request: Request) -> JSONResponse:
         try:
             await _admin_user_from_request(request)
@@ -359,14 +403,7 @@ def build_http_routes(
         return JSONResponse(
             {
                 "clients": [
-                    {
-                        "id": str(client.id),
-                        "name": client.name,
-                        "slug": client.slug,
-                        "status": client.status,
-                        "tool_scopes": list(client.tool_scopes),
-                        "repo_scopes": list(client.repo_scopes),
-                    }
+                    _serialize_client(client)
                     for client in clients
                 ]
             }
@@ -394,6 +431,197 @@ def build_http_routes(
         if request.method == "GET":
             return await list_clients(request)
         return await create_client(request)
+
+    async def client_detail(request: Request) -> JSONResponse:
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        del user
+
+        client_id = request.path_params["client_id"]
+        client = await store.get_client_by_id(client_id)
+        if client is None:
+            return JSONResponse({"error": "Client not found"}, status_code=404)
+
+        if request.method == "GET":
+            return JSONResponse({"client": _serialize_client(client)})
+
+        payload = await request.json()
+        updated = await store.update_client(
+            client_id,
+            description=payload.get("description", getattr(client, "description", "")),
+            repo_scopes=payload.get("repo_scopes", list(client.repo_scopes)),
+            tool_scopes=payload.get("tool_scopes", list(client.tool_scopes)),
+        )
+        if updated is None:
+            return JSONResponse({"error": "Client not found"}, status_code=404)
+        return JSONResponse({"client": _serialize_client(updated)})
+
+    async def client_key_rotate(request: Request) -> JSONResponse:
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        client_id = request.path_params["client_id"]
+        try:
+            client_api_key = await auth_service.create_client_api_key(
+                client_id=client_id,
+                created_by_user_id=user.id,
+            )
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=404)
+        return JSONResponse({"client_api_key": client_api_key}, status_code=201)
+
+    async def client_key_revoke(request: Request) -> JSONResponse:
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        del user
+        client_id = request.path_params["client_id"]
+        await auth_service.revoke_client_api_keys(client_id)
+        return JSONResponse({"revoked": True})
+
+    async def client_onboarding(request: Request) -> JSONResponse:
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        client_id = request.path_params["client_id"]
+        client = await store.get_client_by_id(client_id)
+        if client is None:
+            return JSONResponse({"error": "Client not found"}, status_code=404)
+        return JSONResponse(
+            {
+                "client": _serialize_client(client),
+                "templates": _onboarding_templates(client),
+            }
+        )
+
+    async def dashboard(request: Request) -> HTMLResponse:
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception as exc:
+            return HTMLResponse(str(exc), status_code=401)
+
+        clients = await store.list_clients()
+        cards = "\n".join(
+            (
+                f"<article class='client-card'>"
+                f"<h2>{client.name}</h2>"
+                f"<p class='slug'>{client.slug}</p>"
+                f"<p>{getattr(client, 'description', '') or 'No description yet.'}</p>"
+                f"<p class='scopes'>{', '.join(client.tool_scopes) or 'No scopes assigned'}</p>"
+                f"</article>"
+            )
+            for client in clients
+        )
+        html = f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minder Dashboard</title>
+    <style>
+      :root {{
+        --bg: #f4efe6;
+        --panel: #fffaf0;
+        --ink: #1d1b18;
+        --accent: #af3b2a;
+        --muted: #6f675f;
+        --border: #d7c8b4;
+      }}
+      body {{
+        margin: 0;
+        font-family: "Iowan Old Style", "Palatino Linotype", serif;
+        background:
+          radial-gradient(circle at top left, rgba(175, 59, 42, 0.18), transparent 32%),
+          linear-gradient(135deg, #f7f0e5, var(--bg));
+        color: var(--ink);
+      }}
+      main {{
+        max-width: 1080px;
+        margin: 0 auto;
+        padding: 48px 20px 72px;
+      }}
+      .hero {{
+        display: grid;
+        gap: 12px;
+        margin-bottom: 28px;
+      }}
+      .hero h1 {{
+        margin: 0;
+        font-size: clamp(2.2rem, 5vw, 4.2rem);
+        line-height: 0.95;
+      }}
+      .hero p {{
+        max-width: 60ch;
+        margin: 0;
+        color: var(--muted);
+        font-size: 1.05rem;
+      }}
+      .board {{
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 16px;
+      }}
+      .client-card {{
+        border: 1px solid var(--border);
+        background: var(--panel);
+        border-radius: 18px;
+        padding: 18px;
+        box-shadow: 0 10px 30px rgba(29, 27, 24, 0.06);
+      }}
+      .client-card h2 {{
+        margin: 0 0 6px;
+        font-size: 1.2rem;
+      }}
+      .slug {{
+        margin: 0 0 10px;
+        color: var(--accent);
+      }}
+      .scopes {{
+        margin: 12px 0 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }}
+      .label {{
+        display: inline-block;
+        margin-bottom: 6px;
+        font-size: 0.8rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="hero">
+        <span class="label">Client Registry</span>
+        <h1>Minder Gateway Dashboard</h1>
+        <p>Manage MCP clients, bootstrap credentials, and onboarding templates for Codex, Copilot-style clients, and Claude Desktop from one place.</p>
+      </section>
+      <section class="board">
+        {cards or "<article class='client-card'><h2>No clients yet</h2><p>Create a client from the admin API to generate onboarding templates.</p></article>"}
+      </section>
+    </main>
+  </body>
+</html>
+"""
+        return HTMLResponse(html)
 
     async def admin_audit(request: Request) -> JSONResponse:
         try:
@@ -424,8 +652,14 @@ def build_http_routes(
 
     return [
         Route("/v1/auth/token-exchange", token_exchange, methods=["POST"]),
+        Route("/v1/gateway/test-connection", gateway_test_connection, methods=["POST"]),
         Route("/v1/admin/clients", admin_clients, methods=["GET", "POST"]),
+        Route("/v1/admin/clients/{client_id:uuid}", client_detail, methods=["GET", "PATCH"]),
+        Route("/v1/admin/clients/{client_id:uuid}/keys", client_key_rotate, methods=["POST"]),
+        Route("/v1/admin/clients/{client_id:uuid}/keys/revoke", client_key_revoke, methods=["POST"]),
+        Route("/v1/admin/onboarding/{client_id:uuid}", client_onboarding, methods=["GET"]),
         Route("/v1/admin/audit", admin_audit, methods=["GET"]),
+        Route("/dashboard", dashboard, methods=["GET"]),
     ]
 
 

@@ -236,6 +236,40 @@ class AuthService:
         )
         return client, client_api_key
 
+    async def create_client_api_key(
+        self,
+        *,
+        client_id: uuid.UUID,
+        created_by_user_id: uuid.UUID,
+    ) -> str:
+        client = await self._store.get_client_by_id(client_id)
+        if client is None:
+            raise AuthError("AUTH_CLIENT_NOT_FOUND", "Client not found")
+        creator = await self._store.get_user_by_id(created_by_user_id)
+        if creator is None:
+            raise AuthError("AUTH_USER_NOT_FOUND", "Creator user not found")
+
+        client_api_key = self._generate_client_api_key()
+        await self._store.create_client_api_key(
+            id=uuid.uuid4(),
+            client_id=client_id,
+            key_prefix=client_api_key[:12],
+            secret_hash=self._hash_secret(client_api_key),
+            status="active",
+            created_by_user_id=created_by_user_id,
+        )
+        await self._store.create_audit_log(
+            id=uuid.uuid4(),
+            actor_type="admin_user",
+            actor_id=str(created_by_user_id),
+            event_type="client.key_created",
+            resource_type="client",
+            resource_id=str(client_id),
+            outcome="success",
+            audit_metadata={"client_slug": getattr(client, "slug", None)},
+        )
+        return client_api_key
+
     async def revoke_client_api_keys(self, client_id: uuid.UUID) -> None:
         now = datetime.now(UTC)
         for key in await self._store.list_client_api_keys(client_id):

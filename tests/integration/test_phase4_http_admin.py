@@ -202,3 +202,128 @@ async def test_token_exchange_persists_client_session_in_redis_cache(
     assert principal.principal_type == "client"
 
     await cache.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_can_view_and_update_client_detail_via_http(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+    admin_token: str,
+) -> None:
+    admin = await auth.get_user_from_jwt(admin_token)
+    created_client, _ = await auth.register_client(
+        name="Dashboard Client",
+        slug="dashboard-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query"],
+        repo_scopes=["/workspace/old"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        detail_response = await client.get(
+            f"/v1/admin/clients/{created_client.id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        update_response = await client.patch(
+            f"/v1/admin/clients/{created_client.id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={
+                "description": "Updated dashboard-managed client",
+                "repo_scopes": ["/workspace/new"],
+                "tool_scopes": ["minder_query", "minder_search_code"],
+            },
+        )
+
+    assert detail_response.status_code == 200
+    assert detail_response.json()["client"]["slug"] == "dashboard-client"
+
+    assert update_response.status_code == 200
+    updated = update_response.json()["client"]
+    assert updated["description"] == "Updated dashboard-managed client"
+    assert updated["repo_scopes"] == ["/workspace/new"]
+    assert updated["tool_scopes"] == ["minder_query", "minder_search_code"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_rotate_and_revoke_client_keys_via_http(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+    admin_token: str,
+) -> None:
+    admin = await auth.get_user_from_jwt(admin_token)
+    created_client, client_api_key = await auth.register_client(
+        name="Rotate Client",
+        slug="rotate-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        rotate_response = await client.post(
+            f"/v1/admin/clients/{created_client.id}/keys",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        revoke_response = await client.post(
+            f"/v1/admin/clients/{created_client.id}/keys/revoke",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        connection_test_after_revoke = await client.post(
+            "/v1/gateway/test-connection",
+            json={"client_api_key": client_api_key},
+        )
+
+    assert rotate_response.status_code == 201
+    rotated = rotate_response.json()
+    assert rotated["client_api_key"].startswith("mkc_")
+    assert rotated["client_api_key"] != client_api_key
+
+    assert revoke_response.status_code == 200
+    assert revoke_response.json()["revoked"] is True
+
+    assert connection_test_after_revoke.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_dashboard_and_onboarding_routes_render_client_setup(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+    admin_token: str,
+) -> None:
+    admin = await auth.get_user_from_jwt(admin_token)
+    created_client, _ = await auth.register_client(
+        name="Onboarding Client",
+        slug="onboarding-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query", "minder_search_code"],
+        repo_scopes=["/workspace/repo"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        dashboard_response = await client.get(
+            "/dashboard",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        onboarding_response = await client.get(
+            f"/v1/admin/onboarding/{created_client.id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+
+    assert dashboard_response.status_code == 200
+    assert "Onboarding Client" in dashboard_response.text
+    assert "Client Registry" in dashboard_response.text
+
+    assert onboarding_response.status_code == 200
+    onboarding = onboarding_response.json()
+    assert "codex" in onboarding["templates"]
+    assert "copilot" in onboarding["templates"]
+    assert "claude_desktop" in onboarding["templates"]
+    assert "onboarding-client" in onboarding["templates"]["codex"]

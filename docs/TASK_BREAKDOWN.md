@@ -689,6 +689,30 @@ Before Phase 1 can be considered closed against the original spec, the remaining
   6. Audit logs capture the full flow
 - **Result**: Phase 4.0 is complete and external MCP onboarding becomes simple enough for real team usage.
 
+### Phase 4.1 — Dashboard Initialization & Plug-and-Play MCP Auth
+
+**Goal**: Remove manual setup script dependencies by providing a first-time dashboard setup wizard, an admin API-key recovery mechanism, and a seamless zero-exchange API key auth flow for static MCP clients like Claude Desktop.
+
+#### P4.1-T01: First-Time Setup Wizard (Dashboard)
+- **Owner**: `FE` + `BE`
+- **Requirement**: If no admin users exist in the database, the dashboard root must redirect to `/setup` to collect the initial admin username, email, and display name. On success, the setup flow must create the first admin and reveal the bootstrap API key exactly once. After creation, this route must be disabled.
+- **Result**: A fresh Docker deployment can be initialized entirely via the browser.
+
+#### P4.1-T02: CLI Admin API-Key Recovery
+- **Owner**: `PE`
+- **Requirement**: Add `scripts/reset_admin_api_key.py` that locates an existing admin user, rotates the admin API key securely, invalidates prior admin API-key access for that target account, and records the action in audit history.
+- **Result**: Admins can recover access using container exec execution without writing raw DB queries.
+
+#### P4.1-T03: Direct API Key Auth (Plug & Play)
+- **Owner**: `BE`
+- **Requirement**: Update the Auth Middleware and Base Transport to accept `X-Minder-Client-Key` (for SSE/HTTP) and equivalent env injection (for stdio). These keys must be validated directly against the Redis/DB layer and resolved to a `ClientPrincipal` without forcing the client to call `/v1/auth/token-exchange`.
+- **Result**: Static clients like Claude Desktop or Cursor can connect using just the raw API key generated from the dashboard.
+
+#### P4.1-VERIFY: Plug-and-Play Gate
+- **Owner**: `BE` + `FE`
+- **Requirement**: Update or add integration tests that prove the setup wizard flow works, admin API-key recovery updates the account access path, and an MCP client can invoke a protected tool by directly supplying the raw API key in the connection header/env.
+- **Result**: Phase 4.1 is complete. Administrator and Client onboarding are both fully frictionless.
+
 ### Tasks
 
 #### P4-T01: MongoDB Production Topology Upgrade

@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P4-T07 browser admin login flow added)
+> **Last updated**: 2026-04-08 (P4.1-Wave1 setup wizard aligned to API-key auth)
 
 ---
 
@@ -147,6 +147,15 @@
 | `P4.0-T07` MCP Onboarding Templates | `P4.0-Wave3` | `DONE` | - | Onboarding templates now return Codex, Copilot-style, and Claude Desktop snippets keyed to a client. |
 | `P4.0-T08` Audit and Revocation Hardening | `P4.0-Wave4` | `DONE` | - | Audit query is exposed and the end-to-end gate verifies visibility for create, token exchange, and key revoke events. |
 | `P4.0-VERIFY` End-to-End MCP Client Onboarding Gate | `P4.0-Wave4` | `DONE` | - | `tests/e2e/test_phase4_gateway_auth.py` covers admin create, onboarding, preflight test, token exchange, protected MCP call, revoke, and audit visibility. |
+
+## Phase 4.1 Tracker
+
+| Task | Wave | Status | Blocker | Notes |
+|---|---|---|---|---|
+| `P4.1-T01` First-Time Setup Wizard (Dashboard) | `P4.1-Wave1` | `DONE` | - | `/setup` now creates the first admin under the existing API-key auth model, redirects to a one-time setup completion screen, and disables itself once an admin exists. |
+| `P4.1-T02` CLI Admin API-Key Recovery | `P4.1-Wave1` | `NOT STARTED` | - | Planned as `reset_admin_api_key.py` to rotate admin access without manual DB edits. |
+| `P4.1-T03` Direct API Key Auth (Plug & Play) | `P4.1-Wave2` | `IN PROGRESS` | `stdio parity not implemented yet` | SSE direct client key auth already exists; remaining work is canonical stdio bootstrap parity and end-to-end coverage. |
+| `P4.1-VERIFY` Plug-and-Play Gate | `P4.1-Wave2` | `NOT STARTED` | - | Verify setup flow and zero-step onboarding connection test. |
 
 ## Recommended Next Waves
 

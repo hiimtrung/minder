@@ -48,32 +48,23 @@ The stack exposes:
 
 Wait until all services are healthy and `docker-minder-1` is started.
 
-## 3. Create the first admin
+## 3. Open the first-run setup page
 
-In another terminal:
+On a fresh deployment with no admin users, open:
 
-```bash
-docker compose -f docker/docker-compose.dev.yml exec minder \
-  uv run python scripts/create_admin.py \
-  --email admin@example.com \
-  --username admin \
-  --display-name "Admin"
-```
+- [http://localhost:8800/setup](http://localhost:8800/setup)
 
-You should see either:
+Fill in:
 
-```text
-Admin created: <uuid>
-API key: mk_...
-```
+- email
+- username
+- display name
 
-or:
+On success, Minder redirects to a setup-complete page and reveals the bootstrap admin API key once.
 
-```text
-Admin already exists: <uuid>
-```
+Save the `mk_...` value before leaving that page.
 
-If the admin already exists, you need the original `mk_...` key that was issued when the admin was first created.
+If an admin already exists, `/setup` is disabled and you should use `/dashboard/login` instead.
 
 ## 4. Verify the server is up
 
@@ -115,6 +106,10 @@ Check:
 ```bash
 docker compose -f docker/docker-compose.dev.yml logs minder
 ```
+
+### I lost the first admin API key
+
+At the moment, first-run browser setup exists, but the dedicated recovery script is still pending. Until that lands, use the originally saved admin key or rotate access through an existing authenticated admin path.
 
 ### SSE does not respond
 

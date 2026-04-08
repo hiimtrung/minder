@@ -27,7 +27,7 @@ The default local entrypoint is:
 
 Note:
 - `/dashboard/login` now provides a browser-native admin sign-in flow.
-- Admin bootstrap still starts from `create_admin.py`, because the first admin API key must exist before browser login can happen.
+- On a fresh deployment with no admin users, Minder now redirects to `/setup` so the first admin can be created from the browser.
 
 ## Quick Start
 
@@ -57,24 +57,19 @@ Services started by this stack:
 - `milvus-standalone` on port `19530`
 - `etcd` and `minio` as Milvus dependencies
 
-### 3. Create the first admin
+### 3. Open the first-run setup page
 
-Open a second terminal and run:
+Open:
 
-```bash
-docker compose -f docker/docker-compose.dev.yml exec minder \
-  uv run python scripts/create_admin.py \
-  --email admin@example.com \
-  --username admin \
-  --display-name "Admin"
-```
+- [http://localhost:8800/setup](http://localhost:8800/setup)
 
-If the admin is created, you will get:
+Fill in:
 
-```text
-Admin created: <uuid>
-API key: mk_...
-```
+- email
+- username
+- display name
+
+After submission, Minder shows the bootstrap admin API key exactly once.
 
 Save the `mk_...` value. That is the admin bootstrap key.
 
@@ -134,6 +129,6 @@ UV_CACHE_DIR=.uv-cache uv run pytest
 
 ## Current UX Limits
 
-- Admin bootstrap still starts from `create_admin.py`
+- Fresh bootstrap is available in-browser through `/setup`, but CLI recovery for lost admin API keys is still pending
 - Browser login is now available for `/dashboard`, but full dashboard CRUD/workflow/repository management is still broader `Phase 4` work
 - Full workflow/repository/user management UI belongs to broader `Phase 4`, not the completed `Phase 4.0` onboarding slice

@@ -21,17 +21,11 @@ The current admin bootstrap is still API-key based, but once the first admin key
 
 ## 1. Create the admin user
 
-If you have not done this yet:
+If this is a fresh deployment, open:
 
-```bash
-docker compose -f docker/docker-compose.dev.yml exec minder \
-  uv run python scripts/create_admin.py \
-  --email admin@example.com \
-  --username admin \
-  --display-name "Admin"
-```
+- [http://localhost:8800/setup](http://localhost:8800/setup)
 
-Save the returned admin API key:
+Complete the setup form and save the returned admin API key:
 
 ```text
 mk_...

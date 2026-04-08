@@ -488,7 +488,115 @@ def build_http_routes(
 </html>
 """
 
+    def _setup_html(error_message: str | None = None) -> str:
+        error_block = f'<div class="error">{html.escape(error_message)}</div>' if error_message else ""
+        return f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minder Setup</title>
+    <style>
+      :root {{ --bg: #f4efe6; --panel: #fffaf0; --ink: #1d1b18; --border: #d7c8b4; --danger: #aa3c29; }}
+      body {{ font-family: "Iowan Old Style", serif; background: var(--bg); color: var(--ink); margin:0; padding: 40px; display: grid; place-items: center; min-height: 100vh; }}
+      .card {{ background: var(--panel); border: 1px solid var(--border); padding: 40px; border-radius: 12px; max-width: 400px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }}
+      h1 {{ margin-top: 0; }}
+      form {{ display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }}
+      label {{ font-weight: bold; font-size: 0.9rem; }}
+      input {{ padding: 10px; border: 1px solid var(--border); border-radius: 4px; font-family: inherit; }}
+      button {{ padding: 12px; background: var(--ink); color: #fff; border: none; border-radius: 6px; cursor: pointer; border: 1px solid transparent; font-family: inherit; font-size: 1rem; margin-top: 10px; }}
+      .error {{ color: var(--danger); margin-bottom: 16px; }}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Initial Admin Setup</h1>
+      <p>Welcome to Minder! Let's create your first admin user.</p>
+      {error_block}
+      <form method="post" action="/setup">
+        <label for="username">Username</label>
+        <input id="username" name="username" type="text" required />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required />
+        <label for="display_name">Display Name</label>
+        <input id="display_name" name="display_name" type="text" required />
+        <button type="submit">Create Admin Account</button>
+      </form>
+    </main>
+  </body>
+</html>
+"""
+
+    def _setup_complete_html(api_key: str) -> str:
+        escaped_key = html.escape(api_key)
+        return f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Minder Setup Complete</title>
+    <style>
+      :root {{ --bg: #f4efe6; --panel: #fffaf0; --ink: #1d1b18; --border: #d7c8b4; --accent: #af3b2a; }}
+      body {{ font-family: "Iowan Old Style", serif; background: var(--bg); color: var(--ink); margin:0; padding: 40px; display: grid; place-items: center; min-height: 100vh; }}
+      .card {{ background: var(--panel); border: 1px solid var(--border); padding: 40px; border-radius: 12px; max-width: 560px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }}
+      h1 {{ margin-top: 0; }}
+      code {{ display: block; margin: 18px 0; padding: 14px 16px; border-radius: 8px; background: #fff; border: 1px solid var(--border); word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; }}
+      a {{ color: white; background: var(--accent); text-decoration: none; padding: 12px 16px; border-radius: 999px; display: inline-block; }}
+      p {{ line-height: 1.5; }}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Setup Complete</h1>
+      <p>Copy this API key now. Minder will not show it again after you leave this page.</p>
+      <code>{escaped_key}</code>
+      <a href="/dashboard/login">Continue to Admin Sign In</a>
+    </main>
+  </body>
+</html>
+"""
+
+    async def setup_page(request: Request) -> HTMLResponse | RedirectResponse:
+        if await auth_service.has_admin_users():
+            return HTMLResponse("Admin already set up", status_code=403)
+        return HTMLResponse(_setup_html(), status_code=200)
+
+    async def setup_submit(request: Request) -> HTMLResponse | RedirectResponse:
+        if await auth_service.has_admin_users():
+            return HTMLResponse("Admin already set up", status_code=403)
+        
+        form = await request.form()
+        username = str(form.get("username", "")).strip()
+        email = str(form.get("email", "")).strip()
+        display_name = str(form.get("display_name", "")).strip()
+        
+        if not all([username, email, display_name]):
+            return HTMLResponse(_setup_html("All fields are required."), status_code=400)
+            
+        try:
+            _user, api_key = await auth_service.register_user(
+                email=email,
+                username=username,
+                display_name=display_name,
+                role="admin",
+            )
+            return RedirectResponse(f"/dashboard-setup-complete?api_key={api_key}", status_code=303)
+        except Exception as exc:
+            return HTMLResponse(_setup_html(str(exc)), status_code=400)
+
+    async def setup_complete(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        api_key = str(request.query_params.get("api_key", "")).strip()
+        if not api_key:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+        return HTMLResponse(_setup_complete_html(api_key), status_code=200)
+
     async def dashboard_login_page(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
         try:
             await _admin_user_from_request(request)
         except Exception:
@@ -664,6 +772,8 @@ def build_http_routes(
         )
 
     async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
         try:
             await _admin_user_from_request(request)
         except PermissionError:
@@ -826,6 +936,9 @@ def build_http_routes(
         )
 
     return [
+        Route("/setup", setup_page, methods=["GET"]),
+        Route("/setup", setup_submit, methods=["POST"]),
+        Route("/dashboard-setup-complete", setup_complete, methods=["GET"]),
         Route("/v1/auth/token-exchange", token_exchange, methods=["POST"]),
         Route("/v1/gateway/test-connection", gateway_test_connection, methods=["POST"]),
         Route("/dashboard/login", dashboard_login_page, methods=["GET"]),

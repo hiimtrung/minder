@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P4.1-Wave3 stdio direct client-key parity added)
+> **Last updated**: 2026-04-08 (P4.1-Wave4 verification gate completed)
 
 ---
 
@@ -155,7 +155,7 @@
 | `P4.1-T01` First-Time Setup Wizard (Dashboard) | `P4.1-Wave1` | `DONE` | - | `/setup` now creates the first admin under the existing API-key auth model, redirects to a one-time setup completion screen, and disables itself once an admin exists. |
 | `P4.1-T02` CLI Admin API-Key Recovery | `P4.1-Wave2` | `DONE` | - | Added `scripts/reset_admin_api_key.py` to rotate an admin API key by username, invalidate the old key, and write an audit event. |
 | `P4.1-T03` Direct API Key Auth (Plug & Play) | `P4.1-Wave3` | `DONE` | - | SSE keeps `X-Minder-Client-Key`; stdio now supports direct client auth through the canonical `MINDER_CLIENT_API_KEY` environment variable. |
-| `P4.1-VERIFY` Plug-and-Play Gate | `P4.1-Wave2` | `NOT STARTED` | - | Verify setup flow and zero-step onboarding connection test. |
+| `P4.1-VERIFY` Plug-and-Play Gate | `P4.1-Wave4` | `DONE` | - | Added an end-to-end gate covering first-run setup, browser admin login, admin API-key recovery, direct SSE client-key auth, stdio bootstrap auth, and post-revocation access denial. |
 
 ## Recommended Next Waves
 

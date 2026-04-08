@@ -16,6 +16,8 @@ from __future__ import annotations
 import ast
 from dataclasses import dataclass, field
 
+PythonSymbol = ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef
+
 
 @dataclass
 class CodeChunk:
@@ -75,7 +77,7 @@ class CodeSplitter:
         tree = ast.parse(code)
 
         import_lines: list[str] = []
-        top_symbols: list[ast.stmt] = []
+        top_symbols: list[PythonSymbol] = []
 
         for node in ast.iter_child_nodes(tree):
             if isinstance(node, (ast.Import, ast.ImportFrom)):

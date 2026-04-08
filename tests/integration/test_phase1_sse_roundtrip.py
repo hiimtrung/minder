@@ -8,6 +8,19 @@ import os
 import httpx
 from pathlib import Path
 
+
+def _ensure_local_bind_allowed(host: str, port: int) -> None:
+    import socket
+
+    probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    try:
+        probe.bind((host, port))
+    except OSError as exc:
+        pytest.skip(f"Local TCP bind not permitted in this environment: {exc}")
+    finally:
+        probe.close()
+
+
 @pytest.fixture(scope="module")
 def uv_path():
     path = shutil.which("uv")
@@ -19,6 +32,7 @@ def uv_path():
 async def test_sse_roundtrip(tmp_path, uv_path):
     # Port for test server
     port = 8081
+    _ensure_local_bind_allowed("127.0.0.1", port)
     
     # Start the minder server in sse mode as a subprocess
     env = os.environ.copy()

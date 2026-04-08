@@ -19,14 +19,19 @@ class QwenLocalLLM:
         self._runtime = runtime
         self._client: Any | None = None
 
+    @property
+    def runtime(self) -> str:
+        runtime = self._runtime
+        model_exists = Path(self._model_path).expanduser().exists()
+        if runtime == "auto":
+            return "llama_cpp" if model_exists and module_available("llama_cpp") else "mock"
+        return runtime
+
     def generate(self, state: GraphState) -> dict[str, object]:
         if self._fail:
             raise RuntimeError("Local Qwen model unavailable")
 
-        runtime = self._runtime
-        model_exists = Path(self._model_path).expanduser().exists()
-        if runtime == "auto":
-            runtime = "llama_cpp" if model_exists and module_available("llama_cpp") else "mock"
+        runtime = self.runtime
 
         source_paths = [doc["path"] for doc in state.reranked_docs[:3]]
         guidance = state.workflow_context.get("guidance", "")

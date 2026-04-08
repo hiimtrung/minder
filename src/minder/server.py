@@ -293,18 +293,7 @@ def runtime_summary(config: MinderConfig) -> dict[str, object]:
         "orchestration_runtime_requested": config.workflow.orchestration_runtime,
         "orchestration_runtime_effective": graph_runtime_name(config.workflow.orchestration_runtime),
         "llm_model_path": str(Path(config.llm.model_path).expanduser()),
-        "llm_runtime_effective": llm.generate(
-            type(
-                "StubState",
-                (),
-                {
-                    "reranked_docs": [],
-                    "workflow_context": {},
-                    "plan": {},
-                    "query": "runtime probe",
-                },
-            )()
-        )["runtime"],
+        "llm_runtime_effective": llm.runtime,
         "embedding_model_path": str(Path(config.embedding.model_path).expanduser()),
         "embedding_runtime_effective": embedder.runtime,
         "openai_fallback_configured": fallback.available(),
@@ -348,13 +337,13 @@ async def _async_run() -> None:
     print("Minder runtime summary:", runtime_summary(config), file=sys.stderr, flush=True)
     try:
         if transport.transport_name == "stdio":
-            transport.app.run(transport="stdio")
+            await transport.app.run_stdio_async()
         else:
             print(f"Starting SSE on {config.server.host}:{config.server.port}", file=sys.stderr, flush=True)
             if hasattr(transport, "run"):
                 await transport.run()
             else:
-                transport.app.run(transport="sse")
+                await transport.app.run_sse_async()
     finally:
         await store.dispose()
         await cache.close()

@@ -1,141 +1,138 @@
 {
-  "updated_at": "2026-04-08T15:42:27.327246+07:00",
+  "updated_at": "2026-04-08T17:30:42.660273+07:00",
   "skills": {
-    "task": "browser admin login flow dashboard cookie auth",
+    "task": "documentation update for phase 4.1 onboarding and auth flow",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-08T15:42:27.202503+07:00",
+    "resolved_at": "2026-04-08T17:30:42.659925+07:00",
     "keep": [],
     "add": [
-      "azure-identity-java",
-      "azure-identity-ts",
-      "xss-html-injection"
+      "api-documenter",
+      "c4-architecture-c4-architecture",
+      "onboarding-cro"
     ],
     "drop": [
-      "readme",
-      "environment-setup-guide",
-      "devcontainer-setup"
+      "wordpress",
+      "verification-before-completion",
+      "clarity-gate"
     ],
     "skills": [
       {
-        "name": "azure-identity-java",
+        "name": "api-documenter",
         "category": "general",
         "score": 0.016393442,
-        "chunk_count": 1,
+        "chunk_count": 3,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "azure-identity-ts",
-        "category": "backend",
+        "name": "c4-architecture-c4-architecture",
+        "category": "general",
         "score": 0.016129032,
-        "chunk_count": 1,
+        "chunk_count": 5,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "xss-html-injection",
+        "name": "onboarding-cro",
         "category": "general",
         "score": 0.015873017,
-        "chunk_count": 3,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "browser admin login flow dashboard cookie auth",
+    "query": "documentation update for phase 4.1 onboarding and auth flow",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-08T15:42:27.324864+07:00",
+    "searched_at": "2026-04-08T17:30:42.507506+07:00",
     "results": [
       {
-        "id": "eb5452ba-3c33-4f73-ab46-d6e97d3fac67",
-        "title": "Backend login and auth UI cleanup",
+        "id": "401fc8bf-dbe8-4ff3-a140-f5f056534c1b",
+        "title": "Phase 4.1 requirements refined for setup and direct auth",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:backend-login-and-auth-ui-cleanup",
+        "canonical_key": "document:phase-4-1-requirements-refined-for-setup-and-direct-auth",
         "score": 0.086393446,
         "tags": [
+          "requirements",
+          "phase4",
           "auth",
-          "nextjs",
-          "backend-login",
-          "route-handler",
-          "ui-cleanup",
-          "phase-01.1"
+          "onboarding",
+          "dashboard"
         ],
         "conflict_detected": false,
-        "content": "Integrated real backend login into the Next.js auth flow, added a dedicated /auth/logout route handler for safe cookie clearing on stale/401 sessions, removed the mock-style sign-up screen, and simplified the sign-in UI to a single professional login card aligned to the frontend integration contract and screen API map. Also tightened auth/session and contract typing using live Swagger and payload checks from localhost:3001."
+        "content": "Reviewed and rewrote docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to align with Minder's actual auth model. Key correction: admin auth remains API-key based, so the requirements now target first-run /setup, admin API-key recovery via CLI, and direct client_api_key parity across transports instead of inventing password auth. The doc now distinguishes current baseline capabilities already present in code (/dashboard/login browser flow, SSE X-Minder-Client-Key, token exchange, onboarding routes) from the remaining gaps to implement. It also preserves token exchange as a supported compatibility path and records open questions around stdio bootstrap shape, session invalidation on recovery, and whether first-admin setup needs an extra deployment secret."
       },
       {
-        "id": "db20b323-e6d8-429f-a94f-40ca3efedef6",
-        "title": "FindTourGo NextAuth migration assessment",
+        "id": "ea68b701-9eda-4cc2-bef3-700798107a4e",
+        "title": "Phase 4.0 MCP gateway auth/dashboard design drafted",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:findtourgo-nextauth-migration-assessment",
+        "canonical_key": "document:phase-4-0-mcp-gateway-auth-dashboard-design-drafted",
         "score": 0.086129025,
         "tags": [
-          "findtourgo",
+          "minder",
+          "phase-4",
+          "mcp",
+          "gateway",
           "auth",
-          "nextauth",
-          "authjs",
-          "migration",
-          "frontend"
+          "dashboard",
+          "design"
         ],
         "conflict_detected": false,
-        "content": "Assessed FindTourGo auth for migration to Auth.js/NextAuth. Current frontend is heavily coupled to client-side JWT cookies and browser-side Bearer attachment: AuthService reads/writes access/refresh/deviceSession cookies, ApiClient attaches Authorization from browser state, AuthProvider runs proactive refresh timer, and many React Query hooks gate on useSession(). NextAuth migration is feasible, but a full cutover is high-risk unless API calls move server-side or backend tokens are intentionally exposed through the Auth.js session. Recommended approach is phased/hybrid: 1) add Auth.js with Credentials provider against existing backend login/refresh endpoints, 2) use it first for middleware/server guards and session normalization, 3) bridge existing useSession consumers, 4) gradually move sensitive API calls behind Next.js route handlers/server actions, 5) only then retire custom cookie/timer/interceptor logic. Main architectural caveat: Auth.js docs recommend attaching backend bearer"
+        "content": "Created docs/design/mcp-gateway-auth-dashboard.md to redesign Minder onboarding around a client-aware MCP gateway. The design separates AdminUser and Client identities, adds Client/ClientApiKey/ClientSession/AuditLog entities, proposes token exchange plus simple client-key bootstrap modes, uses Redis for short-lived session state and MongoDB for durable metadata, and defines dashboard backend/frontend scope for client/API key management and onboarding templates. Also updated docs/TASK_BREAKDOWN.md with Phase 4.0 tasks and docs/PROJECT_PROGRESS.md to mark Phase 4 IN PROGRESS at design stage."
       },
       {
-        "id": "0dc05d3a-381d-4c01-af57-5fa6ad6fd6da",
-        "title": "Auth \u0026 Client Tracking with --secure mode in coder/coder-node",
+        "id": "60ba7da9-afbe-4e10-84e4-066b428e7c08",
+        "title": "Local onboarding docs and port 8800 defaults",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:auth-client-tracking-with-secure-mode-in-coder-coder-node",
+        "canonical_key": "document:local-onboarding-docs-and-port-8800-defaults",
         "score": 0.08587302,
         "tags": [
-          "coder",
-          "golang",
-          "authentication",
-          "secure-mode",
-          "bearer-token",
-          "client-tracking"
+          "docs",
+          "onboarding",
+          "readme",
+          "port-8800",
+          "phase4"
         ],
         "conflict_detected": false,
-        "content": "ection, URL sanitisation), cmd/coder/cmd_login.go (registration flow with bootstrap token prompt + git identity detection), cmd/coder/config.go (Auth.AccessToken field in Config, passed to httpclient.NewClient and httpclient.NewSkillClient), cmd/coder-node/main.go (SECURE_MODE=true env var, bootstrap token printed once on first startup, httpmiddleware.Auth wraps the HTTP mux). HTTP clients updated: NewClient(baseURL, accessToken) and NewSkillClient(baseURL, accessToken) — addAuth() helper injects Bearer header on every request. logActivity() called at start of runMemoryStore, runMemorySearch, runSkillSearch, runSkillIngest."
+        "content": "Rewrote the root README as a real documentation entrypoint, added docs/guides/local-setup.md and docs/guides/admin-client-onboarding.md, and switched local dev defaults from port 8080 to 8800 in config, minder.toml, Dockerfile, docker-compose.dev.yml, and generated onboarding templates in src/minder/server.py. The guides are explicit that /dashboard exists but still needs bearer auth because a browser-native admin login form is not implemented yet. Verified with mypy and targeted pytest covering config, delivery assets, phase 4 admin HTTP, and the phase 4 gateway e2e flow."
       },
       {
-        "id": "a27ac4c0-b241-487f-b2ac-231e667ae242",
-        "title": "OMS API implemented JWT login refresh and session/login history",
+        "id": "36db7c9c-d0b4-47a8-aa79-d7aebec81f1c",
+        "title": "OMS API architecture docs scaffold",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:oms-api-implemented-jwt-login-refresh-and-session-login-history",
+        "canonical_key": "document:oms-api-architecture-docs-scaffold",
         "score": 0.08562499,
         "tags": [
           "oms-api",
-          "nestjs",
-          "auth",
-          "jwt",
-          "refresh-token",
-          "sessions"
+          "documentation",
+          "architecture",
+          "nestjs"
         ],
         "conflict_detected": false,
-        "content": "Added full auth flow in users module: POST /v1/users/login and POST /v1/users/refresh-token with JWT access+refresh tokens via @nestjs/jwt. Introduced LoginUseCase and RefreshTokenUseCase, DTOs (login, refresh-token, auth-tokens-response), password hash verification utility, and auth token utilities (secret/ttl/session id/hash). Extended UserRepository with findAuthByEmail, session persistence, session rotation, and login history methods. Added TypeORM entities user_sessions and user_login_history, wired them in UsersModule, and implemented repository methods in TypeormUserRepository. Added migration 1771000007000-CreateUserSessionsAndLoginHistory.ts. Added route limits for login (5/min) and refresh-token (10/min). Validation passed: yarn lint, yarn build, yarn test (11 suites)."
+        "content": "Created documentation set under docs/: README index, ARCHITECTURE.md, API_REFERENCE.md, DATABASE_AND_MIGRATIONS.md and linked all from root README. Docs describe clean architecture layers, module structure, runtime wiring, endpoint inventory, and migration conventions for users/roles/permissions/organizations."
       },
       {
-        "id": "e5e01708-bc45-49b5-9f93-835a6fea5e60",
-        "title": "OMS API added throttling for register and password-reset endpoints",
+        "id": "ac29c93d-91fb-462f-a386-8e39a68c74a4",
+        "title": "Lifecycle commands synced to all agent layers",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:oms-api-added-throttling-for-register-and-password-reset-endpoints",
+        "canonical_key": "document:lifecycle-commands-synced-to-all-agent-layers",
         "score": 0.08538462,
         "tags": [
-          "oms-api",
-          "nestjs",
-          "security",
-          "rate-limit",
-          "throttler"
+          "coder-cli",
+          "workflows",
+          "copilot",
+          "agent",
+          "lifecycle"
         ],
         "conflict_detected": false,
-        "content": "Installed @nestjs/throttler and configured global ThrottlerModule + APP_GUARD(ThrottlerGuard) in src/app.module.ts with baseline 120 req/min. Added endpoint-specific limits in src/modules/users/presentation/users.controller.ts: POST /v1/users/register = 5/min, POST /v1/users/password-reset/request = 3/min, POST /v1/users/password-reset/confirm = 5/min. There is currently no login endpoint in src, so no login-specific decorator was applied. Validation passed with yarn lint, yarn build, yarn test."
+        "content": "Updated all 3 layers to include Group B lifecycle commands (new-project, map-codebase, discuss-phase, plan-phase, execute-phase, ship, progress, next, milestone) and Group C utilities (todo, stats, health, note, do). Files updated: .github/copilot-instructions.md (replaced AI Workflow Commands section with 3 groups A/B/C), .agents/workflows/full-lifecycle-delivery.md (added Lifecycle Path section with per-phase loop), .agents/workflows/execute-plan.md (added lifecycle path mode detection, coder debug on error, coder note for blockers), .agents/workflows/new-requirement.md (added scope detection: small feature vs new project with coder new-project, next steps branching), .agents/workflows/update-planning.md (added coder progress/next/health/milestone audit/note integration). All workflows now aware of both quick-path (PLAN.md) and lifecycle-path (STATE.md) modes."
       }
     ]
   }

@@ -1,39 +1,39 @@
 {
-  "task": "browser admin login flow dashboard cookie auth",
+  "task": "documentation update for phase 4.1 onboarding and auth flow",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-08T15:42:27.202503+07:00",
+  "resolved_at": "2026-04-08T17:30:42.659925+07:00",
   "keep": [],
   "add": [
-    "azure-identity-java",
-    "azure-identity-ts",
-    "xss-html-injection"
+    "api-documenter",
+    "c4-architecture-c4-architecture",
+    "onboarding-cro"
   ],
   "drop": [
-    "readme",
-    "environment-setup-guide",
-    "devcontainer-setup"
+    "wordpress",
+    "verification-before-completion",
+    "clarity-gate"
   ],
   "skills": [
     {
-      "name": "azure-identity-java",
+      "name": "api-documenter",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 1,
+      "chunk_count": 3,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "azure-identity-ts",
-      "category": "backend",
+      "name": "c4-architecture-c4-architecture",
+      "category": "general",
       "score": 0.016129032,
-      "chunk_count": 1,
+      "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "xss-html-injection",
+      "name": "onboarding-cro",
       "category": "general",
       "score": 0.015873017,
-      "chunk_count": 3,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

@@ -1,11 +1,11 @@
 # Minder
 
-Minder is an MCP-first engineering assistant platform for repository search, workflow guidance, memory, session state, and client onboarding.
+Minder is an MCP-first engineering assistant platform for repository search, workflow guidance, memory, session state, and low-friction client onboarding.
 
-It runs as a local or self-hosted stack with:
-- `Minder` server over `SSE` or `stdio`
+The local and self-hosted stack is built around:
+- `Minder` over `SSE` or `stdio`
 - `MongoDB` for operational data
-- `Redis` for cache and client sessions
+- `Redis` for cache, rate limiting, and client sessions
 - `Milvus Standalone` for vector search
 - local `Qwen GGUF` models through `llama-cpp-python`
 
@@ -57,7 +57,7 @@ Services started by this stack:
 - `milvus-standalone` on port `19530`
 - `etcd` and `minio` as Milvus dependencies
 
-### 3. Open the first-run setup page
+### 3. Create the first admin in the browser
 
 Open:
 
@@ -69,7 +69,7 @@ Fill in:
 - username
 - display name
 
-After submission, Minder shows the bootstrap admin API key exactly once.
+After submission, Minder redirects to a one-time setup completion screen and shows the bootstrap admin API key exactly once.
 
 Save the `mk_...` value. That is the admin bootstrap key.
 
@@ -79,7 +79,7 @@ Open:
 
 - [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 
-Sign in with the `mk_...` admin API key from the previous step.
+Sign in with the `mk_...` admin API key from the previous step. Minder stores the admin browser session in an `HttpOnly` cookie.
 
 ### 5. Continue with the onboarding guide
 
@@ -88,10 +88,42 @@ Use the step-by-step guide here:
 - [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
 
+## Operator Flows
+
+### Browser admin onboarding
+
+1. Start the Docker stack.
+2. Open [http://localhost:8800/setup](http://localhost:8800/setup) on a fresh deployment.
+3. Save the one-time `mk_...` admin API key.
+4. Open [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login) and sign in.
+5. Create one MCP client per real consumer from the dashboard or admin API.
+
+### Client onboarding
+
+1. Create a client and capture its `mkc_...` client API key.
+2. Use one of these auth modes:
+   - `SSE`: send `X-Minder-Client-Key: mkc_...`
+   - `stdio`: export `MINDER_CLIENT_API_KEY=mkc_...`
+   - compatibility mode: exchange `mkc_...` at [`/v1/auth/token-exchange`](http://localhost:8800/v1/auth/token-exchange)
+3. Load the generated onboarding template for `Codex`, `Copilot-style MCP`, or `Claude Desktop`.
+
+### Admin recovery
+
+If the admin API key is lost, rotate it with:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml exec minder \
+  uv run python scripts/reset_admin_api_key.py \
+  --username admin
+```
+
+The old admin API key becomes invalid immediately, and Minder writes an audit event for the rotation.
+
 ## Documentation Map
 
 - [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
+- [Phase 4.1 Requirements](/Users/trungtran/ai-agents/minder/docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
 - [Gateway Auth and Dashboard Design](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
 - [Task Breakdown](/Users/trungtran/ai-agents/minder/docs/TASK_BREAKDOWN.md)
 - [Project Progress](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
@@ -118,6 +150,7 @@ flowchart LR
 - The dev stack defaults to port `8800`
 - `LangGraph`, `llama-cpp-python`, and `LiteLLM` are wired with runtime auto-detection
 - The current admin UI is server-rendered and onboarding-focused, not yet the full production dashboard planned in broader `Phase 4`
+- `Phase 4.1` is complete: browser setup, browser admin login, admin API-key recovery, SSE direct client-key auth, and stdio direct client-key auth are all implemented and covered by tests
 
 ## Validation
 

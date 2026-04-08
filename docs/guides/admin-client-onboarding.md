@@ -12,12 +12,16 @@ Today you can:
 - generate client API keys
 - exchange a client key for an access token
 - onboard `Codex`, `Copilot-style MCP clients`, and `Claude Desktop`
+- authenticate SSE and stdio clients directly with the client API key
 
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
 
-The current admin bootstrap is still API-key based, but once the first admin key exists, browser login is available.
+The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
+- fresh deployment: `/setup`
+- returning admin: `/dashboard/login`
+- active browser session: `/dashboard`
 
 If the admin API key is lost later, recover it with:
 
@@ -65,6 +69,11 @@ For API clients like `curl`, Postman, or Bruno, bearer auth is still useful.
 
 If you need an admin JWT through MCP, the current codebase still exposes `minder_auth_login`.
 
+Recommended split:
+- browser dashboard: cookie session
+- scripted admin API calls: bearer token
+- MCP clients: direct `mkc_...` client API key or token exchange
+
 ## 4. Create an MCP client
 
 Example:
@@ -110,7 +119,23 @@ All templates now default to:
 http://localhost:8800/sse
 ```
 
-## 6. Exchange a client API key for an access token
+## 6. Choose a client auth mode
+
+Minder now supports two first-class client auth modes.
+
+### Option A: Direct client key auth
+
+Use this when the MCP client can send either:
+- `X-Minder-Client-Key: mkc_...` over `SSE`
+- `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
+
+This is the lowest-friction path and is the default recommendation for local integrations.
+
+### Option B: Token exchange
+
+Use this when the client prefers short-lived bearer tokens or already has a token bootstrap flow.
+
+## 7. Exchange a client API key for an access token
 
 Run:
 
@@ -135,7 +160,7 @@ Expected response:
 }
 ```
 
-## 7. Connect an MCP client
+## 8. Connect an MCP client
 
 ### Codex-style bootstrap payload
 
@@ -194,7 +219,7 @@ MINDER_SERVER__TRANSPORT=stdio UV_CACHE_DIR=.uv-cache uv run python -m minder.se
 
 Protected tool calls will resolve the client principal from `MINDER_CLIENT_API_KEY` without calling `/v1/auth/token-exchange` first.
 
-## 8. Open the dashboard
+## 9. Open the dashboard
 
 The dashboard is at:
 
@@ -202,15 +227,22 @@ The dashboard is at:
 
 If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
-## 9. Revoke a client key
+## 10. Revoke a client key
 
 If a client key is leaked or rotated, call the revoke endpoint from the admin surface. That endpoint is already available in the backend and covered by tests.
+
+After revocation:
+- SSE direct auth with the old `mkc_...` key fails
+- stdio direct auth with the old `mkc_...` key fails
+- token exchange with the old `mkc_...` key fails
 
 ## Recommended Operator Flow
 
 1. Start the Docker stack.
 2. Create the first admin.
-3. Create one client per real MCP consumer.
-4. Scope each client to the smallest needed tool set.
-5. Use onboarding templates from the admin API, not handwritten config.
-6. Rotate client keys when a workstation or integration changes ownership.
+3. Sign in to `/dashboard/login`.
+4. Create one client per real MCP consumer.
+5. Scope each client to the smallest needed tool set.
+6. Prefer direct client-key auth for local `SSE` and `stdio` integrations.
+7. Use onboarding templates from the admin API, not handwritten config.
+8. Rotate or revoke client keys when a workstation or integration changes ownership.

@@ -1,7 +1,7 @@
 # Requirements: Phase 4.1 Dashboard Setup & Direct MCP Client Auth
 
 **Date**: 2026-04-08
-**Status**: Reviewed Draft
+**Status**: Implemented
 **Author**: BA
 
 ---
@@ -67,7 +67,8 @@ And the /setup page renders a first-run admin creation form
 And the form collects email, username, and display name
 And on successful submission the system creates the first admin account
 And the system returns or displays the bootstrap admin API key exactly once
-And the browser is redirected to /dashboard/login after setup succeeds
+And the browser is redirected to a one-time setup-complete screen after setup succeeds
+And that setup-complete screen reveals the bootstrap admin API key exactly once
 And any later request to /setup is rejected or redirected once an admin already exists
 ```
 
@@ -193,6 +194,18 @@ And the request is rejected with an auth error
 
 - [ ] Should admin recovery rotate only the API key, or also invalidate active dashboard cookies/JWT sessions?
 - [ ] Should `/setup` require a deployment bootstrap secret in addition to “no admin exists”, or is “first admin wins” acceptable for the initial local/self-hosted target?
+
+## Implementation Status
+
+The current codebase now implements this requirement set:
+
+- browser-first initial admin setup through `/setup`
+- one-time setup completion screen that shows the bootstrap admin API key
+- browser admin login at `/dashboard/login`
+- CLI admin API-key recovery through `scripts/reset_admin_api_key.py`
+- direct `X-Minder-Client-Key` auth for `SSE`
+- direct `MINDER_CLIENT_API_KEY` auth for `stdio`
+- end-to-end verification in `tests/integration/test_phase4_1_gate.py`
 
 ---
 

@@ -1,6 +1,6 @@
 # Local Setup Guide
 
-This guide gets a fresh Minder stack running locally on port `8800`.
+This guide gets a fresh Minder stack running locally on port `8800`, including browser admin bootstrap and MCP connectivity checks.
 
 ## Prerequisites
 
@@ -48,6 +48,12 @@ The stack exposes:
 
 Wait until all services are healthy and `docker-minder-1` is started.
 
+Recommended check:
+
+```bash
+docker compose -f docker/docker-compose.dev.yml ps
+```
+
 ## 3. Open the first-run setup page
 
 On a fresh deployment with no admin users, open:
@@ -66,7 +72,21 @@ Save the `mk_...` value before leaving that page.
 
 If an admin already exists, `/setup` is disabled and you should use `/dashboard/login` instead.
 
-## 4. Verify the server is up
+## 4. Sign in to the dashboard
+
+Open:
+
+- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
+
+Paste the `mk_...` admin API key from the setup-complete page.
+
+On success, the browser is redirected to:
+
+- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
+
+The dashboard session is stored in an `HttpOnly` cookie.
+
+## 5. Verify the SSE server is up
 
 Run:
 
@@ -83,7 +103,18 @@ data: /messages/?session_id=...
 
 If you see that, the MCP SSE server is reachable.
 
-## 5. Move to onboarding
+## 6. Verify the direct stdio bootstrap path
+
+For local stdio-based MCP clients, export a client key and start Minder in stdio mode:
+
+```bash
+export MINDER_CLIENT_API_KEY="mkc_..."
+MINDER_SERVER__TRANSPORT=stdio UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+```
+
+Protected tool calls can now resolve the client principal directly from `MINDER_CLIENT_API_KEY` without a token-exchange pre-step.
+
+## 7. Move to onboarding
 
 Continue with:
 
@@ -118,6 +149,14 @@ docker compose -f docker/docker-compose.dev.yml exec minder \
 ```
 
 The command rotates the admin API key and prints the new `mk_...` value once.
+
+### I need to verify browser onboarding again
+
+Open these routes in order:
+
+- [http://localhost:8800/setup](http://localhost:8800/setup)
+- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
+- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 
 ### SSE does not respond
 

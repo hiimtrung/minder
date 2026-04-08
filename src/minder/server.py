@@ -484,9 +484,8 @@ def build_http_routes(
             return JSONResponse({"error": "Admin role required"}, status_code=403)
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
-        del user
         client_id = request.path_params["client_id"]
-        await auth_service.revoke_client_api_keys(client_id)
+        await auth_service.revoke_client_api_keys(client_id, actor_user_id=user.id)
         return JSONResponse({"revoked": True})
 
     async def client_onboarding(request: Request) -> JSONResponse:

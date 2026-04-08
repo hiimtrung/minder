@@ -270,13 +270,30 @@ class AuthService:
         )
         return client_api_key
 
-    async def revoke_client_api_keys(self, client_id: uuid.UUID) -> None:
+    async def revoke_client_api_keys(
+        self,
+        client_id: uuid.UUID,
+        *,
+        actor_user_id: uuid.UUID | None = None,
+    ) -> None:
         now = datetime.now(UTC)
+        client = await self._store.get_client_by_id(client_id)
         for key in await self._store.list_client_api_keys(client_id):
             await self._store.update_client_api_key(
                 key.id,
                 status="revoked",
                 revoked_at=now,
+            )
+        if actor_user_id is not None:
+            await self._store.create_audit_log(
+                id=uuid.uuid4(),
+                actor_type="admin_user",
+                actor_id=str(actor_user_id),
+                event_type="client.key_revoked",
+                resource_type="client",
+                resource_id=str(client_id),
+                outcome="success",
+                audit_metadata={"client_slug": getattr(client, "slug", None)},
             )
 
     async def authenticate_client_api_key(self, client_api_key: str) -> Any:

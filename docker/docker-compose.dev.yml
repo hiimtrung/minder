@@ -5,11 +5,11 @@ services:
       dockerfile: docker/Dockerfile
     image: minder-dev:latest
     ports:
-      - "8080:8080"
+      - "8800:8800"
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
-      MINDER_SERVER__PORT: 8080
+      MINDER_SERVER__PORT: 8800
       MINDER_RELATIONAL_STORE__PROVIDER: mongodb
       MINDER_MONGODB__URI: mongodb://mongodb:27017
       MINDER_CACHE__PROVIDER: redis

@@ -18,6 +18,6 @@ RUN uv sync --frozen
 COPY src /app/src
 COPY scripts /app/scripts
 
-EXPOSE 8080
+EXPOSE 8800
 
 CMD ["uv", "run", "python", "-m", "minder.server"]

@@ -262,7 +262,7 @@ name = "minder"
 version = "0.1.0"
 transport = "sse"
 host = "0.0.0.0"
-port = 8080
+port = 8800
 log_level = "info"
 
 [auth]

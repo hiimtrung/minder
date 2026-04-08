@@ -348,16 +348,17 @@ def build_http_routes(
     def _onboarding_templates(client: Any) -> dict[str, str]:
         exchange_url = "/v1/auth/token-exchange"
         query_hint = client.tool_scopes[0] if client.tool_scopes else "minder_query"
+        base_url = f"http://localhost:{config.server.port}"
         return {
             "codex": (
-                f'{{"server_url":"http://localhost:8080/sse","client_api_key":"<mkc_...>",'
+                f'{{"server_url":"{base_url}/sse","client_api_key":"<mkc_...>",'
                 f'"bootstrap_path":"{exchange_url}","client_slug":"{client.slug}","preferred_tool":"{query_hint}"}}'
             ),
             "copilot": (
-                f'{{"type":"mcp","url":"http://localhost:8080/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}'
+                f'{{"type":"mcp","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}'
             ),
             "claude_desktop": (
-                f'{{"mcpServers":{{"minder":{{"url":"http://localhost:8080/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}}}}}'
+                f'{{"mcpServers":{{"minder":{{"url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}}}}}'
             ),
         }
 

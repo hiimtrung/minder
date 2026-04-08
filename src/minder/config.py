@@ -9,7 +9,7 @@ class ServerConfig(BaseModel):
     version: str = "0.1.0"
     transport: str = "sse"
     host: str = "0.0.0.0"
-    port: int = 8080
+    port: int = 8800
     log_level: str = "info"
 
 

@@ -7,6 +7,7 @@ This guide covers the current onboarding flow for Minder on local Docker.
 Today you can:
 
 - create an admin
+- sign into `/dashboard/login` in the browser with the admin API key
 - create MCP clients
 - generate client API keys
 - exchange a client key for an access token
@@ -14,10 +15,9 @@ Today you can:
 
 Today you cannot yet:
 
-- log into the dashboard with a browser form
 - manage everything from a polished production dashboard UI
 
-The current admin bootstrap is still API-key based.
+The current admin bootstrap is still API-key based, but once the first admin key exists, browser login is available.
 
 ## 1. Create the admin user
 
@@ -37,110 +37,31 @@ Save the returned admin API key:
 mk_...
 ```
 
-## 2. Get an admin JWT through MCP
+## 2. Sign into the browser dashboard
 
-The current codebase exposes admin login as the MCP tool `minder_auth_login`.
+Open:
 
-### 2.1 Open the SSE stream
+- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 
-Run:
-
-```bash
-curl -N http://localhost:8800/sse
-```
-
-Expected output starts like this:
+Enter the admin API key:
 
 ```text
-event: endpoint
-data: /messages/?session_id=...
+mk_...
 ```
 
-Copy the `data:` value and turn it into a full URL:
+After successful sign-in, the browser is redirected to:
 
-```text
-http://localhost:8800/messages/?session_id=...
-```
+- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 
-Call that value `MESSAGE_URL`.
+The dashboard session is stored in an `HttpOnly` cookie.
 
-### 2.2 Initialize the MCP session
+## 3. Use the admin session or admin JWT against admin routes
 
-```bash
-curl -X POST "$MESSAGE_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 0,
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2024-11-05",
-      "capabilities": {},
-      "clientInfo": {
-        "name": "manual-admin-client",
-        "version": "1.0.0"
-      }
-    }
-  }'
-```
+For browser-based dashboard use, the login cookie is enough.
 
-Then notify initialization complete:
+For API clients like `curl`, Postman, or Bruno, bearer auth is still useful.
 
-```bash
-curl -X POST "$MESSAGE_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "method": "notifications/initialized"
-  }'
-```
-
-### 2.3 Login with the admin API key
-
-```bash
-curl -X POST "$MESSAGE_URL" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": 1,
-    "method": "tools/call",
-    "params": {
-      "name": "minder_auth_login",
-      "arguments": {
-        "api_key": "mk_..."
-      }
-    }
-  }'
-```
-
-The response contains:
-
-- `token`
-- `user_id`
-
-Save the `token`. That is your admin JWT.
-
-## 3. Use the admin JWT against HTTP admin routes
-
-Once you have a JWT, send it as:
-
-```text
-Authorization: Bearer <jwt>
-```
-
-This JWT is required for:
-
-- `GET /dashboard`
-- `GET /v1/admin/clients`
-- `POST /v1/admin/clients`
-- `GET /v1/admin/onboarding/{client_id}`
-- `GET /v1/admin/audit`
-
-Practical note:
-
-- a browser tab cannot conveniently inject this header on its own
-- for now, use `curl`, Postman, Bruno, or another API client for the admin surface
-- the broader `Phase 4` backlog still includes a real browser login flow
+If you need an admin JWT through MCP, the current codebase still exposes `minder_auth_login`.
 
 ## 4. Create an MCP client
 
@@ -255,19 +176,13 @@ Expected response:
 }
 ```
 
-## 8. Optional: open the dashboard
+## 8. Open the dashboard
 
 The dashboard is at:
 
 - [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 
-But it still requires:
-
-```text
-Authorization: Bearer <jwt>
-```
-
-So today it is better thought of as a protected admin route than a complete browser-login product screen.
+If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
 ## 9. Revoke a client key
 

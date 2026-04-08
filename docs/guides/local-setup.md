@@ -40,6 +40,7 @@ docker compose -f docker/docker-compose.dev.yml up --build
 The stack exposes:
 
 - Minder SSE: [http://localhost:8800/sse](http://localhost:8800/sse)
+- Minder admin login: [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 - Dashboard: [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 - MongoDB: `localhost:27017`
 - Redis: `localhost:6379`

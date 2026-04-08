@@ -327,3 +327,99 @@ async def test_dashboard_and_onboarding_routes_render_client_setup(
     assert "copilot" in onboarding["templates"]
     assert "claude_desktop" in onboarding["templates"]
     assert "onboarding-client" in onboarding["templates"]["codex"]
+
+
+@pytest.mark.asyncio
+async def test_dashboard_login_page_renders_without_auth(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        response = await client.get("/dashboard/login")
+
+    assert response.status_code == 200
+    assert "Admin Sign In" in response.text
+    assert "name=\"api_key\"" in response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_login_sets_cookie_and_redirects_to_dashboard(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+) -> None:
+    _, api_key = await auth.register_user(
+        email="browser-admin@example.com",
+        username="browser_admin",
+        display_name="Browser Admin",
+        role=UserRole.ADMIN,
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        login_response = await client.post(
+            "/dashboard/login",
+            data={"api_key": api_key},
+        )
+
+    assert login_response.status_code == 303
+    assert login_response.headers["location"] == "/dashboard"
+    cookie_header = login_response.headers.get("set-cookie", "")
+    assert "minder_admin_token=" in cookie_header
+    assert "HttpOnly" in cookie_header
+
+
+@pytest.mark.asyncio
+async def test_dashboard_supports_cookie_login_and_logout(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+) -> None:
+    admin_user, api_key = await auth.register_user(
+        email="cookie-admin@example.com",
+        username="cookie_admin",
+        display_name="Cookie Admin",
+        role=UserRole.ADMIN,
+    )
+    await auth.register_client(
+        name="Cookie Dashboard Client",
+        slug="cookie-dashboard-client",
+        created_by_user_id=admin_user.id,
+        tool_scopes=["minder_query"],
+        repo_scopes=["/workspace/repo"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        login_response = await client.post(
+            "/dashboard/login",
+            data={"api_key": api_key},
+        )
+        assert login_response.status_code == 303
+
+        dashboard_response = await client.get("/dashboard")
+        assert dashboard_response.status_code == 200
+        assert "Cookie Dashboard Client" in dashboard_response.text
+
+        logout_response = await client.post("/dashboard/logout")
+        assert logout_response.status_code == 303
+        assert logout_response.headers["location"] == "/dashboard/login"
+        cleared_cookie = logout_response.headers.get("set-cookie", "")
+        assert "minder_admin_token=" in cleared_cookie
+
+        dashboard_after_logout = await client.get("/dashboard", follow_redirects=False)
+        assert dashboard_after_logout.status_code == 303
+        assert dashboard_after_logout.headers["location"] == "/dashboard/login"

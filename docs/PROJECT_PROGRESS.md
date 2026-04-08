@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P4-Wave1 rate limiting complete — 250 passed, 14 skipped)
+> **Last updated**: 2026-04-08 (P4-T07 browser admin login flow added)
 
 ---
 
@@ -126,7 +126,7 @@
 | `P4-T04` Rate Limiting and Quotas | `P4-Wave1` | `DONE` | `-` | Added `RateLimiter`, role-based per-tool thresholds, transport enforcement, and full-suite verification (`250 passed, 14 skipped`). |
 | `P4-T05` Observability Stack | `backlog` | `NOT STARTED` | `Depends on dashboard and prod runtime metrics shape` | OpenTelemetry, Prometheus, and structured logs are not implemented yet. |
 | `P4-T06` Production Docker Compose | `backlog` | `NOT STARTED` | `Depends on observability and infra decisions` | Dev compose exists; production compose and secrets handling do not. |
-| `P4-T07` Dashboard Backend API | `backlog` | `NOT STARTED` | `Phase 4.0 HTTP/admin surface is narrower than full dashboard API` | Phase 4.0 added onboarding/admin endpoints, but broader dashboard CRUD/API work remains. |
+| `P4-T07` Dashboard Backend API | `P4-Wave4` | `IN PROGRESS` | `Broader dashboard CRUD and workflow APIs still remain` | Added browser admin sign-in and logout flow for `/dashboard` via `HttpOnly` JWT cookie while preserving bearer auth for API/admin clients. |
 | `P4-T08` Dashboard Frontend — Workflow Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Full workflow management UI is still backlog. |
 | `P4-T09` Dashboard Frontend — Repository & User Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Only lightweight Phase 4.0 dashboard exists today. |
 | `P4-T10` Dashboard Frontend — Observability | `backlog` | `NOT STARTED` | `Depends on metrics/audit backend` | No observability UI yet. |

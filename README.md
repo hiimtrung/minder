@@ -26,8 +26,8 @@ The default local entrypoint is:
 - Token exchange API: [http://localhost:8800/v1/auth/token-exchange](http://localhost:8800/v1/auth/token-exchange)
 
 Note:
-- `/dashboard` exists today, but it is still protected by `Authorization: Bearer <jwt>`.
-- There is not yet a browser-native admin login form. Admin bootstrap is still API-key based.
+- `/dashboard/login` now provides a browser-native admin sign-in flow.
+- Admin bootstrap still starts from `create_admin.py`, because the first admin API key must exist before browser login can happen.
 
 ## Quick Start
 
@@ -78,7 +78,15 @@ API key: mk_...
 
 Save the `mk_...` value. That is the admin bootstrap key.
 
-### 4. Continue with the onboarding guide
+### 4. Open the admin login page
+
+Open:
+
+- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
+
+Sign in with the `mk_...` admin API key from the previous step.
+
+### 5. Continue with the onboarding guide
 
 Use the step-by-step guide here:
 
@@ -127,5 +135,5 @@ UV_CACHE_DIR=.uv-cache uv run pytest
 ## Current UX Limits
 
 - Admin bootstrap still starts from `create_admin.py`
-- Admin login for `/dashboard` still relies on bearer auth, not a dedicated browser login form
+- Browser login is now available for `/dashboard`, but full dashboard CRUD/workflow/repository management is still broader `Phase 4` work
 - Full workflow/repository/user management UI belongs to broader `Phase 4`, not the completed `Phase 4.0` onboarding slice

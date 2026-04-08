@@ -7,6 +7,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from minder.auth.middleware import AuthMiddleware
 from minder.auth.service import AuthService
 from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
 from minder.config import MinderConfig, Settings
@@ -27,6 +28,10 @@ from minder.tools.session import SessionTools
 from minder.tools.workflow import WorkflowTools
 from minder.tools.memory import MemoryTools
 from minder.transport import SSETransport, StdioTransport
+from starlette.applications import Starlette
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import BaseRoute, Route
 
 
 def build_store(config: MinderConfig) -> IOperationalStore:
@@ -102,7 +107,11 @@ def build_transport(
     if config.server.transport == "stdio":
         transport = StdioTransport(config=config, auth_service=auth_service)
     else:
-        transport = SSETransport(config=config, auth_service=auth_service)
+        transport = SSETransport(
+            config=config,
+            auth_service=auth_service,
+            extra_routes=build_http_routes(config=config, store=store, cache=cache),
+        )
 
     async def minder_auth_login(api_key: str) -> dict[str, str]:
         return await auth_tools.minder_auth_login(api_key)
@@ -310,6 +319,123 @@ def build_transport(
     PromptRegistry.register(transport.app)
 
     return transport
+
+
+def build_http_routes(
+    *,
+    config: MinderConfig,
+    store: IOperationalStore,
+    cache: ICacheProvider | None = None,
+) -> list[BaseRoute]:
+    auth_service = AuthService(store, config, cache=cache)
+    middleware = AuthMiddleware(auth_service)
+    auth_tools = AuthTools(store, auth_service)
+
+    async def _admin_user_from_request(request: Request) -> Any:
+        authorization = request.headers.get("Authorization")
+        user = await middleware.authenticate(authorization)
+        if user.role != "admin":
+            raise PermissionError("Admin role required")
+        return user
+
+    async def token_exchange(request: Request) -> JSONResponse:
+        payload = await request.json()
+        client_api_key = payload["client_api_key"]
+        requested_scopes = payload.get("requested_scopes")
+        exchange = await auth_tools.minder_auth_exchange_client_key(
+            client_api_key,
+            requested_scopes=requested_scopes,
+        )
+        return JSONResponse(exchange)
+
+    async def list_clients(request: Request) -> JSONResponse:
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        clients = await store.list_clients()
+        return JSONResponse(
+            {
+                "clients": [
+                    {
+                        "id": str(client.id),
+                        "name": client.name,
+                        "slug": client.slug,
+                        "status": client.status,
+                        "tool_scopes": list(client.tool_scopes),
+                        "repo_scopes": list(client.repo_scopes),
+                    }
+                    for client in clients
+                ]
+            }
+        )
+
+    async def create_client(request: Request) -> JSONResponse:
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        payload = await request.json()
+        created = await auth_tools.minder_auth_create_client(
+            actor_user_id=user.id,
+            name=payload["name"],
+            slug=payload["slug"],
+            description=payload.get("description", ""),
+            tool_scopes=payload.get("tool_scopes"),
+            repo_scopes=payload.get("repo_scopes"),
+        )
+        return JSONResponse(created, status_code=201)
+
+    async def admin_clients(request: Request) -> JSONResponse:
+        if request.method == "GET":
+            return await list_clients(request)
+        return await create_client(request)
+
+    async def admin_audit(request: Request) -> JSONResponse:
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        actor_id = request.query_params.get("actor_id")
+        events = await store.list_audit_logs(actor_id=actor_id)
+        return JSONResponse(
+            {
+                "events": [
+                    {
+                        "id": str(event.id),
+                        "actor_type": event.actor_type,
+                        "actor_id": event.actor_id,
+                        "event_type": event.event_type,
+                        "resource_type": event.resource_type,
+                        "resource_id": event.resource_id,
+                        "outcome": event.outcome,
+                        "created_at": event.created_at.isoformat() if event.created_at else None,
+                    }
+                    for event in events
+                ]
+            }
+        )
+
+    return [
+        Route("/v1/auth/token-exchange", token_exchange, methods=["POST"]),
+        Route("/v1/admin/clients", admin_clients, methods=["GET", "POST"]),
+        Route("/v1/admin/audit", admin_audit, methods=["GET"]),
+    ]
+
+
+def build_http_app(
+    *,
+    config: MinderConfig,
+    store: IOperationalStore,
+    cache: ICacheProvider | None = None,
+) -> Starlette:
+    return Starlette(routes=build_http_routes(config=config, store=store, cache=cache))
 
 
 def runtime_summary(config: MinderConfig) -> dict[str, object]:

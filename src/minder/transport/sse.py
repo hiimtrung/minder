@@ -4,6 +4,7 @@ from typing import Any
 
 import uvicorn
 from starlette.applications import Starlette
+from starlette.routing import BaseRoute
 from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
@@ -75,8 +76,15 @@ class SSEAuthMiddleware:
 class SSETransport(BaseTransport):
     transport_name = "sse"
 
-    def __init__(self, *, config: MinderConfig, auth_service: AuthService | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        config: MinderConfig,
+        auth_service: AuthService | None = None,
+        extra_routes: list[BaseRoute] | None = None,
+    ) -> None:
         super().__init__(config=config, auth_service=auth_service)
+        self._extra_routes = list(extra_routes or [])
 
     async def run(self) -> None:
         """Custom run loop to handle starlette app with middleware."""
@@ -86,6 +94,9 @@ class SSETransport(BaseTransport):
         app = Starlette(debug=True)
         if self._middleware and self._middleware._auth:
             app.add_middleware(SSEAuthMiddleware, auth_service=self._middleware._auth)
+
+        for route in self._extra_routes:
+            app.router.routes.append(route)
         
         # Mount FastMCP app at root
         app.mount("/", mcp_app)

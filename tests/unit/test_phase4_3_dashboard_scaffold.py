@@ -37,11 +37,13 @@ def test_phase4_3_dashboard_web_package_contract() -> None:
     assert package_json["dependencies"]["astro"] == "^6.1.4"
     assert "tailwindcss" in package_json["dependencies"]
     assert "typescript" in package_json["devDependencies"]
+    assert "const env = loadEnv(" in astro_config
+    assert 'process.env.NODE_ENV ?? "development"' in astro_config
     assert 'base: "/dashboard"' in astro_config
     assert "server:" in astro_config
     assert "port: 8808" in astro_config
     assert "preview:" in astro_config
-    assert "process.env.PUBLIC_API_URL ?? process.env.API_URL ?? \"\"" in astro_config
+    assert "env.PUBLIC_API_URL ?? env.API_URL ?? \"\"" in astro_config
     assert '"import.meta.env.PUBLIC_API_URL"' in astro_config
 
 

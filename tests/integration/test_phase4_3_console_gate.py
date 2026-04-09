@@ -161,3 +161,28 @@ async def test_phase4_3_console_gate_redirects_to_separate_dev_console_when_conf
     assert dashboard_login.headers["location"] == "http://localhost:8808/dashboard/login"
     assert setup_redirect.status_code == 308
     assert setup_redirect.headers["location"] == "http://localhost:8808/dashboard/setup"
+
+
+@pytest.mark.asyncio
+async def test_phase4_3_console_gate_enables_cors_for_split_dev_origin(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    config.dashboard.dev_server_url = "http://localhost:8808/dashboard"
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.options(
+            "/v1/admin/session",
+            headers={
+                "origin": "http://localhost:8808",
+                "access-control-request-method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8808"

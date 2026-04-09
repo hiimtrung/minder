@@ -1,5 +1,9 @@
 import { defineConfig } from "astro/config";
 import tailwindcss from "@tailwindcss/vite";
+import { loadEnv } from "vite";
+
+const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+const apiUrl = env.PUBLIC_API_URL ?? env.API_URL ?? "";
 
 export default defineConfig({
   base: "/dashboard",
@@ -14,9 +18,7 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     define: {
-      "import.meta.env.PUBLIC_API_URL": JSON.stringify(
-        process.env.PUBLIC_API_URL ?? process.env.API_URL ?? "",
-      ),
+      "import.meta.env.PUBLIC_API_URL": JSON.stringify(apiUrl),
     },
   },
 });

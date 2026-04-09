@@ -4,10 +4,12 @@ from typing import Any
 
 import uvicorn
 from starlette.applications import Starlette
+from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import BaseRoute
 from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.presentation.http.admin.routes import dashboard_dev_origin
 from minder.store.interfaces import ICacheProvider
 from minder.transport.base import BaseTransport
 
@@ -94,6 +96,15 @@ class SSETransport(BaseTransport):
         mcp_app = self._server.sse_app()
 
         app = Starlette(debug=True)
+        dev_origin = dashboard_dev_origin(self._config)
+        if dev_origin:
+            app.add_middleware(
+                CORSMiddleware,
+                allow_origins=[dev_origin],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
         if self._middleware and self._middleware._auth:
             app.add_middleware(SSEAuthMiddleware, auth_service=self._middleware._auth)
 

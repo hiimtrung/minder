@@ -133,9 +133,9 @@ minder/
 ├── docker/
 │   ├── Dockerfile
 │   ├── Dockerfile.sandbox
-│   ├── docker-compose.dev.yml
+│   ├── docker-compose.local.yml
 │   ├── docker-compose.yml
-│   └── docker-compose.prod.yml
+│   └── docker-compose.yml
 ├── dashboard/
 │   ├── backend/
 │   └── frontend/

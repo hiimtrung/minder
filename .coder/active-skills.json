@@ -1,39 +1,39 @@
 {
-  "task": "remove legacy dashboard compat config",
+  "task": "architecture docker compose deployment",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T14:21:28.352399+07:00",
+  "resolved_at": "2026-04-09T16:17:05.756294+07:00",
   "keep": [],
   "add": [
-    "shadcn",
-    "legacy-modernizer",
-    "grafana-dashboards"
+    "c4-architecture-c4-architecture",
+    "c4-container",
+    "readme"
   ],
   "drop": [
-    "astropy",
-    "imagen",
-    "seaborn"
+    "instagram",
+    "cc-skill-project-guidelines-example",
+    "azure-cosmos-db-py"
   ],
   "skills": [
     {
-      "name": "shadcn",
-      "category": "frontend",
-      "score": 0.016393442,
-      "chunk_count": 2,
+      "name": "c4-architecture-c4-architecture",
+      "category": "general",
+      "score": 0.030679157,
+      "chunk_count": 4,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "legacy-modernizer",
+      "name": "c4-container",
+      "category": "general",
+      "score": 0.016393442,
+      "chunk_count": 4,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "readme",
       "category": "general",
       "score": 0.016129032,
       "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "grafana-dashboards",
-      "category": "frontend",
-      "score": 0.015873017,
-      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

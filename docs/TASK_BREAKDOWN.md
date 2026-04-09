@@ -1,7 +1,7 @@
 # Minder — Task Breakdown
 
-> **Document version**: 1.0 — 2026-04-01
-> **Status**: READY FOR REVIEW
+> **Document version**: 1.2 — 2026-04-09 (code audit: confirmed empty observability/learning dirs; post-P4.3 dashboard polish captured)
+> **Status**: ACTIVE DELIVERY BASELINE
 
 ---
 
@@ -28,6 +28,16 @@ This means the current codebase should be read as:
 - **Implemented baseline**: SQLite-backed operational store, local vector substrate, and Docker/dev-server scaffolding.
 - **Target architecture before Phase 3 sign-off**: MongoDB + Redis + Milvus Standalone all running through Docker Compose, with config and repository abstractions shaped so Milvus can later be promoted to cluster/distributed mode without rewriting the application layer.
 
+## Delivery Posture Update — 2026-04-09
+
+The planning baseline is now:
+
+- **Completed**: Phase 1, Phase 2, Phase 2.1, Phase 2.2, Phase 3, Phase 4.0, Phase 4.1, Phase 4.2, and Phase 4.3 are complete and verified.
+- **In progress**: Post-P4.3 dashboard routing polish — `ClientConsoleShell.astro`, `middleware.ts`, and `clients/index.astro` are modified/untracked and need to be committed before P4-Wave2 begins.
+- **Current focus**: finish the non-scale Phase 4 product surface by prioritizing observability (`P4-T05`, `src/minder/observability/` is a confirmed-empty placeholder), broader admin/dashboard workflows (`P4-T07`–`P4-T09`), and a security hardening pass (`P4-T12`).
+- **Explicitly deferred for now**: cluster-ready MongoDB/Milvus topologies, Redis HA/failover work, production-scale Compose hardening, and formal load-testing for scale-up readiness.
+- **Planning rule**: [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md) is the canonical status board; this file remains the canonical task catalog and prioritization reference.
+
 ---
 
 ## Phase 1 — Foundation: MCP Server, Auth, Search, CI/CD
@@ -38,90 +48,30 @@ This means the current codebase should be read as:
 
 ### Current Implementation Audit
 
-> **Current status as of 2026-04-03**: `IN PROGRESS`
+> **Current status as of 2026-04-09**: `DONE`
 >
-> Phase 1 is **not closed yet**. The repository currently has the data/config/auth foundation and a usable local query pipeline, but several original Phase 1 deliverables are still missing or only partially implemented, especially:
->
-> - MCP transport layer (`SSE`, `stdio`)
-> - repo-local `.minder/` state store
-> - migration from SQLite-backed operational persistence to MongoDB
-> - Redis runtime layer for cache/session/coordination
-> - migration from local vector substrate / Milvus Lite assumption to Milvus Standalone
-> - standalone workflow/memory/auth/session MCP tool surface
-> - deployment automation (`docker/Dockerfile`, `docker-compose.dev.yml`)
-> - CI/CD and release workflows under `.github/workflows/`
-> - bootstrap scripts such as `seed_skills.py`, `download_models.sh`, `create_admin.py`
->
-> The codebase should currently be read as:
->
-> - **Implemented foundation**: config, models, SQLite-backed store, auth service/RBAC, embedding providers, vector/document/history/error stores, graph pipeline, query/search/ingest tools, Docker sandbox contract.
-> - **Runnable local flow today**: ingest repo -> run `minder_query` / `minder_search_code` / `minder_search_errors` -> optional workflow-aware reasoning -> verification contract -> history/error persistence.
-> - **Not yet runnable as now targeted for Phase 1 sign-off**: authenticated MCP server over SSE/stdio with MongoDB + Redis + Milvus Standalone running in Docker Compose and verified CI/release automation.
+> Phase 1 is closed. The repository now has verified SSE and stdio transports, MongoDB-backed operational persistence, Redis runtime support, Milvus Standalone integration, repository-local `.minder/` state, bootstrap scripts, Docker Compose development infrastructure, and CI/release workflows.
 
 ### Phase 1 Status Map
 
-| Task                                         | Status        | Notes                                                                                                                                                                                                                                               |
-| -------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `P1-T01` Project Initialization              | `DONE`        | `uv`, `ruff`, `mypy`, `pytest`, project layout, Python 3.14 baseline are in place.                                                                                                                                                                  |
-| `P1-T02` Configuration System                | `DONE`        | [`src/minder/config.py`](../src/minder/config.py) exists with tested settings sections.                                                                                                                                                             |
-| `P1-T03` Data Models                         | `DONE`        | Core SQLAlchemy/Pydantic models are present under [`src/minder/models/`](../src/minder/models).                                                                                                                                                     |
-| `P1-T04` Primary Operational Store (MongoDB) | `PARTIAL`     | Current baseline is still SQLite in [`src/minder/store/relational.py`](../src/minder/store/relational.py); target has changed to MongoDB-backed repositories.                                                                                       |
-| `P1-T04A` MongoDB Repository Migration       | `NOT STARTED` | Need repository adapters, persistence models, indexes, and migration path from current SQLite dev data.                                                                                                                                             |
-| `P1-T05` Auth Layer                          | `DONE`        | Auth service, JWT helpers, API key hashing, and RBAC are implemented under [`src/minder/auth/`](../src/minder/auth).                                                                                                                                |
-| `P1-T06` SSE Transport                       | `PARTIAL`     | [`src/minder/transport/sse.py`](../src/minder/transport/sse.py) now exists with transport facade, tool registration, dispatch, and integration tests; network listener wiring is still pending.                                                     |
-| `P1-T07` Stdio Transport                     | `PARTIAL`     | [`src/minder/transport/stdio.py`](../src/minder/transport/stdio.py) now exists with the same dispatch contract as SSE; real stdio server lifecycle wiring is still pending.                                                                         |
-| `P1-T08` Auth Middleware for SSE             | `PARTIAL`     | [`src/minder/auth/middleware.py`](../src/minder/auth/middleware.py) is now integrated into the transport dispatch path and covered by transport tests, but not yet bound to an actual SSE server connection lifecycle.                              |
-| `P1-T09` Embedding Layer (Qwen GGUF)         | `PARTIAL`     | Interface and optional `llama_cpp` runtime path exist; production model provisioning is not bundled yet.                                                                                                                                            |
-| `P1-T10` Embedding Fallback (OpenAI)         | `DONE`        | OpenAI fallback provider exists in [`src/minder/embedding/openai.py`](../src/minder/embedding/openai.py).                                                                                                                                           |
-| `P1-T11` Vector Store (Milvus Standalone)    | `PARTIAL`     | Vector search substrate exists in [`src/minder/store/vector.py`](../src/minder/store/vector.py), but deployment target is now Milvus Standalone rather than Milvus Lite.                                                                            |
-| `P1-T11A` Redis Runtime Layer                | `NOT STARTED` | Need Redis-backed cache/session/coordination layer plus config and Docker Compose wiring.                                                                                                                                                           |
-| `P1-T12` Repository-Local State Management   | `DONE`        | [`src/minder/store/repo_state.py`](../src/minder/store/repo_state.py) now persists `.minder/workflow.json`, `context.json`, `relationships.json`, and `artifacts/` with round-trip integration coverage.                                            |
-| `P1-T13` Workflow Engine (Basic)             | `PARTIAL`     | [`src/minder/tools/workflow.py`](../src/minder/tools/workflow.py) now provides workflow get/step/update/guard and is registered through [`src/minder/server.py`](../src/minder/server.py), but real SSE/stdio round-trip coverage is still pending. |
-| `P1-T14` Memory & Search Tools (Basic)       | `DONE`        | [`src/minder/tools/memory.py`](../src/minder/tools/memory.py) and [`src/minder/tools/search.py`](../src/minder/tools/search.py) now exist with semantic recall/list/delete flow and integration coverage.                                           |
-| `P1-T15` Auth MCP Tools                      | `PARTIAL`     | [`src/minder/tools/auth.py`](../src/minder/tools/auth.py) now provides login/whoami/manage and is registered through [`src/minder/server.py`](../src/minder/server.py), but real SSE/stdio round-trip coverage is still pending.                    |
-| `P1-T16` Session Tools                       | `PARTIAL`     | [`src/minder/tools/session.py`](../src/minder/tools/session.py) now provides create/save/restore/context and is registered through [`src/minder/server.py`](../src/minder/server.py), but real SSE/stdio round-trip coverage is still pending.      |
-| `P1-T17` Skill Seeding                       | `PARTIAL`     | [`scripts/seed_skills.py`](../scripts/seed_skills.py) now imports local skill directories with idempotence coverage; real remote clone path is implemented but not yet exercised in tests.                                                          |
-| `P1-T18` Model Download Script               | `PARTIAL`     | [`scripts/download_models.sh`](../scripts/download_models.sh) now exists with skip/checksum contract, but has not yet been executed in verification.                                                                                                |
-| `P1-T19` Docker Development Stack            | `PARTIAL`     | Current Compose stack only runs the app container; target now requires app + MongoDB + Redis + Milvus Standalone + supporting dependencies.                                                                                                         |
-| `P1-T20` GitHub Actions CI                   | `PARTIAL`     | [`ci.yml`](../.github/workflows/ci.yml) now exists with uv/lint/type/test/docker steps, but has not yet run on GitHub.                                                                                                                              |
-| `P1-T21` GitHub Actions Release              | `PARTIAL`     | [`release.yml`](../.github/workflows/release.yml) now exists for tag-based ghcr release, but has not yet run on a real tag.                                                                                                                         |
-| `P1-T22` Admin Creation Script               | `DONE`        | [`scripts/create_admin.py`](../scripts/create_admin.py) now exists with idempotent creation contract and integration coverage.                                                                                                                      |
-| `P1-VERIFY` Phase 1 Acceptance Test          | `PARTIAL`     | [`tests/integration/test_phase1_gate.py`](../tests/integration/test_phase1_gate.py) now exists and passes as a local acceptance baseline, but runtime-backed proof for Docker/GitHub/SSE listener is still pending.                                 |
+| Area                                            | Status | Notes                                                                                                  |
+| ----------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------ |
+| Core foundation tasks `P1-T01` through `P1-T22` | `DONE` | Canonical per-task completion is tracked in [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md). |
+| Phase 1 acceptance gate `P1-VERIFY`             | `DONE` | Full-stack acceptance baseline is complete and tracked in the progress board.                          |
+| Runtime baseline                                | `DONE` | Minder runs on MongoDB + Redis + Milvus Standalone with Compose-managed local infrastructure.          |
 
 ### Current Runnable Flow
 
-The repository currently supports this **local development flow**, which is broader in some Phase 2 areas than the unfinished Phase 1 MCP/deployment surface:
+The current baseline supports the intended Phase 1+ local runtime:
 
-1. Configure the project with [`src/minder/config.py`](../src/minder/config.py) and `uv`.
-2. Ingest repository files through [`src/minder/tools/ingest.py`](../src/minder/tools/ingest.py).
-3. Query the agentic pipeline through [`src/minder/tools/query.py`](../src/minder/tools/query.py).
-4. Retrieve semantic code/error/document context from the vector/document/history stores.
-5. Apply workflow-aware planning and reasoning through the graph nodes under [`src/minder/graph/`](../src/minder/graph).
-6. Run verification through subprocess or Docker contract in [`src/minder/graph/nodes/verification.py`](../src/minder/graph/nodes/verification.py).
-7. Inspect and smoke-test the end-to-end local flow using [`scripts/phase2_manual_smoke.py`](../scripts/phase2_manual_smoke.py).
-
-The **target runtime flow before Phase 3** is:
-
-1. `docker compose -f docker/docker-compose.dev.yml up` starts Minder, MongoDB, Redis, and Milvus Standalone together.
-2. Minder connects to MongoDB for user/session/workflow/history/error/document metadata.
-3. Minder connects to Redis for cache/session/runtime coordination concerns.
-4. Minder connects to Milvus Standalone for vector insert/search on skills, documents, and errors.
-5. The same application-layer tools and graph pipeline run on top of those containerized backends.
+1. Start the local stack with Docker Compose.
+2. Run authenticated MCP flows over SSE or stdio.
+3. Use workflow, memory, search, auth, session, and query tools on the current runtime stack.
+4. Verify local and acceptance behavior through the integration gates already tracked in [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md).
 
 ### Phase 1 Closure Work Still Needed
 
-Before Phase 1 can be considered closed against the original spec, the remaining work is:
-
-1. Build real MCP transports for `SSE` and `stdio`.
-2. Replace the SQLite operational store with MongoDB-backed repositories.
-3. Add Redis as a runtime service for cache/session/coordination.
-4. Replace Milvus Lite/local assumptions with Milvus Standalone packaging and config.
-5. Expose workflow, memory, auth, and session MCP tools as standalone tool modules.
-6. Add repo-local `.minder/` state persistence.
-7. Add bootstrap scripts for admin creation, skill seeding, and model download.
-8. Expand development deployment assets so Docker Compose runs all stateful services.
-9. Add CI and release workflows under `.github/workflows/`.
-10. Add and pass `tests/integration/test_phase1_gate.py` against the new runtime shape.
+No remaining Phase 1 closure work is required. Future infrastructure changes should be tracked under the active Phase 4 backlog, not reopened under Phase 1.
 
 ### Tasks
 
@@ -248,8 +198,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 #### P1-T19: Docker Development Stack
 
 - **Owner**: `PE`
-- **Requirement**: Create and maintain `docker/Dockerfile`, `docker/docker-compose.dev.yml`. Compose must run Minder server, MongoDB, Redis, and Milvus Standalone together with the required volumes, environment, health checks, and service dependencies. Keep the shape upgradeable toward larger-scale deployment later.
-- **Result**: `docker compose -f docker/docker-compose.dev.yml up` starts the full local stack. Minder connects to all backing services and serves MCP over SSE.
+- **Requirement**: Create and maintain the canonical local infra compose file plus the production container images. Local Docker must provide MongoDB, Redis, and Milvus dependencies for debugging, while the application and dashboard can run locally outside Docker.
+- **Result**: `docker compose -f docker/docker-compose.local.yml up` starts the local dependency stack. Minder and the dashboard can then run locally against those services.
 
 #### P1-T20: GitHub Actions CI
 
@@ -536,13 +486,13 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 ### Wave Plan
 
-| Wave       | Focus                                          | Tasks                                          | Status    |
-| ---------- | ---------------------------------------------- | ---------------------------------------------- | --------- |
-| `P3-Wave1` | Retrieval Infrastructure                       | P3-T04, P3-T02, P3-T03, P3-T01, P3-T07, P3-T08 | `UP NEXT` |
-| `P3-Wave2` | Knowledge Graph & Extended Stores              | P3-T05, P3-T06                                 | `BACKLOG` |
-| `P3-Wave3` | Ingestion Expansion & Repo Relationships       | P3-T09, P3-T10                                 | `BACKLOG` |
-| `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | P3-T11, P3-T12                                 | `BACKLOG` |
-| `P3-Wave5` | P3 Verification Gate                           | P3-VERIFY                                      | `BACKLOG` |
+| Wave       | Focus                                          | Tasks                                          | Status |
+| ---------- | ---------------------------------------------- | ---------------------------------------------- | ------ |
+| `P3-Wave1` | Retrieval Infrastructure                       | P3-T04, P3-T02, P3-T03, P3-T01, P3-T07, P3-T08 | `DONE` |
+| `P3-Wave2` | Knowledge Graph & Extended Stores              | P3-T05, P3-T06                                 | `DONE` |
+| `P3-Wave3` | Ingestion Expansion & Repo Relationships       | P3-T09, P3-T10                                 | `DONE` |
+| `P3-Wave4` | MCP Resources, Prompts & Workflow Intelligence | P3-T11, P3-T12                                 | `DONE` |
+| `P3-Wave5` | P3 Verification Gate                           | P3-VERIFY                                      | `DONE` |
 
 ### Tasks
 
@@ -553,7 +503,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T04: MMR Diversity Filtering
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/retrieval/mmr.py`
 - **Requirement**: Implement Maximal Marginal Relevance — re-rank a candidate list by balancing relevance to the query against similarity to already-selected results. Configurable `lambda_mult` (0 = max diversity, 1 = max relevance). Pure-Python, no external deps.
@@ -562,7 +512,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T02: BM25 Hybrid Retrieval
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/retrieval/hybrid.py`
 - **Requirement**: Implement `HybridRetriever` that combines vector-search scores with BM25 keyword scores. Configurable `alpha` (0 = pure BM25, 1 = pure vector). BM25 implemented in pure Python (no external index server). Normalized RRF or linear blend.
@@ -571,7 +521,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T03: Multi-Hop Retrieval
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/retrieval/multi_hop.py`
 - **Requirement**: Implement `MultiHopRetriever` — first hop retrieves top-K candidates; second hop generates an expanded query from first-hop content, then retrieves again and merges de-duplicated results. Max hops configurable (default 2).
@@ -580,7 +530,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T01: Reranking (Cross-Encoder)
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/graph/nodes/reranker.py`
 - **Requirement**: Implement `RerankerNode` — takes `state.retrieved_docs`, scores each document against the query using cosine similarity (real `sentence-transformers` cross-encoder when available, else mock score passthrough). Applies MMR after scoring. Writes `state.reranked_docs`. Integrates into graph between Retriever and Reasoning nodes.
@@ -589,7 +539,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T07: AST-Aware Code Chunking
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/chunking/code_splitter.py`
 - **Requirement**: Implement `CodeSplitter` — parse Python source into AST, chunk by top-level function/class boundaries. Prepend module-level imports to each chunk for self-containedness. TypeScript and Java: fallback to line-based splitting at `{`/`}` depth=0 boundaries. Return list of `CodeChunk(content, start_line, end_line, symbol_name, language)`.
@@ -598,7 +548,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T08: Text Chunking
 
 - **Wave**: `P3-Wave1`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML`
 - **File**: `src/minder/chunking/splitter.py`
 - **Requirement**: Implement `TextSplitter` — sliding-window chunking with configurable `chunk_size` (default 512 tokens estimated by char/4) and `overlap` (default 64). Markdown-aware: prefer split at heading boundaries when possible. Returns list of `TextChunk(content, start_char, end_char)`.
@@ -611,7 +561,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T05: Knowledge Graph Store
 
 - **Wave**: `P3-Wave2`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `BE`
 - **File**: `src/minder/store/graph.py`
 - **Requirement**: Implement `KnowledgeGraphStore` backed by SQLite (dev) / MongoDB (prod). Entities: nodes with `id`, `type` (module, service, file, owner), `name`, `metadata`. Edges: `source_id`, `target_id`, `relation` (depends_on, owns, imports, calls), `weight`. Methods: `add_node`, `add_edge`, `get_node`, `get_neighbors`, `get_path`, `query_by_type`, `upsert_node`. Add SQLAlchemy models (`GraphNode`, `GraphEdge`) to `models/`.
@@ -620,7 +570,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T06: Rule and Feedback Stores
 
 - **Wave**: `P3-Wave2`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `BE`
 - **Files**: `src/minder/store/rule.py`, `src/minder/store/feedback.py`
 - **Requirement**: `RuleStore` — CRUD for `Rule` SQLAlchemy model (already in `models/rule.py`); `list_by_scope(scope)`, `list_active()`. `FeedbackStore` — add `Feedback` SQLAlchemy model (schema in `models/rule.py` as `FeedbackSchema`); CRUD + `list_by_entity(entity_type, entity_id)`, `average_rating(entity_id)`. Both wired into `RelationalStore` and `IOperationalStore` interface.
@@ -633,7 +583,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T09: Ingestion Tools Expansion
 
 - **Wave**: `P3-Wave3`
-- **Status**: `PARTIAL` (`minder_ingest_file` + `minder_ingest_directory` done)
+- **Status**: `DONE`
 - **Owner**: `BE`
 - **File**: `src/minder/tools/ingest.py`
 - **Requirement**: Add `minder_ingest_url` — fetch via `httpx`, detect content type, chunk via `TextSplitter`, embed, upsert to document store. Add `minder_ingest_git` — shallow `git clone` to temp dir, call `minder_ingest_directory`, cleanup. Both use the same chunk→embed→store pipeline as existing methods.
@@ -642,7 +592,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T10: Repository Relationship Tracking
 
 - **Wave**: `P3-Wave3`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `BE`
 - **File**: `src/minder/tools/repo_scanner.py`
 - **Requirement**: Implement `RepoScanner` — walk repository, parse Python `import` statements via AST, identify module→module dependency edges. Detect service boundaries via `pyproject.toml` / `package.json` presence. Write discovered nodes (file, module) and edges (imports, depends_on) into `KnowledgeGraphStore`. Re-scan is idempotent (upsert).
@@ -655,7 +605,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T11: MCP Resources and Prompts
 
 - **Wave**: `P3-Wave4`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `BE`
 - **Files**: `src/minder/resources/__init__.py`, `src/minder/prompts/__init__.py`
 - **Requirement**: Resources: `skills` (list all skills with title/tags), `repos` (list repos with workflow state), `stats` (query count, avg latency, error rate from history). Prompts: `debug` (structured debug prompt template), `review` (code review checklist template), `explain` (explain code template), `tdd_step` (TDD step guidance injecting current workflow step). Register resources and prompts via transport's MCP `app` object.
@@ -664,7 +614,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-T12: Workflow Intelligence Enhancement
 
 - **Wave**: `P3-Wave4`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `BE` + `ML`
 - **File**: `src/minder/graph/nodes/workflow_planner.py`
 - **Requirement**: Extend `WorkflowPlannerNode.run()` to optionally query `KnowledgeGraphStore` for the current repo — retrieve module dependencies, failing test artifacts, and ownership relationships. Inject dependency-aware context into `state.workflow_context["guidance"]`. Gracefully no-ops when graph store is not provided (backwards compatible).
@@ -677,7 +627,7 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 ##### P3-VERIFY: Phase 3 Acceptance Test
 
 - **Wave**: `P3-Wave5`
-- **Status**: `NOT STARTED`
+- **Status**: `DONE`
 - **Owner**: `ML` + `BE`
 - **File**: `tests/integration/test_phase3_gate.py`
 - **Requirement**: Write and run `tests/integration/test_phase3_gate.py` validating all Wave 1–4 deliverables:
@@ -709,6 +659,34 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 **Phase 4.3 requirements doc**: [`docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md`](../docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md)
 
 **Phase 4.3 design doc**: [`docs/design/p4_3_console_clean_architecture_and_ui_modernization.md`](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
+
+### Current Delivery Posture — 2026-04-09
+
+#### Completed baseline
+
+- `P4.0`, `P4.1`, `P4.2`, and `P4.3` are complete.
+- The dashboard setup, login, client registry, client detail, onboarding snippets, connection testing, and clean-architecture refactor are all in place.
+- `P4-T04` rate limiting is complete.
+
+#### Active next-step scope
+
+1. `P4-T05` Observability Stack
+2. `P4-T07` Dashboard Backend API expansion for workflow, repository, and user administration
+3. `P4-T08` and `P4-T09` workflow/repository/user dashboard surfaces
+4. `P4-T10` observability UI after the backend metrics/audit surface exists
+5. `P4-T12` focused security review after the observability and admin surface stabilize
+
+#### Explicitly deferred until needed
+
+- `P4-T01` MongoDB production topology upgrade
+- `P4-T02` Milvus cluster upgrade path
+- `P4-T03` Redis HA cache layer
+- `P4-T06` production Docker Compose hardening
+- `P4-T11` formal load testing for scale-up readiness
+
+#### Planning note
+
+The deferred items remain part of the long-term catalog, but they are not the current delivery path. The next implementation slice should optimize for operability and admin product completeness, not cluster readiness.
 
 ### Phase 4.0 — MCP Gateway Auth and Dashboard Foundation
 
@@ -934,14 +912,22 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 #### P4-T05: Observability Stack
 
 - **Owner**: `FE`
+- **Status**: `NOT STARTED` — `src/minder/observability/` exists as an empty placeholder directory.
 - **Requirement**: Implement `src/minder/observability/` — OpenTelemetry tracing, Prometheus metrics, structured JSON logging, audit trails for auth and workflow events.
+- **Planned files**:
+  - `src/minder/observability/__init__.py` — module exports
+  - `src/minder/observability/tracing.py` — OpenTelemetry SDK init, tracer factory, span decorators for graph nodes and transport handlers
+  - `src/minder/observability/metrics.py` — Prometheus `Counter`/`Histogram`/`Gauge` registry; expose via `/metrics` route
+  - `src/minder/observability/logging.py` — structured JSON log formatter, request-scoped correlation ID middleware
+  - `src/minder/observability/audit.py` — durable audit event emitter wired to the existing `AuditLog` MongoDB model; replaces ad-hoc audit calls in auth/workflow paths
+- **Wire-up**: Bootstrap in `src/minder/bootstrap/providers.py`; mount `/metrics` in `src/minder/presentation/http/admin/routes.py`.
 - **Result**: Traces flow through pipeline. Metrics exposed at `/metrics`. Audit log records all auth and workflow events. Integration test validates tracing.
 
 #### P4-T06: Production Docker Compose
 
 - **Owner**: `PE`
-- **Requirement**: Create `docker/docker-compose.prod.yml` — Minder server, MongoDB, Milvus Standalone or cluster-ready Milvus deployment, and Redis. Health checks, restart policies, secrets handling, and volume management must reflect the new runtime stack.
-- **Result**: `docker compose -f docker/docker-compose.prod.yml up` starts full production stack. Health checks pass.
+- **Requirement**: Create `docker/docker-compose.yml` — gateway, Astro dashboard service, Minder API service, MongoDB, Milvus Standalone or cluster-ready Milvus deployment, and Redis. Health checks, restart policies, secrets handling, and volume management must reflect the runtime stack.
+- **Result**: `docker compose -f docker/docker-compose.yml up` starts full production stack. Health checks pass.
 
 #### P4-T07: Dashboard Backend API
 

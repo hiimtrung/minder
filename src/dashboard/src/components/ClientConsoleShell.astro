@@ -1,0 +1,127 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="Client Registry · Minder"
+  description="Astro shell for the Minder client registry."
+  navTitle="Minder Client Registry"
+  navDescription="Provision client keys, then open each client in a dedicated detail route."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
+    { href: "/dashboard/clients", label: "Client Registry", tone: "primary" },
+  ]}
+>
+  <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div class="space-y-3">
+      <p class="eyebrow">Client Registry</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Manage MCP clients from the production dashboard.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        Create clients, issue keys, and route into a dedicated client detail
+        screen without losing the dashboard shell. Each registry card opens a
+        focused detail path with lifecycle controls, onboarding snippets, and
+        recent activity.
+      </p>
+    </div>
+  </section>
+
+  <section class="grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
+    <aside class="shell-card p-7">
+      <p class="eyebrow">Create Client</p>
+      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+        Create a new MCP client
+      </h2>
+      <p class="mt-3 text-sm leading-6 text-stone-600">
+        Minder will issue a new <code>mkc_...</code> key exactly once after creation.
+        Keep scopes tight and prefer repo-specific access when possible.
+      </p>
+
+      <form id="create-client-form" class="mt-6 grid gap-4">
+        <input
+          id="client-name"
+          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Name"
+        />
+        <input
+          id="client-slug"
+          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Slug"
+        />
+        <textarea
+          id="client-description"
+          class="min-h-28 rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Description"></textarea>
+        <div class="flex flex-wrap gap-2">
+          <button type="button" data-tool-preset="query" class="action-pill"
+            >Query Only</button
+          >
+          <button type="button" data-tool-preset="read" class="action-pill"
+            >Read Only</button
+          >
+          <button type="button" data-tool-preset="full" class="action-pill"
+            >Full Dev Assistant</button
+          >
+        </div>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Tool scopes
+          <select
+            id="client-tool-scopes"
+            multiple
+            class="min-h-32 rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          >
+            <option value="minder_query">minder_query</option>
+            <option value="minder_search_code">minder_search_code</option>
+            <option value="minder_search_errors">minder_search_errors</option>
+            <option value="minder_search">minder_search</option>
+            <option value="minder_memory_recall">minder_memory_recall</option>
+            <option value="minder_workflow_get">minder_workflow_get</option>
+            <option value="minder_workflow_step">minder_workflow_step</option>
+          </select>
+        </label>
+        <input
+          id="client-repo-scopes"
+          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Repo scopes (comma-separated)"
+          value="*"
+        />
+        <p id="create-client-status" class="min-h-6 text-sm text-stone-600"></p>
+        <button type="submit" class="primary-pill w-full">Create client</button>
+      </form>
+      <div
+        id="client-created-result"
+        class="mt-5 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4"
+      >
+        <p class="eyebrow">New Client API Key</p>
+        <code
+          id="client-created-key"
+          class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
+        ></code>
+      </div>
+    </aside>
+
+    <div class="grid gap-6">
+      <section
+        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+      >
+        <div>
+          <p class="text-sm font-medium text-stone-900">Navigator</p>
+          <p class="mt-1 text-sm text-stone-600">
+            Open any client card to move into the dedicated detail path with
+            breadcrumb context and focused lifecycle tools.
+          </p>
+        </div>
+        <a href="/dashboard" class="action-pill">Dashboard home</a>
+      </section>
+
+      <div id="client-registry" class="grid gap-4 md:grid-cols-2">
+        <article class="shell-card p-6 text-sm text-stone-600">
+          Loading client registry...
+        </article>
+      </div>
+    </div>
+  </section>
+  <script src="../scripts/clients-page.ts"></script>
+</DashboardLayout>

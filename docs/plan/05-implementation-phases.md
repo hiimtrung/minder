@@ -43,8 +43,9 @@ src/minder/tools/{auth,search,memory,workflow}.py
 src/minder/store/{base,vector,relational,repo_state}.py
 src/minder/models/{user,skill,memory,session,workflow,repo}.py
 .github/workflows/{ci,release}.yml
-docker/Dockerfile
-docker/docker-compose.dev.yml
+docker/Dockerfile.api
+docker/Dockerfile.dashboard
+docker/docker-compose.local.yml
 scripts/{download_models,seed_skills,create_admin}.py|sh
 ```
 

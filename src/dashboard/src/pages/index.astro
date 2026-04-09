@@ -1,3 +1,22 @@
 ---
-return Astro.redirect("/dashboard/clients");
+import DashboardLayout from "../layouts/DashboardLayout.astro";
 ---
+
+<DashboardLayout
+  title="Minder Dashboard"
+  description="Resolve setup, login, or client registry entry for the Astro dashboard."
+  navTitle="Minder Dashboard"
+  navDescription="Resolving the correct dashboard entrypoint for this browser session."
+  navLinks={[]}
+>
+  <section class="shell-card mx-auto max-w-2xl p-8 text-center">
+    <p class="eyebrow">Dashboard Entry</p>
+    <h1 class="mt-3 text-4xl font-semibold tracking-tight text-stone-950">
+      Resolving dashboard state
+    </h1>
+    <p id="dashboard-entry-status" class="mt-4 text-sm text-stone-600">
+      Checking admin setup and browser session...
+    </p>
+  </section>
+  <script src="../scripts/dashboard-entry.ts"></script>
+</DashboardLayout>

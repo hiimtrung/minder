@@ -1,12 +1,16 @@
 # Production Deployment Guide
 
-This guide deploys Minder as a single web application on one port:
+This guide deploys Minder behind a single public gateway on one port:
 
 - MCP server on `SSE`
 - Astro admin console on `/dashboard`
 - Admin and client APIs on `/v1/...`
 
-The Python app serves the built Astro assets directly, so production does not require a separate frontend runtime.
+The browser still uses one public origin on `:8800`, but production now runs three internal services:
+
+- `gateway` on public `8800`
+- `dashboard` on internal `8808`
+- `minder-api` on internal `8801`
 
 Local split frontend development on `8808` is a development-only workflow and is not part of the production shape.
 Do not copy the split local frontend `.env` workflow into production images.
@@ -15,22 +19,19 @@ Canonical runtime and deployment architecture:
 
 - [System Design](../../docs/system-design.md)
 
-## What the Docker Image Builds
+## What the Production Stack Builds
 
-The production image in [docker/Dockerfile](../../docker/Dockerfile) uses two stages:
+The production stack uses:
 
-1. `bun` stage builds Astro from [src/dashboard](../../src/dashboard)
-2. `python` stage copies the built assets to `/app/dashboard-dist`
+1. [docker/Dockerfile.api](../../docker/Dockerfile.api) for the Python API runtime
+2. [docker/Dockerfile.dashboard](../../docker/Dockerfile.dashboard) for the Astro standalone runtime
+3. [docker/Caddyfile](../../docker/Caddyfile) as the public routing layer
 
-At runtime, Minder serves:
+At runtime:
 
-- `/dashboard`
-- `/dashboard/login`
-- `/dashboard/setup`
-- `/dashboard/clients`
-- `/dashboard/clients/<client-id>` via the static client shell plus JSON admin APIs
-
-from that baked build output.
+- `/dashboard/*` is served by the Astro service
+- `/v1/*`, `/sse`, `/messages/*`, and `/setup` are served by the Python API service
+- the browser still sees a single origin on `http://host:8800`
 
 ## Prerequisites
 
@@ -52,7 +53,7 @@ Expected local model files:
 Run:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml up --build -d
+docker compose -f docker/docker-compose.yml up --build -d
 ```
 
 If you want to build the dashboard locally before packaging:
@@ -63,7 +64,7 @@ bun install
 bun run build
 ```
 
-The main app will listen on:
+The public gateway will listen on:
 
 - [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 - [http://localhost:8800/sse](http://localhost:8800/sse)
@@ -120,7 +121,7 @@ data: /messages/?session_id=...
 If the admin key is lost:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml exec minder \
+docker compose -f docker/docker-compose.yml exec minder-api \
   uv run python scripts/reset_admin_api_key.py \
   --username admin
 ```
@@ -131,25 +132,25 @@ The old key is invalid immediately after rotation.
 
 The production compose file sets:
 
-- `MINDER_DASHBOARD__BASE_PATH=/dashboard`
-- `MINDER_DASHBOARD__STATIC_DIR=/app/dashboard-dist`
-
-This ensures the Astro console is the primary UI surface.
+- `gateway` as the only public port binder on `8800`
+- `MINDER_SERVER__PORT=8801` for `minder-api`
+- `dashboard` runtime on internal `8808`
+- `MINDER_DASHBOARD__BASE_PATH=/dashboard` so backend redirects and onboarding URLs stay aligned
 
 ## Upgrade Workflow
 
 For a new release:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml pull
-docker compose -f docker/docker-compose.prod.yml up --build -d
+docker compose -f docker/docker-compose.yml pull
+docker compose -f docker/docker-compose.yml up --build -d
 ```
 
 If you build from source locally:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml build
-docker compose -f docker/docker-compose.prod.yml up -d
+docker compose -f docker/docker-compose.yml build
+docker compose -f docker/docker-compose.yml up -d
 ```
 
 ## Health Checks
@@ -157,11 +158,13 @@ docker compose -f docker/docker-compose.prod.yml up -d
 Recommended checks:
 
 ```bash
-docker compose -f docker/docker-compose.prod.yml ps
-docker compose -f docker/docker-compose.prod.yml logs minder
-docker compose -f docker/docker-compose.prod.yml logs mongodb
-docker compose -f docker/docker-compose.prod.yml logs redis
-docker compose -f docker/docker-compose.prod.yml logs milvus-standalone
+docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml logs gateway
+docker compose -f docker/docker-compose.yml logs dashboard
+docker compose -f docker/docker-compose.yml logs minder-api
+docker compose -f docker/docker-compose.yml logs mongodb
+docker compose -f docker/docker-compose.yml logs redis
+docker compose -f docker/docker-compose.yml logs milvus-standalone
 ```
 
 ## Rollback
@@ -169,6 +172,6 @@ docker compose -f docker/docker-compose.prod.yml logs milvus-standalone
 Rollback is image-based:
 
 1. switch `MINDER_IMAGE_TAG`
-2. redeploy `docker compose -f docker/docker-compose.prod.yml up -d`
+2. redeploy `docker compose -f docker/docker-compose.yml up -d`
 
-The app remains single-port and the dashboard remains served by the Python process.
+The public contract remains single-port because the gateway still owns `:8800`.

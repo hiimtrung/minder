@@ -20,7 +20,7 @@ const detailHref = clientId
   navLinks={[
     { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
     { href: "/dashboard/clients", label: "Client Registry", tone: "secondary" },
-    { href: detailHref, label: "Client Detail", tone: "primary" },
+    { href: detailHref, label: "Client Detail", tone: "primary", currentDetail: true },
   ]}
 >
   <section class="mb-8 space-y-6">
@@ -70,7 +70,7 @@ const detailHref = clientId
       </div>
       <div class="flex flex-wrap gap-2">
         <a href="/dashboard/clients" class="action-pill">All clients</a>
-        <a href={detailHref} class="primary-pill">Current detail</a>
+        <a href={detailHref} data-current-detail-link class="primary-pill">Current detail</a>
       </div>
     </section>
   </section>

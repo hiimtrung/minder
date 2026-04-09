@@ -1,93 +1,97 @@
 {
   "mode": "search",
-  "query": "remove legacy dashboard compat config",
+  "query": "docker compose deployment",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-09T14:21:28.422217+07:00",
+  "searched_at": "2026-04-09T16:17:05.866743+07:00",
   "results": [
     {
-      "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
-      "title": "Astro dashboard CSS path fix",
+      "id": "d20017e3-4468-46b0-be5b-e4d04959049f",
+      "title": "packageTourApi docker-compose with local.env",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:astro-dashboard-css-path-fix",
+      "canonical_key": "document:packagetourapi-docker-compose-with-local-env",
       "score": 0.086393446,
       "tags": [
-        "dashboard",
-        "astro",
-        "css",
-        "production"
+        "packageTourApi",
+        "docker",
+        "compose",
+        "localenv"
       ],
       "conflict_detected": false,
-      "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
+      "content": "Created docker-compose.yml with single app service using Dockerfile build and env_file local.env, exposed port 8080:8080, restart unless-stopped. Validated configuration with docker compose config successfully."
     },
     {
-      "id": "ddc8c49a-a7da-45f1-8546-280df6b4d806",
-      "title": "Disable Input focus ring",
+      "id": "43855cdd-a0b1-473f-bf84-956ce4e0afb5",
+      "title": "Roadmap reset to MongoDB Redis Milvus Standalone",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:disable-input-focus-ring",
+      "canonical_key": "document:roadmap-reset-to-mongodb-redis-milvus-standalone",
       "score": 0.086129025,
       "tags": [
-        "findtourgo",
-        "frontend",
-        "tailwind",
-        "input"
+        "minder",
+        "roadmap",
+        "infra",
+        "mongodb",
+        "redis",
+        "milvus",
+        "docker-compose"
       ],
       "conflict_detected": false,
-      "content": "Removed DaisyUI/Tailwind focus ring utilities from shared Input component by adding explicit no-focus-ring classes to normal and affix render paths in src/components/atoms/Input/Input.tsx."
+      "content": "Updated TASK_BREAKDOWN and PROJECT_PROGRESS so Minder now targets MongoDB as the primary operational store, Redis as the runtime cache/session layer, and Milvus Standalone as the vector database, all managed by Docker Compose. Reopened Phase 1 storage/deployment work, added new migration tasks P1-T04A and P1-T11A, re-scoped Docker and acceptance gates, and corrected Phase 4 to focus on scaling MongoDB, Redis, and Milvus rather than switching to PostgreSQL later."
     },
     {
-      "id": "9a28f75f-4db9-41b4-ac73-31720af78099",
-      "title": "AntD-only UI pass with fullscreen loaders",
+      "id": "1825a677-2964-491d-9e4d-f434e5ab4832",
+      "title": "Phase 1 Wave 3 delivery assets",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:antd-only-ui-pass-with-fullscreen-loaders",
+      "canonical_key": "document:phase-1-wave-3-delivery-assets",
       "score": 0.08587302,
       "tags": [
-        "frontend",
-        "antd",
-        "loading",
-        "cleanup",
-        "styles"
+        "phase1",
+        "wave3",
+        "delivery",
+        "docker",
+        "github-actions",
+        "scripts",
+        "tracker"
       ],
       "conflict_detected": false,
-      "content": "Refactored rental-management-ui toward AntD-only styling by removing all custom className usage under src/app, src/components, and src/features. Added shared FullScreenLoader and InfoList primitives, replaced initial page/detail loading cards with full-screen Spin-based loaders, rewrote shared surfaces/layout/auth/public/dashboard screens to use Ant Design components and inline styles instead of globals-based custom classes, and reduced globals.css to base tokens and resets only while preserving primary color #166534. Verified with rg finding no className usage, yarn lint, and yarn build."
+      "content": "Implemented Wave 3 for Phase 1 closure. Added src/minder/server.py as the main app seam that builds the store, transport, and default tool registrations. Added bootstrap and delivery assets: scripts/create_admin.py with tested idempotent admin creation, scripts/seed_skills.py with local skill directory seeding and idempotence coverage, scripts/download_models.sh with skip and checksum behavior, docker/Dockerfile, docker/docker-compose.dev.yml, and GitHub workflows .github/workflows/ci.yml and release.yml. Added docs/PROJECT_PROGRESS.md as the dedicated project progress board and updated docs/TASK_BREAKDOWN.md to link to it. Added tests/integration/test_phase1_wave3_assets.py and verified with uv run ruff check, uv run mypy src, and uv run pytest (94 passed). Tracker status after Wave 3: P1-T22 DONE, P1-T17/P1-T18/P1-T19/P1-T20/P1-T21 PARTIAL pending real runtime execution. Committed as c3d4827 feat: add phase 1 delivery assets."
     },
     {
-      "id": "451337dd-47d9-4e16-a6f2-893f1ccb370e",
-      "title": "Admin route split and architecture docs refresh",
+      "id": "60ba7da9-afbe-4e10-84e4-066b428e7c08",
+      "title": "Local onboarding docs and port 8800 defaults",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:admin-route-split-and-architecture-docs-refresh",
+      "canonical_key": "document:local-onboarding-docs-and-port-8800-defaults",
       "score": 0.08562499,
       "tags": [
-        "architecture",
-        "dashboard",
-        "astro",
-        "admin",
-        "presentation"
+        "docs",
+        "onboarding",
+        "readme",
+        "port-8800",
+        "phase4"
       ],
       "conflict_detected": false,
-      "content": "Split admin HTTP presentation into context/api/dashboard modules, removed legacy Python-rendered dashboard handlers, shifted tests to Astro plus JSON admin APIs, and expanded README/operator guides with whole-system architecture diagrams and route responsibilities. routes.py remains only as a composition boundary in the presentation layer."
+      "content": "Rewrote the root README as a real documentation entrypoint, added docs/guides/local-setup.md and docs/guides/admin-client-onboarding.md, and switched local dev defaults from port 8080 to 8800 in config, minder.toml, Dockerfile, docker-compose.dev.yml, and generated onboarding templates in src/minder/server.py. The guides are explicit that /dashboard exists but still needs bearer auth because a browser-native admin login form is not implemented yet. Verified with mypy and targeted pytest covering config, delivery assets, phase 4 admin HTTP, and the phase 4 gateway e2e flow."
     },
     {
-      "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
-      "title": "Phase 4.3 completed with console serving seam",
+      "id": "549ddc07-6052-4fb9-a7c1-c9af1f1c8b5d",
+      "title": "Docker builder switched off Alpine",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
+      "canonical_key": "document:docker-builder-switched-off-alpine",
       "score": 0.08538462,
       "tags": [
-        "phase4",
-        "dashboard",
+        "docker",
         "astro",
-        "console",
-        "parity"
+        "esbuild",
+        "alpine"
       ],
       "conflict_detected": false,
-      "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
+      "content": "After esbuild ETXTBSY persisted around the Astro dashboard builder, the Docker multi-stage build was hardened by switching the dashboard-builder stage from node:22-alpine to node:22-bookworm-slim while keeping the split esbuild install flow. This avoids overlayfs/Alpine execution issues and is the preferred production builder base for the dashboard bundle."
     }
   ]
 }

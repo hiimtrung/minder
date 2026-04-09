@@ -38,6 +38,35 @@ Use this `PLAN` index and the `docs/plan/*` files for:
 | Dashboard              | Required                                            |
 | CI/CD                  | GitHub Actions, Releases, and Packages from Phase 1 |
 
+## Current Delivery Focus — 2026-04-09
+
+### Completed baseline
+
+- Foundation, pipeline, and advanced retrieval phases are complete.
+- Dashboard foundation through client-management parity is complete (P4.3 DONE).
+- Rate limiting is complete.
+- Post-P4.3 dashboard routing refinements are in progress:
+  - New `ClientConsoleShell` component extracted for clients registry page.
+  - No-op `middleware.ts` added to prevent `[clientId]` route-rewriting regression.
+  - Client routing and detail management refactored (commits since P4.3 closure).
+
+### Active next steps
+
+1. **Commit** the in-progress dashboard routing polish (`ClientConsoleShell.astro`, `middleware.ts`, updated `clients/index.astro`).
+2. **Build the observability foundation** (`P4-T05`): `src/minder/observability/` is a confirmed-empty placeholder — implement OpenTelemetry tracing, Prometheus `/metrics`, structured JSON logging, and durable audit instrumentation.
+3. **Expand the admin/dashboard surface** for workflow, repository, and user administration (`P4-T07`, `P4-T08`, `P4-T09`).
+4. Follow with a focused security and operability hardening pass (`P4-T12`).
+
+### Explicitly deferred for now
+
+- MongoDB production topology upgrade.
+- Milvus cluster-ready deployment.
+- Redis HA and failover work.
+- Production-scale Compose hardening.
+- Formal load testing for scale-up readiness.
+
+For status tracking, use [docs/PROJECT_PROGRESS.md](./PROJECT_PROGRESS.md). For the full task catalog, use [docs/TASK_BREAKDOWN.md](./TASK_BREAKDOWN.md).
+
 ## Recommended Reading Order
 
 1. Start with product scope and goals.
@@ -47,5 +76,5 @@ Use this `PLAN` index and the `docs/plan/*` files for:
 5. Review phased implementation.
 6. Review operational concerns, risks, CI/CD, and metrics.
 
-_Document version: 4.0 - Updated: 2026-04-01_
-_Status: READY FOR IMPLEMENTATION REVIEW_
+_Document version: 4.2 - Updated: 2026-04-09_
+_Status: ACTIVE DELIVERY BASELINE_

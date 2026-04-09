@@ -1,0 +1,12 @@
+:8800 {
+    encode zstd gzip
+
+    @dashboard path /dashboard /dashboard/*
+    handle @dashboard {
+        reverse_proxy dashboard:8808
+    }
+
+    handle {
+        reverse_proxy minder-api:8801
+    }
+}

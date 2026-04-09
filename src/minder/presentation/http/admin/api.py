@@ -70,6 +70,23 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
         return JSONResponse({"admin": context.use_cases.serialize_admin_session(user)})
 
+    async def dashboard_bootstrap_state(request):
+        has_admin_users = await context.use_cases.has_admin_users()
+        has_admin_session = False
+        if has_admin_users:
+            try:
+                await context.admin_user_from_request(request)
+            except Exception:
+                has_admin_session = False
+            else:
+                has_admin_session = True
+        return JSONResponse(
+            {
+                "has_admin_users": has_admin_users,
+                "has_admin_session": has_admin_session,
+            }
+        )
+
     async def token_exchange(request):
         payload = await request.json()
         exchange = await context.use_cases.exchange_client_key(
@@ -210,6 +227,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
         Route("/v1/admin/logout", dashboard_logout_api, methods=["POST"]),
         Route("/v1/admin/session", admin_session, methods=["GET"]),
+        Route("/v1/admin/bootstrap-state", dashboard_bootstrap_state, methods=["GET"]),
         Route("/v1/auth/token-exchange", token_exchange, methods=["POST"]),
         Route("/v1/gateway/test-connection", gateway_test_connection, methods=["POST"]),
         Route("/v1/admin/clients", admin_clients, methods=["GET", "POST"]),

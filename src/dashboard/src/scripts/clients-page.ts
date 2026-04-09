@@ -107,6 +107,14 @@ const selectedClientId =
     ? decodeURIComponent(pathSegments.at(-1) ?? "") || null
     : null;
 
+if (selectedClientId) {
+  document.querySelectorAll<HTMLElement>("[data-current-detail-link]").forEach((link) => {
+    if (link instanceof HTMLAnchorElement) {
+      link.href = window.location.pathname;
+    }
+  });
+}
+
 const renderClients = async () => {
   if (!registry) return;
   try {

@@ -18,11 +18,15 @@ IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 
 def _seed_dashboard_dist(dist: Path) -> None:
     (dist / "clients").mkdir(parents=True)
+    (dist / "clients" / "_client-detail").mkdir(parents=True)
     (dist / "login").mkdir(parents=True)
     (dist / "setup").mkdir(parents=True)
     (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
     (dist / "login" / "index.html").write_text("<html><body><h1>Admin Login</h1></body></html>")
     (dist / "setup" / "index.html").write_text("<html><body><h1>Create the first Minder admin</h1></body></html>")
+    (dist / "clients" / "_client-detail" / "index.html").write_text(
+        "<html><body><h1>Client Detail</h1><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
+    )
     (dist / "clients" / "index.html").write_text(
         "<html><body><h1>Client Registry</h1><p>Manage MCP clients from the production dashboard.</p><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
     )
@@ -107,7 +111,7 @@ async def test_phase4_2_dashboard_gate(
 
         detail_response = await client.get(f"/dashboard/clients/{client_id}")
         assert detail_response.status_code == 200
-        assert "Client Registry" in detail_response.text
+        assert "Client Detail" in detail_response.text
 
         connection_test_response = await client.post(
             "/v1/gateway/test-connection",
@@ -127,7 +131,7 @@ async def test_phase4_2_dashboard_gate(
 
         detail_after_revoke = await client.get(f"/dashboard/clients/{client_id}")
         assert detail_after_revoke.status_code == 200
-        assert "Client Registry" in detail_after_revoke.text
+        assert "Client Detail" in detail_after_revoke.text
 
         preflight_old_key = await client.post(
             "/v1/gateway/test-connection",

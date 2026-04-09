@@ -15,4 +15,5 @@ clean:
 	rm -rf .venv .mypy_cache .pytest_cache .ruff_cache build dist *.egg-info
 
 build-docker:
-	docker build -f docker/Dockerfile -t minder:latest .
+	docker build -f docker/Dockerfile.api -t minder-api:latest .
+	docker build -f docker/Dockerfile.dashboard -t minder-dashboard:latest .

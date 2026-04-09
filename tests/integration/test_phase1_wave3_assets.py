@@ -174,23 +174,22 @@ async def test_server_build_transport_registers_expected_tools(
 
 
 def test_wave3_assets_exist_and_contain_expected_commands() -> None:
-    dockerfile = Path("docker/Dockerfile")
-    compose = Path("docker/docker-compose.dev.yml")
+    compose = Path("docker/docker-compose.local.yml")
     ci_workflow = Path(".github/workflows/ci.yml")
     release_workflow = Path(".github/workflows/release.yml")
     download_script = Path("scripts/download_models.sh")
 
-    assert dockerfile.exists()
-    assert "minder.server" in dockerfile.read_text(encoding="utf-8")
-    assert "PYTHONPATH=/app/src" in dockerfile.read_text(encoding="utf-8")
     assert compose.exists()
-    assert "minder" in compose.read_text(encoding="utf-8")
-    assert "PYTHONPATH: /app/src" in compose.read_text(encoding="utf-8")
-    assert "MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph" in compose.read_text(encoding="utf-8")
-    assert "MINDER_LLM__MODEL_PATH: /root/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf" in compose.read_text(encoding="utf-8")
+    compose_text = compose.read_text(encoding="utf-8")
+    assert "mongodb:" in compose_text
+    assert "redis:" in compose_text
+    assert "milvus-standalone:" in compose_text
+    assert "etcd:" in compose_text
+    assert "minio:" in compose_text
     assert ci_workflow.exists()
     assert "make test" in ci_workflow.read_text(encoding="utf-8")
     assert release_workflow.exists()
-    assert "ghcr.io" in release_workflow.read_text(encoding="utf-8")
+    assert "docker/Dockerfile.api" in release_workflow.read_text(encoding="utf-8")
+    assert "docker/Dockerfile.dashboard" in release_workflow.read_text(encoding="utf-8")
     assert download_script.exists()
     assert "curl -L" in download_script.read_text(encoding="utf-8")

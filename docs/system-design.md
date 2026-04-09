@@ -28,11 +28,12 @@ Minder is an MCP-first engineering assistant platform with:
 
 ```mermaid
 flowchart TB
-    Browser["Browser Admin"] --> Dashboard["Astro Dashboard<br/>/dashboard"]
+  Browser["Browser Admin :8800"] --> Gateway["Gateway Proxy"]
     MCP["Codex / Copilot / Claude / stdio Clients"] --> Gateway["MCP Gateway<br/>SSE / stdio"]
 
-    Dashboard --> AdminHTTP["Admin HTTP Presentation<br/>/v1/admin/*"]
-    Dashboard --> TokenHTTP["Token Exchange / Gateway Test<br/>/v1/auth/* /v1/gateway/*"]
+  Gateway --> Dashboard["Astro Dashboard Service<br/>/dashboard/*"]
+  Gateway --> AdminHTTP["Admin HTTP Presentation<br/>/v1/admin/*"]
+  Gateway --> TokenHTTP["Token Exchange / Gateway Test<br/>/v1/auth/* /v1/gateway/*"]
     Gateway --> ToolSurface["MCP Tool Surface"]
 
     AdminHTTP --> UseCases["Application Use Cases"]
@@ -53,26 +54,26 @@ flowchart TB
 
 Minder supports two dashboard runtime modes.
 
-### Docker and Production: Same-Origin Static Serving
+### Containerized Production: Reverse-Proxy Split Runtime
 
-The Astro console does not run as a separate runtime in Docker or production.
+The Astro console runs as a separate service in production, but the browser still sees a single public origin on port `8800`.
 
 The deployment model is:
 
 ```mermaid
 flowchart LR
-    AstroSource["Astro source<br/>src/dashboard"] --> Build["bun build"]
-    Build --> StaticAssets["Static assets<br/>dashboard-dist or src/dashboard/dist"]
-    StaticAssets --> Python["Python app :8800"]
-    Python --> Browser["Browser /dashboard"]
-    Python --> MCP["MCP /sse and stdio"]
+  Browser["Browser :8800"] --> Proxy["Gateway Proxy :8800"]
+  Proxy --> Astro["Astro service :8808"]
+  Proxy --> Python["Python API :8801"]
+  Python --> MCP["MCP /sse and stdio"]
 ```
 
 At runtime:
 
-- Astro is already built
-- Python is the only server binding port `8800`
-- Python serves the static dashboard assets and all admin/MCP APIs on the same origin
+- the gateway is the only public port binder on `8800`
+- Astro owns all `/dashboard/*` routes directly
+- the Python API owns `/v1/*`, `/sse`, `/messages/*`, `/setup`, and related backend routes
+- same-origin browser behavior is preserved through reverse proxying
 
 ### Local Frontend Development: Split Runtime
 
@@ -94,7 +95,11 @@ In this mode:
 - dashboard API calls go to `API_URL`
 - Astro maps `API_URL` into the client-visible `PUBLIC_API_URL` during dev/build
 - onboarding snippets use the backend origin seen on the API request, which makes local snippets point to `8800`
-- when `dashboard.dev_server_url` is configured, backend dashboard routes redirect to the Astro dev server instead of serving static files
+- when `dashboard.dev_server_url` is configured, backend dashboard routes redirect to the Astro dev server instead of serving compatibility static files
+
+### Compatibility Static Serving
+
+Backend-served static dashboard assets still exist as a compatibility/testing mode, but this is no longer the recommended production deployment shape.
 
 ## 4. Clean Architecture Boundaries
 
@@ -125,7 +130,7 @@ Responsibilities are now split as:
 
 - `routes.py`: route composition only
 - `api.py`: JSON admin APIs
-- `dashboard.py`: Astro/static dashboard serving and redirect policy
+- `dashboard.py`: compatibility static dashboard serving and redirect policy
 - `context.py`: shared request/auth/use-case context
 
 ### Application
@@ -199,15 +204,16 @@ flowchart LR
 
 The dashboard is not a blind static site. Python still controls route state.
 
-Current behavior:
+Current behavior for compatibility mode:
 
-- no admin exists:
-  - `/dashboard` -> `/dashboard/setup`
-- admin exists but no valid session:
-  - `/dashboard` -> `/dashboard/login`
-- valid admin session exists:
-  - `/dashboard` -> `/dashboard/clients`
+- backend-served `/dashboard` routes can still redirect between setup/login/clients
 - static assets under `/dashboard/_astro/...` bypass those redirects
+
+Containerized production behavior:
+
+- the gateway routes `/dashboard` and `/dashboard/*` to the Astro service
+- Astro resolves `/dashboard` state through `GET /v1/admin/bootstrap-state`
+- browser API calls stay same-origin through the gateway
 
 Onboarding snippets and connection-test templates derive their base URL like this:
 
@@ -220,8 +226,11 @@ Onboarding snippets and connection-test templates derive their base URL like thi
 flowchart TB
     Layout["DashboardLayout.astro"] --> Setup["setup.astro"]
     Layout --> Login["login.astro"]
+    Layout --> Entry["index.astro"]
     Layout --> Clients["clients/index.astro"]
+    Layout --> ClientDetail["clients/[clientId].astro"]
 
+    Entry --> EntryScript["scripts/dashboard-entry.ts"]
     Setup --> SetupScript["scripts/setup-page.ts"]
     Login --> LoginScript["scripts/login-page.ts"]
     Clients --> ClientsScript["scripts/clients-page.ts"]
@@ -238,7 +247,10 @@ Key paths:
 - [`src/dashboard/src/layouts/DashboardLayout.astro`](../src/dashboard/src/layouts/DashboardLayout.astro)
 - [`src/dashboard/src/pages/setup.astro`](../src/dashboard/src/pages/setup.astro)
 - [`src/dashboard/src/pages/login.astro`](../src/dashboard/src/pages/login.astro)
+- [`src/dashboard/src/pages/index.astro`](../src/dashboard/src/pages/index.astro)
 - [`src/dashboard/src/pages/clients/index.astro`](../src/dashboard/src/pages/clients/index.astro)
+- [`src/dashboard/src/pages/clients/[clientId].astro`](../src/dashboard/src/pages/clients/[clientId].astro)
+- [`src/dashboard/src/scripts/dashboard-entry.ts`](../src/dashboard/src/scripts/dashboard-entry.ts)
 - [`src/dashboard/src/scripts/clients-page.ts`](../src/dashboard/src/scripts/clients-page.ts)
 - [`src/dashboard/src/lib/api/admin.ts`](../src/dashboard/src/lib/api/admin.ts)
 
@@ -246,16 +258,20 @@ Key paths:
 
 ### Local / Dev
 
-- [`docker/docker-compose.dev.yml`](../docker/docker-compose.dev.yml)
-- one app port: `8800`
-- Docker services for Minder, MongoDB, Redis, Milvus, etcd, minio
+- [`docker/docker-compose.local.yml`](../docker/docker-compose.local.yml)
+- infra-only Docker services for MongoDB, Redis, Milvus, etcd, and minio
+- Minder and Astro run outside Docker for interactive debugging
 
 ### Production
 
-- [`docker/docker-compose.prod.yml`](../docker/docker-compose.prod.yml)
-- multi-stage build:
-  - `bun` builds Astro
-  - `python` serves built assets and APIs
+- [`docker/docker-compose.yml`](../docker/docker-compose.yml)
+- [`docker/Dockerfile.api`](../docker/Dockerfile.api)
+- [`docker/Dockerfile.dashboard`](../docker/Dockerfile.dashboard)
+- [`docker/Caddyfile`](../docker/Caddyfile)
+- services:
+  - `gateway` on public `8800`
+  - `dashboard` on internal `8808`
+  - `minder-api` on internal `8801`
 
 ## 10. Related Design Documents
 
@@ -263,4 +279,5 @@ Feature-specific design docs still exist and remain useful, but this file is the
 
 - [Gateway Auth and Dashboard Design](../docs/design/mcp-gateway-auth-dashboard.md)
 - [Phase 4.3 Console Clean Architecture and UI Modernization](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
+- [Production Dashboard Reverse Proxy Split](../docs/design/production_dashboard_reverse_proxy_split.md)
 - [Plan 02: Architecture](../docs/plan/02-architecture.md)

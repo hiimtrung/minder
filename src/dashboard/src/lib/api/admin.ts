@@ -63,11 +63,18 @@ export type AdminSessionResponse = {
   admin: AdminSessionPayload;
 };
 
+export type DashboardBootstrapStatePayload = {
+  has_admin_users: boolean;
+  has_admin_session: boolean;
+};
+
 export type SetupAdminPayload = {
   api_key: string;
 };
 
-const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "").trim().replace(/\/$/, "");
+const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "")
+  .trim()
+  .replace(/\/$/, "");
 
 function apiUrl(path: string): string {
   if (!API_BASE_URL) {
@@ -77,9 +84,14 @@ function apiUrl(path: string): string {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
-  const redirectOnUnauthorized = init?.headers instanceof Headers
-    ? init.headers.get("X-Minder-Redirect-On-Unauthorized") !== "false"
-    : (typeof init?.headers === "object" ? (init?.headers as Record<string, string>)["X-Minder-Redirect-On-Unauthorized"] !== "false" : true);
+  const redirectOnUnauthorized =
+    init?.headers instanceof Headers
+      ? init.headers.get("X-Minder-Redirect-On-Unauthorized") !== "false"
+      : typeof init?.headers === "object"
+        ? (init?.headers as Record<string, string>)[
+            "X-Minder-Redirect-On-Unauthorized"
+          ] !== "false"
+        : true;
 
   const headers = new Headers(init?.headers ?? {});
   headers.set("Content-Type", "application/json");
@@ -92,10 +104,31 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    if (typeof window !== "undefined" && response.status === 401 && redirectOnUnauthorized) {
-      const next = window.location.pathname.startsWith("/dashboard/setup")
+    if (
+      typeof window !== "undefined" &&
+      response.status === 401 &&
+      redirectOnUnauthorized
+    ) {
+      let next = window.location.pathname.startsWith("/dashboard/setup")
         ? "/dashboard/setup"
         : "/dashboard/login";
+      try {
+        const bootstrapResponse = await fetch(
+          apiUrl("/v1/admin/bootstrap-state"),
+          {
+            credentials: "include",
+          },
+        );
+        if (bootstrapResponse.ok) {
+          const bootstrap =
+            (await bootstrapResponse.json()) as DashboardBootstrapStatePayload;
+          next = !bootstrap.has_admin_users
+            ? "/dashboard/setup"
+            : "/dashboard/login";
+        }
+      } catch {
+        // Fall back to the default target when bootstrap-state cannot be read.
+      }
       window.location.href = next;
     }
     let message = `Request failed: ${response.status}`;
@@ -146,7 +179,18 @@ export async function getAdminSession(): Promise<AdminSessionResponse> {
   return requestJson<AdminSessionResponse>("/v1/admin/session");
 }
 
-export async function getClientDetail(clientId: string): Promise<ClientDetailPayload> {
+export async function getDashboardBootstrapState(): Promise<DashboardBootstrapStatePayload> {
+  return requestJson<DashboardBootstrapStatePayload>(
+    "/v1/admin/bootstrap-state",
+    {
+      headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+    },
+  );
+}
+
+export async function getClientDetail(
+  clientId: string,
+): Promise<ClientDetailPayload> {
   return requestJson<ClientDetailPayload>(`/v1/admin/clients/${clientId}`);
 }
 
@@ -163,24 +207,36 @@ export async function createClient(payload: {
   });
 }
 
-export async function getClientOnboarding(clientId: string): Promise<OnboardingPayload> {
+export async function getClientOnboarding(
+  clientId: string,
+): Promise<OnboardingPayload> {
   return requestJson<OnboardingPayload>(`/v1/admin/onboarding/${clientId}`);
 }
 
-export async function rotateClientKey(clientId: string): Promise<{ client_api_key: string }> {
-  return requestJson<{ client_api_key: string }>(`/v1/admin/clients/${clientId}/keys`, {
-    method: "POST",
-    body: JSON.stringify({}),
-    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
-  });
+export async function rotateClientKey(
+  clientId: string,
+): Promise<{ client_api_key: string }> {
+  return requestJson<{ client_api_key: string }>(
+    `/v1/admin/clients/${clientId}/keys`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+    },
+  );
 }
 
-export async function revokeClientKeys(clientId: string): Promise<{ revoked: boolean }> {
-  return requestJson<{ revoked: boolean }>(`/v1/admin/clients/${clientId}/keys/revoke`, {
-    method: "POST",
-    body: JSON.stringify({}),
-    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
-  });
+export async function revokeClientKeys(
+  clientId: string,
+): Promise<{ revoked: boolean }> {
+  return requestJson<{ revoked: boolean }>(
+    `/v1/admin/clients/${clientId}/keys/revoke`,
+    {
+      method: "POST",
+      body: JSON.stringify({}),
+      headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+    },
+  );
 }
 
 export async function testClientConnection(client_api_key: string): Promise<{
@@ -200,7 +256,9 @@ export async function listAudit(actorId?: string): Promise<AuditListPayload> {
   return requestJson<AuditListPayload>(`/v1/admin/audit${query}`);
 }
 
-export async function exchangeClientKey(client_api_key: string): Promise<TokenExchangePayload> {
+export async function exchangeClientKey(
+  client_api_key: string,
+): Promise<TokenExchangePayload> {
   return requestJson<TokenExchangePayload>("/v1/auth/token-exchange", {
     method: "POST",
     body: JSON.stringify({ client_api_key }),

@@ -30,6 +30,7 @@ requires_fakeredis = pytest.mark.skipif(
 
 def _seed_dashboard_dist(dist: Path) -> None:
     (dist / "clients").mkdir(parents=True)
+    (dist / "clients" / "_client-detail").mkdir(parents=True)
     (dist / "login").mkdir(parents=True)
     (dist / "setup").mkdir(parents=True)
     (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
@@ -38,6 +39,9 @@ def _seed_dashboard_dist(dist: Path) -> None:
     )
     (dist / "setup" / "index.html").write_text(
         "<html><body><h1>Create the first Minder admin</h1></body></html>"
+    )
+    (dist / "clients" / "_client-detail" / "index.html").write_text(
+        "<html><body><h1>Client Detail</h1><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
     )
     (dist / "clients" / "index.html").write_text(
         "<html><body><h1>Client Registry</h1><p>Manage MCP clients from the production dashboard.</p><p>Create client</p><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
@@ -223,6 +227,47 @@ async def test_onboarding_templates_follow_request_origin(
     assert "https://minder.example.com/sse" in onboarding["templates"]["codex"]
     assert "https://minder.example.com/sse" in onboarding["templates"]["copilot"]
     assert "https://minder.example.com/sse" in connection["templates"]["claude_desktop"]
+
+
+@pytest.mark.asyncio
+async def test_dashboard_bootstrap_state_reports_setup_and_session_state(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        fresh_state = await client.get("/v1/admin/bootstrap-state")
+        setup_response = await client.post(
+            "/v1/admin/setup",
+            json={
+                "username": "admin",
+                "email": "admin@example.com",
+                "display_name": "Admin",
+            },
+        )
+        api_key = setup_response.json()["api_key"]
+        post_setup_state = await client.get("/v1/admin/bootstrap-state")
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        cookie_header = login_response.headers["set-cookie"]
+        authed_state = await client.get(
+            "/v1/admin/bootstrap-state",
+            headers={"cookie": cookie_header},
+        )
+
+    assert fresh_state.status_code == 200
+    assert fresh_state.json() == {"has_admin_users": False, "has_admin_session": False}
+
+    assert post_setup_state.status_code == 200
+    assert post_setup_state.json() == {"has_admin_users": True, "has_admin_session": False}
+
+    assert authed_state.status_code == 200
+    assert authed_state.json() == {"has_admin_users": True, "has_admin_session": True}
 
 
 @requires_fakeredis
@@ -646,7 +691,7 @@ async def test_dashboard_client_detail_supports_onboarding_rotate_and_revoke(
         )
 
     assert detail_response.status_code == 200
-    assert "Client Registry" in detail_response.text
+    assert "Client Detail" in detail_response.text
 
     assert rotate_response.status_code == 201
     assert rotate_response.json()["client_api_key"].startswith("mkc_")
@@ -701,4 +746,4 @@ async def test_dashboard_client_detail_shows_recent_activity_and_connection_test
     assert connection_test_response.json()["client"]["slug"] == "activity-client"
 
     assert detail_response.status_code == 200
-    assert "Client Registry" in detail_response.text
+    assert "Client Detail" in detail_response.text

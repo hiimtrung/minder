@@ -1,6 +1,6 @@
 # Admin and Client Onboarding Guide
 
-This guide covers the current onboarding flow for Minder on local Docker.
+This guide covers the current onboarding flow for Minder running against local infrastructure or the production Docker stack.
 
 System-level architecture lives in:
 
@@ -31,8 +31,7 @@ The current admin bootstrap is still API-key based, but the operator experience 
 If the admin API key is lost later, recover it with:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml exec minder \
-  uv run python scripts/reset_admin_api_key.py \
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py \
   --username admin
 ```
 

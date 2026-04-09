@@ -1,11 +1,12 @@
 # Local Setup Guide
 
-This guide gets a fresh Minder stack running locally on port `8800`, including browser admin bootstrap and MCP connectivity checks.
+This guide gets the local dependency stack running so you can debug Minder and the Astro dashboard against real backing services.
 
-It covers two local modes:
+It uses one local development shape:
 
-- Docker-like local runtime where Python serves the built Astro console on `8800`
-- split frontend-dev runtime where Astro runs on `8808` and calls Minder on `8800`
+- Docker for infra services only
+- local Python for Minder
+- optional local Astro dev server for dashboard work
 
 System-level architecture lives in:
 
@@ -53,44 +54,57 @@ cp src/dashboard/.env.example src/dashboard/.env
 ```
 
 The example files already target:
+
 - Minder backend on `8800`
 - Astro dev server on `8808`
 - dashboard API calls to `http://localhost:8800`
 
-## 2. Start the Docker stack
+## 2. Start the local infrastructure stack
 
 Run:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml up --build
+docker compose -f docker/docker-compose.local.yml up -d
 ```
 
 The stack exposes:
 
-- Minder SSE: [http://localhost:8800/sse](http://localhost:8800/sse)
-- Minder admin login: [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
-- Dashboard: [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 - MongoDB: `localhost:27017`
 - Redis: `localhost:6379`
 - Milvus: `localhost:19530`
 
-Wait until all services are healthy and `docker-minder-1` is started.
+Wait until all infra services are healthy.
 
 Recommended check:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml ps
+docker compose -f docker/docker-compose.local.yml ps
 ```
 
-## 2a. Optional split frontend-dev mode
+Local Docker now provides the shared infra runtime:
 
-Use this when you want Astro hot reload independently from the Python backend.
+- `mongodb`
+- `redis`
+- `etcd`
+- `minio`
+- `milvus-standalone`
+
+It intentionally does not start the Minder app or the Astro dashboard. You run those locally so you can debug them directly.
+
+## 2a. Start Minder locally against the Docker infra
 
 Start Minder:
 
 ```bash
 PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
 ```
+
+Open after Minder starts:
+
+- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
+- [http://localhost:8800/sse](http://localhost:8800/sse)
+
+## 2b. Optional Astro frontend-dev mode
 
 Start Astro:
 
@@ -111,7 +125,8 @@ Important behavior:
 - the frontend calls Minder through `API_URL` from `src/dashboard/.env`
 - Astro bridges `API_URL` into the browser-safe `PUBLIC_API_URL`
 - onboarding snippets and connection-test templates use the backend origin seen by Minder, so in split mode they resolve to `http://localhost:8800`
-- in Docker and production, this split-runtime `.env` is not needed because Python serves the built dashboard on the same origin
+- when Astro is not running, Minder can still serve the built dashboard on the same origin if you already built `src/dashboard`
+- in production, `/dashboard/*` is served by the dedicated Astro service behind the gateway
 
 ## 3. Open the first-run setup page
 
@@ -205,12 +220,12 @@ Check:
 ls ~/.minder/models
 ```
 
-### Minder container cannot boot
+### Minder process cannot boot
 
 Check:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml logs minder
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
 ```
 
 ### I lost the first admin API key
@@ -218,8 +233,7 @@ docker compose -f docker/docker-compose.dev.yml logs minder
 Run:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml exec minder \
-  uv run python scripts/reset_admin_api_key.py \
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py \
   --username admin
 ```
 
@@ -244,5 +258,5 @@ curl http://localhost:8800/sse
 and confirm the container is running:
 
 ```bash
-docker compose -f docker/docker-compose.dev.yml ps
+docker compose -f docker/docker-compose.local.yml ps
 ```

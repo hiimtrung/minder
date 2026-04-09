@@ -8,6 +8,17 @@ from starlette.routing import BaseRoute, Route
 from .context import AdminRouteContext
 
 
+def _resolve_dashboard_static_root(static_dir: Path) -> Path:
+    if (static_dir / "index.html").is_file():
+        return static_dir
+
+    client_dir = static_dir / "client"
+    if client_dir.is_dir() and (client_dir / "index.html").is_file():
+        return client_dir
+
+    return static_dir
+
+
 def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
     def _dev_dashboard_url(asset_path: str = "") -> str | None:
         dev_server_url = (context.config.dashboard.dev_server_url or "").strip().rstrip("/")
@@ -54,10 +65,12 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
         if not static_dir.exists():
             return PlainTextResponse("Dashboard build not found", status_code=404)
 
+        static_root = _resolve_dashboard_static_root(static_dir)
+
         if not asset_path:
-            candidates = [static_dir / "index.html"]
+            candidates = [static_root / "index.html"]
         else:
-            requested = static_dir / asset_path
+            requested = static_root / asset_path
             candidates = [requested, requested / "index.html"]
 
         for candidate in candidates:
@@ -65,11 +78,15 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 return FileResponse(candidate)
 
         if asset_path.startswith("clients/"):
-            clients_index = static_dir / "clients" / "index.html"
+            detail_shell = static_root / "clients" / "_client-detail" / "index.html"
+            if detail_shell.exists() and detail_shell.is_file():
+                return FileResponse(detail_shell)
+
+            clients_index = static_root / "clients" / "index.html"
             if clients_index.exists() and clients_index.is_file():
                 return FileResponse(clients_index)
 
-        fallback = static_dir / "index.html"
+        fallback = static_root / "index.html"
         if fallback.exists() and fallback.is_file():
             return FileResponse(fallback)
         return PlainTextResponse("Dashboard build not found", status_code=404)

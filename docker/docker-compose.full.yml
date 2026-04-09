@@ -32,7 +32,7 @@ services:
       MINDER_LLM__MODEL_PATH: /root/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     volumes:
-      - ${MINDER_MODELS_DIR:?Set MINDER_MODELS_DIR to the local model directory}:/root/.minder/models:ro
+      - ${MINDER_MODELS_DIR:-${HOME}/.minder/models}:/root/.minder/models:ro
     depends_on:
       mongodb:
         condition: service_healthy

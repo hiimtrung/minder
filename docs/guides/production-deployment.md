@@ -79,9 +79,10 @@ Current defaults already point to:
 If you want Docker Compose to build everything from the checked-out source instead of pulling GHCR images:
 
 ```bash
-export MINDER_MODELS_DIR=~/.minder/models
 docker compose -f docker/docker-compose.full.yml up --build -d
 ```
+
+`docker-compose.full.yml` falls back to `${HOME}/.minder/models` automatically, so `MINDER_MODELS_DIR` is only needed when your models live elsewhere.
 
 The public gateway will listen on:
 

@@ -28,6 +28,7 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     assert "MINDER_DASHBOARD_IMAGE" in install_script
     assert 'dockerfile: docker/Dockerfile.api' in full_compose
     assert 'dockerfile: docker/Dockerfile.dashboard' in full_compose
+    assert '${MINDER_MODELS_DIR:-${HOME}/.minder/models}' in full_compose
 
 
 def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -> None:

@@ -1,0 +1,158 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+
+interface Props {
+  clientId?: string;
+}
+
+const { clientId = "" } = Astro.props;
+const detailHref = clientId
+  ? `/dashboard/clients/${encodeURIComponent(clientId)}`
+  : "/dashboard/clients";
+---
+
+<DashboardLayout
+  title="Client Detail · Minder"
+  description="Dedicated Astro shell for Minder client detail operations."
+  navTitle="Minder Client Detail"
+  navDescription="Operate one client with full breadcrumb context, lifecycle controls, and onboarding assets."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
+    { href: "/dashboard/clients", label: "Client Registry", tone: "secondary" },
+    { href: detailHref, label: "Client Detail", tone: "primary" },
+  ]}
+>
+  <section class="mb-8 space-y-6">
+    <nav
+      aria-label="Breadcrumb"
+      class="flex flex-wrap items-center gap-2 text-sm text-stone-600"
+    >
+      <a href="/dashboard" class="transition hover:text-stone-950">Dashboard</a>
+      <span aria-hidden="true">/</span>
+      <a href="/dashboard/clients" class="transition hover:text-stone-950"
+        >Client Registry</a
+      >
+      <span aria-hidden="true">/</span>
+      <span class="font-medium text-stone-950">Client Detail</span>
+    </nav>
+
+    <div class="flex flex-wrap items-end justify-between gap-4">
+      <div class="space-y-3">
+        <p class="eyebrow">Client Detail</p>
+        <h1
+          id="detail-title"
+          class="text-5xl font-semibold tracking-tight text-stone-950"
+        >
+          Loading client...
+        </h1>
+        <p class="max-w-3xl text-lg leading-8 text-stone-700">
+          Operate one MCP client without the registry list in the way. Rotate
+          keys, run connection tests, copy onboarding templates, and review
+          audit activity from a dedicated screen.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/dashboard/clients" class="action-pill">Back to registry</a>
+        <a href="/dashboard" class="action-pill">Dashboard home</a>
+      </div>
+    </div>
+
+    <section
+      class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+    >
+      <div>
+        <p class="text-sm font-medium text-stone-900">Navigator</p>
+        <p class="mt-1 text-sm text-stone-600">
+          Stay on this client-specific route for key lifecycle work, then return
+          to the registry to choose another integration.
+        </p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <a href="/dashboard/clients" class="action-pill">All clients</a>
+        <a href={detailHref} class="primary-pill">Current detail</a>
+      </div>
+    </section>
+  </section>
+
+  <section
+    id="client-detail-shell"
+    class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]"
+  >
+    <aside class="shell-card p-7">
+      <p class="eyebrow">Lifecycle</p>
+      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+        Key management
+      </h2>
+      <div class="mt-6 grid gap-3">
+        <button id="rotate-client-key" type="button" class="primary-pill w-full"
+          >Issue new client key</button
+        >
+        <button id="revoke-client-key" type="button" class="action-pill w-full"
+          >Revoke all keys</button
+        >
+      </div>
+      <label class="mt-5 block">
+        <span class="mb-2 block text-sm font-medium text-stone-800"
+          >Connection test API key</span
+        >
+        <input
+          id="connection-api-key"
+          class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="mkc_..."
+        />
+      </label>
+      <button
+        id="test-client-connection"
+        type="button"
+        class="action-pill mt-3 w-full">Run connection test</button
+      >
+      <p id="detail-status" class="mt-4 min-h-6 text-sm text-stone-600"></p>
+      <div
+        id="rotated-key-result"
+        class="mt-4 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4"
+      >
+        <p class="eyebrow">New Client API Key</p>
+        <code
+          id="rotated-key-value"
+          class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
+        ></code>
+      </div>
+    </aside>
+
+    <div class="grid gap-6">
+      <section class="shell-card p-7">
+        <p class="eyebrow">Onboarding</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          Copy-ready MCP snippets
+        </h2>
+        <p class="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+          Each snippet is rendered in a readable full-width card with a
+          dedicated copy action.
+        </p>
+        <div id="onboarding-snippets" class="mt-6 grid gap-4">
+          <article
+            class="rounded-3xl border border-stone-300 bg-stone-50/80 p-4 text-sm text-stone-600"
+          >
+            Loading snippets...
+          </article>
+        </div>
+      </section>
+
+      <section class="shell-card p-7">
+        <p class="eyebrow">Recent Activity</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          Audit events
+        </h2>
+        <div id="activity-feed" class="mt-6 grid gap-3">
+          <div
+            class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600"
+          >
+            Loading activity...
+          </div>
+        </div>
+      </section>
+    </div>
+  </section>
+  <script src="../scripts/clients-page.ts"></script>
+</DashboardLayout>

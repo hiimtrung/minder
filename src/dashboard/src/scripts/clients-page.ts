@@ -32,7 +32,10 @@ const escapeHtml = (value: string): string =>
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 
-const setDetailStatus = (message: string, tone: "default" | "success" | "danger" = "default") => {
+const setDetailStatus = (
+  message: string,
+  tone: "default" | "success" | "danger" = "default",
+) => {
   if (!detailStatus) return;
   detailStatus.textContent = message;
   detailStatus.className = "mt-4 min-h-6 text-sm";
@@ -47,13 +50,20 @@ const setDetailStatus = (message: string, tone: "default" | "success" | "danger"
   detailStatus.classList.add("text-stone-600");
 };
 
-const showToast = (message: string, tone: "success" | "danger" | "default" = "default") => {
+const showToast = (
+  message: string,
+  tone: "success" | "danger" | "default" = "default",
+) => {
   if (!(toastRegion instanceof HTMLElement)) return;
   const toast = document.createElement("div");
   toast.className =
     "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
   if (tone === "success") {
-    toast.classList.add("border-emerald-200", "bg-emerald-50/95", "text-emerald-900");
+    toast.classList.add(
+      "border-emerald-200",
+      "bg-emerald-50/95",
+      "text-emerald-900",
+    );
   } else if (tone === "danger") {
     toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
   } else {
@@ -89,9 +99,13 @@ const presets: Record<string, string[]> = {
 };
 
 const currentPath = window.location.pathname.replace(/\/$/, "");
-const selectedClientId = currentPath.startsWith("/dashboard/clients/")
-  ? currentPath.split("/").filter(Boolean).at(-1) ?? null
-  : null;
+const pathSegments = currentPath.split("/").filter(Boolean);
+const selectedClientId =
+  pathSegments.length > 2 &&
+  pathSegments[0] === "dashboard" &&
+  pathSegments[1] === "clients"
+    ? decodeURIComponent(pathSegments.at(-1) ?? "") || null
+    : null;
 
 const renderClients = async () => {
   if (!registry) return;
@@ -101,7 +115,7 @@ const renderClients = async () => {
       ? payload.clients
           .map(
             (client) => `
-              <a href="/dashboard/clients/${client.id}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+              <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
                 <p class="eyebrow">${client.slug}</p>
                 <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
                 <p class="mt-3 text-sm leading-6 text-stone-700">${client.description || "No description yet."}</p>
@@ -119,7 +133,18 @@ const renderClients = async () => {
 };
 
 const renderDetail = async () => {
-  if (!selectedClientId || !detailShell || !detailTitle || !snippets || !activity) {
+  if (!detailShell || !detailTitle || !snippets || !activity) {
+    return;
+  }
+
+  if (!selectedClientId) {
+    detailTitle.textContent = "Client detail unavailable";
+    snippets.innerHTML = `<article class="rounded-3xl border border-stone-300 bg-stone-50/80 p-4 text-sm text-stone-600">Open a client from the registry to load onboarding snippets.</article>`;
+    activity.innerHTML = `<div class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600">Open a client from the registry to load audit activity.</div>`;
+    setDetailStatus(
+      "Select a client from the registry to load lifecycle controls.",
+      "danger",
+    );
     return;
   }
 
@@ -156,7 +181,9 @@ const renderDetail = async () => {
       )
       .join("");
 
-    const relatedEvents = audit.events.filter((event) => event.resource_id === detail.client.id).slice(0, 8);
+    const relatedEvents = audit.events
+      .filter((event) => event.resource_id === detail.client.id)
+      .slice(0, 8);
     activity.innerHTML = relatedEvents.length
       ? relatedEvents
           .map(
@@ -170,7 +197,10 @@ const renderDetail = async () => {
           .join("")
       : `<div class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600">No activity recorded yet.</div>`;
   } catch (error) {
-    setDetailStatus(error instanceof Error ? error.message : "Unable to load client detail.", "danger");
+    setDetailStatus(
+      error instanceof Error ? error.message : "Unable to load client detail.",
+      "danger",
+    );
   }
 };
 
@@ -185,96 +215,135 @@ document.querySelectorAll("[data-tool-preset]").forEach((button) => {
   });
 });
 
-document.querySelector("#create-client-form")?.addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const name = (document.querySelector("#client-name") as HTMLInputElement | null)?.value.trim() ?? "";
-  const slug = (document.querySelector("#client-slug") as HTMLInputElement | null)?.value.trim() ?? "";
-  const description =
-    (document.querySelector("#client-description") as HTMLTextAreaElement | null)?.value.trim() ?? "";
-  const repoScopeInput =
-    (document.querySelector("#client-repo-scopes") as HTMLInputElement | null)?.value.trim() ?? "";
-  const repo_scopes = repoScopeInput
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-  const selectedTools =
-    toolScopes instanceof HTMLSelectElement
-      ? Array.from(toolScopes.selectedOptions).map((option) => option.value)
-      : [];
+document
+  .querySelector("#create-client-form")
+  ?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const name =
+      (
+        document.querySelector("#client-name") as HTMLInputElement | null
+      )?.value.trim() ?? "";
+    const slug =
+      (
+        document.querySelector("#client-slug") as HTMLInputElement | null
+      )?.value.trim() ?? "";
+    const description =
+      (
+        document.querySelector(
+          "#client-description",
+        ) as HTMLTextAreaElement | null
+      )?.value.trim() ?? "";
+    const repoScopeInput =
+      (
+        document.querySelector("#client-repo-scopes") as HTMLInputElement | null
+      )?.value.trim() ?? "";
+    const repo_scopes = repoScopeInput
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    const selectedTools =
+      toolScopes instanceof HTMLSelectElement
+        ? Array.from(toolScopes.selectedOptions).map((option) => option.value)
+        : [];
 
-  if (!name || !slug) {
-    if (status) status.textContent = "Name and slug are required.";
-    return;
-  }
+    if (!name || !slug) {
+      if (status) status.textContent = "Name and slug are required.";
+      return;
+    }
 
-  if (status) status.textContent = "Creating client...";
-  try {
-    const created = await createClient({ name, slug, description, tool_scopes: selectedTools, repo_scopes });
-    if (createdKey) createdKey.textContent = created.client_api_key;
-    createdResult?.classList.remove("hidden");
-    if (status) status.textContent = `Created ${created.client.slug}.`;
-    showToast(`Created client ${created.client.slug}.`, "success");
-    await renderClients();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create client.";
-    if (status) status.textContent = message;
-    showToast(message, "danger");
-  }
-});
+    if (status) status.textContent = "Creating client...";
+    try {
+      const created = await createClient({
+        name,
+        slug,
+        description,
+        tool_scopes: selectedTools,
+        repo_scopes,
+      });
+      if (createdKey) createdKey.textContent = created.client_api_key;
+      createdResult?.classList.remove("hidden");
+      if (status) status.textContent = `Created ${created.client.slug}.`;
+      showToast(`Created client ${created.client.slug}.`, "success");
+      await renderClients();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to create client.";
+      if (status) status.textContent = message;
+      showToast(message, "danger");
+    }
+  });
 
-document.querySelector("#rotate-client-key")?.addEventListener("click", async () => {
-  if (!selectedClientId) return;
-  setDetailStatus("Issuing new client key...");
-  try {
-    const rotated = await rotateClientKey(selectedClientId);
-    if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
-    rotatedKeyResult?.classList.remove("hidden");
-    setDetailStatus("Issued new client key.", "success");
-    showToast("Issued new client key.", "success");
-    await renderDetail();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to rotate key.";
-    setDetailStatus(message, "danger");
-    showToast(message, "danger");
-  }
-});
+document
+  .querySelector("#rotate-client-key")
+  ?.addEventListener("click", async () => {
+    if (!selectedClientId) return;
+    setDetailStatus("Issuing new client key...");
+    try {
+      const rotated = await rotateClientKey(selectedClientId);
+      if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
+      rotatedKeyResult?.classList.remove("hidden");
+      setDetailStatus("Issued new client key.", "success");
+      showToast("Issued new client key.", "success");
+      await renderDetail();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to rotate key.";
+      setDetailStatus(message, "danger");
+      showToast(message, "danger");
+    }
+  });
 
-document.querySelector("#revoke-client-key")?.addEventListener("click", async () => {
-  if (!selectedClientId) return;
-  setDetailStatus("Revoking client keys...");
-  try {
-    await revokeClientKeys(selectedClientId);
-    setDetailStatus("Revoked all client keys.", "success");
-    showToast("Revoked all client keys.", "success");
-    await renderDetail();
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to revoke keys.";
-    setDetailStatus(message, "danger");
-    showToast(message, "danger");
-  }
-});
+document
+  .querySelector("#revoke-client-key")
+  ?.addEventListener("click", async () => {
+    if (!selectedClientId) return;
+    setDetailStatus("Revoking client keys...");
+    try {
+      await revokeClientKeys(selectedClientId);
+      setDetailStatus("Revoked all client keys.", "success");
+      showToast("Revoked all client keys.", "success");
+      await renderDetail();
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to revoke keys.";
+      setDetailStatus(message, "danger");
+      showToast(message, "danger");
+    }
+  });
 
-document.querySelector("#test-client-connection")?.addEventListener("click", async () => {
-  const clientKey =
-    (document.querySelector("#connection-api-key") as HTMLInputElement | null)?.value.trim() ?? "";
-  if (!clientKey) {
-    setDetailStatus("Client API key is required.", "danger");
-    return;
-  }
-  setDetailStatus(`Running connection test${lastSelectedClientName ? ` for ${lastSelectedClientName}` : ""}...`);
-  try {
-    const result = await testClientConnection(clientKey);
-    setDetailStatus(`Connection test passed for ${result.client.slug}.`, "success");
-    showToast(`Connection test passed for ${result.client.slug}.`, "success");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Connection test failed.";
-    setDetailStatus(message, "danger");
-    showToast(message, "danger");
-  }
-});
+document
+  .querySelector("#test-client-connection")
+  ?.addEventListener("click", async () => {
+    const clientKey =
+      (
+        document.querySelector("#connection-api-key") as HTMLInputElement | null
+      )?.value.trim() ?? "";
+    if (!clientKey) {
+      setDetailStatus("Client API key is required.", "danger");
+      return;
+    }
+    setDetailStatus(
+      `Running connection test${lastSelectedClientName ? ` for ${lastSelectedClientName}` : ""}...`,
+    );
+    try {
+      const result = await testClientConnection(clientKey);
+      setDetailStatus(
+        `Connection test passed for ${result.client.slug}.`,
+        "success",
+      );
+      showToast(`Connection test passed for ${result.client.slug}.`, "success");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Connection test failed.";
+      setDetailStatus(message, "danger");
+      showToast(message, "danger");
+    }
+  });
 
 snippets?.addEventListener("click", async (event) => {
-  const button = (event.target as HTMLElement | null)?.closest(".snippet-copy-button");
+  const button = (event.target as HTMLElement | null)?.closest(
+    ".snippet-copy-button",
+  );
   if (!(button instanceof HTMLButtonElement)) return;
   const content = button.dataset.snippetContent ?? "";
   const label = button.dataset.snippetLabel ?? "snippet";

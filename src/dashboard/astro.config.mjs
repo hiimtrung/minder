@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import node from "@astrojs/node";
 import tailwindcss from "@tailwindcss/vite";
 import { loadEnv } from "vite";
 
@@ -6,6 +7,7 @@ const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 const apiUrl = env.PUBLIC_API_URL ?? env.API_URL ?? "";
 
 export default defineConfig({
+  adapter: node({ mode: "standalone" }),
   base: "/dashboard",
   server: {
     host: true,

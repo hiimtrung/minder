@@ -1,0 +1,13 @@
+---
+import ClientDetailShell from "../../components/ClientDetailShell.astro";
+
+export const prerender = false;
+
+const clientId = Astro.params.clientId?.trim() ?? "";
+
+if (!clientId) {
+  return Astro.redirect("/dashboard/clients");
+}
+---
+
+<ClientDetailShell clientId={clientId} />

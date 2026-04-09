@@ -365,6 +365,9 @@ def build_http_routes(
             ),
         }
 
+    def _split_csv(raw: str) -> list[str]:
+        return [item.strip() for item in raw.split(",") if item.strip()]
+
     def _request_token(request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         if authorization:
@@ -553,6 +556,46 @@ def build_http_routes(
       <p>Copy this API key now. Minder will not show it again after you leave this page.</p>
       <code>{escaped_key}</code>
       <a href="/dashboard/login">Continue to Admin Sign In</a>
+    </main>
+  </body>
+</html>
+"""
+
+    def _dashboard_client_created_html(
+        *,
+        client_name: str,
+        client_slug: str,
+        client_api_key: str,
+    ) -> str:
+        escaped_name = html.escape(client_name)
+        escaped_slug = html.escape(client_slug)
+        escaped_key = html.escape(client_api_key)
+        return f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Client Created</title>
+    <style>
+      :root {{ --bg: #f4efe6; --panel: #fffaf0; --ink: #1d1b18; --border: #d7c8b4; --accent: #af3b2a; }}
+      body {{ font-family: "Iowan Old Style", serif; background: var(--bg); color: var(--ink); margin:0; padding: 40px; display: grid; place-items: center; min-height: 100vh; }}
+      .card {{ background: var(--panel); border: 1px solid var(--border); padding: 40px; border-radius: 12px; max-width: 640px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }}
+      h1 {{ margin-top: 0; }}
+      code {{ display: block; margin: 18px 0; padding: 14px 16px; border-radius: 8px; background: #fff; border: 1px solid var(--border); word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; }}
+      a {{ color: white; background: var(--accent); text-decoration: none; padding: 12px 16px; border-radius: 999px; display: inline-block; }}
+      p {{ line-height: 1.5; }}
+      .meta {{ color: #6f675f; }}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>Client Created</h1>
+      <p><strong>{escaped_name}</strong> is ready to connect to Minder.</p>
+      <p class="meta">Slug: <code>{escaped_slug}</code></p>
+      <p>Copy this client API key now. Minder will not show it again after you leave this page.</p>
+      <code>{escaped_key}</code>
+      <a href="/dashboard">Return to Dashboard</a>
     </main>
   </body>
 </html>
@@ -771,6 +814,47 @@ def build_http_routes(
             }
         )
 
+    async def dashboard_create_client(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+
+        form = await request.form()
+        name = str(form.get("name", "")).strip()
+        slug = str(form.get("slug", "")).strip()
+        description = str(form.get("description", "")).strip()
+        tool_scopes = _split_csv(str(form.get("tool_scopes", "")))
+        repo_scopes = _split_csv(str(form.get("repo_scopes", "")))
+
+        if not name or not slug:
+            return HTMLResponse("Client name and slug are required.", status_code=400)
+
+        created = await auth_tools.minder_auth_create_client(
+            actor_user_id=user.id,
+            name=name,
+            slug=slug,
+            description=description,
+            tool_scopes=tool_scopes or None,
+            repo_scopes=repo_scopes or None,
+        )
+        client = created["client"]
+        if not isinstance(client, dict):
+            return HTMLResponse("Invalid client response.", status_code=500)
+        client_api_key = str(created["client_api_key"])
+        return HTMLResponse(
+            _dashboard_client_created_html(
+                client_name=str(client.get("name", "")),
+                client_slug=str(client.get("slug", "")),
+                client_api_key=client_api_key,
+            ),
+            status_code=200,
+        )
+
     async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
         if not await auth_service.has_admin_users():
             return RedirectResponse(url="/setup", status_code=303)
@@ -857,6 +941,68 @@ def build_http_routes(
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 16px;
       }}
+      .layout {{
+        display: grid;
+        gap: 24px;
+      }}
+      @media (min-width: 960px) {{
+        .layout {{
+          grid-template-columns: minmax(320px, 380px) 1fr;
+          align-items: start;
+        }}
+      }}
+      .create-panel {{
+        border: 1px solid var(--border);
+        background: rgba(255, 250, 240, 0.92);
+        border-radius: 20px;
+        padding: 20px;
+        box-shadow: 0 10px 30px rgba(29, 27, 24, 0.05);
+      }}
+      .create-panel h2 {{
+        margin: 0 0 8px;
+        font-size: 1.4rem;
+      }}
+      .create-panel p {{
+        margin: 0 0 16px;
+        color: var(--muted);
+      }}
+      .create-panel label {{
+        display: block;
+        margin: 0 0 6px;
+        font-size: 0.9rem;
+      }}
+      .create-panel input,
+      .create-panel textarea {{
+        width: 100%;
+        box-sizing: border-box;
+        margin: 0 0 14px;
+        padding: 12px 14px;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        font: inherit;
+        background: #fff;
+      }}
+      .create-panel textarea {{
+        min-height: 96px;
+        resize: vertical;
+      }}
+      .create-panel button {{
+        border: 0;
+        border-radius: 999px;
+        padding: 12px 16px;
+        font: inherit;
+        color: #fff;
+        background: var(--accent);
+        cursor: pointer;
+      }}
+      .create-panel .hint {{
+        margin-top: 10px;
+        font-size: 0.9rem;
+      }}
+      .registry {{
+        display: grid;
+        gap: 16px;
+      }}
       .client-card {{
         border: 1px solid var(--border);
         background: var(--panel);
@@ -899,8 +1045,31 @@ def build_http_routes(
         <h1>Minder Gateway Dashboard</h1>
         <p>Manage MCP clients, bootstrap credentials, and onboarding templates for Codex, Copilot-style clients, and Claude Desktop from one place.</p>
       </section>
-      <section class="board">
-        {cards or "<article class='client-card'><h2>No clients yet</h2><p>Create a client from the admin API to generate onboarding templates.</p></article>"}
+      <section class="layout">
+        <aside class="create-panel">
+          <span class="label">Create Client</span>
+          <h2>Create Client</h2>
+          <p>Create a new MCP client directly from the dashboard. The newly issued client API key will be shown exactly once after submission.</p>
+          <form method="post" action="/dashboard/clients">
+            <label for="name">Name</label>
+            <input id="name" name="name" type="text" required />
+            <label for="slug">Slug</label>
+            <input id="slug" name="slug" type="text" required />
+            <label for="description">Description</label>
+            <textarea id="description" name="description"></textarea>
+            <label for="tool_scopes">Tool Scopes</label>
+            <input id="tool_scopes" name="tool_scopes" type="text" placeholder="minder_query, minder_search_code" />
+            <label for="repo_scopes">Repo Scopes</label>
+            <input id="repo_scopes" name="repo_scopes" type="text" placeholder="/workspace/repo, /workspace/docs" />
+            <button type="submit">Create Client</button>
+          </form>
+          <p class="hint">Use comma-separated values for scopes. Leave a field blank to keep it unrestricted where the backend allows it.</p>
+        </aside>
+        <section class="registry">
+          <div class="board">
+            {cards or "<article class='client-card'><h2>No clients yet</h2><p>Create your first MCP client from the form on this page.</p></article>"}
+          </div>
+        </section>
       </section>
     </main>
   </body>
@@ -951,6 +1120,7 @@ def build_http_routes(
         Route("/v1/admin/onboarding/{client_id:uuid}", client_onboarding, methods=["GET"]),
         Route("/v1/admin/audit", admin_audit, methods=["GET"]),
         Route("/dashboard", dashboard, methods=["GET"]),
+        Route("/dashboard/clients", dashboard_create_client, methods=["POST"]),
     ]
 
 

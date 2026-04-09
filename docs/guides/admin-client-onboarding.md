@@ -17,7 +17,7 @@ Today you can:
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
-- create or rotate clients entirely from a browser form; today that still goes through the admin API
+- rotate or revoke client keys entirely from a browser form
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
 - fresh deployment: `/setup`
@@ -77,7 +77,24 @@ Recommended split:
 
 ## 4. Create an MCP client
 
-Today this step is API-driven. The browser dashboard session exists, but the dedicated client creation form has not been implemented yet.
+This step is now browser-native from the dashboard.
+
+Open:
+
+- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
+
+Use the `Create Client` form to submit:
+- name
+- slug
+- description
+- tool scopes
+- repo scopes
+
+After submission, Minder shows the new `mkc_...` client API key exactly once.
+
+Save it before leaving that page.
+
+The same capability remains available through the admin API if you need scripted provisioning.
 
 Example:
 
@@ -244,7 +261,7 @@ After revocation:
 1. Start the Docker stack.
 2. Create the first admin.
 3. Sign in to `/dashboard/login`.
-4. Create one client per real MCP consumer through the admin API.
+4. Create one client per real MCP consumer from the dashboard.
 5. Scope each client to the smallest needed tool set.
 6. Prefer direct client-key auth for local `SSE` and `stdio` integrations.
 7. Use onboarding templates from the admin API, not handwritten config.

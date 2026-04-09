@@ -96,7 +96,7 @@ Use the step-by-step guide here:
 2. Open [http://localhost:8800/setup](http://localhost:8800/setup) on a fresh deployment.
 3. Save the one-time `mk_...` admin API key.
 4. Open [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login) and sign in.
-5. Create one MCP client per real consumer through the admin API today. Dedicated dashboard UI for client creation is planned as the next dashboard wave.
+5. Create one MCP client per real consumer directly from the dashboard.
 
 ### Client onboarding
 
@@ -150,7 +150,8 @@ flowchart LR
 - The dev stack defaults to port `8800`
 - `LangGraph`, `llama-cpp-python`, and `LiteLLM` are wired with runtime auto-detection
 - The current admin UI is server-rendered and onboarding-focused, not yet the full production dashboard planned in broader `Phase 4`
-- Client creation and key management currently exist on the admin HTTP API; the dedicated browser UI for those actions is tracked as the next dashboard wave
+- Browser-native client registry and create-client flow are now available from `/dashboard`
+- Client detail, revoke/rotate, onboarding snippets, and activity views are still tracked as later dashboard waves
 - `Phase 4.1` is complete: browser setup, browser admin login, admin API-key recovery, SSE direct client-key auth, and stdio direct client-key auth are all implemented and covered by tests
 
 ## Validation

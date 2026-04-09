@@ -426,3 +426,90 @@ async def test_dashboard_supports_cookie_login_and_logout(
         dashboard_after_logout = await client.get("/dashboard", follow_redirects=False)
         assert dashboard_after_logout.status_code == 303
         assert dashboard_after_logout.headers["location"] == "/dashboard/login"
+
+
+@pytest.mark.asyncio
+async def test_dashboard_renders_client_registry_and_create_form(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+) -> None:
+    admin_user, api_key = await auth.register_user(
+        email="registry-admin@example.com",
+        username="registry_admin",
+        display_name="Registry Admin",
+        role=UserRole.ADMIN,
+    )
+    await auth.register_client(
+        name="Registry Client",
+        slug="registry-client",
+        created_by_user_id=admin_user.id,
+        tool_scopes=["minder_query"],
+        repo_scopes=["/workspace/repo"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
+        assert login_response.status_code == 303
+
+        dashboard_response = await client.get("/dashboard")
+
+    assert dashboard_response.status_code == 200
+    assert "Registry Client" in dashboard_response.text
+    assert "Create Client" in dashboard_response.text
+    assert "name=\"name\"" in dashboard_response.text
+    assert "name=\"slug\"" in dashboard_response.text
+    assert "name=\"tool_scopes\"" in dashboard_response.text
+    assert "name=\"repo_scopes\"" in dashboard_response.text
+
+
+@pytest.mark.asyncio
+async def test_dashboard_can_create_client_from_browser_session(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+) -> None:
+    _admin_user, api_key = await auth.register_user(
+        email="browser-create-admin@example.com",
+        username="browser_create_admin",
+        display_name="Browser Create Admin",
+        role=UserRole.ADMIN,
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
+        assert login_response.status_code == 303
+
+        create_response = await client.post(
+            "/dashboard/clients",
+            data={
+                "name": "Browser Created Client",
+                "slug": "browser-created-client",
+                "description": "Created from the dashboard form",
+                "tool_scopes": "minder_query, minder_search_code",
+                "repo_scopes": "/workspace/repo, /workspace/docs",
+            },
+        )
+        dashboard_response = await client.get("/dashboard")
+
+    assert create_response.status_code == 200
+    assert "Client Created" in create_response.text
+    assert "Browser Created Client" in create_response.text
+    assert "mkc_" in create_response.text
+
+    assert dashboard_response.status_code == 200
+    assert "Browser Created Client" in dashboard_response.text
+    assert "browser-created-client" in dashboard_response.text
+    assert "mkc_" not in dashboard_response.text

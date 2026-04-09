@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-09 (planned Phase 4.2 client-management dashboard UI)
+> **Last updated**: 2026-04-09 (P4.2-Wave1 client registry and create form implemented)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `DONE` | `closed` | - | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable. |
-| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4.2-Wave1` | Client management dashboard UI is still missing even though backend onboarding APIs exist | `Phase 4.0` and `Phase 4.1` are closed; the next priority is browser-native client creation and management. |
+| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4.2-Wave2` | Client detail, onboarding snippets, and activity views are still missing from the browser UI | `Phase 4.0` and `Phase 4.1` are closed; `P4.2-Wave1` delivered browser-native client registry and create-client flow. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
 ---
@@ -126,7 +126,7 @@
 | `P4-T04` Rate Limiting and Quotas | `P4-Wave1` | `DONE` | `-` | Added `RateLimiter`, role-based per-tool thresholds, transport enforcement, and full-suite verification (`250 passed, 14 skipped`). |
 | `P4-T05` Observability Stack | `backlog` | `NOT STARTED` | `Depends on dashboard and prod runtime metrics shape` | OpenTelemetry, Prometheus, and structured logs are not implemented yet. |
 | `P4-T06` Production Docker Compose | `backlog` | `NOT STARTED` | `Depends on observability and infra decisions` | Dev compose exists; production compose and secrets handling do not. |
-| `P4-T07` Dashboard Backend API | `P4-Wave4` | `PARTIAL` | `Client-management browser flows still depend on raw admin endpoints` | Added browser admin sign-in and logout flow for `/dashboard` via `HttpOnly` JWT cookie while preserving bearer auth for API/admin clients. |
+| `P4-T07` Dashboard Backend API | `P4-Wave4` | `PARTIAL` | `Browser UI still needs detail, revoke/rotate, and onboarding surfaces` | Added browser admin sign-in/logout, dashboard client creation flow, and reuse of existing admin endpoints via server-rendered routes. |
 | `P4-T08` Dashboard Frontend — Workflow Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Full workflow management UI is still backlog. |
 | `P4-T09` Dashboard Frontend — Repository & User Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Only lightweight Phase 4.0 dashboard exists today. |
 | `P4-T10` Dashboard Frontend — Observability | `backlog` | `NOT STARTED` | `Depends on metrics/audit backend` | No observability UI yet. |
@@ -161,8 +161,8 @@
 
 | Task | Wave | Status | Blocker | Notes |
 |---|---|---|---|---|
-| `P4.2-T01` Client Registry Screen | `P4.2-Wave1` | `NOT STARTED` | `Needs dashboard page expansion beyond the current shell` | `/dashboard` currently exists, but it is not yet a real browser-native client registry UI. |
-| `P4.2-T02` Create Client Form | `P4.2-Wave1` | `NOT STARTED` | `Needs browser form + one-time key reveal UX` | Client creation exists on `POST /v1/admin/clients`, but not in the browser UI. |
+| `P4.2-T01` Client Registry Screen | `P4.2-Wave1` | `DONE` | `-` | `/dashboard` now renders a real registry view with existing client cards and an actionable browser-native management panel. |
+| `P4.2-T02` Create Client Form | `P4.2-Wave1` | `DONE` | `-` | Added a browser form at `/dashboard` and `POST /dashboard/clients` flow that creates a client through the admin backend contract and reveals the new client API key exactly once. |
 | `P4.2-T03` Client Detail and Key Management UI | `P4.2-Wave2` | `NOT STARTED` | `Depends on client detail page and existing key endpoints` | Rotate/revoke is API-backed today; no browser UI yet. |
 | `P4.2-T04` Onboarding Snippets and Copy UX | `P4.2-Wave2` | `NOT STARTED` | `Depends on create/detail screens` | Onboarding templates exist in the backend but are not surfaced through a browser-native flow yet. |
 | `P4.2-T05` Dashboard Connection Test and Activity Surface | `P4.2-Wave3` | `NOT STARTED` | `Depends on dashboard detail screens` | Backend test-connection and audit endpoints exist, but the dashboard does not expose them meaningfully yet. |
@@ -173,8 +173,8 @@
 | Wave | Focus | Tasks | Status |
 |---|---|---|---|
 | `P4-Wave1` | Rate Limiting and Quotas | `P4-T04` | `DONE` |
-| `P4.2-Wave1` | Client Registry + Create Client UI | `P4.2-T01`, `P4.2-T02` | `READY` |
-| `P4.2-Wave2` | Client Detail + Onboarding UI | `P4.2-T03`, `P4.2-T04` | `BACKLOG` |
+| `P4.2-Wave1` | Client Registry + Create Client UI | `P4.2-T01`, `P4.2-T02` | `DONE` |
+| `P4.2-Wave2` | Client Detail + Onboarding UI | `P4.2-T03`, `P4.2-T04` | `READY` |
 | `P4.2-Wave3` | Connection Test + Activity UI | `P4.2-T05` | `BACKLOG` |
 | `P4.2-Wave4` | Browser-Only Client Management Gate | `P4.2-VERIFY` | `BACKLOG` |
 | `P4-Wave2` | Observability Foundation | `P4-T05` | `BACKLOG` |

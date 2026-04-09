@@ -48,20 +48,39 @@ Expected local model files:
 ~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
 ```
 
-## 1. Build and Start the Production Stack
+## 1. Recommended Release Install
+
+From the GitHub release page, run the attached installer script:
+
+```bash
+curl -fsSL https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.sh | bash
+```
+
+That script creates a deployment directory, downloads `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, writes a local `.env` with the release image tags, and starts the full stack.
+
+## 2. Manual Compose Install
 
 Run:
 
 ```bash
-docker compose -f docker/docker-compose.yml up --build -d
+export MINDER_API_IMAGE=ghcr.io/<owner>/minder-api:<tag>
+export MINDER_DASHBOARD_IMAGE=ghcr.io/<owner>/minder-dashboard:<tag>
+export MINDER_MODELS_DIR=~/.minder/models
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-If you want to build the dashboard locally before packaging:
+Current defaults already point to:
+
+- `ghcr.io/hiimtrung/minder-api:latest`
+- `ghcr.io/hiimtrung/minder-dashboard:latest`
+
+## 2a. Full Source Build
+
+If you want Docker Compose to build everything from the checked-out source instead of pulling GHCR images:
 
 ```bash
-cd src/dashboard
-bun install
-bun run build
+export MINDER_MODELS_DIR=~/.minder/models
+docker compose -f docker/docker-compose.full.yml up --build -d
 ```
 
 The public gateway will listen on:
@@ -69,7 +88,7 @@ The public gateway will listen on:
 - [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 - [http://localhost:8800/sse](http://localhost:8800/sse)
 
-## 2. Bootstrap the First Admin
+## 3. Bootstrap the First Admin
 
 Open:
 
@@ -83,7 +102,7 @@ Fill in:
 
 Minder will show the bootstrap admin API key one time only. Save the `mk_...` value before leaving the page.
 
-## 3. Sign In
+## 4. Sign In
 
 Open:
 
@@ -91,7 +110,7 @@ Open:
 
 Use the saved `mk_...` admin API key.
 
-## 4. Create and Onboard a Client
+## 5. Create and Onboard a Client
 
 After login:
 
@@ -101,7 +120,7 @@ After login:
 4. Open the client detail view
 5. Copy the onboarding snippet for `Codex`, `Copilot-style MCP`, or `Claude Desktop`
 
-## 5. Verify SSE Access
+## 6. Verify SSE Access
 
 Run:
 
@@ -116,7 +135,7 @@ event: endpoint
 data: /messages/?session_id=...
 ```
 
-## 6. Recover an Admin Key
+## 7. Recover an Admin Key
 
 If the admin key is lost:
 
@@ -142,14 +161,10 @@ The production compose file sets:
 For a new release:
 
 ```bash
+export MINDER_API_IMAGE=ghcr.io/<owner>/minder-api:<tag>
+export MINDER_DASHBOARD_IMAGE=ghcr.io/<owner>/minder-dashboard:<tag>
+export MINDER_MODELS_DIR=~/.minder/models
 docker compose -f docker/docker-compose.yml pull
-docker compose -f docker/docker-compose.yml up --build -d
-```
-
-If you build from source locally:
-
-```bash
-docker compose -f docker/docker-compose.yml build
 docker compose -f docker/docker-compose.yml up -d
 ```
 

@@ -6,7 +6,12 @@ interface Props {
   description?: string;
   navTitle?: string;
   navDescription?: string;
-  navLinks?: Array<{ href: string; label: string; tone?: "primary" | "secondary"; currentDetail?: boolean }>;
+  navLinks?: Array<{
+    href: string;
+    label: string;
+    tone?: "primary" | "secondary";
+    currentDetail?: boolean;
+  }>;
   sessionControls?: boolean;
 }
 
@@ -27,35 +32,58 @@ const {
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <link rel="icon" type="image/png" href="/dashboard/favicon.png" />
   </head>
   <body>
     <div class="min-h-screen">
       <header class="mx-auto max-w-6xl px-6 py-6">
-        <div class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+        <div
+          class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-4"
+        >
           <div class="space-y-1">
-            <a href="/dashboard" class="text-lg font-semibold tracking-tight text-stone-900">{navTitle}</a>
+            <a
+              href="/dashboard"
+              class="text-lg font-semibold tracking-tight text-stone-900"
+              >{navTitle}</a
+            >
             <p class="text-sm text-stone-600">{navDescription}</p>
           </div>
           <div class="flex flex-wrap items-center gap-3">
-            {sessionControls && (
-              <div class="flex items-center gap-2">
-                <span
-                  id="dashboard-session-badge"
-                  class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-emerald-800 uppercase"
-                >
-                  Checking Session
-                </span>
-                <button id="dashboard-logout-button" type="button" class="action-pill">
-                  Logout
-                </button>
-              </div>
-            )}
+            {
+              sessionControls && (
+                <div class="flex items-center gap-2">
+                  <span
+                    id="dashboard-session-badge"
+                    class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-emerald-800 uppercase"
+                  >
+                    Checking Session
+                  </span>
+                  <button
+                    id="dashboard-logout-button"
+                    type="button"
+                    class="action-pill"
+                  >
+                    Logout
+                  </button>
+                </div>
+              )
+            }
             <nav class="flex flex-wrap items-center gap-2 text-sm">
-              {navLinks.map((link) => (
-                <a href={link.href} data-current-detail-link={link.currentDetail ? "true" : undefined} class={link.tone === "primary" ? "primary-pill" : "action-pill"}>
-                  {link.label}
-                </a>
-              ))}
+              {
+                navLinks.map((link) => (
+                  <a
+                    href={link.href}
+                    data-current-detail-link={
+                      link.currentDetail ? "true" : undefined
+                    }
+                    class={
+                      link.tone === "primary" ? "primary-pill" : "action-pill"
+                    }
+                  >
+                    {link.label}
+                  </a>
+                ))
+              }
             </nav>
           </div>
         </div>
@@ -63,8 +91,12 @@ const {
       <main class="mx-auto max-w-6xl px-6 pb-16">
         <slot />
       </main>
-      <div id="dashboard-toast-region" class="pointer-events-none fixed right-6 bottom-6 z-50 flex max-w-sm flex-col gap-3"></div>
+      <div
+        id="dashboard-toast-region"
+        class="pointer-events-none fixed right-6 bottom-6 z-50 flex max-w-sm flex-col gap-3"
+      >
+      </div>
     </div>
-    {sessionControls && <script src="../scripts/session-header.ts"></script>}
+    {sessionControls && <script src="../scripts/session-header.ts" />}
   </body>
 </html>

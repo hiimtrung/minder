@@ -100,6 +100,7 @@ Local note:
 - run Minder locally with `uv run python -m minder.server`.
 - run Astro locally with `bun run dev` when you want dashboard hot reload.
 - the production stack is the default [docker/docker-compose.yml](docker/docker-compose.yml).
+- GitHub releases ship a one-shot installer script that writes the runtime compose bundle and starts the published images.
 
 ### 2a. Run Minder and Astro against the local infrastructure
 

@@ -60,7 +60,56 @@ jobs:
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}
 
+      - name: Prepare release assets
+        run: |
+          mkdir -p dist/release
+          cp docker/docker-compose.yml dist/release/docker-compose.yml
+          cp docker/Caddyfile dist/release/Caddyfile
+          sed \
+            -e 's|__REPO_OWNER__|${{ github.repository_owner }}|g' \
+            -e 's|__REPO_NAME__|${{ github.event.repository.name }}|g' \
+            -e 's|__RELEASE_TAG__|${{ github.ref_name }}|g' \
+            scripts/release/install-minder-release.sh > dist/release/install-minder-${{ github.ref_name }}.sh
+          chmod +x dist/release/install-minder-${{ github.ref_name }}.sh
+
+          cat > dist/release/release-notes.md <<EOF
+          ## Quick Start
+
+          One command install from this release:
+
+          ```bash
+          curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/install-minder-${{ github.ref_name }}.sh | bash
+          ```
+
+          This installer will:
+
+          - create a self-contained deployment directory under \`~/.minder/releases/${{ github.ref_name }}\`
+          - fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
+          - write a local \`.env\` with the release image tags
+          - pull \`ghcr.io/${{ github.repository_owner }}/minder-api:${{ github.ref_name }}\`
+          - pull \`ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}\`
+          - start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
+
+          Requirements:
+
+          - Docker with the Compose plugin
+          - local model files in \`~/.minder/models\`
+
+          Manual compose usage is still available with:
+
+          - \`MINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:${{ github.ref_name }}\`
+          - \`MINDER_DASHBOARD_IMAGE=ghcr.io/hiimtrung/minder-dashboard:${{ github.ref_name }}\`
+          - \`MINDER_MODELS_DIR=~/.minder/models\`
+          - \`docker compose -f docker/docker-compose.yml up -d\`
+          EOF
+
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
+          body_path: dist/release/release-notes.md
+          append_body: true
+          files: |
+            dist/release/docker-compose.yml
+            dist/release/Caddyfile
+            dist/release/install-minder-${{ github.ref_name }}.sh
           generate_release_notes: true

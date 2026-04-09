@@ -10,6 +10,7 @@ def test_phase4_3_dashboard_web_scaffold_exists() -> None:
     assert (root / "package.json").exists()
     assert (root / "astro.config.mjs").exists()
     assert (root / "tsconfig.json").exists()
+    assert (root / "public/favicon.png").exists()
     assert (root / "src/styles/global.css").exists()
     assert (root / "src/layouts/DashboardLayout.astro").exists()
     assert (root / "src/pages/login.astro").exists()
@@ -100,6 +101,8 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     assert "navDescription?" in layout
     assert "sessionControls?" in layout
     assert "dashboard-toast-region" in layout
+    assert 'rel="icon"' in layout
+    assert '/dashboard/favicon.png' in layout
     assert 'First-Time Setup' in login_page
     assert 'Admin Login' in setup_page
     assert 'Client Registry' in client_shell

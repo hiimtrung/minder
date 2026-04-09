@@ -11,7 +11,10 @@ services:
       - minder-api
 
   minder-api:
-    image: ${MINDER_API_IMAGE:-ghcr.io/hiimtrung/minder-api:latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: minder-api:full
     restart: unless-stopped
     environment:
       MINDER_SERVER__TRANSPORT: sse
@@ -39,7 +42,10 @@ services:
         condition: service_healthy
 
   dashboard:
-    image: ${MINDER_DASHBOARD_IMAGE:-ghcr.io/hiimtrung/minder-dashboard:latest}
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    image: minder-dashboard:full
     restart: unless-stopped
     depends_on:
       - minder-api

@@ -1,6 +1,6 @@
 # Minder — Task Breakdown
 
-> **Document version**: 1.2 — 2026-04-09 (code audit: confirmed empty observability/learning dirs; post-P4.3 dashboard polish captured)
+> **Document version**: 1.3 — 2026-04-09 (post-P4.3 polish + release installer + production deploy bundle captured)
 > **Status**: ACTIVE DELIVERY BASELINE
 
 ---
@@ -33,9 +33,9 @@ This means the current codebase should be read as:
 The planning baseline is now:
 
 - **Completed**: Phase 1, Phase 2, Phase 2.1, Phase 2.2, Phase 3, Phase 4.0, Phase 4.1, Phase 4.2, and Phase 4.3 are complete and verified.
-- **In progress**: Post-P4.3 dashboard routing polish — `ClientConsoleShell.astro`, `middleware.ts`, and `clients/index.astro` are modified/untracked and need to be committed before P4-Wave2 begins.
+- **Completed**: Post-P4.3 dashboard routing polish, local Astro CORS fallback, favicon plumbing, and release deployment bundle work are implemented and verified.
 - **Current focus**: finish the non-scale Phase 4 product surface by prioritizing observability (`P4-T05`, `src/minder/observability/` is a confirmed-empty placeholder), broader admin/dashboard workflows (`P4-T07`–`P4-T09`), and a security hardening pass (`P4-T12`).
-- **Explicitly deferred for now**: cluster-ready MongoDB/Milvus topologies, Redis HA/failover work, production-scale Compose hardening, and formal load-testing for scale-up readiness.
+- **Explicitly deferred for now**: cluster-ready MongoDB/Milvus topologies, Redis HA/failover work, and formal load-testing for scale-up readiness.
 - **Planning rule**: [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md) is the canonical status board; this file remains the canonical task catalog and prioritization reference.
 
 ---
@@ -210,8 +210,8 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P1-T21: GitHub Actions Release
 
 - **Owner**: `PE`
-- **Requirement**: Create `.github/workflows/release.yml` — triggered on version tags. Run full CI, build multi-arch Docker images, push to ghcr.io, build Python package, create GitHub Release.
-- **Result**: Tagging `v0.1.0` triggers release. Docker image published. GitHub Release created with artifacts.
+- **Requirement**: Create `.github/workflows/release.yml` — triggered on version tags. Run full CI, build multi-arch API/dashboard Docker images, push to ghcr.io, and publish a GitHub Release with a user-facing install script and quick-start notes.
+- **Result**: Tagging `v0.1.0` triggers release. API and dashboard images are published. GitHub Release includes a one-shot installer script and release guidance.
 
 #### P1-T22: Admin Creation Script
 
@@ -926,8 +926,8 @@ The deferred items remain part of the long-term catalog, but they are not the cu
 #### P4-T06: Production Docker Compose
 
 - **Owner**: `PE`
-- **Requirement**: Create `docker/docker-compose.yml` — gateway, Astro dashboard service, Minder API service, MongoDB, Milvus Standalone or cluster-ready Milvus deployment, and Redis. Health checks, restart policies, secrets handling, and volume management must reflect the runtime stack.
-- **Result**: `docker compose -f docker/docker-compose.yml up` starts full production stack. Health checks pass.
+- **Requirement**: Create `docker/docker-compose.yml` as the image-only production runtime and `docker/docker-compose.full.yml` as the build-from-source variant. Add a release installer script that fetches the tagged compose/Caddy bundle from GitHub and starts the full stack from published images.
+- **Result**: Users can either run the image-only production stack directly or execute a one-shot installer from the GitHub Release page. Source builds remain available through `docker/docker-compose.full.yml`.
 
 #### P4-T07: Dashboard Backend API
 

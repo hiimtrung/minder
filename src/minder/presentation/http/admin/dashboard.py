@@ -97,8 +97,15 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return RedirectResponse(url=dev_target, status_code=308)
         return RedirectResponse(url=f"{context.config.dashboard.base_path}/setup", status_code=308)
 
+    async def dashboard_favicon_ico(_):
+        dev_target = _dev_dashboard_url("favicon.png")
+        if dev_target is not None:
+            return RedirectResponse(url=dev_target, status_code=308)
+        return RedirectResponse(url=f"{context.config.dashboard.base_path}/favicon.png", status_code=308)
+
     return [
         Route("/setup", setup_redirect, methods=["GET"]),
+        Route(f"{context.config.dashboard.base_path}/favicon.ico", dashboard_favicon_ico, methods=["GET"]),
         Route(f"{context.config.dashboard.base_path}", dashboard_static, methods=["GET"]),
         Route(f"{context.config.dashboard.base_path}" + "/{asset_path:path}", dashboard_static, methods=["GET"]),
     ]

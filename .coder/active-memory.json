@@ -1,93 +1,97 @@
 {
   "mode": "search",
-  "query": "cors admin dashboard",
+  "query": "github release docker deployment",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-09T16:38:57.498969+07:00",
+  "searched_at": "2026-04-09T16:58:31.90493+07:00",
   "results": [
     {
-      "id": "0e09e8d2-fb1f-496e-abcd-bf33ba9f9eec",
-      "title": "Split Astro dev runtime from Minder backend",
+      "id": "1825a677-2964-491d-9e4d-f434e5ab4832",
+      "title": "Phase 1 Wave 3 delivery assets",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:split-astro-dev-runtime-from-minder-backend",
-      "score": 0.10028233,
-      "tags": [
-        "astro",
-        "dashboard",
-        "dev-runtime",
-        "mcp",
-        "docs"
-      ],
-      "conflict_detected": false,
-      "content": "Added split local frontend-dev mode where Astro runs on 8808 and Minder backend stays on 8800. Dashboard config now supports dev_server_url redirects for /dashboard routes, admin HTTP app enables CORS for the Astro dev origin, and frontend admin API resolves requests through API_URL bridged into PUBLIC_API_URL by Astro config. Onboarding snippets remain dynamic: in local split mode they derive the backend origin from API requests so snippets point to 8800; in Docker/prod static same-origin mode they continue using request origin. Updated README, local setup, system design, and production deployment docs plus focused tests for config, dashboard scaffold, and console gate."
-    },
-    {
-      "id": "77f1c132-ec3e-4d5e-b0c0-cd64c10e7651",
-      "title": "Dashboard integration flow guarded by server state",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:dashboard-integration-flow-guarded-by-server-state",
+      "canonical_key": "document:phase-1-wave-3-delivery-assets",
       "score": 0.086393446,
       "tags": [
-        "dashboard",
-        "auth",
-        "flow",
-        "astro"
+        "phase1",
+        "wave3",
+        "delivery",
+        "docker",
+        "github-actions",
+        "scripts",
+        "tracker"
       ],
       "conflict_detected": false,
-      "content": "The Astro dashboard cannot be treated as a blind static site for admin flows. The correct integration is stateful at the Python layer: /dashboard redirects to /dashboard/setup when no admin exists, to /dashboard/login when admins exist but there is no valid session, and to /dashboard/clients when an admin session is present. Static asset requests under /dashboard must bypass those auth redirects. Frontend JSON admin calls should also redirect 401 responses back to login/setup so the browser flow stays coherent."
+      "content": "Implemented Wave 3 for Phase 1 closure. Added src/minder/server.py as the main app seam that builds the store, transport, and default tool registrations. Added bootstrap and delivery assets: scripts/create_admin.py with tested idempotent admin creation, scripts/seed_skills.py with local skill directory seeding and idempotence coverage, scripts/download_models.sh with skip and checksum behavior, docker/Dockerfile, docker/docker-compose.dev.yml, and GitHub workflows .github/workflows/ci.yml and release.yml. Added docs/PROJECT_PROGRESS.md as the dedicated project progress board and updated docs/TASK_BREAKDOWN.md to link to it. Added tests/integration/test_phase1_wave3_assets.py and verified with uv run ruff check, uv run mypy src, and uv run pytest (94 passed). Tracker status after Wave 3: P1-T22 DONE, P1-T17/P1-T18/P1-T19/P1-T20/P1-T21 PARTIAL pending real runtime execution. Committed as c3d4827 feat: add phase 1 delivery assets."
     },
     {
-      "id": "451337dd-47d9-4e16-a6f2-893f1ccb370e",
-      "title": "Admin route split and architecture docs refresh",
+      "id": "4bc6707e-c67c-4152-8a90-d2e860fbc87c",
+      "title": "Phase 1 task breakdown audit",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:admin-route-split-and-architecture-docs-refresh",
+      "canonical_key": "document:phase-1-task-breakdown-audit",
       "score": 0.086129025,
       "tags": [
-        "architecture",
-        "dashboard",
-        "astro",
-        "admin",
-        "presentation"
+        "docs",
+        "planning",
+        "phase1",
+        "audit",
+        "deployment",
+        "workflow"
       ],
       "conflict_detected": false,
-      "content": "Split admin HTTP presentation into context/api/dashboard modules, removed legacy Python-rendered dashboard handlers, shifted tests to Astro plus JSON admin APIs, and expanded README/operator guides with whole-system architecture diagrams and route responsibilities. routes.py remains only as a composition boundary in the presentation layer."
+      "content": "Audited docs/TASK_BREAKDOWN.md against the actual minder repository state. Added a Phase 1 implementation audit, a per-task status map, a current runnable local flow section, and an explicit closure checklist. Key finding: Phase 1 is still open despite strong foundation code. Missing or partial areas are MCP transports (SSE/stdio), repo-local .minder state, standalone workflow/memory/auth/session tool modules, bootstrap scripts, docker development stack, GitHub Actions CI/release workflows, and tests/integration/test_phase1_gate.py. Also removed a stale reference to docs/PHASE2_MANUAL_TEST.md because that file does not exist in the workspace."
     },
     {
-      "id": "bc25a073-6465-4079-8e8a-fe69af3b77dd",
-      "title": "UI API error code documentation",
+      "id": "60ba7da9-afbe-4e10-84e4-066b428e7c08",
+      "title": "Local onboarding docs and port 8800 defaults",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:ui-api-error-code-documentation",
+      "canonical_key": "document:local-onboarding-docs-and-port-8800-defaults",
       "score": 0.08587302,
       "tags": [
-        "documentation",
-        "error-codes",
-        "ui",
-        "domain-exception",
-        "frontend"
+        "docs",
+        "onboarding",
+        "readme",
+        "port-8800",
+        "phase4"
       ],
       "conflict_detected": false,
-      "content": "Created detailed UI-facing documentation for backend error handling based on src/shared/error-codes.enum.ts, src/shared/domain-exception.ts, and src/shared/filters/domain-exception.filter.ts. The doc explains canonical DomainException response shape, legacy auth error codes still emitted by the filter (AUTH_1001, AUTH_1005, AUTH_1006, SYS_5001), handling priority for UI (errorCode -\u003e statusCode -\u003e message -\u003e details), grouped code catalog with recommended UX actions, and guidance to centralize error mapping in the UI. Added docs link in findtourgoUI/docs/README.md."
+      "content": "Rewrote the root README as a real documentation entrypoint, added docs/guides/local-setup.md and docs/guides/admin-client-onboarding.md, and switched local dev defaults from port 8080 to 8800 in config, minder.toml, Dockerfile, docker-compose.dev.yml, and generated onboarding templates in src/minder/server.py. The guides are explicit that /dashboard exists but still needs bearer auth because a browser-native admin login form is not implemented yet. Verified with mypy and targeted pytest covering config, delivery assets, phase 4 admin HTTP, and the phase 4 gateway e2e flow."
     },
     {
-      "id": "d0b7c082-cfca-48fe-b482-5138edaf74f7",
-      "title": "Onboarding snippets follow request origin",
+      "id": "d20017e3-4468-46b0-be5b-e4d04959049f",
+      "title": "packageTourApi docker-compose with local.env",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:onboarding-snippets-follow-request-origin",
+      "canonical_key": "document:packagetourapi-docker-compose-with-local-env",
       "score": 0.08562499,
       "tags": [
-        "dashboard",
-        "onboarding",
-        "origin",
-        "http"
+        "packageTourApi",
+        "docker",
+        "compose",
+        "localenv"
       ],
       "conflict_detected": false,
-      "content": "Changed admin onboarding and connection-test template generation so HTTP routes derive the public base URL from request.base_url and pass it into the admin use case. This removes hardcoded localhost values from dashboard snippets and makes deployed domains show correctly, while keeping localhost as a fallback for pure use-case or unit-test calls without request context."
+      "content": "Created docker-compose.yml with single app service using Dockerfile build and env_file local.env, exposed port 8080:8080, restart unless-stopped. Validated configuration with docker compose config successfully."
+    },
+    {
+      "id": "8484fef7-8925-4dd5-bb75-9be67d587489",
+      "title": "Hardened Minder Docker verification contract",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:hardened-minder-docker-verification-contract",
+      "score": 0.08538462,
+      "tags": [
+        "minder",
+        "phase-2.2",
+        "verification",
+        "docker",
+        "tests"
+      ],
+      "conflict_detected": false,
+      "content": "Continued Phase 2.2 verification by classifying verification failures (docker_unavailable, image_missing, timeout, container_error, unsupported_language), normalizing result contracts, handling subprocess and docker timeouts explicitly, and checking docker image availability before run. Updated verification unit coverage and phase2x integration assertions. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (85 passed)."
     }
   ]
 }

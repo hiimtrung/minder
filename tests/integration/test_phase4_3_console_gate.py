@@ -72,6 +72,61 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_drops_legacy_co
 
 
 @pytest.mark.asyncio
+async def test_phase4_3_console_gate_serves_root_favicon_png(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.get("/favicon.png")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("image/png")
+
+
+@pytest.mark.asyncio
+async def test_phase4_3_console_gate_redirects_root_favicon_ico_to_png(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.get("/favicon.ico")
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "/favicon.png"
+
+
+@pytest.mark.asyncio
+async def test_phase4_3_console_gate_redirects_dashboard_favicon_ico_to_png(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    config.dashboard.base_path = "/dashboard"
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.get("/dashboard/favicon.ico")
+
+    assert response.status_code == 308
+    assert response.headers["location"] == "/dashboard/favicon.png"
+
+
+@pytest.mark.asyncio
 async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_state(
     store: RelationalStore,
     tmp_path: Path,

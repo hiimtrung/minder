@@ -601,6 +601,129 @@ def build_http_routes(
 </html>
 """
 
+    def _dashboard_client_detail_html(
+        *,
+        client: dict[str, Any],
+        templates: dict[str, str],
+        all_keys_revoked: bool,
+    ) -> str:
+        client_name = html.escape(str(client.get("name", "")))
+        client_slug = html.escape(str(client.get("slug", "")))
+        client_description = html.escape(str(client.get("description", "") or "No description yet."))
+        scopes = html.escape(", ".join(client.get("tool_scopes", [])) or "No scopes assigned")
+        repos = html.escape(", ".join(client.get("repo_scopes", [])) or "No repo scopes assigned")
+        revoked_banner = (
+            "<p class='status danger'>All client keys are revoked. Issue a new key to reconnect this client.</p>"
+            if all_keys_revoked
+            else "<p class='status'>At least one client key is currently active.</p>"
+        )
+        template_blocks = "\n".join(
+            (
+                f"<article class='template-card'>"
+                f"<h3>{html.escape(name)}</h3>"
+                f"<pre>{html.escape(template)}</pre>"
+                f"</article>"
+            )
+            for name, template in templates.items()
+        )
+        return f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{client_name} · Minder Dashboard</title>
+    <style>
+      :root {{ --bg: #f4efe6; --panel: #fffaf0; --ink: #1d1b18; --accent: #af3b2a; --muted: #6f675f; --border: #d7c8b4; }}
+      body {{ margin: 0; font-family: "Iowan Old Style", "Palatino Linotype", serif; background: linear-gradient(135deg, #f7f0e5, var(--bg)); color: var(--ink); }}
+      main {{ max-width: 1100px; margin: 0 auto; padding: 44px 20px 72px; }}
+      .topbar {{ display: flex; justify-content: space-between; gap: 16px; align-items: center; margin-bottom: 24px; flex-wrap: wrap; }}
+      .back {{ color: var(--accent); text-decoration: none; }}
+      .grid {{ display: grid; gap: 20px; }}
+      @media (min-width: 980px) {{ .grid {{ grid-template-columns: 360px 1fr; align-items: start; }} }}
+      .panel {{ border: 1px solid var(--border); background: var(--panel); border-radius: 18px; padding: 20px; box-shadow: 0 10px 30px rgba(29, 27, 24, 0.05); }}
+      h1, h2, h3 {{ margin-top: 0; }}
+      .slug {{ color: var(--accent); margin: 0 0 10px; }}
+      .meta {{ color: var(--muted); margin: 10px 0; }}
+      .status {{ margin: 16px 0; color: #315d30; }}
+      .status.danger {{ color: #8d1d1d; }}
+      form {{ margin: 0 0 12px; }}
+      button {{ border: 0; border-radius: 999px; padding: 12px 16px; font: inherit; color: #fff; background: var(--accent); cursor: pointer; }}
+      .ghost {{ background: #fff; color: var(--ink); border: 1px solid var(--border); }}
+      .templates {{ display: grid; gap: 16px; }}
+      .template-card {{ border: 1px solid var(--border); background: rgba(255,255,255,0.75); border-radius: 16px; padding: 16px; }}
+      pre {{ margin: 0; white-space: pre-wrap; word-break: break-word; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9rem; }}
+      code {{ font-family: "SFMono-Regular", Consolas, monospace; }}
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="topbar">
+        <a class="back" href="/dashboard">← Back to Client Registry</a>
+        <form method="post" action="/dashboard/logout">
+          <button class="ghost" type="submit">Sign Out</button>
+        </form>
+      </div>
+      <div class="grid">
+        <section class="panel">
+          <span class="meta">Client Detail</span>
+          <h1>{client_name}</h1>
+          <p class="slug">{client_slug}</p>
+          <p>{client_description}</p>
+          <p class="meta"><strong>Tool scopes:</strong> {scopes}</p>
+          <p class="meta"><strong>Repo scopes:</strong> {repos}</p>
+          {revoked_banner}
+          <form method="post" action="/dashboard/clients/{client.get("id")}/rotate">
+            <button type="submit">Issue New Client Key</button>
+          </form>
+          <form method="post" action="/dashboard/clients/{client.get("id")}/revoke">
+            <button class="ghost" type="submit">Revoke All Client Keys</button>
+          </form>
+        </section>
+        <section class="panel">
+          <span class="meta">Onboarding Snippets</span>
+          <h2>Onboarding Snippets</h2>
+          <div class="templates">
+            {template_blocks}
+          </div>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
+"""
+
+    def _dashboard_rotated_key_html(*, client_name: str, client_slug: str, client_api_key: str) -> str:
+        escaped_name = html.escape(client_name)
+        escaped_slug = html.escape(client_slug)
+        escaped_key = html.escape(client_api_key)
+        return f"""
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New Client API Key</title>
+    <style>
+      :root {{ --bg: #f4efe6; --panel: #fffaf0; --ink: #1d1b18; --border: #d7c8b4; --accent: #af3b2a; }}
+      body {{ font-family: "Iowan Old Style", serif; background: var(--bg); color: var(--ink); margin:0; padding: 40px; display: grid; place-items: center; min-height: 100vh; }}
+      .card {{ background: var(--panel); border: 1px solid var(--border); padding: 40px; border-radius: 12px; max-width: 640px; width: 100%; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }}
+      code {{ display: block; margin: 18px 0; padding: 14px 16px; border-radius: 8px; background: #fff; border: 1px solid var(--border); word-break: break-all; font-family: "SFMono-Regular", Consolas, monospace; }}
+      a {{ color: white; background: var(--accent); text-decoration: none; padding: 12px 16px; border-radius: 999px; display: inline-block; }}
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <h1>New Client API Key</h1>
+      <p><strong>{escaped_name}</strong> has a new key. Copy it now; Minder will not show it again after you leave this page.</p>
+      <p>Slug: <code>{escaped_slug}</code></p>
+      <code>{escaped_key}</code>
+      <a href="/dashboard">Return to Dashboard</a>
+    </main>
+  </body>
+</html>
+"""
+
     async def setup_page(request: Request) -> HTMLResponse | RedirectResponse:
         if await auth_service.has_admin_users():
             return HTMLResponse("Admin already set up", status_code=403)
@@ -855,6 +978,74 @@ def build_http_routes(
             status_code=200,
         )
 
+    async def dashboard_client_detail(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+
+        client_id = request.path_params["client_id"]
+        client = await store.get_client_by_id(client_id)
+        if client is None:
+            return HTMLResponse("Client not found", status_code=404)
+        client_dict = _serialize_client(client)
+        templates = _onboarding_templates(client)
+        keys = await store.list_client_api_keys(client_id)
+        all_keys_revoked = bool(keys) and all(getattr(key, "status", "active") != "active" for key in keys)
+        return HTMLResponse(
+            _dashboard_client_detail_html(
+                client=client_dict,
+                templates=templates,
+                all_keys_revoked=all_keys_revoked,
+            ),
+            status_code=200,
+        )
+
+    async def dashboard_client_rotate(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+
+        client_id = request.path_params["client_id"]
+        client = await store.get_client_by_id(client_id)
+        if client is None:
+            return HTMLResponse("Client not found", status_code=404)
+        client_api_key = await auth_service.create_client_api_key(
+            client_id=client_id,
+            created_by_user_id=user.id,
+        )
+        return HTMLResponse(
+            _dashboard_rotated_key_html(
+                client_name=str(getattr(client, "name", "")),
+                client_slug=str(getattr(client, "slug", "")),
+                client_api_key=client_api_key,
+            ),
+            status_code=200,
+        )
+
+    async def dashboard_client_revoke(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        try:
+            user = await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+
+        client_id = request.path_params["client_id"]
+        await auth_service.revoke_client_api_keys(client_id, actor_user_id=user.id)
+        return RedirectResponse(url=f"/dashboard/clients/{client_id}", status_code=303)
+
     async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
         if not await auth_service.has_admin_users():
             return RedirectResponse(url="/setup", status_code=303)
@@ -869,10 +1060,12 @@ def build_http_routes(
         cards = "\n".join(
             (
                 f"<article class='client-card'>"
+                f"<a class='card-link' href='/dashboard/clients/{client.id}'>"
                 f"<h2>{html.escape(client.name)}</h2>"
                 f"<p class='slug'>{html.escape(client.slug)}</p>"
                 f"<p>{html.escape(getattr(client, 'description', '') or 'No description yet.')}</p>"
                 f"<p class='scopes'>{html.escape(', '.join(client.tool_scopes) or 'No scopes assigned')}</p>"
+                f"</a>"
                 f"</article>"
             )
             for client in clients
@@ -1010,6 +1203,11 @@ def build_http_routes(
         padding: 18px;
         box-shadow: 0 10px 30px rgba(29, 27, 24, 0.06);
       }}
+      .card-link {{
+        color: inherit;
+        text-decoration: none;
+        display: block;
+      }}
       .client-card h2 {{
         margin: 0 0 6px;
         font-size: 1.2rem;
@@ -1121,6 +1319,9 @@ def build_http_routes(
         Route("/v1/admin/audit", admin_audit, methods=["GET"]),
         Route("/dashboard", dashboard, methods=["GET"]),
         Route("/dashboard/clients", dashboard_create_client, methods=["POST"]),
+        Route("/dashboard/clients/{client_id:uuid}", dashboard_client_detail, methods=["GET"]),
+        Route("/dashboard/clients/{client_id:uuid}/rotate", dashboard_client_rotate, methods=["POST"]),
+        Route("/dashboard/clients/{client_id:uuid}/revoke", dashboard_client_revoke, methods=["POST"]),
     ]
 
 

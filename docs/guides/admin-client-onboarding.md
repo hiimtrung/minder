@@ -17,7 +17,7 @@ Today you can:
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
-- rotate or revoke client keys entirely from a browser form
+- inspect recent client activity and connection tests entirely from the dashboard
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
 - fresh deployment: `/setup`
@@ -247,9 +247,16 @@ The dashboard is at:
 
 If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
+From the dashboard today you can:
+- create a client
+- open a client detail page
+- issue a new client key
+- revoke all client keys for that client
+- read onboarding snippets for Codex, Copilot-style MCP, and Claude Desktop
+
 ## 10. Revoke a client key
 
-If a client key is leaked or rotated, call the revoke endpoint from the admin surface. That endpoint is already available in the backend and covered by tests.
+If a client key is leaked or rotated, open the client detail page in the dashboard and use the revoke action. The same capability also remains available on the admin API.
 
 After revocation:
 - SSE direct auth with the old `mkc_...` key fails

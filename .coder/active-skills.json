@@ -1,37 +1,37 @@
 {
-  "task": "docs consolidation cleanup",
+  "task": "debug astro dev port still showing 4321 instead of 8808",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T12:16:14.125608+07:00",
+  "resolved_at": "2026-04-09T13:44:19.984533+07:00",
   "keep": [],
   "add": [
-    "file-organizer",
-    "aws-cost-cleanup",
-    "android_ui_verification"
+    "documentation-templates",
+    "hugging-face-model-trainer",
+    "coder-cli"
   ],
   "drop": [
-    "code-documentation-doc-generate",
-    "documentation-generation-doc-generate",
-    "makepad-layout"
+    "auri-core",
+    "hugging-face-evaluation",
+    "tool-use-guardian"
   ],
   "skills": [
     {
-      "name": "file-organizer",
+      "name": "documentation-templates",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 7,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "aws-cost-cleanup",
+      "name": "hugging-face-model-trainer",
       "category": "general",
       "score": 0.016129032,
-      "chunk_count": 5,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "android_ui_verification",
-      "category": "general",
+      "name": "coder-cli",
+      "category": "backend",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

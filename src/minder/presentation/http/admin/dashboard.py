@@ -9,9 +9,21 @@ from .context import AdminRouteContext
 
 
 def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
+    def _dev_dashboard_url(asset_path: str = "") -> str | None:
+        dev_server_url = (context.config.dashboard.dev_server_url or "").strip().rstrip("/")
+        if not dev_server_url:
+            return None
+        if asset_path:
+            return f"{dev_server_url}/{asset_path.strip('/')}"
+        return dev_server_url
+
     async def dashboard_static(request):
-        static_dir = Path(context.config.dashboard.static_dir).expanduser()
         asset_path = str(request.path_params.get("asset_path", "")).strip("/")
+        dev_target = _dev_dashboard_url(asset_path)
+        if dev_target is not None:
+            return RedirectResponse(url=dev_target, status_code=307)
+
+        static_dir = Path(context.config.dashboard.static_dir).expanduser()
 
         async def _has_admin_session() -> bool:
             try:
@@ -64,12 +76,18 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     async def console_compat_redirect(request):
         asset_path = str(request.path_params.get("asset_path", "")).strip("/")
+        dev_target = _dev_dashboard_url(asset_path)
+        if dev_target is not None:
+            return RedirectResponse(url=dev_target, status_code=308)
         target = context.config.dashboard.base_path
         if asset_path:
             target = f"{target}/{asset_path}"
         return RedirectResponse(url=target, status_code=308)
 
     async def setup_redirect(_):
+        dev_target = _dev_dashboard_url("setup")
+        if dev_target is not None:
+            return RedirectResponse(url=dev_target, status_code=308)
         return RedirectResponse(url=f"{context.config.dashboard.base_path}/setup", status_code=308)
 
     return [

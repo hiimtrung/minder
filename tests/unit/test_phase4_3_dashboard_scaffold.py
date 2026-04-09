@@ -32,10 +32,17 @@ def test_phase4_3_dashboard_web_package_contract() -> None:
     assert package_json["engines"]["node"] == ">=22.12.0"
     assert "dev" in package_json["scripts"]
     assert "build" in package_json["scripts"]
+    assert package_json["scripts"]["dev"] == "astro dev"
+    assert package_json["scripts"]["preview"] == "astro preview"
     assert package_json["dependencies"]["astro"] == "^6.1.4"
     assert "tailwindcss" in package_json["dependencies"]
     assert "typescript" in package_json["devDependencies"]
     assert 'base: "/dashboard"' in astro_config
+    assert "server:" in astro_config
+    assert "port: 8808" in astro_config
+    assert "preview:" in astro_config
+    assert "process.env.PUBLIC_API_URL ?? process.env.API_URL ?? \"\"" in astro_config
+    assert '"import.meta.env.PUBLIC_API_URL"' in astro_config
 
 
 def test_phase4_3_dashboard_admin_api_client_targets_typed_backend_contracts() -> None:
@@ -47,6 +54,8 @@ def test_phase4_3_dashboard_admin_api_client_targets_typed_backend_contracts() -
     assert "/v1/admin/setup" in admin_api
     assert "/v1/admin/login" in admin_api
     assert "/v1/admin/session" in admin_api
+    assert "PUBLIC_API_URL" in admin_api
+    assert "apiUrl(path)" in admin_api
     assert "export type ClientPayload" in admin_api
     assert "export async function listClients" in admin_api
     assert "export async function getClientDetail" in admin_api

@@ -1,17 +1,18 @@
 # Design: Phase 4.3 Console Clean Architecture and UI Modernization
 
 Canonical system reference:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 **Date**: 2026-04-09
 **Status**: Proposed
-**Related requirements**: [`docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md`](/Users/trungtran/ai-agents/minder/docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md)
+**Related requirements**: [`docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md`](../../docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md)
 
 ---
 
 ## Objective
 
-Refactor [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py) from a one-file web console and MCP bootstrap into a clean composition root, while migrating the browser console to a dedicated `Astro` dashboard backed by typed admin APIs and served as static assets from the Python app.
+Refactor [`src/minder/server.py`](../../src/minder/server.py) from a one-file web console and MCP bootstrap into a clean composition root, while migrating the browser console to a dedicated `Astro` dashboard backed by typed admin APIs and served as static assets from the Python app.
 
 This design keeps the current MCP gateway behavior intact and treats the current browser flows as features to preserve, not code to preserve.
 
@@ -19,7 +20,7 @@ This design keeps the current MCP gateway behavior intact and treats the current
 
 ## Current-State Diagnosis
 
-[`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py) currently mixes:
+[`src/minder/server.py`](../../src/minder/server.py) currently mixes:
 
 - application bootstrap and runtime startup
 - dependency construction for store/cache/vector/transport
@@ -36,7 +37,8 @@ This violates the project clean architecture rules because presentation, applica
 ## Target Architecture
 
 This section describes the Phase 4.3 refactor slice. For the full runtime and deployment shape, see:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 ```mermaid
 flowchart LR
@@ -61,7 +63,7 @@ flowchart LR
 - `infrastructure`: MongoDB, Redis, Milvus, transport/framework glue
 - `bootstrap`: object graph wiring and app assembly only
 
-No HTML rendering or business flow orchestration should remain in [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py) after the migration.
+No HTML rendering or business flow orchestration should remain in [`src/minder/server.py`](../../src/minder/server.py) after the migration.
 
 ---
 
@@ -136,7 +138,7 @@ src/dashboard/
 
 ### 1. Composition Root Extraction
 
-Keep [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py) as a thin entrypoint only:
+Keep [`src/minder/server.py`](../../src/minder/server.py) as a thin entrypoint only:
 
 - load config
 - build store/cache/vector providers
@@ -226,7 +228,7 @@ This keeps the deployed runtime simpler than a separate frontend server while st
 
 ### Wave 1
 
-- extract bootstrap/app factories from [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py)
+- extract bootstrap/app factories from [`src/minder/server.py`](../../src/minder/server.py)
 - extract admin route/controller modules
 - preserve current behavior and tests
 
@@ -265,7 +267,7 @@ This keeps the deployed runtime simpler than a separate frontend server while st
 
 `Phase 4.3` is complete when:
 
-1. [`src/minder/server.py`](/Users/trungtran/ai-agents/minder/src/minder/server.py) is reduced to composition/bootstrap responsibilities
+1. [`src/minder/server.py`](../../src/minder/server.py) is reduced to composition/bootstrap responsibilities
 2. admin HTTP flows live in presentation/application layers
 3. dashboard UI is served from `Astro` static assets
 4. current client-management behavior is preserved
@@ -275,20 +277,20 @@ This keeps the deployed runtime simpler than a separate frontend server while st
 
 ## Risks and Mitigations
 
-| Risk | Impact | Mitigation |
-| --- | --- | --- |
-| Big-bang rewrite of dashboard breaks onboarding | High | Deliver wave-by-wave with parity tests before deleting old views |
-| Backend routes keep leaking business logic | High | Force controller/use-case split before frontend migration |
-| Frontend app and Python API drift | Medium | Define typed DTO contracts and keep API-first migration |
+| Risk                                              | Impact | Mitigation                                                                |
+| ------------------------------------------------- | ------ | ------------------------------------------------------------------------- |
+| Big-bang rewrite of dashboard breaks onboarding   | High   | Deliver wave-by-wave with parity tests before deleting old views          |
+| Backend routes keep leaking business logic        | High   | Force controller/use-case split before frontend migration                 |
+| Frontend app and Python API drift                 | Medium | Define typed DTO contracts and keep API-first migration                   |
 | Session handling diverges between browser and MCP | Medium | Keep browser auth/session logic isolated in admin presentation layer only |
 
 ---
 
 ## ADR Summary
 
-| Decision | Choice |
-| --- | --- |
-| Console backend architecture | Clean split into bootstrap, presentation, application, infrastructure |
-| Dashboard framework | `Astro` + `Tailwind CSS` |
-| Migration mode | Incremental parity migration, not big-bang replacement |
-| Python responsibility after migration | MCP gateway + admin API, not HTML console rendering |
+| Decision                              | Choice                                                                |
+| ------------------------------------- | --------------------------------------------------------------------- |
+| Console backend architecture          | Clean split into bootstrap, presentation, application, infrastructure |
+| Dashboard framework                   | `Astro` + `Tailwind CSS`                                              |
+| Migration mode                        | Incremental parity migration, not big-bang replacement                |
+| Python responsibility after migration | MCP gateway + admin API, not HTML console rendering                   |

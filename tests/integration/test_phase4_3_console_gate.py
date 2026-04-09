@@ -35,7 +35,7 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_isolates_legacy
     (dist / "login" / "index.html").write_text("<html><body>console login</body></html>")
     (dist / "setup" / "index.html").write_text("<html><body>console setup</body></html>")
 
-    config = MinderConfig()
+    config = MinderConfig(_env_file=None)
     config.dashboard.static_dir = str(dist)
     config.dashboard.legacy_compat_enabled = False
     config.dashboard.base_path = "/dashboard"
@@ -91,7 +91,7 @@ async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_
     (dist / "login" / "index.html").write_text("<html><body>dashboard login</body></html>")
     (dist / "setup" / "index.html").write_text("<html><body>dashboard setup</body></html>")
 
-    config = MinderConfig()
+    config = MinderConfig(_env_file=None)
     config.dashboard.static_dir = str(dist)
     config.dashboard.legacy_compat_enabled = False
     config.dashboard.base_path = "/dashboard"
@@ -135,3 +135,29 @@ async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_
     assert authed_root.headers["location"] == "/dashboard/clients"
     assert authed_clients.status_code == 200
     assert "dashboard clients" in authed_clients.text
+
+
+@pytest.mark.asyncio
+async def test_phase4_3_console_gate_redirects_to_separate_dev_console_when_configured(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    config.dashboard.base_path = "/dashboard"
+    config.dashboard.dev_server_url = "http://localhost:8808/dashboard"
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        dashboard_root = await client.get("/dashboard")
+        dashboard_login = await client.get("/dashboard/login")
+        setup_redirect = await client.get("/setup")
+
+    assert dashboard_root.status_code == 307
+    assert dashboard_root.headers["location"] == "http://localhost:8808/dashboard"
+    assert dashboard_login.status_code == 307
+    assert dashboard_login.headers["location"] == "http://localhost:8808/dashboard/login"
+    assert setup_redirect.status_code == 308
+    assert setup_redirect.headers["location"] == "http://localhost:8808/dashboard/setup"

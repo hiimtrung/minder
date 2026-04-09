@@ -17,6 +17,8 @@ class DashboardConfig(BaseModel):
     base_path: str = "/dashboard"
     static_dir: str = "src/dashboard/dist"
     legacy_compat_enabled: bool = False
+    dev_server_url: str | None = None
+    api_url: str | None = None
 
 
 class AuthConfig(BaseModel):
@@ -137,8 +139,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_prefix="MINDER_",
-        env_nested_delimiter="__", 
-        toml_file="minder.toml"
+        env_nested_delimiter="__",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        toml_file="minder.toml",
     )
 
     @classmethod

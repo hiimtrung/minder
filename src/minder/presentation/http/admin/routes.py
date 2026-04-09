@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from starlette.applications import Starlette
+from starlette.middleware import Middleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.routing import BaseRoute
 
 from minder.config import MinderConfig
@@ -30,4 +32,19 @@ def build_http_app(
     store: IOperationalStore,
     cache: ICacheProvider | None = None,
 ) -> Starlette:
-    return Starlette(routes=build_http_routes(config=config, store=store, cache=cache))
+    middleware: list[Middleware] = []
+    dev_server_url = (config.dashboard.dev_server_url or "").strip()
+    if dev_server_url:
+        middleware.append(
+            Middleware(
+                CORSMiddleware,
+                allow_origins=[dev_server_url.rstrip("/")],
+                allow_credentials=True,
+                allow_methods=["*"],
+                allow_headers=["*"],
+            )
+        )
+    return Starlette(
+        routes=build_http_routes(config=config, store=store, cache=cache),
+        middleware=middleware,
+    )

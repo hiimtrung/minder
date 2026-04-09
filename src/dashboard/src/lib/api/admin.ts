@@ -67,6 +67,15 @@ export type SetupAdminPayload = {
   api_key: string;
 };
 
+const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "").trim().replace(/\/$/, "");
+
+function apiUrl(path: string): string {
+  if (!API_BASE_URL) {
+    return path;
+  }
+  return `${API_BASE_URL}${path}`;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const redirectOnUnauthorized = init?.headers instanceof Headers
     ? init.headers.get("X-Minder-Redirect-On-Unauthorized") !== "false"
@@ -76,7 +85,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   headers.set("Content-Type", "application/json");
   headers.delete("X-Minder-Redirect-On-Unauthorized");
 
-  const response = await fetch(path, {
+  const response = await fetch(apiUrl(path), {
     credentials: "include",
     headers,
     ...init,

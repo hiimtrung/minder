@@ -1,7 +1,8 @@
 # 02. Architecture
 
 Canonical reference:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 This planning document keeps the architecture-specific implementation notes that support the phased plan.
 It is not the primary source of truth for runtime topology anymore.
@@ -9,7 +10,8 @@ It is not the primary source of truth for runtime topology anymore.
 ## Expanded Architecture
 
 Runtime topology, dashboard serving, storage topology, and clean architecture boundaries are documented in:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 This file keeps the planning-level node and orchestration notes that matter for implementation sequencing.
 

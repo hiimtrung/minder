@@ -3,7 +3,8 @@
 This guide covers the current onboarding flow for Minder on local Docker.
 
 System-level architecture lives in:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 ## Current Reality
 
@@ -22,6 +23,7 @@ Today you cannot yet:
 - manage broader workflow, repository, and observability screens from the dashboard
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
+
 - fresh deployment: `/dashboard/setup`
 - returning admin: `/dashboard/login`
 - active browser session: `/dashboard`
@@ -73,6 +75,7 @@ For API clients like `curl`, Postman, or Bruno, bearer auth is still useful.
 If you need an admin JWT through MCP, the current codebase still exposes `minder_auth_login`.
 
 Recommended split:
+
 - browser dashboard: cookie session
 - scripted admin API calls: bearer token
 - MCP clients: direct `mkc_...` client API key or token exchange
@@ -86,6 +89,7 @@ Open:
 - [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 
 Use the `Create Client` form to submit:
+
 - name
 - slug
 - description
@@ -94,6 +98,7 @@ Use the `Create Client` form to submit:
 - optional custom repo scope paths in the extra input
 
 Quick UX notes:
+
 - use preset buttons like `Query Only`, `Read Only`, or `Full Dev Assistant` to prefill `Tool Scopes`
 - use `All Repos (*)` when the client should not be limited to one repository
 - use `Custom Repo Scopes` when the path you need is not already listed
@@ -154,6 +159,7 @@ Minder now supports two first-class client auth modes.
 ### Option A: Direct client key auth
 
 Use this when the MCP client can send either:
+
 - `X-Minder-Client-Key: mkc_...` over `SSE`
 - `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
 
@@ -256,6 +262,7 @@ The dashboard is at:
 If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
 From the dashboard today you can:
+
 - create a client
 - open a client detail page
 - issue a new client key
@@ -271,6 +278,7 @@ From the dashboard today you can:
 If a client key is leaked or rotated, open the client detail page in the dashboard and use the revoke action. The same capability also remains available on the admin API.
 
 After revocation:
+
 - SSE direct auth with the old `mkc_...` key fails
 - stdio direct auth with the old `mkc_...` key fails
 - token exchange with the old `mkc_...` key fails

@@ -8,14 +8,18 @@ This guide deploys Minder as a single web application on one port:
 
 The Python app serves the built Astro assets directly, so production does not require a separate frontend runtime.
 
+Local split frontend development on `8808` is a development-only workflow and is not part of the production shape.
+Do not copy the split local frontend `.env` workflow into production images.
+
 Canonical runtime and deployment architecture:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 ## What the Docker Image Builds
 
-The production image in [docker/Dockerfile](/Users/trungtran/ai-agents/minder/docker/Dockerfile) uses two stages:
+The production image in [docker/Dockerfile](../../docker/Dockerfile) uses two stages:
 
-1. `bun` stage builds Astro from [src/dashboard](/Users/trungtran/ai-agents/minder/src/dashboard)
+1. `bun` stage builds Astro from [src/dashboard](../../src/dashboard)
 2. `python` stage copies the built assets to `/app/dashboard-dist`
 
 At runtime, Minder serves:

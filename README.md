@@ -3,6 +3,7 @@
 Minder is an MCP-first engineering assistant platform for repository search, workflow guidance, memory, session state, and low-friction client onboarding.
 
 The local and self-hosted stack is built around:
+
 - `Minder` over `SSE` or `stdio`
 - `MongoDB` for operational data
 - `Redis` for cache, rate limiting, and client sessions
@@ -19,14 +20,16 @@ The local and self-hosted stack is built around:
 
 ## Local Stack
 
-The default local entrypoint is:
+The default local backend entrypoint is:
 
 - SSE server: [http://localhost:8800/sse](http://localhost:8800/sse)
 - Dashboard route: [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 - Token exchange API: [http://localhost:8800/v1/auth/token-exchange](http://localhost:8800/v1/auth/token-exchange)
 
 Note:
-- `/dashboard`, `/dashboard/login`, and `/dashboard/setup` are served by the Astro admin console.
+
+- In Docker and production, `/dashboard`, `/dashboard/login`, and `/dashboard/setup` are served by the built Astro admin console from the Python app on the same origin.
+- In local frontend development, Astro can run separately on `8808` and call Minder on `8800` through `API_URL`.
 - `/console` remains only as a compatibility redirect to `/dashboard`.
 
 ## Quick Start
@@ -43,6 +46,25 @@ Expected output:
 models ready in /Users/<you>/.minder/models
 ```
 
+### 1a. Prepare local env files
+
+Backend:
+
+```bash
+cp .env.example .env
+```
+
+Frontend:
+
+```bash
+cp src/dashboard/.env.example src/dashboard/.env
+```
+
+These defaults are already set for local split development:
+- Minder backend on `8800`
+- Astro dev server on `8808`
+- dashboard API calls to `http://localhost:8800`
+
 ### 2. Start the full Docker stack
 
 ```bash
@@ -58,6 +80,7 @@ bun run build
 ```
 
 Frontend baseline:
+
 - Astro `6.1.4`
 - Bun `1.2.21`
 - Node `22.12+` if you run frontend tooling without Bun
@@ -69,6 +92,32 @@ Services started by this stack:
 - `redis` on port `6379`
 - `milvus-standalone` on port `19530`
 - `etcd` and `minio` as Milvus dependencies
+
+### 2a. Optional local frontend-dev split mode
+
+If you want Astro hot reload independently from Minder, run the backend and the dashboard separately.
+
+Backend:
+
+```bash
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+```
+
+Frontend:
+
+```bash
+cd src/dashboard
+bun install
+bun run dev
+```
+
+In this mode:
+
+- Astro dev server runs on [http://localhost:8808/dashboard](http://localhost:8808/dashboard)
+- Minder APIs stay on [http://localhost:8800](http://localhost:8800)
+- dashboard requests go cross-origin to `API_URL` from `src/dashboard/.env`
+- Astro bridges `API_URL` into the client bundle as `PUBLIC_API_URL`
+- onboarding snippets use the backend origin derived from the incoming API request, so local snippets point to the Minder backend on `8800`
 
 ### 3. Create the first admin in the browser
 
@@ -98,9 +147,9 @@ Sign in with the `mk_...` admin API key from the previous step. Minder stores th
 
 Use the step-by-step guide here:
 
-- [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
-- [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
-- [Production Deployment Guide](/Users/trungtran/ai-agents/minder/docs/guides/production-deployment.md)
+- [Local Setup Guide](docs/guides/local-setup.md)
+- [Admin and Client Onboarding Guide](docs/guides/admin-client-onboarding.md)
+- [Production Deployment Guide](docs/guides/production-deployment.md)
 
 ## Operator Flows
 
@@ -135,20 +184,21 @@ The old admin API key becomes invalid immediately, and Minder writes an audit ev
 
 ## Documentation Map
 
-- [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
-- [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
-- [Production Deployment Guide](/Users/trungtran/ai-agents/minder/docs/guides/production-deployment.md)
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
-- [Phase 4.1 Requirements](/Users/trungtran/ai-agents/minder/docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
-- [Gateway Auth and Dashboard Design](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
-- [Task Breakdown](/Users/trungtran/ai-agents/minder/docs/TASK_BREAKDOWN.md)
-- [Project Progress](/Users/trungtran/ai-agents/minder/docs/PROJECT_PROGRESS.md)
-- [Project Plan](/Users/trungtran/ai-agents/minder/docs/PLAN.md)
+- [Local Setup Guide](docs/guides/local-setup.md)
+- [Admin and Client Onboarding Guide](docs/guides/admin-client-onboarding.md)
+- [Production Deployment Guide](docs/guides/production-deployment.md)
+- [System Design](docs/system-design.md)
+- [Phase 4.1 Requirements](docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
+- [Gateway Auth and Dashboard Design](docs/design/mcp-gateway-auth-dashboard.md)
+- [Task Breakdown](docs/TASK_BREAKDOWN.md)
+- [Project Progress](docs/PROJECT_PROGRESS.md)
+- [Project Plan](docs/PLAN.md)
 
 ## Architecture
 
 Canonical reference:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](docs/system-design.md)
 
 ```mermaid
 flowchart TB
@@ -177,7 +227,8 @@ flowchart TB
 ### Runtime Layers
 
 See also:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](docs/system-design.md)
 
 ```mermaid
 flowchart LR
@@ -195,23 +246,26 @@ flowchart LR
 ### Project Layout
 
 See the consolidated architecture document:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
-- [`src/dashboard`](/Users/trungtran/ai-agents/minder/src/dashboard): Astro admin console served by the Python app
-- [`src/minder/presentation/http/admin`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin): HTTP presentation layer
-- [`src/minder/application/admin`](/Users/trungtran/ai-agents/minder/src/minder/application/admin): admin use cases and DTOs
-- [`src/minder/auth`](/Users/trungtran/ai-agents/minder/src/minder/auth): auth, principals, middleware, rate limits
-- [`src/minder/tools`](/Users/trungtran/ai-agents/minder/src/minder/tools): MCP tool surface
-- [`src/minder/store`](/Users/trungtran/ai-agents/minder/src/minder/store): MongoDB/relational/vector/cache adapters
+- [System Design](docs/system-design.md)
 
-`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. Details now live in [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md).
+- [`src/dashboard`](src/dashboard): Astro admin console served by the Python app
+- [`src/minder/presentation/http/admin`](src/minder/presentation/http/admin): HTTP presentation layer
+- [`src/minder/application/admin`](src/minder/application/admin): admin use cases and DTOs
+- [`src/minder/auth`](src/minder/auth): auth, principals, middleware, rate limits
+- [`src/minder/tools`](src/minder/tools): MCP tool surface
+- [`src/minder/store`](src/minder/store): MongoDB/relational/vector/cache adapters
+
+`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. Details now live in [System Design](docs/system-design.md).
 
 ## Runtime Notes
 
 - Local model files are expected in `~/.minder/models`
 - The dev stack defaults to port `8800`
+- Minder loads root `.env` automatically
 - `LangGraph`, `llama-cpp-python`, and `LiteLLM` are wired with runtime auto-detection
-- The admin console ships as an Astro build from [src/dashboard](/Users/trungtran/ai-agents/minder/src/dashboard) and is served by the Python app on the same port.
+- The admin console ships as an Astro build from [src/dashboard](src/dashboard) and is served by the Python app on the same port in Docker and production.
+- Local frontend development can instead run Astro on `8808` with `src/dashboard/.env` setting `API_URL=http://localhost:8800`.
 - Browser-native client registry, detail, rotate/revoke, onboarding snippets, activity, and connection testing are all available under `/dashboard`.
 - The Docker image bakes the Astro build into `/app/dashboard-dist`; Compose points `MINDER_DASHBOARD__STATIC_DIR` there for production-safe serving.
 - `Phase 4.1`, `Phase 4.2`, and `Phase 4.3` are implemented and covered by tests.

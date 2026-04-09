@@ -2,8 +2,14 @@
 
 This guide gets a fresh Minder stack running locally on port `8800`, including browser admin bootstrap and MCP connectivity checks.
 
+It covers two local modes:
+
+- Docker-like local runtime where Python serves the built Astro console on `8800`
+- split frontend-dev runtime where Astro runs on `8808` and calls Minder on `8800`
+
 System-level architecture lives in:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 ## Prerequisites
 
@@ -32,6 +38,25 @@ Expected files:
 ~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
 ```
 
+## 1a. Create local env files
+
+Backend:
+
+```bash
+cp .env.example .env
+```
+
+Frontend:
+
+```bash
+cp src/dashboard/.env.example src/dashboard/.env
+```
+
+The example files already target:
+- Minder backend on `8800`
+- Astro dev server on `8808`
+- dashboard API calls to `http://localhost:8800`
+
 ## 2. Start the Docker stack
 
 Run:
@@ -56,6 +81,37 @@ Recommended check:
 ```bash
 docker compose -f docker/docker-compose.dev.yml ps
 ```
+
+## 2a. Optional split frontend-dev mode
+
+Use this when you want Astro hot reload independently from the Python backend.
+
+Start Minder:
+
+```bash
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+```
+
+Start Astro:
+
+```bash
+cd src/dashboard
+bun install
+bun run dev
+```
+
+Open:
+
+- [http://localhost:8808/dashboard](http://localhost:8808/dashboard)
+
+Important behavior:
+
+- Astro runs on `8808`
+- Minder APIs stay on `8800`
+- the frontend calls Minder through `API_URL` from `src/dashboard/.env`
+- Astro bridges `API_URL` into the browser-safe `PUBLIC_API_URL`
+- onboarding snippets and connection-test templates use the backend origin seen by Minder, so in split mode they resolve to `http://localhost:8800`
+- in Docker and production, this split-runtime `.env` is not needed because Python serves the built dashboard on the same origin
 
 ## 3. Open the first-run setup page
 
@@ -121,7 +177,7 @@ Protected tool calls can now resolve the client principal directly from `MINDER_
 
 Continue with:
 
-- [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
+- [Admin and Client Onboarding Guide](../../docs/guides/admin-client-onboarding.md)
 
 ## Route Map
 
@@ -131,6 +187,13 @@ Continue with:
 - `/v1/admin/*`: admin JSON APIs used by the dashboard
 - `/v1/auth/token-exchange`: client key to bearer token exchange
 - `/sse`: MCP SSE entrypoint
+
+Split frontend-dev URL map:
+
+- `http://localhost:8808/dashboard/*`: Astro dev console
+- `http://localhost:8800/v1/admin/*`: admin APIs
+- `http://localhost:8800/v1/auth/*`: auth APIs
+- `http://localhost:8800/sse`: MCP SSE entrypoint
 
 ## Troubleshooting
 

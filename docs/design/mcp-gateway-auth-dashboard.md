@@ -1,7 +1,8 @@
 # MCP Gateway Auth Dashboard Design
 
 Canonical system reference:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 > **Document version**: 1.0
 > **Date**: 2026-04-08
@@ -124,7 +125,8 @@ The client should not need to manually call `minder_auth_login`.
 ## 5. High-Level Architecture
 
 This section is feature-specific. For the full platform topology, see:
-- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+- [System Design](../../docs/system-design.md)
 
 ```mermaid
 flowchart LR
@@ -467,24 +469,31 @@ MongoDB remains the durable source of record for metadata and audit trails.
 - dashboard admin login
 
 ### `GET /v1/admin/clients`
+
 - list clients
 
 ### `POST /v1/admin/clients`
+
 - create client
 
 ### `GET /v1/admin/clients/:id`
+
 - client details
 
 ### `PATCH /v1/admin/clients/:id`
+
 - update client metadata and scopes
 
 ### `POST /v1/admin/clients/:id/keys`
+
 - create a new client API key
 
 ### `POST /v1/admin/keys/:id/revoke`
+
 - revoke existing client API key
 
 ### `GET /v1/admin/audit`
+
 - audit log query
 
 ## 12.2 Client auth APIs

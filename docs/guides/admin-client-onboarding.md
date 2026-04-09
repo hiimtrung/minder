@@ -87,8 +87,14 @@ Use the `Create Client` form to submit:
 - name
 - slug
 - description
-- tool scopes
-- repo scopes
+- tool scopes from the multi-select dropdown
+- repo scopes from the multi-select dropdown
+- optional custom repo scope paths in the extra input
+
+Quick UX notes:
+- use preset buttons like `Query Only`, `Read Only`, or `Full Dev Assistant` to prefill `Tool Scopes`
+- use `All Repos (*)` when the client should not be limited to one repository
+- use `Custom Repo Scopes` when the path you need is not already listed
 
 After submission, Minder shows the new `mkc_...` client API key exactly once.
 

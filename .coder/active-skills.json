@@ -1,40 +1,39 @@
 {
-  "task": "phase 4.2 client management dashboard ui planning",
+  "task": "dashboard create client form scope presets and dropdowns",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T08:13:16.187656+07:00",
-  "keep": [],
+  "resolved_at": "2026-04-09T08:56:03.343894+07:00",
+  "keep": [
+    "grafana-dashboards",
+    "ui-styling"
+  ],
   "add": [
-    "kpi-dashboard-design",
-    "conductor-status",
-    "build"
+    "shadcn"
   ],
   "drop": [
-    "grafana-dashboards",
-    "datadog-automation",
-    "ui-styling"
+    "react-native-skills"
   ],
   "skills": [
     {
-      "name": "kpi-dashboard-design",
+      "name": "shadcn",
       "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 5,
+      "chunk_count": 6,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "conductor-status",
+      "name": "grafana-dashboards",
       "category": "frontend",
       "score": 0.016129032,
-      "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "chunk_count": 2,
+      "reason": "kept active: still relevant after re-resolve"
     },
     {
-      "name": "build",
+      "name": "ui-styling",
       "category": "frontend",
       "score": 0.015873017,
       "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "reason": "kept active: still relevant after re-resolve"
     }
   ]
 }

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -26,7 +28,7 @@ requires_fakeredis = pytest.mark.skipif(
 
 
 @pytest_asyncio.fixture
-async def store() -> RelationalStore:
+async def store() -> AsyncGenerator[RelationalStore, None]:
     backend = RelationalStore(IN_MEMORY_URL)
     await backend.init_db()
     yield backend
@@ -466,7 +468,13 @@ async def test_dashboard_renders_client_registry_and_create_form(
     assert "name=\"name\"" in dashboard_response.text
     assert "name=\"slug\"" in dashboard_response.text
     assert "name=\"tool_scopes\"" in dashboard_response.text
+    assert "multiple" in dashboard_response.text
+    assert "Query Only" in dashboard_response.text
+    assert "Read Only" in dashboard_response.text
+    assert "Full Dev Assistant" in dashboard_response.text
     assert "name=\"repo_scopes\"" in dashboard_response.text
+    assert "All Repos (*)" in dashboard_response.text
+    assert "name=\"custom_repo_scopes\"" in dashboard_response.text
 
 
 @pytest.mark.asyncio
@@ -498,8 +506,9 @@ async def test_dashboard_can_create_client_from_browser_session(
                 "name": "Browser Created Client",
                 "slug": "browser-created-client",
                 "description": "Created from the dashboard form",
-                "tool_scopes": "minder_query, minder_search_code",
-                "repo_scopes": "/workspace/repo, /workspace/docs",
+                "tool_scopes": ["minder_query", "minder_search_code"],
+                "repo_scopes": ["*"],
+                "custom_repo_scopes": "/workspace/docs",
             },
         )
         dashboard_response = await client.get("/dashboard")
@@ -512,6 +521,7 @@ async def test_dashboard_can_create_client_from_browser_session(
     assert dashboard_response.status_code == 200
     assert "Browser Created Client" in dashboard_response.text
     assert "browser-created-client" in dashboard_response.text
+    assert "minder_query, minder_search_code" in dashboard_response.text
     assert "mkc_" not in dashboard_response.text
 
 

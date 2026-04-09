@@ -334,6 +334,27 @@ def build_http_routes(
     auth_service = AuthService(store, config, cache=cache)
     middleware = AuthMiddleware(auth_service)
     auth_tools = AuthTools(store, auth_service)
+    dashboard_tool_scope_options = [
+        "minder_query",
+        "minder_search_code",
+        "minder_search_errors",
+        "minder_search",
+        "minder_memory_recall",
+        "minder_workflow_get",
+        "minder_workflow_step",
+    ]
+    dashboard_tool_scope_presets: dict[str, list[str]] = {
+        "Query Only": ["minder_query", "minder_search_code", "minder_search_errors"],
+        "Read Only": [
+            "minder_query",
+            "minder_search_code",
+            "minder_search_errors",
+            "minder_search",
+            "minder_memory_recall",
+            "minder_workflow_get",
+        ],
+        "Full Dev Assistant": dashboard_tool_scope_options,
+    }
 
     def _serialize_client(client: Any) -> dict[str, Any]:
         return {
@@ -367,6 +388,15 @@ def build_http_routes(
 
     def _split_csv(raw: str) -> list[str]:
         return [item.strip() for item in raw.split(",") if item.strip()]
+
+    def _dedupe_preserve_order(values: list[str]) -> list[str]:
+        seen: set[str] = set()
+        deduped: list[str] = []
+        for value in values:
+            if value not in seen:
+                seen.add(value)
+                deduped.append(value)
+        return deduped
 
     async def _recent_client_activity(client_id: str, *, limit: int = 8) -> list[Any]:
         events = await store.list_audit_logs()
@@ -991,8 +1021,10 @@ def build_http_routes(
         name = str(form.get("name", "")).strip()
         slug = str(form.get("slug", "")).strip()
         description = str(form.get("description", "")).strip()
-        tool_scopes = _split_csv(str(form.get("tool_scopes", "")))
-        repo_scopes = _split_csv(str(form.get("repo_scopes", "")))
+        tool_scopes = [str(value).strip() for value in form.getlist("tool_scopes") if str(value).strip()]
+        selected_repo_scopes = [str(value).strip() for value in form.getlist("repo_scopes") if str(value).strip()]
+        custom_repo_scopes = _split_csv(str(form.get("custom_repo_scopes", "")))
+        repo_scopes = _dedupe_preserve_order([*selected_repo_scopes, *custom_repo_scopes])
 
         if not name or not slug:
             return HTMLResponse("Client name and slug are required.", status_code=400)
@@ -1154,6 +1186,33 @@ def build_http_routes(
             return RedirectResponse(url="/dashboard/login", status_code=303)
 
         clients = await store.list_clients()
+        repo_scope_candidates = _dedupe_preserve_order(
+            [
+                "*",
+                "/workspace/repo",
+                "/workspace/docs",
+                *[scope for client in clients for scope in list(getattr(client, "repo_scopes", []))],
+            ]
+        )
+        tool_scope_options_markup = "\n".join(
+            f"<option value='{html.escape(scope)}'>{html.escape(scope)}</option>"
+            for scope in dashboard_tool_scope_options
+        )
+        repo_scope_options_markup = "\n".join(
+            (
+                f"<option value='{html.escape(scope)}'>"
+                f"{'All Repos (*)' if scope == '*' else html.escape(scope)}"
+                f"</option>"
+            )
+            for scope in repo_scope_candidates
+        )
+        preset_buttons_markup = "\n".join(
+            (
+                f"<button type='button' class='preset-button' "
+                f"onclick='applyToolPreset({html.escape(repr(scopes))})'>{html.escape(label)}</button>"
+            )
+            for label, scopes in dashboard_tool_scope_presets.items()
+        )
         cards = "\n".join(
             (
                 f"<article class='client-card'>"
@@ -1174,6 +1233,15 @@ def build_http_routes(
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Minder Dashboard</title>
+    <script>
+      function applyToolPreset(scopes) {{
+        const select = document.getElementById("tool_scopes");
+        if (!select) return;
+        for (const option of select.options) {{
+          option.selected = scopes.includes(option.value);
+        }}
+      }}
+    </script>
     <style>
       :root {{
         --bg: #f4efe6;
@@ -1262,6 +1330,7 @@ def build_http_routes(
         font-size: 0.9rem;
       }}
       .create-panel input,
+      .create-panel select,
       .create-panel textarea {{
         width: 100%;
         box-sizing: border-box;
@@ -1276,6 +1345,9 @@ def build_http_routes(
         min-height: 96px;
         resize: vertical;
       }}
+      .create-panel select[multiple] {{
+        min-height: 140px;
+      }}
       .create-panel button {{
         border: 0;
         border-radius: 999px;
@@ -1288,6 +1360,21 @@ def build_http_routes(
       .create-panel .hint {{
         margin-top: 10px;
         font-size: 0.9rem;
+      }}
+      .preset-row {{
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }}
+      .preset-button {{
+        border: 1px solid var(--border);
+        background: white;
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 8px 12px;
+        font: inherit;
+        cursor: pointer;
       }}
       .registry {{
         display: grid;
@@ -1353,12 +1440,21 @@ def build_http_routes(
             <label for="description">Description</label>
             <textarea id="description" name="description"></textarea>
             <label for="tool_scopes">Tool Scopes</label>
-            <input id="tool_scopes" name="tool_scopes" type="text" placeholder="minder_query, minder_search_code" />
+            <div class="preset-row">
+              {preset_buttons_markup}
+            </div>
+            <select id="tool_scopes" name="tool_scopes" multiple>
+              {tool_scope_options_markup}
+            </select>
             <label for="repo_scopes">Repo Scopes</label>
-            <input id="repo_scopes" name="repo_scopes" type="text" placeholder="/workspace/repo, /workspace/docs" />
+            <select id="repo_scopes" name="repo_scopes" multiple>
+              {repo_scope_options_markup}
+            </select>
+            <label for="custom_repo_scopes">Custom Repo Scopes</label>
+            <input id="custom_repo_scopes" name="custom_repo_scopes" type="text" placeholder="/workspace/another-repo, /workspace/private-docs" />
             <button type="submit">Create Client</button>
           </form>
-          <p class="hint">Use comma-separated values for scopes. Leave a field blank to keep it unrestricted where the backend allows it.</p>
+          <p class="hint">Tool scopes use a multi-select dropdown with quick presets. Repo scopes can be selected from known values and extended with custom comma-separated paths.</p>
         </aside>
         <section class="registry">
           <div class="board">

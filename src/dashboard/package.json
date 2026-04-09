@@ -1,0 +1,24 @@
+{
+  "name": "minder-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.21",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev --host 0.0.0.0 --port 4321",
+    "build": "astro build",
+    "preview": "astro preview --host 0.0.0.0 --port 4321",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@tailwindcss/vite": "^4.1.12",
+    "astro": "^6.1.4",
+    "tailwindcss": "^4.1.12"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.2"
+  }
+}

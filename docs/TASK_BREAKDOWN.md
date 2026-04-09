@@ -634,6 +634,10 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 **Phase 4.0 design doc**: [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
 
+**Phase 4.3 requirements doc**: [`docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md`](/Users/trungtran/ai-agents/minder/docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md)
+
+**Phase 4.3 design doc**: [`docs/design/p4_3_console_clean_architecture_and_ui_modernization.md`](/Users/trungtran/ai-agents/minder/docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
+
 ### Phase 4.0 — MCP Gateway Auth and Dashboard Foundation
 
 **Goal**: Remove the current MCP onboarding friction by introducing a client-aware gateway model, token exchange, and an admin dashboard for client/API key management.
@@ -753,6 +757,55 @@ Before Phase 1 can be considered closed against the original spec, the remaining
   6. Recent activity in the dashboard reflects create and revoke events
 - **Result**: Browser-only client onboarding is complete.
 
+### Phase 4.3 — Console Clean Architecture and UI Modernization
+
+**Goal**: Refactor the current web console out of the one-file `src/minder/server.py` shape, enforce clean architecture boundaries for the admin/backend surface, and migrate the dashboard UI to a maintainable frontend framework.
+
+#### P4.3-T01: Server Composition Root Extraction
+- **Owner**: `BE`
+- **Requirement**: Reduce `src/minder/server.py` to bootstrap/composition only. Move store/cache/vector/transport assembly into `bootstrap` modules and move admin HTTP route registration out of the entrypoint file.
+- **Result**: `server.py` is no longer the home for route handlers, HTML rendering, or dashboard flow logic.
+
+#### P4.3-T02: Admin Presentation Layer Split
+- **Owner**: `BE`
+- **Requirement**: Extract admin HTTP routes, controllers, DTO parsing, cookie/session handling, and redirect/view-model mapping into dedicated presentation modules under `src/minder/presentation/http/`.
+- **Result**: Browser/admin HTTP behavior is isolated from application logic and framework wiring.
+
+#### P4.3-T03: Admin Application Use Cases
+- **Owner**: `BE`
+- **Requirement**: Create explicit use cases for setup, login/logout, list clients, create client, get client detail, issue key, revoke key, test connection, and recent activity. Controllers may call only these use cases, not infrastructure directly.
+- **Result**: Console business flows conform to clean architecture and become testable without route-level coupling.
+
+#### P4.3-T04: Stable Admin API Contract
+- **Owner**: `BE` + `FE`
+- **Requirement**: Normalize the admin/browser surface around typed JSON APIs that the new dashboard can consume. Keep existing auth and client-management semantics, but remove backend dependence on inline HTML rendering.
+- **Result**: The browser console can evolve independently from the Python presentation layer.
+
+#### P4.3-T05: Astro Dashboard Shell
+- **Owner**: `FE`
+- **Requirement**: Introduce `src/dashboard/` using `Astro` + `TypeScript` + `Tailwind CSS`, with lightweight interactive islands only where needed. Add the shell for setup, login, client list, and client detail pages, and plan it to build into static assets that the Python app can serve from `/dashboard`.
+- **Result**: Dashboard UI moves onto a maintainable frontend stack without requiring a separate always-on frontend runtime.
+
+#### P4.3-T06: Client Management UI Migration
+- **Owner**: `FE`
+- **Requirement**: Migrate current browser features from the Python-rendered console into the new dashboard: create client, scope selection, onboarding snippets, rotate/revoke key, connection test, and recent activity.
+- **Result**: Feature parity is reached on the new dashboard UI.
+
+#### P4.3-T07: Legacy Console Decommission
+- **Owner**: `BE` + `FE`
+- **Requirement**: Remove or hard-disable the legacy HTML dashboard rendering path after parity is verified. Keep only MCP runtime, admin APIs, and bootstrap/composition responsibilities in the Python service.
+- **Result**: The old one-file console is no longer part of the production path.
+
+#### P4.3-VERIFY: Clean Console Parity Gate
+- **Owner**: `BE` + `FE`
+- **Requirement**: Add backend and browser end-to-end verification that prove:
+  1. `src/minder/server.py` is reduced to composition/bootstrap responsibilities
+  2. admin HTTP flows go through controllers and use cases
+  3. the new dashboard setup/login/client-management flow works from the Astro frontend
+  4. current client-management features have no regression
+  5. the legacy HTML console path is removed or isolated behind an explicit temporary compatibility seam
+- **Result**: Phase 4.3 is complete and the console now follows clean architecture with a maintainable UI stack.
+
 ### Tasks
 
 #### P4-T01: MongoDB Production Topology Upgrade
@@ -792,17 +845,17 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 #### P4-T08: Dashboard Frontend — Workflow Management
 - **Owner**: `FE`
-- **Requirement**: Build `dashboard/frontend/` — Next.js app. Pages: workflow list, workflow editor (step order, gate config), workflow assignment to repos.
+- **Requirement**: Build `src/dashboard/` — Astro app with Tailwind CSS and interactive islands where needed. Pages: workflow list, workflow editor (step order, gate config), workflow assignment to repos.
 - **Result**: Admin creates/edits workflows in UI. Workflows assign to repos. UI validates step order.
 
 #### P4-T09: Dashboard Frontend — Repository & User Management
 - **Owner**: `FE`
-- **Requirement**: Pages: repo list with workflow state and progress, user management (CRUD, API key rotation, role assignment), blocked items view.
+- **Requirement**: Extend the Astro dashboard with pages for repo list with workflow state and progress, user management (CRUD, API key rotation, role assignment), and blocked items view.
 - **Result**: Admin sees repo progress, manages users, views blocked items. All CRUD operations work through UI.
 
 #### P4-T10: Dashboard Frontend — Observability
 - **Owner**: `FE`
-- **Requirement**: Pages: metrics dashboard (latency, success rates, usage), audit log viewer, CI/CD status integration.
+- **Requirement**: Extend the Astro dashboard with pages for metrics dashboard (latency, success rates, usage), audit log viewer, and CI/CD status integration.
 - **Result**: Metrics display in charts. Audit log is searchable. CI/CD status shows per repo.
 
 #### P4-T11: Load Testing
@@ -890,9 +943,9 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 | **Phase 1** | 24 tasks | P1-VERIFY | Working MCP server with auth, search, workflow, containerized infra, CI/CD |
 | **Phase 2** | 15 tasks | P2-VERIFY | Full LangGraph agentic pipeline with verification |
 | **Phase 3** | 12 tasks | P3-VERIFY | Advanced retrieval, knowledge graph, ingestion |
-| **Phase 4** | 20 tasks | P4-VERIFY | Production scale, dashboard, security, MCP gateway auth onboarding |
+| **Phase 4** | 28 tasks | P4-VERIFY | Production scale, dashboard, security, MCP gateway auth onboarding |
 | **Phase 5** | 6 tasks | P5-VERIFY | Self-improving learning system |
-| **Total** | **77 tasks** | **5 gates** | **Production-ready Minder MCP server** |
+| **Total** | **85 tasks** | **5 gates** | **Production-ready Minder MCP server** |
 
 ### Task Distribution
 

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-import re
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -16,11 +16,16 @@ from minder.store.relational import RelationalStore
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 
 
-def _extract_client_key(html: str) -> str:
-    match = re.search(r"(mkc_[A-Za-z0-9_\-]+)", html)
-    if match is None:
-        raise AssertionError("Expected client API key in HTML response")
-    return match.group(1)
+def _seed_dashboard_dist(dist: Path) -> None:
+    (dist / "clients").mkdir(parents=True)
+    (dist / "login").mkdir(parents=True)
+    (dist / "setup").mkdir(parents=True)
+    (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
+    (dist / "login" / "index.html").write_text("<html><body><h1>Admin Login</h1></body></html>")
+    (dist / "setup" / "index.html").write_text("<html><body><h1>Create the first Minder admin</h1></body></html>")
+    (dist / "clients" / "index.html").write_text(
+        "<html><body><h1>Client Registry</h1><p>Manage MCP clients from the production dashboard.</p><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
+    )
 
 
 @pytest_asyncio.fixture
@@ -32,8 +37,14 @@ async def store() -> AsyncGenerator[RelationalStore, None]:
 
 
 @pytest.fixture
-def config() -> MinderConfig:
-    return MinderConfig()
+def config(tmp_path: Path) -> MinderConfig:
+    dist = tmp_path / "dashboard-dist"
+    _seed_dashboard_dist(dist)
+    config = MinderConfig()
+    config.dashboard.static_dir = str(dist)
+    config.dashboard.base_path = "/dashboard"
+    config.dashboard.legacy_compat_enabled = False
+    return config
 
 
 @pytest.fixture
@@ -66,28 +77,25 @@ async def test_phase4_2_dashboard_gate(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post("/dashboard/login", data={"api_key": admin_api_key})
-        assert login_response.status_code == 303
-        assert login_response.headers["location"] == "/dashboard"
+        login_response = await client.post("/v1/admin/login", json={"api_key": admin_api_key})
+        assert login_response.status_code == 200
 
         create_response = await client.post(
-            "/dashboard/clients",
-            data={
+            "/v1/admin/clients",
+            json={
                 "name": "Dashboard Gate Client",
                 "slug": "dashboard-gate-client",
                 "description": "Created from browser-only gate",
-                "tool_scopes": "minder_query, minder_search_code",
-                "repo_scopes": "/workspace/repo",
+                "tool_scopes": ["minder_query", "minder_search_code"],
+                "repo_scopes": ["/workspace/repo"],
             },
         )
-        assert create_response.status_code == 200
-        assert "Client Created" in create_response.text
-        first_client_key = _extract_client_key(create_response.text)
+        assert create_response.status_code == 201
+        first_client_key = create_response.json()["client_api_key"]
 
         dashboard_response = await client.get("/dashboard")
-        assert dashboard_response.status_code == 200
-        assert "Dashboard Gate Client" in dashboard_response.text
-        assert "dashboard-gate-client" in dashboard_response.text
+        assert dashboard_response.status_code == 303
+        assert dashboard_response.headers["location"] == "/dashboard/clients"
 
         clients_api_response = await client.get("/v1/admin/clients")
         assert clients_api_response.status_code == 200
@@ -100,34 +108,27 @@ async def test_phase4_2_dashboard_gate(
 
         detail_response = await client.get(f"/dashboard/clients/{client_id}")
         assert detail_response.status_code == 200
-        assert "Onboarding Snippets" in detail_response.text
-        assert "Recent Activity" in detail_response.text
-        assert "codex" in detail_response.text
+        assert "Client Registry" in detail_response.text
 
         connection_test_response = await client.post(
-            f"/dashboard/clients/{client_id}/test-connection",
-            data={"client_api_key": first_client_key},
+            "/v1/gateway/test-connection",
+            json={"client_api_key": first_client_key},
         )
         assert connection_test_response.status_code == 200
-        assert "Connection test passed" in connection_test_response.text
-        assert "dashboard-gate-client" in connection_test_response.text
+        assert connection_test_response.json()["client"]["slug"] == "dashboard-gate-client"
 
-        rotate_response = await client.post(f"/dashboard/clients/{client_id}/rotate")
-        assert rotate_response.status_code == 200
-        assert "New Client API Key" in rotate_response.text
-        rotated_key = _extract_client_key(rotate_response.text)
+        rotate_response = await client.post(f"/v1/admin/clients/{client_id}/keys", json={})
+        assert rotate_response.status_code == 201
+        rotated_key = rotate_response.json()["client_api_key"]
         assert rotated_key != first_client_key
 
-        revoke_response = await client.post(f"/dashboard/clients/{client_id}/revoke")
-        assert revoke_response.status_code == 303
-        assert revoke_response.headers["location"] == f"/dashboard/clients/{client_id}"
+        revoke_response = await client.post(f"/v1/admin/clients/{client_id}/keys/revoke", json={})
+        assert revoke_response.status_code == 200
+        assert revoke_response.json()["revoked"] is True
 
         detail_after_revoke = await client.get(f"/dashboard/clients/{client_id}")
         assert detail_after_revoke.status_code == 200
-        assert "All client keys are revoked" in detail_after_revoke.text
-        assert "client.created" in detail_after_revoke.text
-        assert "client.key_created" in detail_after_revoke.text
-        assert "client.key_revoked" in detail_after_revoke.text
+        assert "Client Registry" in detail_after_revoke.text
 
         preflight_old_key = await client.post(
             "/v1/gateway/test-connection",

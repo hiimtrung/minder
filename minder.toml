@@ -6,6 +6,11 @@ host = "0.0.0.0"
 port = 8800
 log_level = "info"
 
+[dashboard]
+base_path = "/dashboard"
+static_dir = "src/dashboard/dist"
+legacy_compat_enabled = false
+
 [auth]
 enabled = true
 jwt_secret = "dev-secret-key-change-me-in-prod"

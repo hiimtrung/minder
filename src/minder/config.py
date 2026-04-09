@@ -13,6 +13,12 @@ class ServerConfig(BaseModel):
     log_level: str = "info"
 
 
+class DashboardConfig(BaseModel):
+    base_path: str = "/dashboard"
+    static_dir: str = "src/dashboard/dist"
+    legacy_compat_enabled: bool = False
+
+
 class AuthConfig(BaseModel):
     enabled: bool = True
     jwt_secret: str = "dev-secret-key-change-me-in-prod"
@@ -114,6 +120,7 @@ class SeedingConfig(BaseModel):
 
 class Settings(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
+    dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
     auth: AuthConfig = Field(default_factory=AuthConfig)
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)

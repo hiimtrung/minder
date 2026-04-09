@@ -1,96 +1,91 @@
 {
   "mode": "search",
-  "query": "dashboard create client form scope presets and dropdowns",
+  "query": "fix astro dashboard integration flow",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-09T08:56:03.447358+07:00",
+  "searched_at": "2026-04-09T11:37:33.09498+07:00",
   "results": [
     {
-      "id": "385666b7-c217-440c-b480-98b4198ed2cd",
-      "title": "Phase 4.2 client dashboard UI planned",
+      "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
+      "title": "Astro dashboard CSS path fix",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-2-client-dashboard-ui-planned",
+      "canonical_key": "document:astro-dashboard-css-path-fix",
       "score": 0.086393446,
       "tags": [
-        "phase-4.2",
         "dashboard",
-        "ui",
-        "planning",
-        "onboarding"
+        "astro",
+        "css",
+        "production"
       ],
       "conflict_detected": false,
-      "content": "Updated README.md, docs/guides/admin-client-onboarding.md, docs/TASK_BREAKDOWN.md, and docs/PROJECT_PROGRESS.md to correct the current UX claim: client creation does not yet exist in the browser dashboard and still goes through the admin API. Added explicit Phase 4.2 planning for client-management dashboard UI with tasks for client registry, create-client form, client detail/key management, onboarding snippet UX, dashboard connection test/activity surface, and a browser-only verification gate. Commit: f108b16."
+      "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
     },
     {
-      "id": "d911904e-117b-487f-a12f-e45a8b6b8181",
-      "title": "packageTourAdmin extracted add subscription modal component",
+      "id": "4a4d9437-dbeb-4e04-ad2a-8587cebf89f1",
+      "title": "Phase 4.3 Wave 3 Astro shell scaffold",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:packagetouradmin-extracted-add-subscription-modal-component",
+      "canonical_key": "document:phase-4-3-wave-3-astro-shell-scaffold",
       "score": 0.086129025,
       "tags": [
-        "packageTourAdmin",
+        "phase4",
+        "dashboard",
+        "astro",
         "frontend",
-        "plan",
-        "refactor",
-        "modal"
+        "scaffold"
       ],
       "conflict_detected": false,
-      "content": "Refactored PlanListScreen by moving the add-subscription modal and form into src/features/Plan/components/AddSubscriptionModal.tsx. The new component owns form state, company/user async selects, modal reset behavior, and validated value collection, while PlanListScreen keeps only modal visibility, selected plan state, and the subscription submit side effect. Verified with yarn tsc --noEmit and eslint on the touched files."
+      "content": "Implemented Phase 4.3 Wave 3 without creating a commit. Added dashboard/web as an Astro plus Tailwind workspace with package.json, astro.config.mjs, tsconfig.json, shared layout, shell pages for setup/login/client list/client detail, global styles, and a typed admin API client aimed at /v1/admin/clients, /v1/admin/audit, and /v1/auth/token-exchange. Verified with scaffold tests plus existing dashboard/admin backend tests; did not run astro build because frontend dependencies were not installed in this turn."
     },
     {
-      "id": "ee2da4ea-973c-4ec4-8766-8ed915f70831",
-      "title": "OmniSidebarFilterPanel: RHF state management + assignee pills from useAssigneeOptions",
+      "id": "77f1c132-ec3e-4d5e-b0c0-cd64c10e7651",
+      "title": "Dashboard integration flow guarded by server state",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:omnisidebarfilterpanel-rhf-state-management-assignee-pills-from-useassigneeoptions",
+      "canonical_key": "document:dashboard-integration-flow-guarded-by-server-state",
       "score": 0.08587302,
       "tags": [
-        "findtourgoUI",
-        "omni-channel",
-        "filter-panel",
-        "react-hook-form",
-        "assignee"
+        "dashboard",
+        "auth",
+        "flow",
+        "astro"
       ],
       "conflict_detected": false,
-      "content": "Refactored OmniSidebarFilterPanel to use React Hook Form (useForm + useController) instead of scattered useState. FilterFormValues = { sort, unread, state, assignedTo }. Single watch() subscription syncs all values to setSearchArgs in one useEffect. State pills bound to stateField, unread toggle to unreadField, sort select to sortField, assign pills to assignedToField. Replaced static ASSIGN_FILTERS ['mine','team'] with dynamic useAssigneeOptions.data — renders staff avatar + label pills, single-select toggle writes userId to assignedTo. Also replaced InboxFilterParams.assignedToMe with assignedTo?: string. Key files: OmniSidebarFilterPanel.tsx, InboxModel.ts."
+      "content": "The Astro dashboard cannot be treated as a blind static site for admin flows. The correct integration is stateful at the Python layer: /dashboard redirects to /dashboard/setup when no admin exists, to /dashboard/login when admins exist but there is no valid session, and to /dashboard/clients when an admin session is present. Static asset requests under /dashboard must bypass those auth redirects. Frontend JSON admin calls should also redirect 401 responses back to login/setup so the browser flow stays coherent."
     },
     {
-      "id": "972b656e-0830-4844-a50c-4a874fc6d41a",
-      "title": "OmniSidebarFilterPanel — State \u0026 AssignTo API integration",
+      "id": "4a88cf90-f928-494f-b310-c69f709aca7e",
+      "title": "Docker esbuild ETXTBSY workaround",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:omnisidebarfilterpanel-state-assignto-api-integration",
+      "canonical_key": "document:docker-esbuild-etxtbsy-workaround",
       "score": 0.08562499,
       "tags": [
-        "findtourgoUI",
-        "omni-channel",
-        "sidebar",
-        "filter-panel",
-        "state",
-        "assignee"
+        "docker",
+        "astro",
+        "esbuild",
+        "build"
       ],
       "conflict_detected": false,
-      "content": "Integrated useInboxStateOptions and useAssigneeOptions hooks into OmniSidebarFilterPanel (src/components/organisms/OmniSidebar/OmniSidebarFilterPanel.tsx). Pattern mirrors ConversationHeader. Added: FilterFormValues type with state+assignedTo fields; useConversationCtx to read selectedInbox; both hooks called at component level; useEffect to reset form on selectedInbox change; UI section (State RHFReactSelect with InboxState formatter + AssignTo RHFReactSelect with ConversationAvatar) rendered inside Form only when selectedInbox?.id exists. Removed stale bare RHFSelect placeholder."
+      "content": "The Astro dashboard builder in docker/Dockerfile hit ETXTBSY during npm install when esbuild validated its binary inside the same install step on Node Alpine. Switching to a split install flow fixes it: run npm install --ignore-scripts first, then run node node_modules/esbuild/install.js in a separate layer, then npm run build. Keep this pattern if the dashboard builder remains on Alpine; if the issue persists, switch only the builder stage to a Debian-based Node image."
     },
     {
-      "id": "066d1a46-344f-40ac-899b-844a81f0d978",
-      "title": "Phase 4.2 Wave 1 dashboard client creation implemented",
+      "id": "5f04c082-3f3f-4ec4-95d6-9be06c1ec5d1",
+      "title": "Dashboard frontend aligned to Astro 6 baseline",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-2-wave-1-dashboard-client-creation-implemented",
+      "canonical_key": "document:dashboard-frontend-aligned-to-astro-6-baseline",
       "score": 0.08538462,
       "tags": [
-        "phase-4.2",
-        "dashboard",
-        "ui",
-        "client-management",
-        "onboarding"
+        "astro",
+        "frontend",
+        "config",
+        "bun"
       ],
       "conflict_detected": false,
-      "content": "Implemented P4.2-Wave1 by expanding /dashboard into a real client registry and adding a browser-native create-client flow. Added a Create Client form on the dashboard, POST /dashboard/clients in src/minder/server.py, one-time client API key reveal page after creation, and targeted browser-session tests in tests/integration/test_phase4_http_admin.py. Updated README.md, docs/guides/admin-client-onboarding.md, and docs/PROJECT_PROGRESS.md to reflect that browser-native client creation now exists while key rotate/revoke, onboarding snippets, and activity views remain for later waves. Verified with pytest, mypy, and ruff. Commit: 25713c9."
+      "content": "Audited the dashboard frontend config against Astro 6 docs. package.json now targets astro ^6.1.4, keeps Bun as the package manager, and declares Node \u003e=22.12.0 for non-Bun frontend tooling in line with the Astro v6 upgrade guide. The strict tsconfig export path had already been fixed separately. bun.lock still needs regeneration in an environment with Bun available."
     }
   ]
 }

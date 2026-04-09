@@ -1,0 +1,53 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import loginPageScript from "../scripts/login-page.ts?url";
+---
+
+<DashboardLayout
+  title="Admin Login · Minder"
+  description="Browser login shell for the Astro-based Minder dashboard."
+>
+  <section class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+    <div class="space-y-5">
+      <p class="eyebrow">Phase 4.3 Wave 3</p>
+      <h1 class="max-w-3xl text-5xl font-semibold tracking-tight text-stone-950">
+        Browser-first admin sign-in is moving out of Python-rendered HTML.
+      </h1>
+      <p class="max-w-2xl text-lg leading-8 text-stone-700">
+        This Astro shell is the new home for the Minder console. In Wave 4 it will
+        submit against the typed admin auth contract and replace the temporary
+        compatibility pages under <code>/dashboard/login</code>.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <a href="/dashboard/clients" class="primary-pill">Open Client Registry</a>
+        <a href="/dashboard/setup" class="action-pill">Open Setup Flow</a>
+      </div>
+    </div>
+
+    <div class="shell-card p-8">
+      <div class="mb-6">
+        <p class="eyebrow">Admin Login</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">Sign in with your admin API key</h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          The backend contract already exists. This shell prepares the Astro migration before
+          the form is wired to the real endpoint.
+        </p>
+      </div>
+
+      <form id="login-form" class="space-y-5">
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-stone-800">Admin API key</span>
+          <input
+            id="api-key"
+            type="password"
+            placeholder="mk_..."
+            class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none ring-0 transition focus:border-amber-700"
+          />
+        </label>
+        <p id="login-status" class="min-h-6 text-sm text-stone-600"></p>
+        <button type="submit" class="primary-pill w-full">Continue to dashboard</button>
+      </form>
+    </div>
+  </section>
+  <script type="module" src={loginPageScript}></script>
+</DashboardLayout>

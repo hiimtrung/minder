@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -27,6 +28,22 @@ requires_fakeredis = pytest.mark.skipif(
 )
 
 
+def _seed_dashboard_dist(dist: Path) -> None:
+    (dist / "clients").mkdir(parents=True)
+    (dist / "login").mkdir(parents=True)
+    (dist / "setup").mkdir(parents=True)
+    (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
+    (dist / "login" / "index.html").write_text(
+        "<html><body><h1>Admin Login</h1><p>Sign in with your admin API key</p></body></html>"
+    )
+    (dist / "setup" / "index.html").write_text(
+        "<html><body><h1>Create the first Minder admin</h1></body></html>"
+    )
+    (dist / "clients" / "index.html").write_text(
+        "<html><body><h1>Client Registry</h1><p>Manage MCP clients from the production dashboard.</p><p>Create client</p><p>Recent Activity</p><p>Copy-ready MCP snippets</p></body></html>"
+    )
+
+
 @pytest_asyncio.fixture
 async def store() -> AsyncGenerator[RelationalStore, None]:
     backend = RelationalStore(IN_MEMORY_URL)
@@ -36,8 +53,14 @@ async def store() -> AsyncGenerator[RelationalStore, None]:
 
 
 @pytest.fixture
-def config() -> MinderConfig:
-    return MinderConfig()
+def config(tmp_path: Path) -> MinderConfig:
+    dist = tmp_path / "dashboard-dist"
+    _seed_dashboard_dist(dist)
+    config = MinderConfig()
+    config.dashboard.static_dir = str(dist)
+    config.dashboard.base_path = "/dashboard"
+    config.dashboard.legacy_compat_enabled = False
+    return config
 
 
 @pytest.fixture
@@ -319,9 +342,8 @@ async def test_dashboard_and_onboarding_routes_render_client_setup(
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
-    assert dashboard_response.status_code == 200
-    assert "Onboarding Client" in dashboard_response.text
-    assert "Client Registry" in dashboard_response.text
+    assert dashboard_response.status_code == 303
+    assert dashboard_response.headers["location"] == "/dashboard/clients"
 
     assert onboarding_response.status_code == 200
     onboarding = onboarding_response.json()
@@ -346,8 +368,8 @@ async def test_dashboard_login_page_renders_without_auth(
         response = await client.get("/dashboard/login")
 
     assert response.status_code == 200
-    assert "Admin Sign In" in response.text
-    assert "name=\"api_key\"" in response.text
+    assert "Admin Login" in response.text
+    assert "Sign in with your admin API key" in response.text
 
 
 @pytest.mark.asyncio
@@ -370,16 +392,58 @@ async def test_dashboard_login_sets_cookie_and_redirects_to_dashboard(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post(
-            "/dashboard/login",
-            data={"api_key": api_key},
-        )
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
 
-    assert login_response.status_code == 303
-    assert login_response.headers["location"] == "/dashboard"
+    assert login_response.status_code == 200
+    assert login_response.json()["ok"] is True
     cookie_header = login_response.headers.get("set-cookie", "")
     assert "minder_admin_token=" in cookie_header
     assert "HttpOnly" in cookie_header
+
+
+@pytest.mark.asyncio
+async def test_json_admin_setup_login_logout_and_session_endpoints(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        setup_response = await client.post(
+            "/v1/admin/setup",
+            json={
+                "username": "json_admin",
+                "email": "json-admin@example.com",
+                "display_name": "JSON Admin",
+            },
+        )
+        assert setup_response.status_code == 201
+        api_key = setup_response.json()["api_key"]
+        assert api_key.startswith("mk_")
+
+        login_response = await client.post(
+            "/v1/admin/login",
+            json={"api_key": api_key},
+        )
+        assert login_response.status_code == 200
+        assert login_response.json()["ok"] is True
+        assert "minder_admin_token=" in login_response.headers.get("set-cookie", "")
+
+        session_response = await client.get("/v1/admin/session")
+        assert session_response.status_code == 200
+        assert session_response.json()["admin"]["username"] == "json_admin"
+
+        logout_response = await client.post("/v1/admin/logout", json={})
+        assert logout_response.status_code == 200
+        assert logout_response.json()["ok"] is True
+
+        session_after_logout = await client.get("/v1/admin/session")
+        assert session_after_logout.status_code == 401
 
 
 @pytest.mark.asyncio
@@ -409,19 +473,15 @@ async def test_dashboard_supports_cookie_login_and_logout(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post(
-            "/dashboard/login",
-            data={"api_key": api_key},
-        )
-        assert login_response.status_code == 303
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        assert login_response.status_code == 200
 
         dashboard_response = await client.get("/dashboard")
-        assert dashboard_response.status_code == 200
-        assert "Cookie Dashboard Client" in dashboard_response.text
+        assert dashboard_response.status_code == 303
+        assert dashboard_response.headers["location"] == "/dashboard/clients"
 
-        logout_response = await client.post("/dashboard/logout")
-        assert logout_response.status_code == 303
-        assert logout_response.headers["location"] == "/dashboard/login"
+        logout_response = await client.post("/v1/admin/logout", json={})
+        assert logout_response.status_code == 200
         cleared_cookie = logout_response.headers.get("set-cookie", "")
         assert "minder_admin_token=" in cleared_cookie
 
@@ -457,24 +517,12 @@ async def test_dashboard_renders_client_registry_and_create_form(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
-        assert login_response.status_code == 303
-
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        assert login_response.status_code == 200
         dashboard_response = await client.get("/dashboard")
 
-    assert dashboard_response.status_code == 200
-    assert "Registry Client" in dashboard_response.text
-    assert "Create Client" in dashboard_response.text
-    assert "name=\"name\"" in dashboard_response.text
-    assert "name=\"slug\"" in dashboard_response.text
-    assert "name=\"tool_scopes\"" in dashboard_response.text
-    assert "multiple" in dashboard_response.text
-    assert "Query Only" in dashboard_response.text
-    assert "Read Only" in dashboard_response.text
-    assert "Full Dev Assistant" in dashboard_response.text
-    assert "name=\"repo_scopes\"" in dashboard_response.text
-    assert "All Repos (*)" in dashboard_response.text
-    assert "name=\"custom_repo_scopes\"" in dashboard_response.text
+    assert dashboard_response.status_code == 303
+    assert dashboard_response.headers["location"] == "/dashboard/clients"
 
 
 @pytest.mark.asyncio
@@ -497,32 +545,27 @@ async def test_dashboard_can_create_client_from_browser_session(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
-        assert login_response.status_code == 303
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        assert login_response.status_code == 200
 
         create_response = await client.post(
-            "/dashboard/clients",
-            data={
+            "/v1/admin/clients",
+            json={
                 "name": "Browser Created Client",
                 "slug": "browser-created-client",
                 "description": "Created from the dashboard form",
                 "tool_scopes": ["minder_query", "minder_search_code"],
-                "repo_scopes": ["*"],
-                "custom_repo_scopes": "/workspace/docs",
+                "repo_scopes": ["*", "/workspace/docs"],
             },
         )
         dashboard_response = await client.get("/dashboard")
 
-    assert create_response.status_code == 200
-    assert "Client Created" in create_response.text
-    assert "Browser Created Client" in create_response.text
-    assert "mkc_" in create_response.text
+    assert create_response.status_code == 201
+    assert create_response.json()["client"]["name"] == "Browser Created Client"
+    assert create_response.json()["client_api_key"].startswith("mkc_")
 
-    assert dashboard_response.status_code == 200
-    assert "Browser Created Client" in dashboard_response.text
-    assert "browser-created-client" in dashboard_response.text
-    assert "minder_query, minder_search_code" in dashboard_response.text
-    assert "mkc_" not in dashboard_response.text
+    assert dashboard_response.status_code == 303
+    assert dashboard_response.headers["location"] == "/dashboard/clients"
 
 
 @pytest.mark.asyncio
@@ -552,12 +595,12 @@ async def test_dashboard_client_detail_supports_onboarding_rotate_and_revoke(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
-        assert login_response.status_code == 303
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        assert login_response.status_code == 200
 
         detail_response = await client.get(f"/dashboard/clients/{created_client.id}")
-        rotate_response = await client.post(f"/dashboard/clients/{created_client.id}/rotate")
-        revoke_response = await client.post(f"/dashboard/clients/{created_client.id}/revoke")
+        rotate_response = await client.post(f"/v1/admin/clients/{created_client.id}/keys", json={})
+        revoke_response = await client.post(f"/v1/admin/clients/{created_client.id}/keys/revoke", json={})
         detail_after_revoke = await client.get(f"/dashboard/clients/{created_client.id}")
         preflight_after_revoke = await client.post(
             "/v1/gateway/test-connection",
@@ -565,20 +608,15 @@ async def test_dashboard_client_detail_supports_onboarding_rotate_and_revoke(
         )
 
     assert detail_response.status_code == 200
-    assert "Detail Client" in detail_response.text
-    assert "Onboarding Snippets" in detail_response.text
-    assert "codex" in detail_response.text
-    assert "claude_desktop" in detail_response.text
+    assert "Client Registry" in detail_response.text
 
-    assert rotate_response.status_code == 200
-    assert "New Client API Key" in rotate_response.text
-    assert "mkc_" in rotate_response.text
+    assert rotate_response.status_code == 201
+    assert rotate_response.json()["client_api_key"].startswith("mkc_")
 
-    assert revoke_response.status_code == 303
-    assert revoke_response.headers["location"] == f"/dashboard/clients/{created_client.id}"
+    assert revoke_response.status_code == 200
+    assert revoke_response.json()["revoked"] is True
 
     assert detail_after_revoke.status_code == 200
-    assert "All client keys are revoked" in detail_after_revoke.text
     assert preflight_after_revoke.status_code == 401
 
 
@@ -609,23 +647,20 @@ async def test_dashboard_client_detail_shows_recent_activity_and_connection_test
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
-        assert login_response.status_code == 303
+        login_response = await client.post("/v1/admin/login", json={"api_key": api_key})
+        assert login_response.status_code == 200
 
-        rotate_response = await client.post(f"/dashboard/clients/{created_client.id}/rotate")
-        assert rotate_response.status_code == 200
+        rotate_response = await client.post(f"/v1/admin/clients/{created_client.id}/keys", json={})
+        assert rotate_response.status_code == 201
 
         connection_test_response = await client.post(
-            f"/dashboard/clients/{created_client.id}/test-connection",
-            data={"client_api_key": original_client_key},
+            "/v1/gateway/test-connection",
+            json={"client_api_key": original_client_key},
         )
         detail_response = await client.get(f"/dashboard/clients/{created_client.id}")
 
     assert connection_test_response.status_code == 200
-    assert "Connection test passed" in connection_test_response.text
-    assert "activity-client" in connection_test_response.text
+    assert connection_test_response.json()["client"]["slug"] == "activity-client"
 
     assert detail_response.status_code == 200
-    assert "Recent Activity" in detail_response.text
-    assert "client.created" in detail_response.text
-    assert "client.key_created" in detail_response.text
+    assert "Client Registry" in detail_response.text

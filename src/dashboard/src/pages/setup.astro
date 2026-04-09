@@ -1,0 +1,49 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import setupPageScript from "../scripts/setup-page.ts?url";
+---
+
+<DashboardLayout
+  title="Initial Setup · Minder"
+  description="Initial setup shell for the Astro-based Minder dashboard."
+>
+  <section class="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+    <div class="shell-card p-8">
+      <p class="eyebrow">First-Run Setup</p>
+      <h1 class="mt-3 text-4xl font-semibold tracking-tight text-stone-950">Create the first Minder admin</h1>
+      <p class="mt-4 text-base leading-7 text-stone-700">
+        The setup contract is already live in the backend. This shell will become the permanent
+        browser entrypoint once the Astro frontend reaches parity with the compatibility routes.
+      </p>
+      <ul class="mt-6 space-y-3 text-sm leading-6 text-stone-700">
+        <li>Creates the first admin only when no admin exists yet.</li>
+        <li>Reveals the bootstrap API key exactly once after creation.</li>
+        <li>Redirects future visits back to the login flow once setup is complete.</li>
+      </ul>
+    </div>
+
+    <div class="shell-card p-8">
+      <form id="setup-form" class="grid gap-5">
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-stone-800">Username</span>
+          <input id="setup-username" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="admin" />
+        </label>
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-stone-800">Email</span>
+          <input id="setup-email" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="admin@example.com" />
+        </label>
+        <label class="block">
+          <span class="mb-2 block text-sm font-medium text-stone-800">Display name</span>
+          <input id="setup-display-name" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="Platform Admin" />
+        </label>
+        <p id="setup-status" class="min-h-6 text-sm text-stone-600"></p>
+        <button type="submit" class="primary-pill w-full">Create initial admin</button>
+      </form>
+      <div id="setup-result" class="mt-6 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4">
+        <p class="eyebrow">Bootstrap API Key</p>
+        <code id="setup-api-key" class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"></code>
+      </div>
+    </div>
+  </section>
+  <script type="module" src={setupPageScript}></script>
+</DashboardLayout>

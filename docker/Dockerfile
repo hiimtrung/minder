@@ -1,3 +1,13 @@
+FROM oven/bun:1.2.21 AS dashboard-builder
+
+WORKDIR /dashboard
+
+COPY src/dashboard/package.json src/dashboard/astro.config.mjs src/dashboard/tsconfig.json /dashboard/
+COPY src/dashboard/src /dashboard/src
+
+RUN bun install
+RUN bun run build
+
 FROM python:3.14-slim
 
 ENV UV_LINK_MODE=copy
@@ -17,6 +27,7 @@ RUN uv sync --frozen
 
 COPY src /app/src
 COPY scripts /app/scripts
+COPY --from=dashboard-builder /dashboard/dist /app/dashboard-dist
 
 EXPOSE 8800
 

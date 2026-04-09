@@ -1,10 +1,11 @@
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+from starlette.applications import Starlette
+from pathlib import Path
 
 from minder.config import MinderConfig
 from minder.server import build_http_routes
-from starlette.applications import Starlette
 from minder.store.relational import RelationalStore
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
@@ -16,9 +17,22 @@ async def test_store() -> RelationalStore:
     yield backend
     await backend.dispose()
 
+
+def _seed_dashboard_dist(dist: Path) -> None:
+    (dist / "clients").mkdir(parents=True)
+    (dist / "login").mkdir(parents=True)
+    (dist / "setup").mkdir(parents=True)
+    (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
+    (dist / "login" / "index.html").write_text("<html><body><h1>Admin Login</h1></body></html>")
+    (dist / "setup" / "index.html").write_text("<html><body><h1>Create the first Minder admin</h1><form id='setup-form'></form></body></html>")
+
 @pytest.mark.asyncio
-async def test_setup_wizard_redirects_when_no_admin(test_store: RelationalStore):
+async def test_setup_wizard_redirects_when_no_admin(test_store: RelationalStore, tmp_path: Path):
     config = MinderConfig()
+    config.dashboard.legacy_compat_enabled = False
+    dist = tmp_path / "dashboard-dist"
+    _seed_dashboard_dist(dist)
+    config.dashboard.static_dir = str(dist)
     routes = build_http_routes(config=config, store=test_store)
     app = Starlette(routes=routes)
     
@@ -26,50 +40,47 @@ async def test_setup_wizard_redirects_when_no_admin(test_store: RelationalStore)
         # Before setup, hitting dashboard should redirect to setup
         response = await client.get("/dashboard/login", follow_redirects=False)
         assert response.status_code == 303
-        assert response.headers["location"] == "/setup"
+        assert response.headers["location"] == "/dashboard/setup"
+
+        response = await client.get("/setup")
+        assert response.status_code == 308
+        assert response.headers["location"] == "/dashboard/setup"
 
         # The setup page itself should load
-        response = await client.get("/setup")
+        response = await client.get("/dashboard/setup")
         assert response.status_code == 200
-        assert "Initial Admin Setup" in response.text
+        assert "Create the first Minder admin" in response.text
         
-        # Post to setup
-        response = await client.post("/setup", data={
+        response = await client.post("/v1/admin/setup", json={
             "username": "admin",
             "email": "test@minder.ai",
             "display_name": "Admin User",
-        }, follow_redirects=False)
+        })
+        assert response.status_code == 201
+        assert response.json()["api_key"].startswith("mk_")
         
-        if response.status_code == 400:
-            print("400 Error Body:", response.text)
+        response = await client.get("/dashboard/setup", follow_redirects=False)
         assert response.status_code == 303
-        assert response.headers["location"].startswith("/dashboard-setup-complete?api_key=mk_")
-
-        setup_complete_response = await client.get(response.headers["location"])
-        assert setup_complete_response.status_code == 200
-        assert "Copy this API key now" in setup_complete_response.text
-        assert "mk_" in setup_complete_response.text
+        assert response.headers["location"] == "/dashboard/login"
         
-        # Now that an admin exists, setup should 403
-        response = await client.get("/setup")
-        assert response.status_code == 403
-        
-        # Dashboard login should no longer redirect
         response = await client.get("/dashboard/login", follow_redirects=False)
         assert response.status_code == 200
 
 
 @pytest.mark.asyncio
-async def test_setup_wizard_requires_only_api_key_model_fields(test_store: RelationalStore):
+async def test_setup_wizard_requires_only_api_key_model_fields(test_store: RelationalStore, tmp_path: Path):
     config = MinderConfig()
+    config.dashboard.legacy_compat_enabled = False
+    dist = tmp_path / "dashboard-dist"
+    _seed_dashboard_dist(dist)
+    config.dashboard.static_dir = str(dist)
     routes = build_http_routes(config=config, store=test_store)
     app = Starlette(routes=routes)
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
-        response = await client.get("/setup")
+        response = await client.get("/dashboard/setup")
 
     assert response.status_code == 200
-    assert "name=\"username\"" in response.text
-    assert "name=\"email\"" in response.text
-    assert "name=\"display_name\"" in response.text
-    assert "name=\"password\"" not in response.text
+    assert "Create the first Minder admin" in response.text
+    assert "setup-form" in response.text
+    assert "password" not in response.text

@@ -26,8 +26,8 @@ The default local entrypoint is:
 - Token exchange API: [http://localhost:8800/v1/auth/token-exchange](http://localhost:8800/v1/auth/token-exchange)
 
 Note:
-- `/dashboard/login` now provides a browser-native admin sign-in flow.
-- On a fresh deployment with no admin users, Minder now redirects to `/setup` so the first admin can be created from the browser.
+- `/dashboard`, `/dashboard/login`, and `/dashboard/setup` are served by the Astro admin console.
+- `/console` remains only as a compatibility redirect to `/dashboard`.
 
 ## Quick Start
 
@@ -49,6 +49,19 @@ models ready in /Users/<you>/.minder/models
 docker compose -f docker/docker-compose.dev.yml up --build
 ```
 
+If you want to build the dashboard bundle outside Docker:
+
+```bash
+cd src/dashboard
+bun install
+bun run build
+```
+
+Frontend baseline:
+- Astro `6.1.4`
+- Bun `1.2.21`
+- Node `22.12+` if you run frontend tooling without Bun
+
 Services started by this stack:
 
 - `minder` on port `8800`
@@ -61,7 +74,7 @@ Services started by this stack:
 
 Open:
 
-- [http://localhost:8800/setup](http://localhost:8800/setup)
+- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
 
 Fill in:
 
@@ -87,13 +100,14 @@ Use the step-by-step guide here:
 
 - [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
+- [Production Deployment Guide](/Users/trungtran/ai-agents/minder/docs/guides/production-deployment.md)
 
 ## Operator Flows
 
 ### Browser admin onboarding
 
 1. Start the Docker stack.
-2. Open [http://localhost:8800/setup](http://localhost:8800/setup) on a fresh deployment.
+2. Open [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup) on a fresh deployment.
 3. Save the one-time `mk_...` admin API key.
 4. Open [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login) and sign in.
 5. Create one MCP client per real consumer directly from the dashboard.
@@ -123,6 +137,7 @@ The old admin API key becomes invalid immediately, and Minder writes an audit ev
 
 - [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
+- [Production Deployment Guide](/Users/trungtran/ai-agents/minder/docs/guides/production-deployment.md)
 - [Phase 4.1 Requirements](/Users/trungtran/ai-agents/minder/docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
 - [Gateway Auth and Dashboard Design](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
 - [Task Breakdown](/Users/trungtran/ai-agents/minder/docs/TASK_BREAKDOWN.md)
@@ -132,29 +147,67 @@ The old admin API key becomes invalid immediately, and Minder writes an audit ev
 ## Architecture
 
 ```mermaid
-flowchart LR
-    A["Admin"] --> B["Minder Dashboard / Admin APIs"]
-    C["Codex / Copilot / Claude"] --> D["MCP Gateway (SSE / stdio)"]
-    B --> D
-    D --> E["Auth / RBAC / Rate Limits"]
-    D --> F["Workflow / Query / Memory / Session Tools"]
-    F --> G["MongoDB"]
-    F --> H["Redis"]
-    F --> I["Milvus"]
-    F --> J["Qwen GGUF via llama.cpp"]
+flowchart TB
+    Browser["Browser Admin"] --> Dashboard["Astro Dashboard<br/>/dashboard"]
+    MCP["Codex / Copilot / Claude / stdio Clients"] --> Gateway["MCP Gateway<br/>SSE / stdio"]
+
+    Dashboard --> AdminHTTP["Admin HTTP Presentation<br/>/v1/admin/*"]
+    Dashboard --> TokenHTTP["Token Exchange / Gateway Test<br/>/v1/auth/* /v1/gateway/*"]
+
+    AdminHTTP --> UseCases["Application Use Cases<br/>admin / auth / workflow / query"]
+    TokenHTTP --> UseCases
+    Gateway --> UseCases
+
+    UseCases --> Auth["Auth / RBAC / Rate Limits / Sessions"]
+    UseCases --> Retrieval["Retrieval / Workflow / Memory / Session Services"]
+    Retrieval --> LLM["Qwen GGUF via llama.cpp"]
+    Retrieval --> Vector["Milvus Standalone"]
+    UseCases --> Cache["Redis"]
+    UseCases --> Ops["MongoDB"]
+
+    Models["GGUF Models<br/>~/.minder/models"] --> LLM
+    Gateway --> Auth
+    AdminHTTP --> Auth
 ```
+
+### Runtime Layers
+
+```mermaid
+flowchart LR
+    Presentation["Presentation"]
+    Application["Application Use Cases"]
+    Domain["Domain Models / Policies"]
+    Infra["Infrastructure Adapters"]
+
+    Presentation --> Application
+    Application --> Domain
+    Infra --> Domain
+    Application --> Infra
+```
+
+### Project Layout
+
+- [`src/dashboard`](/Users/trungtran/ai-agents/minder/src/dashboard): Astro admin console served by the Python app
+- [`src/minder/presentation/http/admin`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin): HTTP presentation layer
+- [`src/minder/application/admin`](/Users/trungtran/ai-agents/minder/src/minder/application/admin): admin use cases and DTOs
+- [`src/minder/auth`](/Users/trungtran/ai-agents/minder/src/minder/auth): auth, principals, middleware, rate limits
+- [`src/minder/tools`](/Users/trungtran/ai-agents/minder/src/minder/tools): MCP tool surface
+- [`src/minder/store`](/Users/trungtran/ai-agents/minder/src/minder/store): MongoDB/relational/vector/cache adapters
+
+`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. It no longer contains the old Python-rendered dashboard. That legacy HTML flow has been removed in favor of:
+- JSON admin APIs in [`api.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/api.py)
+- static Astro dashboard serving and redirect policy in [`dashboard.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/dashboard.py)
+- thin route composition in [`routes.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/routes.py)
 
 ## Runtime Notes
 
 - Local model files are expected in `~/.minder/models`
 - The dev stack defaults to port `8800`
 - `LangGraph`, `llama-cpp-python`, and `LiteLLM` are wired with runtime auto-detection
-- The current admin UI is server-rendered and onboarding-focused, not yet the full production dashboard planned in broader `Phase 4`
-- Browser-native client registry and create-client flow are now available from `/dashboard`
-- Browser-native client detail, revoke/rotate actions, and onboarding snippets are now available from the dashboard
-- Browser-native recent activity and connection-test views are now available from the client detail page
-- Browser-only client-management flow is now covered by an end-to-end acceptance gate
-- `Phase 4.1` is complete: browser setup, browser admin login, admin API-key recovery, SSE direct client-key auth, and stdio direct client-key auth are all implemented and covered by tests
+- The admin console ships as an Astro build from [src/dashboard](/Users/trungtran/ai-agents/minder/src/dashboard) and is served by the Python app on the same port.
+- Browser-native client registry, detail, rotate/revoke, onboarding snippets, activity, and connection testing are all available under `/dashboard`.
+- The Docker image bakes the Astro build into `/app/dashboard-dist`; Compose points `MINDER_DASHBOARD__STATIC_DIR` there for production-safe serving.
+- `Phase 4.1`, `Phase 4.2`, and `Phase 4.3` are implemented and covered by tests.
 
 ## Validation
 
@@ -166,6 +219,6 @@ UV_CACHE_DIR=.uv-cache uv run pytest
 
 ## Current UX Limits
 
-- Fresh bootstrap is available in-browser through `/setup`, and admin API-key recovery is available through `scripts/reset_admin_api_key.py`
-- Browser login is now available for `/dashboard`, but full dashboard CRUD/workflow/repository management is still broader `Phase 4` work
+- Admin bootstrap is now browser-first through `/dashboard/setup`, and admin API-key recovery is available through `scripts/reset_admin_api_key.py`
+- The Astro console covers client onboarding and client management. Broader workflow/repository/observability screens are still later `Phase 4` work.
 - Full workflow/repository/user management UI belongs to broader `Phase 4`, not the completed `Phase 4.0` onboarding slice

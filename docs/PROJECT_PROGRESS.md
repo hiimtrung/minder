@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-09 (P4.2-Wave4 browser-only client-management gate completed)
+> **Last updated**: 2026-04-09 (P4.3-Wave5 console parity gate completed)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `DONE` | `closed` | - | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable. |
-| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4-Wave2` | Observability, production runtime, and security backlog remain | `Phase 4.0`, `Phase 4.1`, and `Phase 4.2` are closed; browser-native client management is now complete. |
+| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4-Wave2` | Broader Phase 4 backlog remains: observability, production runtime, load, and security | `Phase 4.0`, `Phase 4.1`, `Phase 4.2`, and `Phase 4.3` are now complete. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
 ---
@@ -113,7 +113,7 @@
 
 | Phase | Status | Notes |
 |---|---|---|
-| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; broader Phase 4 now has an explicit `Phase 4.2` UI gap for browser-native client creation and management. |
+| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; [`docs/design/p4_3_console_clean_architecture_and_ui_modernization.md`](/Users/trungtran/ai-agents/minder/docs/design/p4_3_console_clean_architecture_and_ui_modernization.md) now defines the `server.py` refactor and `Astro` dashboard migration plan. |
 | `Phase 5` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started. |
 
 ## Phase 4 Tracker
@@ -133,6 +133,19 @@
 | `P4-T11` Load Testing | `backlog` | `NOT STARTED` | `Depends on observability and prod stack` | No k6/locust suite yet. |
 | `P4-T12` Security Review | `backlog` | `NOT STARTED` | `Best done after rate limiting and observability` | No formal security review report yet. |
 | `P4-VERIFY` Phase 4 Acceptance Test | `backlog` | `NOT STARTED` | `Depends on P4-T01..T12` | `tests/e2e/test_phase4_gate.py` has not been implemented. |
+
+## Phase 4.3 Tracker
+
+| Task | Wave | Status | Blocker | Notes |
+|---|---|---|---|---|
+| `P4.3-T01` Server Composition Root Extraction | `P4.3-Wave1` | `DONE` | `-` | Added `minder.bootstrap.providers`, `minder.bootstrap.transport`, and reduced `src/minder/server.py` to entrypoint/bootstrap + runtime summary responsibilities. |
+| `P4.3-T02` Admin Presentation Layer Split | `P4.3-Wave1` | `DONE` | `-` | Moved HTTP route factory and dashboard/browser handlers to [`src/minder/presentation/http/admin/routes.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/routes.py) while preserving current dashboard/admin behavior. |
+| `P4.3-T03` Admin Application Use Cases | `P4.3-Wave2` | `DONE` | `-` | Added `src/minder/application/admin/use_cases.py` and moved setup/login/client CRUD/key lifecycle/onboarding/activity/connection-test orchestration behind explicit use-case methods. |
+| `P4.3-T04` Stable Admin API Contract | `P4.3-Wave2` | `DONE` | `-` | Added typed admin payloads in `src/minder/application/admin/dto.py` and rewired JSON admin routes to emit those contracts for the future Astro frontend. |
+| `P4.3-T05` Astro Dashboard Shell | `P4.3-Wave3` | `DONE` | `-` | Added `src/dashboard` with Astro + Tailwind scaffold, layout, shell pages for setup/login/client list/client detail, and typed admin API client stubs targeting the new Wave 2 contracts. |
+| `P4.3-T06` Client Management UI Migration | `P4.3-Wave4` | `DONE` | `-` | Astro pages now implement setup/login/client registry/client detail behavior using real browser-side calls to typed admin JSON endpoints, including create client, onboarding snippets, rotate/revoke, session login/logout, and connection test interactions. |
+| `P4.3-T07` Legacy Console Decommission | `P4.3-Wave5` | `DONE` | `-` | Promoted the Astro console to the primary `/dashboard` surface, redirected `/console` for compatibility, and served baked static assets from the Python app for single-port deployment. |
+| `P4.3-VERIFY` Clean Console Parity Gate | `P4.3-Wave5` | `DONE` | `-` | Added `tests/integration/test_phase4_3_console_gate.py` and verified static dashboard serving, legacy redirect isolation, and the full focused Phase 4.3/dashboard suite. |
 
 ## Phase 4.0 Tracker
 
@@ -177,9 +190,14 @@
 | `P4.2-Wave2` | Client Detail + Onboarding UI | `P4.2-T03`, `P4.2-T04` | `DONE` |
 | `P4.2-Wave3` | Connection Test + Activity UI | `P4.2-T05` | `DONE` |
 | `P4.2-Wave4` | Browser-Only Client Management Gate | `P4.2-VERIFY` | `DONE` |
+| `P4.3-Wave1` | Bootstrap Extraction + Presentation Split | `P4.3-T01`, `P4.3-T02` | `DONE` |
+| `P4.3-Wave2` | Use Cases + Typed Admin APIs | `P4.3-T03`, `P4.3-T04` | `DONE` |
+| `P4.3-Wave3` | Astro Dashboard Shell | `P4.3-T05` | `DONE` |
+| `P4.3-Wave4` | Feature Migration | `P4.3-T06` | `DONE` |
+| `P4.3-Wave5` | Legacy Removal + Parity Gate | `P4.3-T07`, `P4.3-VERIFY` | `DONE` |
 | `P4-Wave2` | Observability Foundation | `P4-T05` | `BACKLOG` |
 | `P4-Wave3` | Production Runtime and Compose | `P4-T01`, `P4-T02`, `P4-T03`, `P4-T06` | `BACKLOG` |
-| `P4-Wave4` | Full Dashboard Expansion | `P4-T07`, `P4-T08`, `P4-T09`, `P4-T10` | `BACKLOG` |
+| `P4-Wave4` | Broader Dashboard Expansion | `P4-T07`, `P4-T08`, `P4-T09`, `P4-T10` | `BACKLOG` |
 | `P4-Wave5` | Load, Security, Verification | `P4-T11`, `P4-T12`, `P4-VERIFY` | `BACKLOG` |
 | `P4.0-Wave2` | Gateway HTTP/Admin Backend | `P4.0-T02`, `P4.0-T04`, `P4.0-T05`, `P4.0-T08` | `DONE` |
 | `P4.0-Wave3` | Dashboard Frontend + Onboarding | `P4.0-T05`, `P4.0-T06`, `P4.0-T07`, `P4.0-T08` | `DONE` |

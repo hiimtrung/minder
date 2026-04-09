@@ -2,6 +2,24 @@
 
 This guide covers the current onboarding flow for Minder on local Docker.
 
+## Onboarding Architecture
+
+```mermaid
+flowchart LR
+    Admin["Admin in Browser"] --> Dashboard["Astro Dashboard"]
+    Dashboard --> AdminAPI["Admin APIs"]
+    AdminAPI --> ClientRegistry["Client Registry / Key Issuance"]
+
+    ClientRegistry --> ClientKey["Client API Key (mkc_...)"]
+    ClientKey --> DirectAuth["Direct SSE Header / stdio Env"]
+    ClientKey --> Exchange["Token Exchange API"]
+    Exchange --> AccessToken["Short-lived Access Token"]
+
+    DirectAuth --> MCP["Codex / Copilot / Claude / stdio"]
+    AccessToken --> MCP
+    MCP --> Gateway["MCP Gateway"]
+```
+
 ## Current Reality
 
 Today you can:
@@ -16,11 +34,10 @@ Today you can:
 
 Today you cannot yet:
 
-- manage everything from a polished production dashboard UI
 - manage broader workflow, repository, and observability screens from the dashboard
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
-- fresh deployment: `/setup`
+- fresh deployment: `/dashboard/setup`
 - returning admin: `/dashboard/login`
 - active browser session: `/dashboard`
 
@@ -36,7 +53,7 @@ docker compose -f docker/docker-compose.dev.yml exec minder \
 
 If this is a fresh deployment, open:
 
-- [http://localhost:8800/setup](http://localhost:8800/setup)
+- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
 
 Complete the setup form and save the returned admin API key:
 
@@ -77,7 +94,7 @@ Recommended split:
 
 ## 4. Create an MCP client
 
-This step is now browser-native from the dashboard.
+This step is now browser-native from the dashboard and backed by the same JSON APIs that external automation can call.
 
 Open:
 
@@ -96,7 +113,7 @@ Quick UX notes:
 - use `All Repos (*)` when the client should not be limited to one repository
 - use `Custom Repo Scopes` when the path you need is not already listed
 
-After submission, Minder shows the new `mkc_...` client API key exactly once.
+After submission, the Astro dashboard reveals the new `mkc_...` client API key exactly once.
 
 Save it before leaving that page.
 
@@ -258,6 +275,8 @@ From the dashboard today you can:
 - open a client detail page
 - issue a new client key
 - revoke all client keys for that client
+- run a connection test
+- inspect onboarding snippets and recent client activity
 - read onboarding snippets for Codex, Copilot-style MCP, and Claude Desktop
 - run a browser-based connection test by pasting a client API key
 - inspect recent activity for that client from audit events

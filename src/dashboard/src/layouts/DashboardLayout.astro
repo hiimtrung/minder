@@ -1,0 +1,35 @@
+---
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = "Minder dashboard shell" } = Astro.props;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+  </head>
+  <body>
+    <div class="min-h-screen">
+      <header class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
+        <a href="/dashboard/clients" class="text-lg font-semibold tracking-tight text-stone-900">Minder Dashboard</a>
+        <nav class="flex items-center gap-3 text-sm">
+          <a href="/dashboard/setup" class="action-pill">Setup</a>
+          <a href="/dashboard/login" class="action-pill">Login</a>
+          <a href="/dashboard/clients" class="primary-pill">Clients</a>
+        </nav>
+      </header>
+      <main class="mx-auto max-w-6xl px-6 pb-16">
+        <slot />
+      </main>
+    </div>
+  </body>
+</html>

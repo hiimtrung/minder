@@ -2,6 +2,21 @@
 
 This guide gets a fresh Minder stack running locally on port `8800`, including browser admin bootstrap and MCP connectivity checks.
 
+## Local Architecture
+
+```mermaid
+flowchart LR
+    Browser["Browser Admin"] --> Dashboard["Astro Dashboard /dashboard"]
+    MCP["MCP Clients"] --> SSE["MCP SSE / stdio Gateway"]
+    Dashboard --> API["Admin APIs /v1/admin/*"]
+    API --> Core["Application Use Cases"]
+    SSE --> Core
+    Core --> Mongo["MongoDB"]
+    Core --> Redis["Redis"]
+    Core --> Milvus["Milvus Standalone"]
+    Core --> Models["Qwen GGUF Models"]
+```
+
 ## Prerequisites
 
 - Docker Desktop or compatible Docker runtime
@@ -58,7 +73,7 @@ docker compose -f docker/docker-compose.dev.yml ps
 
 On a fresh deployment with no admin users, open:
 
-- [http://localhost:8800/setup](http://localhost:8800/setup)
+- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
 
 Fill in:
 
@@ -70,7 +85,7 @@ On success, Minder redirects to a setup-complete page and reveals the bootstrap 
 
 Save the `mk_...` value before leaving that page.
 
-If an admin already exists, `/setup` is disabled and you should use `/dashboard/login` instead.
+If an admin already exists, `/dashboard/setup` is no longer the right entrypoint and you should use `/dashboard/login` instead.
 
 ## 4. Sign in to the dashboard
 
@@ -120,6 +135,15 @@ Continue with:
 
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
 
+## Route Map
+
+- `/dashboard/setup`: first-run admin bootstrap
+- `/dashboard/login`: admin browser login
+- `/dashboard/clients`: Astro client registry and detail shell
+- `/v1/admin/*`: admin JSON APIs used by the dashboard
+- `/v1/auth/token-exchange`: client key to bearer token exchange
+- `/sse`: MCP SSE entrypoint
+
 ## Troubleshooting
 
 ### Models are missing
@@ -154,7 +178,7 @@ The command rotates the admin API key and prints the new `mk_...` value once.
 
 Open these routes in order:
 
-- [http://localhost:8800/setup](http://localhost:8800/setup)
+- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
 - [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 - [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
 

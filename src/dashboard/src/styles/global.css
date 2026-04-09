@@ -1,0 +1,29 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-stone-100 text-stone-900 antialiased;
+  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  background-image:
+    radial-gradient(circle at top left, rgba(168, 85, 47, 0.14), transparent 28%),
+    linear-gradient(135deg, #fbf7f0, #f2eadf 68%, #eee2d3);
+}
+
+.shell-card {
+  @apply rounded-3xl border border-stone-300/80 bg-white/90 shadow-[0_18px_60px_rgba(28,25,23,0.08)] backdrop-blur;
+}
+
+.eyebrow {
+  @apply text-xs font-semibold uppercase tracking-[0.22em] text-amber-800;
+}
+
+.action-pill {
+  @apply inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-800 transition hover:border-amber-700 hover:text-amber-800;
+}
+
+.primary-pill {
+  @apply inline-flex items-center justify-center rounded-full bg-amber-800 px-4 py-2 text-sm text-white transition hover:bg-amber-900;
+}

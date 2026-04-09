@@ -3,7 +3,6 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 import uuid
-from urllib.parse import parse_qs, urlparse
 
 import pytest
 import pytest_asyncio
@@ -17,6 +16,18 @@ from minder.store.relational import RelationalStore
 from minder.transport import SSETransport, StdioTransport
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
+
+
+def _seed_dashboard_dist(dist: Path) -> None:
+    (dist / "clients").mkdir(parents=True)
+    (dist / "login").mkdir(parents=True)
+    (dist / "setup").mkdir(parents=True)
+    (dist / "index.html").write_text("<html><body>dashboard root</body></html>")
+    (dist / "login" / "index.html").write_text("<html><body><h1>Admin Login</h1></body></html>")
+    (dist / "setup" / "index.html").write_text("<html><body><h1>Create the first Minder admin</h1></body></html>")
+    (dist / "clients" / "index.html").write_text(
+        "<html><body><h1>Client Registry</h1><p>Manage MCP clients from the production dashboard.</p></body></html>"
+    )
 
 
 def _load_module(path: Path, module_name: str):  # noqa: ANN001, ANN201
@@ -37,8 +48,14 @@ async def store() -> RelationalStore:
 
 
 @pytest.fixture
-def config() -> MinderConfig:
-    return MinderConfig()
+def config(tmp_path: Path) -> MinderConfig:
+    dist = tmp_path / "dashboard-dist"
+    _seed_dashboard_dist(dist)
+    config = MinderConfig()
+    config.dashboard.static_dir = str(dist)
+    config.dashboard.base_path = "/dashboard"
+    config.dashboard.legacy_compat_enabled = False
+    return config
 
 
 @pytest.fixture
@@ -66,46 +83,35 @@ async def test_phase4_1_gate(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
-        # 1. Fresh deployment redirects dashboard login to setup.
-        login_redirect = await client.get("/dashboard/login")
-        assert login_redirect.status_code == 303
-        assert login_redirect.headers["location"] == "/setup"
+        # 1. Fresh deployment serves Astro setup and login shells.
+        login_page = await client.get("/dashboard/login")
+        assert login_page.status_code == 303
+        assert login_page.headers["location"] == "/dashboard/setup"
 
-        setup_page = await client.get("/setup")
+        setup_page = await client.get("/dashboard/setup")
         assert setup_page.status_code == 200
-        assert "Initial Admin Setup" in setup_page.text
+        assert "Create the first Minder admin" in setup_page.text
 
-        # 2. Setup creates the first admin and reveals the bootstrap API key once.
+        # 2. Setup creates the first admin through the JSON contract.
         setup_submit = await client.post(
-            "/setup",
-            data={
+            "/v1/admin/setup",
+            json={
                 "username": "phase41_admin",
                 "email": "phase41-admin@example.com",
                 "display_name": "Phase 4.1 Admin",
             },
         )
-        assert setup_submit.status_code == 303
-        assert setup_submit.headers["location"].startswith("/dashboard-setup-complete?api_key=mk_")
-
-        setup_location = setup_submit.headers["location"]
-        query = parse_qs(urlparse(setup_location).query)
-        old_admin_key = query["api_key"][0]
-
-        setup_complete = await client.get(setup_location)
-        assert setup_complete.status_code == 200
-        assert old_admin_key in setup_complete.text
+        assert setup_submit.status_code == 201
+        old_admin_key = setup_submit.json()["api_key"]
+        assert old_admin_key.startswith("mk_")
 
         # 3. Browser login works with the bootstrap API key.
-        browser_login = await client.post(
-            "/dashboard/login",
-            data={"api_key": old_admin_key},
-        )
-        assert browser_login.status_code == 303
-        assert browser_login.headers["location"] == "/dashboard"
+        browser_login = await client.post("/v1/admin/login", json={"api_key": old_admin_key})
+        assert browser_login.status_code == 200
 
         dashboard = await client.get("/dashboard")
-        assert dashboard.status_code == 200
-        assert "Minder Gateway Dashboard" in dashboard.text
+        assert dashboard.status_code == 303
+        assert dashboard.headers["location"] == "/dashboard/clients"
 
     # 4. Recovery script rotates the admin API key and invalidates the old one.
     recovery_module = _load_module(Path("scripts/reset_admin_api_key.py"), "phase41_reset_admin_api_key")

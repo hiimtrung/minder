@@ -570,3 +570,52 @@ async def test_dashboard_client_detail_supports_onboarding_rotate_and_revoke(
     assert detail_after_revoke.status_code == 200
     assert "All client keys are revoked" in detail_after_revoke.text
     assert preflight_after_revoke.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_dashboard_client_detail_shows_recent_activity_and_connection_test(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+) -> None:
+    admin_user, api_key = await auth.register_user(
+        email="activity-admin@example.com",
+        username="activity_admin",
+        display_name="Activity Admin",
+        role=UserRole.ADMIN,
+    )
+    created_client, original_client_key = await auth.register_client(
+        name="Activity Client",
+        slug="activity-client",
+        created_by_user_id=admin_user.id,
+        tool_scopes=["minder_query"],
+        repo_scopes=["/workspace/repo"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        login_response = await client.post("/dashboard/login", data={"api_key": api_key})
+        assert login_response.status_code == 303
+
+        rotate_response = await client.post(f"/dashboard/clients/{created_client.id}/rotate")
+        assert rotate_response.status_code == 200
+
+        connection_test_response = await client.post(
+            f"/dashboard/clients/{created_client.id}/test-connection",
+            data={"client_api_key": original_client_key},
+        )
+        detail_response = await client.get(f"/dashboard/clients/{created_client.id}")
+
+    assert connection_test_response.status_code == 200
+    assert "Connection test passed" in connection_test_response.text
+    assert "activity-client" in connection_test_response.text
+
+    assert detail_response.status_code == 200
+    assert "Recent Activity" in detail_response.text
+    assert "client.created" in detail_response.text
+    assert "client.key_created" in detail_response.text

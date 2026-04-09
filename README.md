@@ -152,7 +152,7 @@ flowchart LR
 - The current admin UI is server-rendered and onboarding-focused, not yet the full production dashboard planned in broader `Phase 4`
 - Browser-native client registry and create-client flow are now available from `/dashboard`
 - Browser-native client detail, revoke/rotate actions, and onboarding snippets are now available from the dashboard
-- Activity and connection-test views are still tracked as later dashboard waves
+- Browser-native recent activity and connection-test views are now available from the client detail page
 - `Phase 4.1` is complete: browser setup, browser admin login, admin API-key recovery, SSE direct client-key auth, and stdio direct client-key auth are all implemented and covered by tests
 
 ## Validation

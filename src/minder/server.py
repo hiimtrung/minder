@@ -368,6 +368,12 @@ def build_http_routes(
     def _split_csv(raw: str) -> list[str]:
         return [item.strip() for item in raw.split(",") if item.strip()]
 
+    async def _recent_client_activity(client_id: str, *, limit: int = 8) -> list[Any]:
+        events = await store.list_audit_logs()
+        filtered = [event for event in events if str(getattr(event, "resource_id", "")) == client_id]
+        filtered.sort(key=lambda event: getattr(event, "created_at", None) or "", reverse=True)
+        return filtered[:limit]
+
     def _request_token(request: Request) -> str | None:
         authorization = request.headers.get("Authorization")
         if authorization:
@@ -606,6 +612,8 @@ def build_http_routes(
         client: dict[str, Any],
         templates: dict[str, str],
         all_keys_revoked: bool,
+        connection_message: str | None = None,
+        activity_events: list[dict[str, str]] | None = None,
     ) -> str:
         client_name = html.escape(str(client.get("name", "")))
         client_slug = html.escape(str(client.get("slug", "")))
@@ -625,6 +633,21 @@ def build_http_routes(
                 f"</article>"
             )
             for name, template in templates.items()
+        )
+        connection_block = (
+            f"<p class='status'>{html.escape(connection_message)}</p>" if connection_message else ""
+        )
+        activity_blocks = "\n".join(
+            (
+                f"<li><strong>{html.escape(event['event_type'])}</strong>"
+                f"<span class='activity-meta'>{html.escape(event['created_at'])}</span></li>"
+            )
+            for event in (activity_events or [])
+        )
+        activity_markup = (
+            f"<ul class='activity-list'>{activity_blocks}</ul>"
+            if activity_blocks
+            else "<p class='meta'>No activity recorded for this client yet.</p>"
         )
         return f"""
 <!doctype html>
@@ -652,6 +675,9 @@ def build_http_routes(
       .ghost {{ background: #fff; color: var(--ink); border: 1px solid var(--border); }}
       .templates {{ display: grid; gap: 16px; }}
       .template-card {{ border: 1px solid var(--border); background: rgba(255,255,255,0.75); border-radius: 16px; padding: 16px; }}
+      .activity-list {{ list-style: none; padding: 0; margin: 0; display: grid; gap: 12px; }}
+      .activity-list li {{ border: 1px solid var(--border); background: rgba(255,255,255,0.75); border-radius: 14px; padding: 12px 14px; }}
+      .activity-meta {{ display: block; margin-top: 6px; color: var(--muted); font-size: 0.9rem; }}
       pre {{ margin: 0; white-space: pre-wrap; word-break: break-word; font-family: "SFMono-Regular", Consolas, monospace; font-size: 0.9rem; }}
       code {{ font-family: "SFMono-Regular", Consolas, monospace; }}
     </style>
@@ -673,20 +699,34 @@ def build_http_routes(
           <p class="meta"><strong>Tool scopes:</strong> {scopes}</p>
           <p class="meta"><strong>Repo scopes:</strong> {repos}</p>
           {revoked_banner}
+          {connection_block}
           <form method="post" action="/dashboard/clients/{client.get("id")}/rotate">
             <button type="submit">Issue New Client Key</button>
           </form>
           <form method="post" action="/dashboard/clients/{client.get("id")}/revoke">
             <button class="ghost" type="submit">Revoke All Client Keys</button>
           </form>
+          <h3>Connection Test</h3>
+          <form method="post" action="/dashboard/clients/{client.get("id")}/test-connection">
+            <label for="client_api_key">Paste a client API key</label>
+            <input id="client_api_key" name="client_api_key" type="password" required />
+            <button type="submit">Test Connection</button>
+          </form>
         </section>
-        <section class="panel">
-          <span class="meta">Onboarding Snippets</span>
-          <h2>Onboarding Snippets</h2>
-          <div class="templates">
-            {template_blocks}
-          </div>
-        </section>
+        <div class="templates">
+          <section class="panel">
+            <span class="meta">Onboarding Snippets</span>
+            <h2>Onboarding Snippets</h2>
+            <div class="templates">
+              {template_blocks}
+            </div>
+          </section>
+          <section class="panel">
+            <span class="meta">Recent Activity</span>
+            <h2>Recent Activity</h2>
+            {activity_markup}
+          </section>
+        </div>
       </div>
     </main>
   </body>
@@ -996,11 +1036,19 @@ def build_http_routes(
         templates = _onboarding_templates(client)
         keys = await store.list_client_api_keys(client_id)
         all_keys_revoked = bool(keys) and all(getattr(key, "status", "active") != "active" for key in keys)
+        activity_events = [
+            {
+                "event_type": str(getattr(event, "event_type", "")),
+                "created_at": getattr(event, "created_at").isoformat() if getattr(event, "created_at", None) else "unknown time",
+            }
+            for event in await _recent_client_activity(str(client_id))
+        ]
         return HTMLResponse(
             _dashboard_client_detail_html(
                 client=client_dict,
                 templates=templates,
                 all_keys_revoked=all_keys_revoked,
+                activity_events=activity_events,
             ),
             status_code=200,
         )
@@ -1045,6 +1093,55 @@ def build_http_routes(
         client_id = request.path_params["client_id"]
         await auth_service.revoke_client_api_keys(client_id, actor_user_id=user.id)
         return RedirectResponse(url=f"/dashboard/clients/{client_id}", status_code=303)
+
+    async def dashboard_client_test_connection(request: Request) -> HTMLResponse | RedirectResponse:
+        if not await auth_service.has_admin_users():
+            return RedirectResponse(url="/setup", status_code=303)
+        try:
+            await _admin_user_from_request(request)
+        except PermissionError:
+            return HTMLResponse("Admin role required", status_code=403)
+        except Exception:
+            return RedirectResponse(url="/dashboard/login", status_code=303)
+
+        client_id = request.path_params["client_id"]
+        client = await store.get_client_by_id(client_id)
+        if client is None:
+            return HTMLResponse("Client not found", status_code=404)
+
+        form = await request.form()
+        client_api_key = str(form.get("client_api_key", "")).strip()
+        if not client_api_key:
+            return HTMLResponse("Client API key is required.", status_code=400)
+
+        try:
+            resolved_client = await auth_service.authenticate_client_api_key(client_api_key)
+        except Exception as exc:
+            message = f"Connection test failed: {exc}"
+        else:
+            message = f"Connection test passed for {getattr(resolved_client, 'slug', 'client')}."
+
+        client_dict = _serialize_client(client)
+        templates = _onboarding_templates(client)
+        keys = await store.list_client_api_keys(client_id)
+        all_keys_revoked = bool(keys) and all(getattr(key, "status", "active") != "active" for key in keys)
+        activity_events = [
+            {
+                "event_type": str(getattr(event, "event_type", "")),
+                "created_at": getattr(event, "created_at").isoformat() if getattr(event, "created_at", None) else "unknown time",
+            }
+            for event in await _recent_client_activity(str(client_id))
+        ]
+        return HTMLResponse(
+            _dashboard_client_detail_html(
+                client=client_dict,
+                templates=templates,
+                all_keys_revoked=all_keys_revoked,
+                connection_message=message,
+                activity_events=activity_events,
+            ),
+            status_code=200,
+        )
 
     async def dashboard(request: Request) -> HTMLResponse | RedirectResponse:
         if not await auth_service.has_admin_users():
@@ -1322,6 +1419,7 @@ def build_http_routes(
         Route("/dashboard/clients/{client_id:uuid}", dashboard_client_detail, methods=["GET"]),
         Route("/dashboard/clients/{client_id:uuid}/rotate", dashboard_client_rotate, methods=["POST"]),
         Route("/dashboard/clients/{client_id:uuid}/revoke", dashboard_client_revoke, methods=["POST"]),
+        Route("/dashboard/clients/{client_id:uuid}/test-connection", dashboard_client_test_connection, methods=["POST"]),
     ]
 
 

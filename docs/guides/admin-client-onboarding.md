@@ -17,7 +17,7 @@ Today you can:
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
-- inspect recent client activity and connection tests entirely from the dashboard
+- complete the final browser-only end-to-end client-management gate
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
 - fresh deployment: `/setup`
@@ -253,6 +253,8 @@ From the dashboard today you can:
 - issue a new client key
 - revoke all client keys for that client
 - read onboarding snippets for Codex, Copilot-style MCP, and Claude Desktop
+- run a browser-based connection test by pasting a client API key
+- inspect recent activity for that client from audit events
 
 ## 10. Revoke a client key
 

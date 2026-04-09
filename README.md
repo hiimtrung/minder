@@ -1,6 +1,6 @@
 # Minder
 
-<img src="minder.png" width="300" alt="minder logo">
+<img src="favicon.png" width="300" alt="minder logo">
 
 Minder is an MCP-first engineering assistant platform for repository search, workflow guidance, memory, session state, and low-friction client onboarding.
 

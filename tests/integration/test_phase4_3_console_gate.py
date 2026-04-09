@@ -182,6 +182,30 @@ async def test_phase4_3_console_gate_enables_cors_for_split_dev_origin(
 
 
 @pytest.mark.asyncio
+async def test_phase4_3_console_gate_enables_default_cors_for_local_astro_dev(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.options(
+            "/v1/admin/session",
+            headers={
+                "origin": "http://localhost:8808",
+                "access-control-request-method": "GET",
+            },
+        )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:8808"
+
+
+@pytest.mark.asyncio
 async def test_phase4_3_console_gate_serves_astro_client_bundle_layout(
     store: RelationalStore,
     tmp_path: Path,

@@ -20,7 +20,11 @@ def test_env_override(monkeypatch):
     assert settings.mongodb.uri == "mongodb://example:27017"
 
 
-def test_dotenv_file_override(tmp_path):
+def test_dotenv_file_override(tmp_path, monkeypatch):
+    monkeypatch.delenv("MINDER_SERVER__PORT", raising=False)
+    monkeypatch.delenv("MINDER_REDIS__URI", raising=False)
+    monkeypatch.delenv("MINDER_VECTOR_STORE__PROVIDER", raising=False)
+
     env_file = tmp_path / ".env"
     env_file.write_text(
         "\n".join(

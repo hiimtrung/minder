@@ -15,13 +15,16 @@ from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
 
 
+DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
+
+
 def dashboard_dev_origin(config: MinderConfig) -> str | None:
     dev_server_url = (config.dashboard.dev_server_url or "").strip()
     if not dev_server_url:
-        return None
+        return DEFAULT_DASHBOARD_DEV_ORIGIN
     parts = urlsplit(dev_server_url)
     if not parts.scheme or not parts.netloc:
-        return None
+        return DEFAULT_DASHBOARD_DEV_ORIGIN
     return f"{parts.scheme}://{parts.netloc}"
 
 

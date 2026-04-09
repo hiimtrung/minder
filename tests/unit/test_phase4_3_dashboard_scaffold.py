@@ -19,6 +19,7 @@ def test_phase4_3_dashboard_web_scaffold_exists() -> None:
     assert (root / "src/scripts/login-page.ts").exists()
     assert (root / "src/scripts/setup-page.ts").exists()
     assert (root / "src/scripts/clients-page.ts").exists()
+    assert (root / "src/scripts/session-header.ts").exists()
 
 
 def test_phase4_3_dashboard_web_package_contract() -> None:
@@ -62,6 +63,7 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     login_script = Path("src/dashboard/src/scripts/login-page.ts").read_text()
     setup_script = Path("src/dashboard/src/scripts/setup-page.ts").read_text()
     registry_script = Path("src/dashboard/src/scripts/clients-page.ts").read_text()
+    session_script = Path("src/dashboard/src/scripts/session-header.ts").read_text()
 
     assert '<script src="../scripts/login-page.ts"></script>' in login_page
     assert '<script src="../scripts/setup-page.ts"></script>' in setup_page
@@ -75,6 +77,13 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     assert "rotateClientKey" in registry_script
     assert "revokeClientKeys" in registry_script
     assert "testClientConnection" in registry_script
-    assert "/dashboard/clients" in layout
-    assert "/dashboard/login" in layout
-    assert "/dashboard/setup" in layout
+    assert "getAdminSession" in session_script
+    assert "logoutAdmin" in session_script
+    assert "navLinks?" in layout
+    assert "navDescription?" in layout
+    assert "sessionControls?" in layout
+    assert "dashboard-toast-region" in layout
+    assert 'First-Time Setup' in login_page
+    assert 'Admin Login' in setup_page
+    assert 'Client Registry' in registry_page
+    assert 'sessionControls={true}' in registry_page

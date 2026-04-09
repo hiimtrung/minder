@@ -2,23 +2,8 @@
 
 This guide covers the current onboarding flow for Minder on local Docker.
 
-## Onboarding Architecture
-
-```mermaid
-flowchart LR
-    Admin["Admin in Browser"] --> Dashboard["Astro Dashboard"]
-    Dashboard --> AdminAPI["Admin APIs"]
-    AdminAPI --> ClientRegistry["Client Registry / Key Issuance"]
-
-    ClientRegistry --> ClientKey["Client API Key (mkc_...)"]
-    ClientKey --> DirectAuth["Direct SSE Header / stdio Env"]
-    ClientKey --> Exchange["Token Exchange API"]
-    Exchange --> AccessToken["Short-lived Access Token"]
-
-    DirectAuth --> MCP["Codex / Copilot / Claude / stdio"]
-    AccessToken --> MCP
-    MCP --> Gateway["MCP Gateway"]
-```
+System-level architecture lives in:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ## Current Reality
 

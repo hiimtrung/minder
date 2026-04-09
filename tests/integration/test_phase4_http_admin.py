@@ -187,6 +187,45 @@ async def test_admin_can_query_audit_log_via_http(
     assert any(event["event_type"] == "client.created" for event in body["events"])
 
 
+@pytest.mark.asyncio
+async def test_onboarding_templates_follow_request_origin(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+    admin_token: str,
+) -> None:
+    admin = await auth.get_user_from_jwt(admin_token)
+    created_client, client_api_key = await auth.register_client(
+        name="Origin Client",
+        slug="origin-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="https://minder.example.com",
+    ) as client:
+        onboarding_response = await client.get(
+            f"/v1/admin/onboarding/{created_client.id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        connection_response = await client.post(
+            "/v1/gateway/test-connection",
+            json={"client_api_key": client_api_key},
+        )
+
+    assert onboarding_response.status_code == 200
+    assert connection_response.status_code == 200
+    onboarding = onboarding_response.json()
+    connection = connection_response.json()
+    assert "https://minder.example.com/sse" in onboarding["templates"]["codex"]
+    assert "https://minder.example.com/sse" in onboarding["templates"]["copilot"]
+    assert "https://minder.example.com/sse" in connection["templates"]["claude_desktop"]
+
+
 @requires_fakeredis
 @pytest.mark.asyncio
 async def test_token_exchange_persists_client_session_in_redis_cache(

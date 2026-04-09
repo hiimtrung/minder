@@ -175,21 +175,31 @@ class AdminConsoleUseCases:
         await self._auth_service.revoke_client_api_keys(client_id, actor_user_id=actor_user_id)
         return {"revoked": True}
 
-    async def get_onboarding(self, client_id: uuid.UUID) -> OnboardingPayload:
+    async def get_onboarding(
+        self,
+        client_id: uuid.UUID,
+        *,
+        public_base_url: str | None = None,
+    ) -> OnboardingPayload:
         client = await self._store.get_client_by_id(client_id)
         if client is None:
             raise LookupError("Client not found")
         return {
             "client": self.serialize_client(client),
-            "templates": self.onboarding_templates(client),
+            "templates": self.onboarding_templates(client, public_base_url=public_base_url),
         }
 
-    async def test_client_connection(self, client_api_key: str) -> ClientConnectionTestPayload:
+    async def test_client_connection(
+        self,
+        client_api_key: str,
+        *,
+        public_base_url: str | None = None,
+    ) -> ClientConnectionTestPayload:
         client = await self._auth_service.authenticate_client_api_key(client_api_key)
         return {
             "ok": True,
             "client": self.serialize_client(client),
-            "templates": self.onboarding_templates(client),
+            "templates": self.onboarding_templates(client, public_base_url=public_base_url),
         }
 
     async def list_audit(self, *, actor_id: str | None = None) -> AuditListPayload:
@@ -220,10 +230,10 @@ class AdminConsoleUseCases:
             candidates.extend(list(getattr(client, "repo_scopes", [])))
         return self.dedupe_preserve_order(candidates)
 
-    def onboarding_templates(self, client: Any) -> dict[str, str]:
+    def onboarding_templates(self, client: Any, *, public_base_url: str | None = None) -> dict[str, str]:
         exchange_url = "/v1/auth/token-exchange"
         query_hint = client.tool_scopes[0] if client.tool_scopes else "minder_query"
-        base_url = f"http://localhost:{self._config.server.port}"
+        base_url = public_base_url.rstrip("/") if public_base_url else f"http://localhost:{self._config.server.port}"
         return {
             "codex": (
                 f'{{"server_url":"{base_url}/sse","client_api_key":"<mkc_...>",'

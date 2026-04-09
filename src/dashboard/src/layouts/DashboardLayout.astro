@@ -4,9 +4,20 @@ import "../styles/global.css";
 interface Props {
   title: string;
   description?: string;
+  navTitle?: string;
+  navDescription?: string;
+  navLinks?: Array<{ href: string; label: string; tone?: "primary" | "secondary" }>;
+  sessionControls?: boolean;
 }
 
-const { title, description = "Minder dashboard shell" } = Astro.props;
+const {
+  title,
+  description = "Minder dashboard shell",
+  navTitle = "Minder Console",
+  navDescription = "Admin setup, login, client management, and onboarding on one port.",
+  navLinks = [],
+  sessionControls = false,
+} = Astro.props;
 ---
 
 <!doctype html>
@@ -19,17 +30,41 @@ const { title, description = "Minder dashboard shell" } = Astro.props;
   </head>
   <body>
     <div class="min-h-screen">
-      <header class="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <a href="/dashboard/clients" class="text-lg font-semibold tracking-tight text-stone-900">Minder Dashboard</a>
-        <nav class="flex items-center gap-3 text-sm">
-          <a href="/dashboard/setup" class="action-pill">Setup</a>
-          <a href="/dashboard/login" class="action-pill">Login</a>
-          <a href="/dashboard/clients" class="primary-pill">Clients</a>
-        </nav>
+      <header class="mx-auto max-w-6xl px-6 py-6">
+        <div class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-4">
+          <div class="space-y-1">
+            <a href="/dashboard" class="text-lg font-semibold tracking-tight text-stone-900">{navTitle}</a>
+            <p class="text-sm text-stone-600">{navDescription}</p>
+          </div>
+          <div class="flex flex-wrap items-center gap-3">
+            {sessionControls && (
+              <div class="flex items-center gap-2">
+                <span
+                  id="dashboard-session-badge"
+                  class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-emerald-800 uppercase"
+                >
+                  Checking Session
+                </span>
+                <button id="dashboard-logout-button" type="button" class="action-pill">
+                  Logout
+                </button>
+              </div>
+            )}
+            <nav class="flex flex-wrap items-center gap-2 text-sm">
+              {navLinks.map((link) => (
+                <a href={link.href} class={link.tone === "primary" ? "primary-pill" : "action-pill"}>
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </div>
       </header>
       <main class="mx-auto max-w-6xl px-6 pb-16">
         <slot />
       </main>
+      <div id="dashboard-toast-region" class="pointer-events-none fixed right-6 bottom-6 z-50 flex max-w-sm flex-col gap-3"></div>
     </div>
+    {sessionControls && <script src="../scripts/session-header.ts"></script>}
   </body>
 </html>

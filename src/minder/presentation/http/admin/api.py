@@ -9,6 +9,9 @@ from .context import ADMIN_COOKIE_NAME, AdminRouteContext
 
 
 def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
+    def _public_base_url(request) -> str:
+        return str(request.base_url).rstrip("/")
+
     async def setup_api(request):
         if await context.use_cases.has_admin_users():
             return JSONResponse({"error": "Admin already set up"}, status_code=403)
@@ -78,7 +81,10 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def gateway_test_connection(request):
         payload = await request.json()
         try:
-            result = await context.use_cases.test_client_connection(payload["client_api_key"])
+            result = await context.use_cases.test_client_connection(
+                payload["client_api_key"],
+                public_base_url=_public_base_url(request),
+            )
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
         return JSONResponse(result)
@@ -181,7 +187,10 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
         client_id = uuid.UUID(str(request.path_params["client_id"]))
         try:
-            result = await context.use_cases.get_onboarding(client_id)
+            result = await context.use_cases.get_onboarding(
+                client_id,
+                public_base_url=_public_base_url(request),
+            )
         except LookupError:
             return JSONResponse({"error": "Client not found"}, status_code=404)
         return JSONResponse(result)

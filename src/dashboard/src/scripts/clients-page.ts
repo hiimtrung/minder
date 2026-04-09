@@ -21,6 +21,51 @@ const snippets = document.querySelector("#onboarding-snippets");
 const activity = document.querySelector("#activity-feed");
 const rotatedKeyResult = document.querySelector("#rotated-key-result");
 const rotatedKeyValue = document.querySelector("#rotated-key-value");
+const toastRegion = document.querySelector("#dashboard-toast-region");
+let lastSelectedClientName = "";
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const setDetailStatus = (message: string, tone: "default" | "success" | "danger" = "default") => {
+  if (!detailStatus) return;
+  detailStatus.textContent = message;
+  detailStatus.className = "mt-4 min-h-6 text-sm";
+  if (tone === "success") {
+    detailStatus.classList.add("text-emerald-700");
+    return;
+  }
+  if (tone === "danger") {
+    detailStatus.classList.add("text-red-700");
+    return;
+  }
+  detailStatus.classList.add("text-stone-600");
+};
+
+const showToast = (message: string, tone: "success" | "danger" | "default" = "default") => {
+  if (!(toastRegion instanceof HTMLElement)) return;
+  const toast = document.createElement("div");
+  toast.className =
+    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
+  if (tone === "success") {
+    toast.classList.add("border-emerald-200", "bg-emerald-50/95", "text-emerald-900");
+  } else if (tone === "danger") {
+    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
+  } else {
+    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
+  }
+  toast.textContent = message;
+  toastRegion.appendChild(toast);
+  window.setTimeout(() => {
+    toast.classList.add("opacity-0", "translate-y-2");
+    window.setTimeout(() => toast.remove(), 220);
+  }, 2600);
+};
 
 const presets: Record<string, string[]> = {
   query: ["minder_query", "minder_search_code", "minder_search_errors"],
@@ -88,13 +133,24 @@ const renderDetail = async () => {
     ]);
 
     document.title = `${detail.client.name} · Minder`;
+    lastSelectedClientName = detail.client.name;
     detailTitle.textContent = detail.client.name;
     snippets.innerHTML = Object.entries(onboarding.templates)
       .map(
         ([target, template]) => `
-          <article class="rounded-3xl border border-stone-300 bg-stone-50/80 p-4">
-            <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">${target}</h3>
-            <pre class="mt-4 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-stone-700">${template.replaceAll("<", "&lt;")}</pre>
+          <article class="snippet-card rounded-3xl border border-stone-300 bg-stone-50/80 p-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">${escapeHtml(target)}</h3>
+              <button
+                type="button"
+                class="action-pill snippet-copy-button"
+                data-snippet-label="${escapeHtml(target)}"
+                data-snippet-content="${escapeHtml(template)}"
+              >
+                Copy Snippet
+              </button>
+            </div>
+            <pre class="snippet-pre mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-stone-700">${escapeHtml(template)}</pre>
           </article>
         `,
       )
@@ -114,7 +170,7 @@ const renderDetail = async () => {
           .join("")
       : `<div class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600">No activity recorded yet.</div>`;
   } catch (error) {
-    if (detailStatus) detailStatus.textContent = error instanceof Error ? error.message : "Unable to load client detail.";
+    setDetailStatus(error instanceof Error ? error.message : "Unable to load client detail.", "danger");
   }
 };
 
@@ -157,35 +213,44 @@ document.querySelector("#create-client-form")?.addEventListener("submit", async 
     if (createdKey) createdKey.textContent = created.client_api_key;
     createdResult?.classList.remove("hidden");
     if (status) status.textContent = `Created ${created.client.slug}.`;
+    showToast(`Created client ${created.client.slug}.`, "success");
     await renderClients();
   } catch (error) {
-    if (status) status.textContent = error instanceof Error ? error.message : "Unable to create client.";
+    const message = error instanceof Error ? error.message : "Unable to create client.";
+    if (status) status.textContent = message;
+    showToast(message, "danger");
   }
 });
 
 document.querySelector("#rotate-client-key")?.addEventListener("click", async () => {
   if (!selectedClientId) return;
-  if (detailStatus) detailStatus.textContent = "Issuing new client key...";
+  setDetailStatus("Issuing new client key...");
   try {
     const rotated = await rotateClientKey(selectedClientId);
     if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
     rotatedKeyResult?.classList.remove("hidden");
-    if (detailStatus) detailStatus.textContent = "Issued new client key.";
+    setDetailStatus("Issued new client key.", "success");
+    showToast("Issued new client key.", "success");
     await renderDetail();
   } catch (error) {
-    if (detailStatus) detailStatus.textContent = error instanceof Error ? error.message : "Unable to rotate key.";
+    const message = error instanceof Error ? error.message : "Unable to rotate key.";
+    setDetailStatus(message, "danger");
+    showToast(message, "danger");
   }
 });
 
 document.querySelector("#revoke-client-key")?.addEventListener("click", async () => {
   if (!selectedClientId) return;
-  if (detailStatus) detailStatus.textContent = "Revoking client keys...";
+  setDetailStatus("Revoking client keys...");
   try {
     await revokeClientKeys(selectedClientId);
-    if (detailStatus) detailStatus.textContent = "Revoked all client keys.";
+    setDetailStatus("Revoked all client keys.", "success");
+    showToast("Revoked all client keys.", "success");
     await renderDetail();
   } catch (error) {
-    if (detailStatus) detailStatus.textContent = error instanceof Error ? error.message : "Unable to revoke keys.";
+    const message = error instanceof Error ? error.message : "Unable to revoke keys.";
+    setDetailStatus(message, "danger");
+    showToast(message, "danger");
   }
 });
 
@@ -193,15 +258,33 @@ document.querySelector("#test-client-connection")?.addEventListener("click", asy
   const clientKey =
     (document.querySelector("#connection-api-key") as HTMLInputElement | null)?.value.trim() ?? "";
   if (!clientKey) {
-    if (detailStatus) detailStatus.textContent = "Client API key is required.";
+    setDetailStatus("Client API key is required.", "danger");
     return;
   }
-  if (detailStatus) detailStatus.textContent = "Running connection test...";
+  setDetailStatus(`Running connection test${lastSelectedClientName ? ` for ${lastSelectedClientName}` : ""}...`);
   try {
     const result = await testClientConnection(clientKey);
-    if (detailStatus) detailStatus.textContent = `Connection test passed for ${result.client.slug}.`;
+    setDetailStatus(`Connection test passed for ${result.client.slug}.`, "success");
+    showToast(`Connection test passed for ${result.client.slug}.`, "success");
   } catch (error) {
-    if (detailStatus) detailStatus.textContent = error instanceof Error ? error.message : "Connection test failed.";
+    const message = error instanceof Error ? error.message : "Connection test failed.";
+    setDetailStatus(message, "danger");
+    showToast(message, "danger");
+  }
+});
+
+snippets?.addEventListener("click", async (event) => {
+  const button = (event.target as HTMLElement | null)?.closest(".snippet-copy-button");
+  if (!(button instanceof HTMLButtonElement)) return;
+  const content = button.dataset.snippetContent ?? "";
+  const label = button.dataset.snippetLabel ?? "snippet";
+  try {
+    await navigator.clipboard.writeText(content);
+    setDetailStatus(`Copied ${label} snippet to clipboard.`, "success");
+    showToast(`Copied ${label} snippet.`, "success");
+  } catch {
+    setDetailStatus(`Unable to copy ${label} snippet automatically.`, "danger");
+    showToast(`Unable to copy ${label} snippet automatically.`, "danger");
   }
 });
 

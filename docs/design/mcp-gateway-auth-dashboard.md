@@ -1,5 +1,8 @@
 # MCP Gateway Auth Dashboard Design
 
+Canonical system reference:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
 > **Document version**: 1.0
 > **Date**: 2026-04-08
 > **Status**: Draft for review
@@ -119,6 +122,9 @@ The client should not need to manually call `minder_auth_login`.
 ---
 
 ## 5. High-Level Architecture
+
+This section is feature-specific. For the full platform topology, see:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ```mermaid
 flowchart LR
@@ -758,4 +764,3 @@ Reason:
   - dashboard management
   - audit trails
   - enterprise onboarding
-

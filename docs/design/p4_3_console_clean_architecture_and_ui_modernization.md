@@ -1,5 +1,8 @@
 # Design: Phase 4.3 Console Clean Architecture and UI Modernization
 
+Canonical system reference:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
 **Date**: 2026-04-09
 **Status**: Proposed
 **Related requirements**: [`docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md`](/Users/trungtran/ai-agents/minder/docs/requirements/p4_3_console_clean_architecture_and_ui_modernization.md)
@@ -31,6 +34,9 @@ This violates the project clean architecture rules because presentation, applica
 ---
 
 ## Target Architecture
+
+This section describes the Phase 4.3 refactor slice. For the full runtime and deployment shape, see:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ```mermaid
 flowchart LR

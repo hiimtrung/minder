@@ -27,3 +27,7 @@ body {
 .primary-pill {
   @apply inline-flex items-center justify-center rounded-full bg-amber-800 px-4 py-2 text-sm text-white transition hover:bg-amber-900;
 }
+
+.snippet-pre {
+  max-height: min(48vh, 32rem);
+}

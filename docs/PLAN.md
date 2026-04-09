@@ -2,6 +2,16 @@
 
 This document is the entry point for the Minder implementation plan. The full plan has been split into smaller files so it is easier to review, maintain, and update.
 
+## Canonical Architecture Reference
+
+Use [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md) as the system-level source of truth.
+
+Use this `PLAN` index and the `docs/plan/*` files for:
+- phased planning
+- delivery sequence
+- implementation scope
+- operational rollout details
+
 ## Planning Documents
 
 1. [01-product-scope.md](./plan/01-product-scope.md)
@@ -30,7 +40,7 @@ This document is the entry point for the Minder implementation plan. The full pl
 ## Recommended Reading Order
 
 1. Start with product scope and goals.
-2. Review the architecture and system boundaries.
+2. Review [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md) for runtime architecture and system boundaries.
 3. Review data stores, MCP tools, and configuration.
 4. Review workflow governance and repository-local state.
 5. Review phased implementation.

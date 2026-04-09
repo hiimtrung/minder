@@ -1,70 +1,17 @@
 # 02. Architecture
 
+Canonical reference:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+This planning document keeps the architecture-specific implementation notes that support the phased plan.
+It is not the primary source of truth for runtime topology anymore.
+
 ## Expanded Architecture
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        MCP CLIENT (AI Agent)                        │
-│  Copilot / Claude Desktop / Cursor / Custom Agent                  │
-└───────────────────────────────┬─────────────────────────────────────┘
-                                │ MCP Protocol (SSE primary / stdio local)
-                                ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     MINDER MCP SERVER (Python)                      │
-│                                                                     │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                  Auth and Identity Layer                       │ │
-│  │  API Keys | JWT | RBAC | User Store | Repo Access Policies    │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                  MCP Transport Layer                           │ │
-│  │  Tools | Resources | Prompts | Sampling                       │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              Workflow and Orchestration Layer                  │ │
-│  │                                                                │ │
-│  │  Workflow Config -> Current Step -> Next Step Guidance         │ │
-│  │  Gate Policies   -> Repo State   -> LLM Instructions           │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │              LangGraph Orchestrator (Core Engine)              │ │
-│  │                                                                │ │
-│  │  Planning -> Retriever -> Reranker -> Reasoning -> LLM         │ │
-│  │      |            |             |            |       |          │ │
-│  │      └--------> Guard -> Verification -> Evaluator             │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                    Data Layer (Multi-Tier)                     │ │
-│  │                                                                │ │
-│  │  Tier 1: Vector Store      - Milvus / Milvus Lite             │ │
-│  │  Tier 2: Relational Store  - SQLite / PostgreSQL              │ │
-│  │  Tier 3: Document Store    - JSON / JSONL / structured files  │ │
-│  │  Tier 4: Graph Store       - knowledge relationships          │ │
-│  │  Tier 5: Cache Layer       - LRU / Redis                      │ │
-│  │  Tier 6: Repo State Store  - workflow state in each repo      │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                     Embedding Layer                            │ │
-│  │  Qwen/Qwen3-Embedding-0.6B GGUF (mandatory) | OpenAI fallback │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                       LLM Layer                                │ │
-│  │  Qwen3.5-0.8B GGUF (mandatory) | OpenAI fallback              │ │
-│  │  llama.cpp via llama-cpp-python | LiteLLM optional            │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-│                                │                                    │
-│  ┌────────────────────────────────────────────────────────────────┐ │
-│  │                  Dashboard and Admin Layer                     │ │
-│  │  Workflow config | Repo policies | Users | Metrics | Audit    │ │
-│  └────────────────────────────────────────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────────┘
-```
+Runtime topology, dashboard serving, storage topology, and clean architecture boundaries are documented in:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
+This file keeps the planning-level node and orchestration notes that matter for implementation sequencing.
 
 ## LangGraph Nodes
 

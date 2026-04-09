@@ -8,36 +8,8 @@ This guide deploys Minder as a single web application on one port:
 
 The Python app serves the built Astro assets directly, so production does not require a separate frontend runtime.
 
-## Deployment Shape
-
-```mermaid
-flowchart LR
-    A["Browser Admin"] --> B["Minder App :8800"]
-    C["MCP Clients"] --> B
-    B --> D["Astro Dashboard Assets"]
-    B --> E["Admin HTTP / MCP Presentation"]
-    E --> F["Application Use Cases"]
-    F --> G["MongoDB"]
-    F --> H["Redis"]
-    F --> I["Milvus Standalone"]
-    F --> J["Local GGUF Models"]
-```
-
-## Runtime Boundaries
-
-```mermaid
-flowchart TB
-    subgraph "Single Minder Container"
-        Dashboard["Astro Static Bundle"]
-        Admin["Admin HTTP Routes"]
-        Gateway["MCP Gateway"]
-        UseCases["Application Use Cases"]
-    end
-
-    Dashboard --> Admin
-    Admin --> UseCases
-    Gateway --> UseCases
-```
+Canonical runtime and deployment architecture:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ## What the Docker Image Builds
 

@@ -2,20 +2,8 @@
 
 This guide gets a fresh Minder stack running locally on port `8800`, including browser admin bootstrap and MCP connectivity checks.
 
-## Local Architecture
-
-```mermaid
-flowchart LR
-    Browser["Browser Admin"] --> Dashboard["Astro Dashboard /dashboard"]
-    MCP["MCP Clients"] --> SSE["MCP SSE / stdio Gateway"]
-    Dashboard --> API["Admin APIs /v1/admin/*"]
-    API --> Core["Application Use Cases"]
-    SSE --> Core
-    Core --> Mongo["MongoDB"]
-    Core --> Redis["Redis"]
-    Core --> Milvus["Milvus Standalone"]
-    Core --> Models["Qwen GGUF Models"]
-```
+System-level architecture lives in:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ## Prerequisites
 

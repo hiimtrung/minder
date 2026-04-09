@@ -138,6 +138,7 @@ The old admin API key becomes invalid immediately, and Minder writes an audit ev
 - [Local Setup Guide](/Users/trungtran/ai-agents/minder/docs/guides/local-setup.md)
 - [Admin and Client Onboarding Guide](/Users/trungtran/ai-agents/minder/docs/guides/admin-client-onboarding.md)
 - [Production Deployment Guide](/Users/trungtran/ai-agents/minder/docs/guides/production-deployment.md)
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 - [Phase 4.1 Requirements](/Users/trungtran/ai-agents/minder/docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
 - [Gateway Auth and Dashboard Design](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md)
 - [Task Breakdown](/Users/trungtran/ai-agents/minder/docs/TASK_BREAKDOWN.md)
@@ -145,6 +146,9 @@ The old admin API key becomes invalid immediately, and Minder writes an audit ev
 - [Project Plan](/Users/trungtran/ai-agents/minder/docs/PLAN.md)
 
 ## Architecture
+
+Canonical reference:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
 
 ```mermaid
 flowchart TB
@@ -172,6 +176,9 @@ flowchart TB
 
 ### Runtime Layers
 
+See also:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
 ```mermaid
 flowchart LR
     Presentation["Presentation"]
@@ -187,6 +194,9 @@ flowchart LR
 
 ### Project Layout
 
+See the consolidated architecture document:
+- [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md)
+
 - [`src/dashboard`](/Users/trungtran/ai-agents/minder/src/dashboard): Astro admin console served by the Python app
 - [`src/minder/presentation/http/admin`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin): HTTP presentation layer
 - [`src/minder/application/admin`](/Users/trungtran/ai-agents/minder/src/minder/application/admin): admin use cases and DTOs
@@ -194,10 +204,7 @@ flowchart LR
 - [`src/minder/tools`](/Users/trungtran/ai-agents/minder/src/minder/tools): MCP tool surface
 - [`src/minder/store`](/Users/trungtran/ai-agents/minder/src/minder/store): MongoDB/relational/vector/cache adapters
 
-`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. It no longer contains the old Python-rendered dashboard. That legacy HTML flow has been removed in favor of:
-- JSON admin APIs in [`api.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/api.py)
-- static Astro dashboard serving and redirect policy in [`dashboard.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/dashboard.py)
-- thin route composition in [`routes.py`](/Users/trungtran/ai-agents/minder/src/minder/presentation/http/admin/routes.py)
+`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. Details now live in [System Design](/Users/trungtran/ai-agents/minder/docs/system-design.md).
 
 ## Runtime Notes
 

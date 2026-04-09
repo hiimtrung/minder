@@ -5,24 +5,32 @@ import DashboardLayout from "../../layouts/DashboardLayout.astro";
 <DashboardLayout
   title="Client Registry · Minder"
   description="Astro shell for the Minder client registry."
+  navTitle="Minder Client Registry"
+  navDescription="Provision client keys, run connection checks, and copy onboarding snippets."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard/clients", label: "Client Registry", tone: "primary" },
+  ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div class="space-y-3">
       <p class="eyebrow">Client Registry</p>
       <h1 class="text-5xl font-semibold tracking-tight text-stone-950">Manage MCP clients from the production dashboard.</h1>
       <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        This page serves both the registry and client detail flows from one static Astro build, so the Python app can host the full admin console from a single image and a single port.
+        Create clients, issue keys, test integrations, and copy onboarding snippets without leaving
+        the dashboard. The detail pane stays in context so operational checks do not throw you out
+        of the current screen.
       </p>
     </div>
-    <a href="/dashboard/login" class="primary-pill">Admin Login</a>
   </section>
 
   <section class="grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
     <aside class="shell-card p-7">
       <p class="eyebrow">Create Client</p>
-      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">Astro form shell</h2>
+      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">Create a new MCP client</h2>
       <p class="mt-3 text-sm leading-6 text-stone-600">
-        The final form will submit to <code>/v1/admin/clients</code> and reveal a new <code>mkc_...</code> key exactly once.
+        Minder will issue a new <code>mkc_...</code> key exactly once after creation. Keep scopes
+        tight and prefer repo-specific access when possible.
       </p>
 
       <form id="create-client-form" class="mt-6 grid gap-4">
@@ -99,7 +107,10 @@ import DashboardLayout from "../../layouts/DashboardLayout.astro";
             <section class="shell-card p-7">
               <p class="eyebrow">Onboarding</p>
               <h3 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">Copy-ready MCP snippets</h3>
-              <div id="onboarding-snippets" class="mt-6 grid gap-4 md:grid-cols-3">
+              <p class="mt-3 max-w-3xl text-sm leading-6 text-stone-600">
+                Each snippet is rendered in a readable full-width card with a dedicated copy action.
+              </p>
+              <div id="onboarding-snippets" class="mt-6 grid gap-4">
                 <article class="rounded-3xl border border-stone-300 bg-stone-50/80 p-4 text-sm text-stone-600">Select a client to load snippets.</article>
               </div>
             </section>

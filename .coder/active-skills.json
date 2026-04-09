@@ -1,37 +1,37 @@
 {
-  "task": "refactor astro dashboard ui ux",
+  "task": "docs consolidation cleanup",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T12:03:29.281923+07:00",
+  "resolved_at": "2026-04-09T12:16:14.125608+07:00",
   "keep": [],
   "add": [
-    "grafana-dashboards",
-    "shadcn",
-    "ui-styling"
+    "file-organizer",
+    "aws-cost-cleanup",
+    "android_ui_verification"
   ],
   "drop": [
-    "azure-cosmos-ts",
-    "figma-automation",
-    "pipecat-friday-agent"
+    "code-documentation-doc-generate",
+    "documentation-generation-doc-generate",
+    "makepad-layout"
   ],
   "skills": [
     {
-      "name": "grafana-dashboards",
-      "category": "frontend",
+      "name": "file-organizer",
+      "category": "general",
       "score": 0.016393442,
+      "chunk_count": 7,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "aws-cost-cleanup",
+      "category": "general",
+      "score": 0.016129032,
       "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "shadcn",
-      "category": "frontend",
-      "score": 0.016129032,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "ui-styling",
-      "category": "frontend",
+      "name": "android_ui_verification",
+      "category": "general",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

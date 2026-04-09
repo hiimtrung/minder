@@ -68,23 +68,37 @@ export type SetupAdminPayload = {
 };
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const redirectOnUnauthorized = init?.headers instanceof Headers
+    ? init.headers.get("X-Minder-Redirect-On-Unauthorized") !== "false"
+    : (typeof init?.headers === "object" ? (init?.headers as Record<string, string>)["X-Minder-Redirect-On-Unauthorized"] !== "false" : true);
+
+  const headers = new Headers(init?.headers ?? {});
+  headers.set("Content-Type", "application/json");
+  headers.delete("X-Minder-Redirect-On-Unauthorized");
+
   const response = await fetch(path, {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+    headers,
     ...init,
   });
 
   if (!response.ok) {
-    if (typeof window !== "undefined" && response.status === 401) {
+    if (typeof window !== "undefined" && response.status === 401 && redirectOnUnauthorized) {
       const next = window.location.pathname.startsWith("/dashboard/setup")
         ? "/dashboard/setup"
         : "/dashboard/login";
       window.location.href = next;
     }
-    throw new Error(`Request failed: ${response.status}`);
+    let message = `Request failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {
+      // Ignore JSON parse failures and fall back to status text.
+    }
+    throw new Error(message);
   }
 
   return (await response.json()) as T;
@@ -148,6 +162,7 @@ export async function rotateClientKey(clientId: string): Promise<{ client_api_ke
   return requestJson<{ client_api_key: string }>(`/v1/admin/clients/${clientId}/keys`, {
     method: "POST",
     body: JSON.stringify({}),
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
 
@@ -155,6 +170,7 @@ export async function revokeClientKeys(clientId: string): Promise<{ revoked: boo
   return requestJson<{ revoked: boolean }>(`/v1/admin/clients/${clientId}/keys/revoke`, {
     method: "POST",
     body: JSON.stringify({}),
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
 
@@ -166,6 +182,7 @@ export async function testClientConnection(client_api_key: string): Promise<{
   return requestJson(`/v1/gateway/test-connection`, {
     method: "POST",
     body: JSON.stringify({ client_api_key }),
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
 

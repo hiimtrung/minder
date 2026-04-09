@@ -76,9 +76,10 @@ async def test_phase4_gateway_auth_e2e(
         dashboard_response = await client.get(
             "/dashboard",
             headers={"Authorization": f"Bearer {admin_token}"},
+            follow_redirects=False,
         )
-        assert dashboard_response.status_code == 200
-        assert "Codex Team" in dashboard_response.text
+        assert dashboard_response.status_code == 303
+        assert dashboard_response.headers["location"] == "/dashboard/clients"
 
         onboarding_response = await client.get(
             f"/v1/admin/onboarding/{client_id}",
@@ -87,6 +88,7 @@ async def test_phase4_gateway_auth_e2e(
         assert onboarding_response.status_code == 200
         onboarding = onboarding_response.json()
         assert "codex" in onboarding["templates"]
+        assert "http://testserver/sse" in onboarding["templates"]["codex"]
 
         preflight_response = await client.post(
             "/v1/gateway/test-connection",
@@ -94,6 +96,7 @@ async def test_phase4_gateway_auth_e2e(
         )
         assert preflight_response.status_code == 200
         assert preflight_response.json()["ok"] is True
+        assert "http://testserver/sse" in preflight_response.json()["templates"]["copilot"]
 
         exchange_response = await client.post(
             "/v1/auth/token-exchange",

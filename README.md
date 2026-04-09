@@ -153,6 +153,7 @@ flowchart LR
 - Browser-native client registry and create-client flow are now available from `/dashboard`
 - Browser-native client detail, revoke/rotate actions, and onboarding snippets are now available from the dashboard
 - Browser-native recent activity and connection-test views are now available from the client detail page
+- Browser-only client-management flow is now covered by an end-to-end acceptance gate
 - `Phase 4.1` is complete: browser setup, browser admin login, admin API-key recovery, SSE direct client-key auth, and stdio direct client-key auth are all implemented and covered by tests
 
 ## Validation

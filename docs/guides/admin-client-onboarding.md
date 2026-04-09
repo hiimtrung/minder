@@ -17,7 +17,7 @@ Today you can:
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
-- complete the final browser-only end-to-end client-management gate
+- manage broader workflow, repository, and observability screens from the dashboard
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
 - fresh deployment: `/setup`

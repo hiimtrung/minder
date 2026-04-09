@@ -1,6 +1,5 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import setupPageScript from "../scripts/setup-page.ts?url";
 ---
 
 <DashboardLayout
@@ -45,5 +44,5 @@ import setupPageScript from "../scripts/setup-page.ts?url";
       </div>
     </div>
   </section>
-  <script type="module" src={setupPageScript}></script>
+  <script src="../scripts/setup-page.ts"></script>
 </DashboardLayout>

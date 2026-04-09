@@ -1,6 +1,5 @@
 ---
 import DashboardLayout from "../../layouts/DashboardLayout.astro";
-import clientsPageScript from "../../scripts/clients-page.ts?url";
 ---
 
 <DashboardLayout
@@ -117,5 +116,5 @@ import clientsPageScript from "../../scripts/clients-page.ts?url";
       </section>
     </div>
   </section>
-  <script type="module" src={clientsPageScript}></script>
+  <script src="../../scripts/clients-page.ts"></script>
 </DashboardLayout>

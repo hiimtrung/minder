@@ -1,76 +1,60 @@
 {
-  "updated_at": "2026-04-09T11:37:33.095362+07:00",
+  "updated_at": "2026-04-09T12:03:29.282638+07:00",
   "skills": {
-    "task": "fix astro dashboard integration flow",
+    "task": "refactor astro dashboard ui ux",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-09T11:37:33.059754+07:00",
+    "resolved_at": "2026-04-09T12:03:29.281923+07:00",
     "keep": [],
     "add": [
-      "upgrading-expo",
-      "on-call-handoff-patterns",
-      "kpi-dashboard-design"
+      "grafana-dashboards",
+      "shadcn",
+      "ui-styling"
     ],
     "drop": [
-      "framework-migration-legacy-modernize",
-      "shadcn",
-      "documentation-templates"
+      "azure-cosmos-ts",
+      "figma-automation",
+      "pipecat-friday-agent"
     ],
     "skills": [
       {
-        "name": "upgrading-expo",
-        "category": "general",
+        "name": "grafana-dashboards",
+        "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 2,
+        "chunk_count": 5,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "on-call-handoff-patterns",
-        "category": "general",
+        "name": "shadcn",
+        "category": "frontend",
         "score": 0.016129032,
-        "chunk_count": 1,
+        "chunk_count": 3,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "kpi-dashboard-design",
+        "name": "ui-styling",
         "category": "frontend",
         "score": 0.015873017,
-        "chunk_count": 6,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "fix astro dashboard integration flow",
+    "query": "refactor astro dashboard ui ux",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-09T11:37:33.09498+07:00",
+    "searched_at": "2026-04-09T12:03:28.925713+07:00",
     "results": [
-      {
-        "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
-        "title": "Astro dashboard CSS path fix",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:astro-dashboard-css-path-fix",
-        "score": 0.086393446,
-        "tags": [
-          "dashboard",
-          "astro",
-          "css",
-          "production"
-        ],
-        "conflict_detected": false,
-        "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
-      },
       {
         "id": "4a4d9437-dbeb-4e04-ad2a-8587cebf89f1",
         "title": "Phase 4.3 Wave 3 Astro shell scaffold",
         "type": "document",
         "status": "active",
         "canonical_key": "document:phase-4-3-wave-3-astro-shell-scaffold",
-        "score": 0.086129025,
+        "score": 0.086393446,
         "tags": [
           "phase4",
           "dashboard",
@@ -82,12 +66,60 @@
         "content": "Implemented Phase 4.3 Wave 3 without creating a commit. Added dashboard/web as an Astro plus Tailwind workspace with package.json, astro.config.mjs, tsconfig.json, shared layout, shell pages for setup/login/client list/client detail, global styles, and a typed admin API client aimed at /v1/admin/clients, /v1/admin/audit, and /v1/auth/token-exchange. Verified with scaffold tests plus existing dashboard/admin backend tests; did not run astro build because frontend dependencies were not installed in this turn."
       },
       {
+        "id": "f81b859e-bf83-4751-a8b6-da3d6e663d70",
+        "title": "Astro dashboard runtime import fix",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:astro-dashboard-runtime-import-fix",
+        "score": 0.086129025,
+        "tags": [
+          "astro",
+          "dashboard",
+          "integration",
+          "frontend"
+        ],
+        "conflict_detected": false,
+        "content": "Fixed the Astro admin console integration bug where inline page scripts imported ../lib/api/admin directly and the browser fetched /lib/api/admin as a raw module path, causing 404s. Moved setup, login, and clients page logic into bundled script entry files under src/dashboard/src/scripts and referenced them from Astro pages via ?url so Vite/Astro emits proper dashboard asset URLs. Backend API contracts did not need changes."
+      },
+      {
+        "id": "346627bd-da2c-4652-8cdb-44aa97ee9881",
+        "title": "Astro dashboard promoted to /dashboard",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:astro-dashboard-promoted-to-dashboard",
+        "score": 0.08587302,
+        "tags": [
+          "dashboard",
+          "astro",
+          "production",
+          "phase4"
+        ],
+        "conflict_detected": false,
+        "content": "Promoted the Astro admin console under src/dashboard to the primary UI surface. Minder now serves static Astro assets from /dashboard, keeps /console only as a compatibility redirect, and uses a single static clients page with Python fallback to clients/index.html for /dashboard/clients/{id}. Docker now uses a Node build stage and copies the bundle to /app/dashboard-dist so production stays one image and one port. Browser/admin tests were updated to use Astro-shell semantics with seeded dist fixtures instead of the old server-rendered HTML assumptions."
+      },
+      {
+        "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
+        "title": "Astro dashboard CSS path fix",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:astro-dashboard-css-path-fix",
+        "score": 0.08562499,
+        "tags": [
+          "dashboard",
+          "astro",
+          "css",
+          "production"
+        ],
+        "conflict_detected": false,
+        "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
+      },
+      {
         "id": "77f1c132-ec3e-4d5e-b0c0-cd64c10e7651",
         "title": "Dashboard integration flow guarded by server state",
         "type": "document",
         "status": "active",
         "canonical_key": "document:dashboard-integration-flow-guarded-by-server-state",
-        "score": 0.08587302,
+        "score": 0.08538462,
         "tags": [
           "dashboard",
           "auth",
@@ -96,38 +128,6 @@
         ],
         "conflict_detected": false,
         "content": "The Astro dashboard cannot be treated as a blind static site for admin flows. The correct integration is stateful at the Python layer: /dashboard redirects to /dashboard/setup when no admin exists, to /dashboard/login when admins exist but there is no valid session, and to /dashboard/clients when an admin session is present. Static asset requests under /dashboard must bypass those auth redirects. Frontend JSON admin calls should also redirect 401 responses back to login/setup so the browser flow stays coherent."
-      },
-      {
-        "id": "4a88cf90-f928-494f-b310-c69f709aca7e",
-        "title": "Docker esbuild ETXTBSY workaround",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:docker-esbuild-etxtbsy-workaround",
-        "score": 0.08562499,
-        "tags": [
-          "docker",
-          "astro",
-          "esbuild",
-          "build"
-        ],
-        "conflict_detected": false,
-        "content": "The Astro dashboard builder in docker/Dockerfile hit ETXTBSY during npm install when esbuild validated its binary inside the same install step on Node Alpine. Switching to a split install flow fixes it: run npm install --ignore-scripts first, then run node node_modules/esbuild/install.js in a separate layer, then npm run build. Keep this pattern if the dashboard builder remains on Alpine; if the issue persists, switch only the builder stage to a Debian-based Node image."
-      },
-      {
-        "id": "5f04c082-3f3f-4ec4-95d6-9be06c1ec5d1",
-        "title": "Dashboard frontend aligned to Astro 6 baseline",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:dashboard-frontend-aligned-to-astro-6-baseline",
-        "score": 0.08538462,
-        "tags": [
-          "astro",
-          "frontend",
-          "config",
-          "bun"
-        ],
-        "conflict_detected": false,
-        "content": "Audited the dashboard frontend config against Astro 6 docs. package.json now targets astro ^6.1.4, keeps Bun as the package manager, and declares Node \u003e=22.12.0 for non-Bun frontend tooling in line with the Astro v6 upgrade guide. The strict tsconfig export path had already been fixed separately. bun.lock still needs regeneration in an environment with Bun available."
       }
     ]
   }

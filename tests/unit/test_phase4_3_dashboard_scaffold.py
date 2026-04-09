@@ -63,9 +63,9 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     setup_script = Path("src/dashboard/src/scripts/setup-page.ts").read_text()
     registry_script = Path("src/dashboard/src/scripts/clients-page.ts").read_text()
 
-    assert 'src={loginPageScript}' in login_page
-    assert 'src={setupPageScript}' in setup_page
-    assert 'src={clientsPageScript}' in registry_page
+    assert '<script src="../scripts/login-page.ts"></script>' in login_page
+    assert '<script src="../scripts/setup-page.ts"></script>' in setup_page
+    assert '<script src="../../scripts/clients-page.ts"></script>' in registry_page
     assert "loginAdmin" in login_script
     assert "setupAdmin" in setup_script
     assert "listClients" in registry_script

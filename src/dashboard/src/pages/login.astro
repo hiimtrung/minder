@@ -1,6 +1,5 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import loginPageScript from "../scripts/login-page.ts?url";
 ---
 
 <DashboardLayout
@@ -49,5 +48,5 @@ import loginPageScript from "../scripts/login-page.ts?url";
       </form>
     </div>
   </section>
-  <script type="module" src={loginPageScript}></script>
+  <script src="../scripts/login-page.ts"></script>
 </DashboardLayout>

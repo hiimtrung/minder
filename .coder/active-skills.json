@@ -1,39 +1,39 @@
 {
-  "task": "fix astro dashboard integration flow",
+  "task": "refactor astro dashboard ui ux",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T11:37:33.059754+07:00",
+  "resolved_at": "2026-04-09T12:03:29.281923+07:00",
   "keep": [],
   "add": [
-    "upgrading-expo",
-    "on-call-handoff-patterns",
-    "kpi-dashboard-design"
+    "grafana-dashboards",
+    "shadcn",
+    "ui-styling"
   ],
   "drop": [
-    "framework-migration-legacy-modernize",
-    "shadcn",
-    "documentation-templates"
+    "azure-cosmos-ts",
+    "figma-automation",
+    "pipecat-friday-agent"
   ],
   "skills": [
     {
-      "name": "upgrading-expo",
-      "category": "general",
+      "name": "grafana-dashboards",
+      "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 2,
+      "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "on-call-handoff-patterns",
-      "category": "general",
+      "name": "shadcn",
+      "category": "frontend",
       "score": 0.016129032,
-      "chunk_count": 1,
+      "chunk_count": 3,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "kpi-dashboard-design",
+      "name": "ui-styling",
       "category": "frontend",
       "score": 0.015873017,
-      "chunk_count": 6,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

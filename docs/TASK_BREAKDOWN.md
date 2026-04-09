@@ -665,8 +665,8 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 
 #### P4.0-T06: Dashboard Frontend for Client/API Key Management
 - **Owner**: `FE`
-- **Requirement**: Build admin UI for login, client registry, API key creation/rotation/revocation, scope assignment, onboarding instructions, and recent activity.
-- **Result**: Admins can manage MCP clients without shell scripts or direct DB access.
+- **Requirement**: Build the initial admin UI shell for login, dashboard session handling, setup context, and a lightweight client registry view. This establishes the dashboard surface but does not require full CRUD forms in the first slice.
+- **Result**: Admins can sign in and reach a dashboard shell that is ready for later client-management UI waves.
 
 #### P4.0-T07: MCP Onboarding Templates
 - **Owner**: `FE`
@@ -712,6 +712,46 @@ Before Phase 1 can be considered closed against the original spec, the remaining
 - **Owner**: `BE` + `FE`
 - **Requirement**: Update or add integration tests that prove the setup wizard flow works, admin API-key recovery updates the account access path, and an MCP client can invoke a protected tool by directly supplying the raw API key in the connection header/env.
 - **Result**: Phase 4.1 is complete. Administrator and Client onboarding are both fully frictionless.
+
+### Phase 4.2 — Client Management Dashboard UI
+
+**Goal**: Close the remaining browser UX gap by adding a real dashboard interface for creating and managing MCP clients, API keys, scopes, and onboarding snippets without dropping to raw admin HTTP calls.
+
+#### P4.2-T01: Client Registry Screen
+- **Owner**: `FE`
+- **Requirement**: Expand `/dashboard` into a real client registry page that lists existing clients, status, scopes, transport modes, and recent key activity. Keep the current server-rendered baseline if possible, but make the page actionable rather than informational only.
+- **Result**: Admins can inspect all configured MCP clients from the browser.
+
+#### P4.2-T02: Create Client Form
+- **Owner**: `FE` + `BE`
+- **Requirement**: Add a browser form for creating a client with name, slug, description, tool scopes, repo scopes, and transport preferences. The form must POST through the existing admin backend contract and show the newly issued `client_api_key` exactly once after creation.
+- **Result**: A new MCP client can be created entirely from the browser with no manual `curl` step.
+
+#### P4.2-T03: Client Detail and Key Management UI
+- **Owner**: `FE`
+- **Requirement**: Add a client detail view with actions to rotate/revoke keys, inspect allowed scopes, and show audit-relevant lifecycle metadata. Reuse the existing backend endpoints for key creation and revocation.
+- **Result**: Admins can manage a client lifecycle entirely from the browser.
+
+#### P4.2-T04: Onboarding Snippets and Copy UX
+- **Owner**: `FE`
+- **Requirement**: Surface the existing onboarding templates in the dashboard with copy-ready snippets for Codex, Copilot-style MCP, Claude Desktop, and stdio bootstrapping. Include transport-specific instructions for `X-Minder-Client-Key`, `MINDER_CLIENT_API_KEY`, and optional token exchange.
+- **Result**: A newly created client can be onboarded from dashboard instructions alone.
+
+#### P4.2-T05: Dashboard Connection Test and Activity Surface
+- **Owner**: `FE` + `BE`
+- **Requirement**: Expose the existing connection-test endpoint and recent audit/activity data inside the dashboard so an operator can validate a client immediately after creation.
+- **Result**: The dashboard can confirm that a client is configured correctly and show the latest onboarding-relevant events.
+
+#### P4.2-VERIFY: Client Management Dashboard Gate
+- **Owner**: `FE` + `BE`
+- **Requirement**: Add end-to-end tests and manual verification that prove:
+  1. Admin signs into `/dashboard/login`
+  2. Admin creates a client from the browser UI
+  3. The dashboard reveals the new `client_api_key` exactly once
+  4. The dashboard renders onboarding snippets for that client
+  5. The admin can revoke or rotate a key from the browser
+  6. Recent activity in the dashboard reflects create and revoke events
+- **Result**: Browser-only client onboarding is complete.
 
 ### Tasks
 

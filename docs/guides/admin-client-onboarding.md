@@ -17,6 +17,7 @@ Today you can:
 Today you cannot yet:
 
 - manage everything from a polished production dashboard UI
+- create or rotate clients entirely from a browser form; today that still goes through the admin API
 
 The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
 - fresh deployment: `/setup`
@@ -75,6 +76,8 @@ Recommended split:
 - MCP clients: direct `mkc_...` client API key or token exchange
 
 ## 4. Create an MCP client
+
+Today this step is API-driven. The browser dashboard session exists, but the dedicated client creation form has not been implemented yet.
 
 Example:
 
@@ -241,7 +244,7 @@ After revocation:
 1. Start the Docker stack.
 2. Create the first admin.
 3. Sign in to `/dashboard/login`.
-4. Create one client per real MCP consumer.
+4. Create one client per real MCP consumer through the admin API.
 5. Scope each client to the smallest needed tool set.
 6. Prefer direct client-key auth for local `SSE` and `stdio` integrations.
 7. Use onboarding templates from the admin API, not handwritten config.

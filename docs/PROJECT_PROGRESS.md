@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-08 (P4.1-Wave4 verification gate completed)
+> **Last updated**: 2026-04-09 (planned Phase 4.2 client-management dashboard UI)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement | `DONE` | `closed` | - | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern. |
 | `Phase 2.2` | Verification, retrieval, and workflow closure | `DONE` | `closed` | - | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented. |
 | `Phase 3` | Advanced retrieval, knowledge graph, process intelligence | `DONE` | `closed` | - | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable. |
-| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4-Wave1` | Observability, prod compose, load, and security backlog remain | `Phase 4.0` is closed; broader Phase 4 has now started with rate limiting and quota enforcement on MCP tool calls. |
+| `Phase 4` | Production scale, multi-user, dashboard | `IN PROGRESS` | `P4.2-Wave1` | Client management dashboard UI is still missing even though backend onboarding APIs exist | `Phase 4.0` and `Phase 4.1` are closed; the next priority is browser-native client creation and management. |
 | `Phase 5` | Learning and self-improvement | `NOT STARTED` | `backlog` | Depends on reliable history/feedback foundation | Planning exists only in breakdown docs. |
 
 ---
@@ -113,7 +113,7 @@
 
 | Phase | Status | Notes |
 |---|---|---|
-| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; broader Phase 4 execution has started with `P4-T04` rate limiting. |
+| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](/Users/trungtran/ai-agents/minder/docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; broader Phase 4 now has an explicit `Phase 4.2` UI gap for browser-native client creation and management. |
 | `Phase 5` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started. |
 
 ## Phase 4 Tracker
@@ -126,7 +126,7 @@
 | `P4-T04` Rate Limiting and Quotas | `P4-Wave1` | `DONE` | `-` | Added `RateLimiter`, role-based per-tool thresholds, transport enforcement, and full-suite verification (`250 passed, 14 skipped`). |
 | `P4-T05` Observability Stack | `backlog` | `NOT STARTED` | `Depends on dashboard and prod runtime metrics shape` | OpenTelemetry, Prometheus, and structured logs are not implemented yet. |
 | `P4-T06` Production Docker Compose | `backlog` | `NOT STARTED` | `Depends on observability and infra decisions` | Dev compose exists; production compose and secrets handling do not. |
-| `P4-T07` Dashboard Backend API | `P4-Wave4` | `IN PROGRESS` | `Broader dashboard CRUD and workflow APIs still remain` | Added browser admin sign-in and logout flow for `/dashboard` via `HttpOnly` JWT cookie while preserving bearer auth for API/admin clients. |
+| `P4-T07` Dashboard Backend API | `P4-Wave4` | `PARTIAL` | `Client-management browser flows still depend on raw admin endpoints` | Added browser admin sign-in and logout flow for `/dashboard` via `HttpOnly` JWT cookie while preserving bearer auth for API/admin clients. |
 | `P4-T08` Dashboard Frontend — Workflow Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Full workflow management UI is still backlog. |
 | `P4-T09` Dashboard Frontend — Repository & User Management | `backlog` | `NOT STARTED` | `Depends on backend API expansion` | Only lightweight Phase 4.0 dashboard exists today. |
 | `P4-T10` Dashboard Frontend — Observability | `backlog` | `NOT STARTED` | `Depends on metrics/audit backend` | No observability UI yet. |
@@ -157,11 +157,26 @@
 | `P4.1-T03` Direct API Key Auth (Plug & Play) | `P4.1-Wave3` | `DONE` | - | SSE keeps `X-Minder-Client-Key`; stdio now supports direct client auth through the canonical `MINDER_CLIENT_API_KEY` environment variable. |
 | `P4.1-VERIFY` Plug-and-Play Gate | `P4.1-Wave4` | `DONE` | - | Added an end-to-end gate covering first-run setup, browser admin login, admin API-key recovery, direct SSE client-key auth, stdio bootstrap auth, and post-revocation access denial. |
 
+## Phase 4.2 Tracker
+
+| Task | Wave | Status | Blocker | Notes |
+|---|---|---|---|---|
+| `P4.2-T01` Client Registry Screen | `P4.2-Wave1` | `NOT STARTED` | `Needs dashboard page expansion beyond the current shell` | `/dashboard` currently exists, but it is not yet a real browser-native client registry UI. |
+| `P4.2-T02` Create Client Form | `P4.2-Wave1` | `NOT STARTED` | `Needs browser form + one-time key reveal UX` | Client creation exists on `POST /v1/admin/clients`, but not in the browser UI. |
+| `P4.2-T03` Client Detail and Key Management UI | `P4.2-Wave2` | `NOT STARTED` | `Depends on client detail page and existing key endpoints` | Rotate/revoke is API-backed today; no browser UI yet. |
+| `P4.2-T04` Onboarding Snippets and Copy UX | `P4.2-Wave2` | `NOT STARTED` | `Depends on create/detail screens` | Onboarding templates exist in the backend but are not surfaced through a browser-native flow yet. |
+| `P4.2-T05` Dashboard Connection Test and Activity Surface | `P4.2-Wave3` | `NOT STARTED` | `Depends on dashboard detail screens` | Backend test-connection and audit endpoints exist, but the dashboard does not expose them meaningfully yet. |
+| `P4.2-VERIFY` Client Management Dashboard Gate | `P4.2-Wave4` | `NOT STARTED` | `Depends on P4.2-T01..T05` | No browser-only end-to-end client management gate exists yet. |
+
 ## Recommended Next Waves
 
 | Wave | Focus | Tasks | Status |
 |---|---|---|---|
 | `P4-Wave1` | Rate Limiting and Quotas | `P4-T04` | `DONE` |
+| `P4.2-Wave1` | Client Registry + Create Client UI | `P4.2-T01`, `P4.2-T02` | `READY` |
+| `P4.2-Wave2` | Client Detail + Onboarding UI | `P4.2-T03`, `P4.2-T04` | `BACKLOG` |
+| `P4.2-Wave3` | Connection Test + Activity UI | `P4.2-T05` | `BACKLOG` |
+| `P4.2-Wave4` | Browser-Only Client Management Gate | `P4.2-VERIFY` | `BACKLOG` |
 | `P4-Wave2` | Observability Foundation | `P4-T05` | `BACKLOG` |
 | `P4-Wave3` | Production Runtime and Compose | `P4-T01`, `P4-T02`, `P4-T03`, `P4-T06` | `BACKLOG` |
 | `P4-Wave4` | Full Dashboard Expansion | `P4-T07`, `P4-T08`, `P4-T09`, `P4-T10` | `BACKLOG` |

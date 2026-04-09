@@ -1,39 +1,39 @@
 {
-  "task": "documentation update for phase 4.1 onboarding and auth flow",
+  "task": "phase 4.2 client management dashboard ui planning",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-08T17:30:42.659925+07:00",
+  "resolved_at": "2026-04-09T08:13:16.187656+07:00",
   "keep": [],
   "add": [
-    "api-documenter",
-    "c4-architecture-c4-architecture",
-    "onboarding-cro"
+    "kpi-dashboard-design",
+    "conductor-status",
+    "build"
   ],
   "drop": [
-    "wordpress",
-    "verification-before-completion",
-    "clarity-gate"
+    "grafana-dashboards",
+    "datadog-automation",
+    "ui-styling"
   ],
   "skills": [
     {
-      "name": "api-documenter",
-      "category": "general",
+      "name": "kpi-dashboard-design",
+      "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "c4-architecture-c4-architecture",
-      "category": "general",
-      "score": 0.016129032,
       "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "onboarding-cro",
-      "category": "general",
+      "name": "conductor-status",
+      "category": "frontend",
+      "score": 0.016129032,
+      "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "build",
+      "category": "frontend",
       "score": 0.015873017,
-      "chunk_count": 2,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

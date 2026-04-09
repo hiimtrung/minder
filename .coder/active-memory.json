@@ -1,27 +1,43 @@
 {
   "mode": "search",
-  "query": "documentation update for phase 4.1 onboarding and auth flow",
+  "query": "phase 4.2 client management dashboard ui planning",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-08T17:30:42.507506+07:00",
+  "searched_at": "2026-04-09T08:13:16.245729+07:00",
   "results": [
     {
-      "id": "401fc8bf-dbe8-4ff3-a140-f5f056534c1b",
-      "title": "Phase 4.1 requirements refined for setup and direct auth",
+      "id": "32b041a0-c8c5-4cd2-b024-59e969eca609",
+      "title": "Phase 1 setup-first planning refinement",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-1-requirements-refined-for-setup-and-direct-auth",
+      "canonical_key": "document:phase-1-setup-first-planning-refinement",
       "score": 0.086393446,
       "tags": [
-        "requirements",
-        "phase4",
-        "auth",
-        "onboarding",
-        "dashboard"
+        "planning",
+        "phase1",
+        "setup",
+        "style",
+        "gsd"
       ],
       "conflict_detected": false,
-      "content": "Reviewed and rewrote docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to align with Minder's actual auth model. Key correction: admin auth remains API-key based, so the requirements now target first-run /setup, admin API-key recovery via CLI, and direct client_api_key parity across transports instead of inventing password auth. The doc now distinguishes current baseline capabilities already present in code (/dashboard/login browser flow, SSE X-Minder-Client-Key, token exchange, onboarding routes) from the remaining gaps to implement. It also preserves token exchange as a supported compatibility path and records open questions around stdio bootstrap shape, session invalidation on recovery, and whether first-admin setup needs an extra deployment secret."
+      "content": "For rental-management-ui, the user clarified that the first implementation focus should be tech stack setup, project scaffold, and project styling before deeper API work. Instead of inserting a pre-Phase-1 decimal phase, the safe planning move was to reframe Phase 1 itself and create 01-CONTEXT plus 01-01/01-02/01-03 plans covering project scaffold/providers, design tokens and shell, then auth pages and protected routing. STATE and .continue-here were updated so the next execution step is 01-01-PLAN.md while Phase 01.1 remains queued for typed API integration."
+    },
+    {
+      "id": "c842fe76-65db-459c-a58e-66c082214e30",
+      "title": "Resume state after Phase 01.1 planning refinement",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:resume-state-after-phase-01-1-planning-refinement",
+      "score": 0.086129025,
+      "tags": [
+        "resume",
+        "gsd",
+        "phase-01.1",
+        "planning"
+      ],
+      "conflict_detected": false,
+      "content": "Resumed rental-management-ui on 2026-04-01 with STATE.md present, no HANDOFF.json, no .continue-here checkpoint, and no interrupted agent. Current active focus remains Phase 01.1 api-integration-contract-and-typed-data-layer. There is one incomplete execution artifact: .planning/phases/01.1-api-integration-contract-and-typed-data-layer/01.1-03-PLAN.md, which is the final plan in the phase and is ready to execute. Recent planning refinement expanded 01.1-03 to cover login bootstrap plus protected follow-up request, 401 vs 403 behavior, base URL normalization, typed query filters, delete-style no-content responses, PDF download handling, and explicit TODO visibility for unresolved backend payloads. Working tree is dirty only for .planning/config.json outside the just-committed planning docs."
     },
     {
       "id": "ea68b701-9eda-4cc2-bef3-700798107a4e",
@@ -29,7 +45,7 @@
       "type": "document",
       "status": "active",
       "canonical_key": "document:phase-4-0-mcp-gateway-auth-dashboard-design-drafted",
-      "score": 0.086129025,
+      "score": 0.08587302,
       "tags": [
         "minder",
         "phase-4",
@@ -43,54 +59,39 @@
       "content": "Created docs/design/mcp-gateway-auth-dashboard.md to redesign Minder onboarding around a client-aware MCP gateway. The design separates AdminUser and Client identities, adds Client/ClientApiKey/ClientSession/AuditLog entities, proposes token exchange plus simple client-key bootstrap modes, uses Redis for short-lived session state and MongoDB for durable metadata, and defines dashboard backend/frontend scope for client/API key management and onboarding templates. Also updated docs/TASK_BREAKDOWN.md with Phase 4.0 tasks and docs/PROJECT_PROGRESS.md to mark Phase 4 IN PROGRESS at design stage."
     },
     {
-      "id": "60ba7da9-afbe-4e10-84e4-066b428e7c08",
-      "title": "Local onboarding docs and port 8800 defaults",
+      "id": "98218d37-8258-49fc-a293-398d91b7a8e8",
+      "title": "Phase 01.1 plan refinement from integration docs",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:local-onboarding-docs-and-port-8800-defaults",
-      "score": 0.08587302,
-      "tags": [
-        "docs",
-        "onboarding",
-        "readme",
-        "port-8800",
-        "phase4"
-      ],
-      "conflict_detected": false,
-      "content": "Rewrote the root README as a real documentation entrypoint, added docs/guides/local-setup.md and docs/guides/admin-client-onboarding.md, and switched local dev defaults from port 8080 to 8800 in config, minder.toml, Dockerfile, docker-compose.dev.yml, and generated onboarding templates in src/minder/server.py. The guides are explicit that /dashboard exists but still needs bearer auth because a browser-native admin login form is not implemented yet. Verified with mypy and targeted pytest covering config, delivery assets, phase 4 admin HTTP, and the phase 4 gateway e2e flow."
-    },
-    {
-      "id": "36db7c9c-d0b4-47a8-aa79-d7aebec81f1c",
-      "title": "OMS API architecture docs scaffold",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:oms-api-architecture-docs-scaffold",
+      "canonical_key": "document:phase-01-1-plan-refinement-from-integration-docs",
       "score": 0.08562499,
       "tags": [
-        "oms-api",
-        "documentation",
-        "architecture",
-        "nestjs"
+        "planning",
+        "frontend",
+        "integration",
+        "phase-01.1",
+        "gsd"
       ],
       "conflict_detected": false,
-      "content": "Created documentation set under docs/: README index, ARCHITECTURE.md, API_REFERENCE.md, DATABASE_AND_MIGRATIONS.md and linked all from root README. Docs describe clean architecture layers, module structure, runtime wiring, endpoint inventory, and migration conventions for users/roles/permissions/organizations."
+      "content": "Reviewed .planning/frontend-integration-contract.md and .planning/frontend-screen-api-map.md in rental-management-ui and refined the active Phase 01.1 planning artifacts instead of creating a new phase. Updated 01.1-CONTEXT to lock in runtime decisions for base URL normalization with or without /api, typed query filters like houseId/roomId/billingMonth, no-content delete handling, string-or-string[] error message preservation, transport-vs-presentation date/money boundaries, and visible PDF/CORS risk. Updated 01.1-03-PLAN so smoke coverage now explicitly tests login plus one authenticated follow-up request, 401 vs 403 behavior, JSON envelope parsing, binary PDF flow, base URL normalization, query serialization, empty-body deletes, and localized TODOs for unresolved payloads such as debt summary, move-in/out, room-service assignments, and asset logs. Also corrected frontend-screen-api-map.md to link to the local frontend integration contract file in the UI repo."
     },
     {
-      "id": "ac29c93d-91fb-462f-a386-8e39a68c74a4",
-      "title": "Lifecycle commands synced to all agent layers",
+      "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
+      "title": "Minder plan translated and expanded",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:lifecycle-commands-synced-to-all-agent-layers",
+      "canonical_key": "document:minder-plan-translated-and-expanded",
       "score": 0.08538462,
       "tags": [
-        "coder-cli",
-        "workflows",
-        "copilot",
-        "agent",
-        "lifecycle"
+        "minder",
+        "plan",
+        "workflow",
+        "tdd",
+        "mcp",
+        "repo-state"
       ],
       "conflict_detected": false,
-      "content": "Updated all 3 layers to include Group B lifecycle commands (new-project, map-codebase, discuss-phase, plan-phase, execute-phase, ship, progress, next, milestone) and Group C utilities (todo, stats, health, note, do). Files updated: .github/copilot-instructions.md (replaced AI Workflow Commands section with 3 groups A/B/C), .agents/workflows/full-lifecycle-delivery.md (added Lifecycle Path section with per-phase loop), .agents/workflows/execute-plan.md (added lifecycle path mode detection, coder debug on error, coder note for blockers), .agents/workflows/new-requirement.md (added scope detection: small feature vs new project with coder new-project, next steps branching), .agents/workflows/update-planning.md (added coder progress/next/health/milestone audit/note integration). All workflows now aware of both quick-path (PLAN.md) and lifecycle-path (STATE.md) modes."
+      "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
     }
   ]
 }

@@ -1,77 +1,60 @@
 {
-  "updated_at": "2026-04-09T13:44:19.985542+07:00",
+  "updated_at": "2026-04-09T14:21:28.42339+07:00",
   "skills": {
-    "task": "debug astro dev port still showing 4321 instead of 8808",
+    "task": "remove legacy dashboard compat config",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-09T13:44:19.984533+07:00",
+    "resolved_at": "2026-04-09T14:21:28.352399+07:00",
     "keep": [],
     "add": [
-      "documentation-templates",
-      "hugging-face-model-trainer",
-      "coder-cli"
+      "shadcn",
+      "legacy-modernizer",
+      "grafana-dashboards"
     ],
     "drop": [
-      "auri-core",
-      "hugging-face-evaluation",
-      "tool-use-guardian"
+      "astropy",
+      "imagen",
+      "seaborn"
     ],
     "skills": [
       {
-        "name": "documentation-templates",
-        "category": "general",
+        "name": "shadcn",
+        "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 1,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "hugging-face-model-trainer",
-        "category": "general",
-        "score": 0.016129032,
         "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "coder-cli",
-        "category": "backend",
-        "score": 0.015873017,
+        "name": "legacy-modernizer",
+        "category": "general",
+        "score": 0.016129032,
         "chunk_count": 1,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "grafana-dashboards",
+        "category": "frontend",
+        "score": 0.015873017,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "debug astro dev port still showing 4321 instead of 8808",
+    "query": "remove legacy dashboard compat config",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-09T13:44:19.794469+07:00",
+    "searched_at": "2026-04-09T14:21:28.422217+07:00",
     "results": [
-      {
-        "id": "0e09e8d2-fb1f-496e-abcd-bf33ba9f9eec",
-        "title": "Split Astro dev runtime from Minder backend",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:split-astro-dev-runtime-from-minder-backend",
-        "score": 0.086393446,
-        "tags": [
-          "astro",
-          "dashboard",
-          "dev-runtime",
-          "mcp",
-          "docs"
-        ],
-        "conflict_detected": false,
-        "content": "Added split local frontend-dev mode where Astro runs on 8808 and Minder backend stays on 8800. Dashboard config now supports dev_server_url redirects for /dashboard routes, admin HTTP app enables CORS for the Astro dev origin, and frontend admin API resolves requests through API_URL bridged into PUBLIC_API_URL by Astro config. Onboarding snippets remain dynamic: in local split mode they derive the backend origin from API requests so snippets point to 8800; in Docker/prod static same-origin mode they continue using request origin. Updated README, local setup, system design, and production deployment docs plus focused tests for config, dashboard scaffold, and console gate."
-      },
       {
         "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
         "title": "Astro dashboard CSS path fix",
         "type": "document",
         "status": "active",
         "canonical_key": "document:astro-dashboard-css-path-fix",
-        "score": 0.086129025,
+        "score": 0.086393446,
         "tags": [
           "dashboard",
           "astro",
@@ -82,53 +65,71 @@
         "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
       },
       {
-        "id": "4012e82a-4526-425a-9685-62492487ef33",
-        "title": "Fix SMTP wrong version number on Brevo",
+        "id": "ddc8c49a-a7da-45f1-8546-280df6b4d806",
+        "title": "Disable Input focus ring",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:fix-smtp-wrong-version-number-on-brevo",
+        "canonical_key": "document:disable-input-focus-ring",
+        "score": 0.086129025,
+        "tags": [
+          "findtourgo",
+          "frontend",
+          "tailwind",
+          "input"
+        ],
+        "conflict_detected": false,
+        "content": "Removed DaisyUI/Tailwind focus ring utilities from shared Input component by adding explicit no-focus-ring classes to normal and affix render paths in src/components/atoms/Input/Input.tsx."
+      },
+      {
+        "id": "9a28f75f-4db9-41b4-ac73-31720af78099",
+        "title": "AntD-only UI pass with fullscreen loaders",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:antd-only-ui-pass-with-fullscreen-loaders",
         "score": 0.08587302,
         "tags": [
-          "oms-api",
-          "smtp",
-          "tls",
-          "nodemailer",
-          "brevo"
+          "frontend",
+          "antd",
+          "loading",
+          "cleanup",
+          "styles"
         ],
         "conflict_detected": false,
-        "content": "Resolved ESOCKET/CONN wrong version number by aligning SMTP TLS mode in oms-api .env: set EMAIL_SMTP_SECURE=false when using port 587 (STARTTLS). Verified with nodemailer transporter.verify() success. Use secure=true only with implicit TLS port 465."
+        "content": "Refactored rental-management-ui toward AntD-only styling by removing all custom className usage under src/app, src/components, and src/features. Added shared FullScreenLoader and InfoList primitives, replaced initial page/detail loading cards with full-screen Spin-based loaders, rewrote shared surfaces/layout/auth/public/dashboard screens to use Ant Design components and inline styles instead of globals-based custom classes, and reduced globals.css to base tokens and resets only while preserving primary color #166534. Verified with rg finding no className usage, yarn lint, and yarn build."
       },
       {
-        "id": "331cedcd-3f0e-4ea6-860e-ba51fa8dedc0",
-        "title": "Astro tsconfig export path corrected",
+        "id": "451337dd-47d9-4e16-a6f2-893f1ccb370e",
+        "title": "Admin route split and architecture docs refresh",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:astro-tsconfig-export-path-corrected",
+        "canonical_key": "document:admin-route-split-and-architecture-docs-refresh",
         "score": 0.08562499,
         "tags": [
+          "architecture",
+          "dashboard",
           "astro",
-          "typescript",
-          "tsconfig",
-          "dashboard"
+          "admin",
+          "presentation"
         ],
         "conflict_detected": false,
-        "content": "Astro 5 in the dashboard workspace exports its strict tsconfig as astro/tsconfigs/strict, not astro/tsconfigs/strict/tsconfig.json. The dashboard tsconfig needed to extend astro/tsconfigs/strict to avoid editor and checker errors about missing tsconfig files."
+        "content": "Split admin HTTP presentation into context/api/dashboard modules, removed legacy Python-rendered dashboard handlers, shifted tests to Astro plus JSON admin APIs, and expanded README/operator guides with whole-system architecture diagrams and route responsibilities. routes.py remains only as a composition boundary in the presentation layer."
       },
       {
-        "id": "4a88cf90-f928-494f-b310-c69f709aca7e",
-        "title": "Docker esbuild ETXTBSY workaround",
+        "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
+        "title": "Phase 4.3 completed with console serving seam",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:docker-esbuild-etxtbsy-workaround",
+        "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
         "score": 0.08538462,
         "tags": [
-          "docker",
+          "phase4",
+          "dashboard",
           "astro",
-          "esbuild",
-          "build"
+          "console",
+          "parity"
         ],
         "conflict_detected": false,
-        "content": "The Astro dashboard builder in docker/Dockerfile hit ETXTBSY during npm install when esbuild validated its binary inside the same install step on Node Alpine. Switching to a split install flow fixes it: run npm install --ignore-scripts first, then run node node_modules/esbuild/install.js in a separate layer, then npm run build. Keep this pattern if the dashboard builder remains on Alpine; if the issue persists, switch only the builder stage to a Debian-based Node image."
+        "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
       }
     ]
   }

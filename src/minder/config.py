@@ -16,7 +16,6 @@ class ServerConfig(BaseModel):
 class DashboardConfig(BaseModel):
     base_path: str = "/dashboard"
     static_dir: str = "src/dashboard/dist"
-    legacy_compat_enabled: bool = False
     dev_server_url: str | None = None
     api_url: str | None = None
 

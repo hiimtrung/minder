@@ -22,7 +22,7 @@ async def store() -> RelationalStore:
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_serves_static_dashboard_and_isolates_legacy_routes(
+async def test_phase4_3_console_gate_serves_static_dashboard_and_drops_legacy_console_routes(
     store: RelationalStore,
     tmp_path: Path,
 ) -> None:
@@ -37,7 +37,6 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_isolates_legacy
 
     config = MinderConfig(_env_file=None)
     config.dashboard.static_dir = str(dist)
-    config.dashboard.legacy_compat_enabled = False
     config.dashboard.base_path = "/dashboard"
 
     app = build_http_app(config=config, store=store)
@@ -50,10 +49,9 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_isolates_legacy
         dashboard_root = await client.get("/dashboard")
         dashboard_clients = await client.get("/dashboard/clients")
         dashboard_login = await client.get("/dashboard/login")
-        legacy_console = await client.get("/console")
-        legacy_console_clients = await client.get("/console/clients")
         legacy_setup = await client.get("/setup")
         client_detail = await client.get("/dashboard/clients/demo-client")
+        legacy_console = await client.get("/console")
 
     assert dashboard_root.status_code == 303
     assert dashboard_root.headers["location"] == "/dashboard/setup"
@@ -67,11 +65,7 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_isolates_legacy
     assert client_detail.status_code == 303
     assert client_detail.headers["location"] == "/dashboard/setup"
 
-    assert legacy_console.status_code == 308
-    assert legacy_console.headers["location"] == "/dashboard"
-
-    assert legacy_console_clients.status_code == 308
-    assert legacy_console_clients.headers["location"] == "/dashboard/clients"
+    assert legacy_console.status_code == 404
 
     assert legacy_setup.status_code == 308
     assert legacy_setup.headers["location"] == "/dashboard/setup"
@@ -93,7 +87,6 @@ async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_
 
     config = MinderConfig(_env_file=None)
     config.dashboard.static_dir = str(dist)
-    config.dashboard.legacy_compat_enabled = False
     config.dashboard.base_path = "/dashboard"
 
     app = build_http_app(config=config, store=store)

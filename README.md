@@ -30,7 +30,6 @@ Note:
 
 - In Docker and production, `/dashboard`, `/dashboard/login`, and `/dashboard/setup` are served by the built Astro admin console from the Python app on the same origin.
 - In local frontend development, Astro can run separately on `8808` and call Minder on `8800` through `API_URL`.
-- `/console` remains only as a compatibility redirect to `/dashboard`.
 
 ## Quick Start
 

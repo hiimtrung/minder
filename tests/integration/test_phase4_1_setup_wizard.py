@@ -28,8 +28,7 @@ def _seed_dashboard_dist(dist: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_setup_wizard_redirects_when_no_admin(test_store: RelationalStore, tmp_path: Path):
-    config = MinderConfig()
-    config.dashboard.legacy_compat_enabled = False
+    config = MinderConfig(_env_file=None)
     dist = tmp_path / "dashboard-dist"
     _seed_dashboard_dist(dist)
     config.dashboard.static_dir = str(dist)
@@ -69,8 +68,7 @@ async def test_setup_wizard_redirects_when_no_admin(test_store: RelationalStore,
 
 @pytest.mark.asyncio
 async def test_setup_wizard_requires_only_api_key_model_fields(test_store: RelationalStore, tmp_path: Path):
-    config = MinderConfig()
-    config.dashboard.legacy_compat_enabled = False
+    config = MinderConfig(_env_file=None)
     dist = tmp_path / "dashboard-dist"
     _seed_dashboard_dist(dist)
     config.dashboard.static_dir = str(dist)

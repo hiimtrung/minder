@@ -51,10 +51,9 @@ async def store() -> RelationalStore:
 def config(tmp_path: Path) -> MinderConfig:
     dist = tmp_path / "dashboard-dist"
     _seed_dashboard_dist(dist)
-    config = MinderConfig()
+    config = MinderConfig(_env_file=None)
     config.dashboard.static_dir = str(dist)
     config.dashboard.base_path = "/dashboard"
-    config.dashboard.legacy_compat_enabled = False
     return config
 
 

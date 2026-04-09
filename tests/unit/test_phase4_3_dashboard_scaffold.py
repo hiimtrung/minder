@@ -15,6 +15,8 @@ def test_phase4_3_dashboard_web_scaffold_exists() -> None:
     assert (root / "src/pages/login.astro").exists()
     assert (root / "src/pages/setup.astro").exists()
     assert (root / "src/pages/clients/index.astro").exists()
+    assert (root / "src/components/ClientConsoleShell.astro").exists()
+    assert (root / "src/middleware.ts").exists()
     assert (root / "src/lib/api/admin.ts").exists()
     assert (root / "src/scripts/login-page.ts").exists()
     assert (root / "src/scripts/setup-page.ts").exists()
@@ -70,6 +72,8 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     login_page = Path("src/dashboard/src/pages/login.astro").read_text()
     setup_page = Path("src/dashboard/src/pages/setup.astro").read_text()
     registry_page = Path("src/dashboard/src/pages/clients/index.astro").read_text()
+    client_shell = Path("src/dashboard/src/components/ClientConsoleShell.astro").read_text()
+    middleware = Path("src/dashboard/src/middleware.ts").read_text()
     layout = Path("src/dashboard/src/layouts/DashboardLayout.astro").read_text()
     login_script = Path("src/dashboard/src/scripts/login-page.ts").read_text()
     setup_script = Path("src/dashboard/src/scripts/setup-page.ts").read_text()
@@ -78,7 +82,9 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
 
     assert '<script src="../scripts/login-page.ts"></script>' in login_page
     assert '<script src="../scripts/setup-page.ts"></script>' in setup_page
-    assert '<script src="../../scripts/clients-page.ts"></script>' in registry_page
+    assert "ClientConsoleShell" in registry_page
+    assert '<script src="../scripts/clients-page.ts"></script>' in client_shell
+    assert 'context.rewrite("/dashboard/clients")' in middleware
     assert "loginAdmin" in login_script
     assert "setupAdmin" in setup_script
     assert "listClients" in registry_script
@@ -96,5 +102,5 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     assert "dashboard-toast-region" in layout
     assert 'First-Time Setup' in login_page
     assert 'Admin Login' in setup_page
-    assert 'Client Registry' in registry_page
-    assert 'sessionControls={true}' in registry_page
+    assert 'Client Registry' in client_shell
+    assert 'sessionControls={true}' in client_shell

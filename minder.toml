@@ -9,7 +9,6 @@ log_level = "info"
 [dashboard]
 base_path = "/dashboard"
 static_dir = "src/dashboard/dist"
-legacy_compat_enabled = false
 dev_server_url = ""
 api_url = ""
 

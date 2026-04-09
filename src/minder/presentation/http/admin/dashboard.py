@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from starlette.responses import FileResponse, HTMLResponse, RedirectResponse
+from starlette.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.routing import BaseRoute, Route
 
 from .context import AdminRouteContext
@@ -52,7 +52,7 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 return RedirectResponse(url=f"{context.config.dashboard.base_path}/clients", status_code=303)
 
         if not static_dir.exists():
-            return HTMLResponse("Dashboard build not found", status_code=404)
+            return PlainTextResponse("Dashboard build not found", status_code=404)
 
         if not asset_path:
             candidates = [static_dir / "index.html"]
@@ -72,17 +72,7 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
         fallback = static_dir / "index.html"
         if fallback.exists() and fallback.is_file():
             return FileResponse(fallback)
-        return HTMLResponse("Dashboard build not found", status_code=404)
-
-    async def console_compat_redirect(request):
-        asset_path = str(request.path_params.get("asset_path", "")).strip("/")
-        dev_target = _dev_dashboard_url(asset_path)
-        if dev_target is not None:
-            return RedirectResponse(url=dev_target, status_code=308)
-        target = context.config.dashboard.base_path
-        if asset_path:
-            target = f"{target}/{asset_path}"
-        return RedirectResponse(url=target, status_code=308)
+        return PlainTextResponse("Dashboard build not found", status_code=404)
 
     async def setup_redirect(_):
         dev_target = _dev_dashboard_url("setup")
@@ -92,8 +82,6 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     return [
         Route("/setup", setup_redirect, methods=["GET"]),
-        Route("/console", console_compat_redirect, methods=["GET"]),
-        Route("/console/{asset_path:path}", console_compat_redirect, methods=["GET"]),
         Route(f"{context.config.dashboard.base_path}", dashboard_static, methods=["GET"]),
         Route(f"{context.config.dashboard.base_path}" + "/{asset_path:path}", dashboard_static, methods=["GET"]),
     ]

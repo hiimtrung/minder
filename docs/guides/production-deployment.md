@@ -133,9 +133,8 @@ The production compose file sets:
 
 - `MINDER_DASHBOARD__BASE_PATH=/dashboard`
 - `MINDER_DASHBOARD__STATIC_DIR=/app/dashboard-dist`
-- `MINDER_DASHBOARD__LEGACY_COMPAT_ENABLED=false`
 
-This ensures the Astro console is the primary UI and the old browser UI is not the default path.
+This ensures the Astro console is the primary UI surface.
 
 ## Upgrade Workflow
 

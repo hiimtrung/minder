@@ -18,4 +18,3 @@ def test_phase4_3_production_compose_serves_dashboard_bundle() -> None:
 
     assert "MINDER_DASHBOARD__BASE_PATH: /dashboard" in compose
     assert "MINDER_DASHBOARD__STATIC_DIR: /app/dashboard-dist" in compose
-    assert "MINDER_DASHBOARD__LEGACY_COMPAT_ENABLED: \"false\"" in compose

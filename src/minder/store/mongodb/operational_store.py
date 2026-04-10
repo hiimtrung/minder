@@ -268,12 +268,26 @@ class MongoOperationalStore:
         await self._db.audit_logs.insert_one(kwargs)
         return _to_doc(kwargs)
 
-    async def list_audit_logs(self, *, actor_id: str | None = None) -> list[_MongoDoc]:
+    async def list_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[_MongoDoc]:
         query: dict[str, Any] = {}
         if actor_id is not None:
             query["actor_id"] = actor_id
-        cursor = self._db.audit_logs.find(query)
+        cursor = self._db.audit_logs.find(query).sort("created_at", -1).skip(offset)
+        if limit is not None:
+            cursor = cursor.limit(limit)
         return [_to_doc(doc) async for doc in cursor]
+
+    async def count_audit_logs(self, *, actor_id: str | None = None) -> int:
+        query: dict[str, Any] = {}
+        if actor_id is not None:
+            query["actor_id"] = actor_id
+        return int(await self._db.audit_logs.count_documents(query))
 
     # ------------------------------------------------------------------
     # Skill

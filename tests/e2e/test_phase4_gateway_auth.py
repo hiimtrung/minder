@@ -90,6 +90,7 @@ async def test_phase4_gateway_auth_e2e(
         assert "codex" in onboarding["templates"]
         assert "[mcp_servers.minder]" in onboarding["templates"]["codex"]
         assert "antigravity" in onboarding["templates"]
+        assert "cursor" in onboarding["templates"]
 
         preflight_response = await client.post(
             "/v1/gateway/test-connection",
@@ -103,6 +104,7 @@ async def test_phase4_gateway_auth_e2e(
         assert "http://testserver/sse" in preflight_response.json()["templates"]["copilot_cli"]
         assert '"mcpServers"' in preflight_response.json()["templates"]["copilot_cli"]
         assert '"serverUrl":"http://testserver/mcp"' in preflight_response.json()["templates"]["antigravity"]
+        assert '"url":"http://testserver/mcp"' in preflight_response.json()["templates"]["cursor"]
         assert "claude_code" in preflight_response.json()["templates"]
 
         exchange_response = await client.post(

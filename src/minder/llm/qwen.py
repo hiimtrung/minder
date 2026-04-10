@@ -48,7 +48,7 @@ class QwenLocalLLM:
             "text": text,
             "sources": source_paths,
             "provider": "qwen_local",
-            "model": "Qwen3.5-0.8B",
+            "model": "gemma-4-e2b-it",
             "model_path": self._model_path,
             "runtime": runtime,
             "stream": [line for line in text.splitlines() if line],

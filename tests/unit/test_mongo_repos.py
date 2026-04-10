@@ -342,3 +342,44 @@ class TestMongoErrorAndHistory:
 
         entries = await store.list_history_for_session(session_id)
         assert len(entries) == 1
+
+
+@requires_mongodb
+class TestMongoAuditRepository:
+    @pytest.mark.asyncio
+    async def test_list_audit_logs_supports_pagination_and_count(self, mongo_store: object) -> None:
+        from minder.store.mongodb.operational_store import MongoOperationalStore
+
+        store: MongoOperationalStore = mongo_store  # type: ignore[assignment]
+        actor_id = str(uuid.uuid4())
+        other_actor_id = str(uuid.uuid4())
+
+        first = await store.create_audit_log(
+            actor_id=actor_id,
+            event_type="client.created",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+        second = await store.create_audit_log(
+            actor_id=actor_id,
+            event_type="client.updated",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+        await store.create_audit_log(
+            actor_id=other_actor_id,
+            event_type="client.deleted",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+
+        total = await store.count_audit_logs(actor_id=actor_id)
+        page = await store.list_audit_logs(actor_id=actor_id, limit=1, offset=0)
+        next_page = await store.list_audit_logs(actor_id=actor_id, limit=1, offset=1)
+
+        assert total == 2
+        assert len(page) == 1
+        assert len(next_page) == 1
+        assert {str(page[0].id), str(next_page[0].id)} == {str(first.id), str(second.id)}
+        assert page[0].actor_id == actor_id
+        assert next_page[0].actor_id == actor_id

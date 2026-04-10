@@ -13,7 +13,11 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
     { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
     { href: "/dashboard/users", label: "User Management", tone: "primary" },
-    { href: "/dashboard/observability", label: "Observability", tone: "secondary" },
+    {
+      href: "/dashboard/observability",
+      label: "Observability",
+      tone: "secondary",
+    },
   ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -30,7 +34,11 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
     <div class="flex flex-wrap gap-2">
       <label class="flex items-center gap-2 text-sm text-stone-700">
-        <input type="checkbox" id="show-inactive-toggle" class="accent-amber-600" />
+        <input
+          type="checkbox"
+          id="show-inactive-toggle"
+          class="accent-amber-600"
+        />
         Show inactive users
       </label>
     </div>
@@ -82,11 +90,10 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 
         <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
         <div class="flex gap-2">
-          <button type="submit" class="primary-pill flex-1">Save changes</button>
-          <button
-            type="button"
-            id="cancel-edit-user"
-            class="action-pill">Cancel</button
+          <button type="submit" class="primary-pill flex-1">Save changes</button
+          >
+          <button type="button" id="cancel-edit-user" class="action-pill"
+            >Cancel</button
           >
         </div>
 
@@ -107,7 +114,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </aside>
 
     <!-- User list -->
-    <div class="grid gap-6">
+    <div class="flex flex-col gap-6">
       <section
         class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
       >

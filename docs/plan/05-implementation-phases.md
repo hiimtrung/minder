@@ -2,30 +2,30 @@
 
 ## Technology Stack
 
-| Component          | Technology                                         | Reason                                         |
-| ------------------ | -------------------------------------------------- | ---------------------------------------------- |
-| Language           | Python 3.14+                                       | Native fit for LangGraph and ML tooling        |
-| MCP SDK            | Official Python `mcp` SDK                          | MCP protocol support                           |
-| Orchestrator       | LangGraph                                          | Graph-based agentic workflow engine            |
-| Vector DB          | Milvus Lite to Milvus Standalone                   | Lightweight start with scale path              |
-| Relational DB      | SQLite to PostgreSQL                               | Metadata, users, sessions, and audit           |
-| Embedding          | `Qwen/Qwen3-Embedding-0.6B` GGUF, mandatory        | Offline-first, optimized for `llama.cpp`       |
-| Embedding runtime  | `llama.cpp` via `llama-cpp-python`                 | Shared local inference runtime                 |
-| Embedding fallback | OpenAI `text-embedding-3-small`                    | Optional cloud fallback                        |
-| LLM                | `Qwen3.5-0.8B` GGUF, mandatory                     | Offline-first, CPU-friendly                    |
-| LLM runtime        | `llama.cpp` via `llama-cpp-python`                 | Native GGUF runtime                            |
-| LLM fallback       | OpenAI via LiteLLM                                 | Optional cloud routing                         |
-| Auth               | PyJWT, bcrypt, API keys                            | Team auth and role control                     |
-| Chunking           | LangChain text splitters plus custom code chunking | Proven chunking patterns                       |
-| Reranking          | sentence-transformers cross-encoder                | Better precision                               |
-| Verification       | Docker sandbox plus pytest                         | Safe execution and testing                     |
-| Config             | Pydantic Settings                                  | Strongly typed configuration                   |
-| Package manager    | uv                                                 | Fast and reliable Python dependency management |
-| CI/CD              | GitHub Actions                                     | Standardized automation                        |
-| Registry           | GitHub Packages and ghcr.io                        | Package and image publishing                   |
-| Containerization   | Docker and Docker Compose                          | Dev and prod deployment                        |
-| Dashboard backend  | FastAPI or Starlette                               | API for workflow and admin UI                  |
-| Dashboard frontend | Next.js or React                                   | Workflow and admin UI                          |
+| Component          | Technology                                          | Reason                                         |
+| ------------------ | --------------------------------------------------- | ---------------------------------------------- |
+| Language           | Python 3.14+                                        | Native fit for LangGraph and ML tooling        |
+| MCP SDK            | Official Python `mcp` SDK                           | MCP protocol support                           |
+| Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine            |
+| Vector DB          | Milvus Lite to Milvus Standalone                    | Lightweight start with scale path              |
+| Relational DB      | SQLite to PostgreSQL                                | Metadata, users, sessions, and audit           |
+| Embedding          | `ggml-org/embeddinggemma-300M-GGUF` GGUF, mandatory | Offline-first, optimized for `llama.cpp`       |
+| Embedding runtime  | `llama.cpp` via `llama-cpp-python`                  | Shared local inference runtime                 |
+| Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback                        |
+| LLM                | `ggml-org/gemma-4-E2B-it-GGUF` GGUF, mandatory      | Offline-first, CPU-friendly                    |
+| LLM runtime        | `llama.cpp` via `llama-cpp-python`                  | Native GGUF runtime                            |
+| LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                         |
+| Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                     |
+| Chunking           | LangChain text splitters plus custom code chunking  | Proven chunking patterns                       |
+| Reranking          | sentence-transformers cross-encoder                 | Better precision                               |
+| Verification       | Docker sandbox plus pytest                          | Safe execution and testing                     |
+| Config             | Pydantic Settings                                   | Strongly typed configuration                   |
+| Package manager    | uv                                                  | Fast and reliable Python dependency management |
+| CI/CD              | GitHub Actions                                      | Standardized automation                        |
+| Registry           | GitHub Packages and ghcr.io                         | Package and image publishing                   |
+| Containerization   | Docker and Docker Compose                           | Dev and prod deployment                        |
+| Dashboard backend  | FastAPI or Starlette                                | API for workflow and admin UI                  |
+| Dashboard frontend | Next.js or React                                    | Workflow and admin UI                          |
 
 ## Phase 1: Foundation - MCP Server, Auth, Search, CI/CD
 
@@ -55,7 +55,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 2. Implement the auth layer with user model, API keys, JWTs, and RBAC.
 3. Implement SSE transport as the primary transport and stdio for local dev.
 4. Add auth middleware for SSE connections.
-5. Integrate mandatory `Qwen/Qwen3-Embedding-0.6B` GGUF embeddings through `llama-cpp-python`.
+5. Integrate mandatory `ggml-org/embeddinggemma-300M-GGUF` embeddings through `llama-cpp-python`.
 6. Add optional OpenAI embedding fallback.
 7. Implement Milvus Lite for semantic search.
 8. Implement SQLite metadata storage for users, sessions, workflows, and repo state.
@@ -83,7 +83,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 1. Define LangGraph state.
 2. Build Workflow Planner, Planning, Retriever, Reasoning, LLM, Guard, Verification, and Evaluator nodes.
-3. Integrate mandatory `Qwen3.5-0.8B` GGUF through `llama-cpp-python`.
+3. Integrate mandatory `ggml-org/gemma-4-E2B-it-GGUF` GGUF through `llama-cpp-python`.
 4. Add optional OpenAI fallback through LiteLLM.
 5. Implement Docker sandbox verification.
 6. Keep subprocess verification available in dev mode only.

@@ -5,7 +5,7 @@ exposes a WSGI/ASGI-compatible handler that can be mounted at `/metrics`.
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from prometheus_client import (
     CONTENT_TYPE_LATEST,
@@ -157,7 +157,7 @@ def _counter_total(counter: Counter) -> float:
     """Sum all label-value combinations of a Counter."""
     total = 0.0
     for child in counter._metrics.values():  # noqa: SLF001
-        total += child._value.get()  # noqa: SLF001
+        total += cast(Any, child)._value.get()  # noqa: SLF001
     return total
 
 
@@ -170,7 +170,7 @@ def _counter_by_label(counter: Counter, label_name: str) -> dict[str, float]:
     result: dict[str, float] = {}
     for label_tuple, child in counter._metrics.items():  # noqa: SLF001
         key = label_tuple[idx]
-        result[key] = result.get(key, 0.0) + child._value.get()  # noqa: SLF001
+        result[key] = result.get(key, 0.0) + cast(Any, child)._value.get()  # noqa: SLF001
     return result
 
 

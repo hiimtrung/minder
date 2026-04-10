@@ -13,7 +13,11 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
     { href: "/dashboard/workflows", label: "Workflows", tone: "primary" },
     { href: "/dashboard/users", label: "Users", tone: "secondary" },
-    { href: "/dashboard/observability", label: "Observability", tone: "secondary" },
+    {
+      href: "/dashboard/observability",
+      label: "Observability",
+      tone: "secondary",
+    },
   ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -38,9 +42,8 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         New workflow definition
       </h2>
       <p class="mt-3 text-sm leading-6 text-stone-600">
-        Define a named sequence of steps with optional gate conditions.
-        Steps are enforced in order; an agent cannot advance until each
-        gate passes.
+        Define a named sequence of steps with optional gate conditions. Steps
+        are enforced in order; an agent cannot advance until each gate passes.
       </p>
 
       <form id="create-workflow-form" class="mt-6 grid gap-4">
@@ -77,25 +80,30 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </div>
           <div id="workflow-steps-list" class="grid gap-2">
             <!-- Steps rendered by JS -->
-            <p class="px-1 text-xs text-stone-400">No steps yet — add the first one above.</p>
+            <p class="px-1 text-xs text-stone-400">
+              No steps yet — add the first one above.
+            </p>
           </div>
         </div>
 
-        <p id="create-workflow-status" class="min-h-6 text-sm text-stone-600"></p>
-        <button type="submit" class="primary-pill w-full">Create workflow</button>
+        <p id="create-workflow-status" class="min-h-6 text-sm text-stone-600">
+        </p>
+        <button type="submit" class="primary-pill w-full"
+          >Create workflow</button
+        >
       </form>
     </aside>
 
     <!-- Workflow list -->
-    <div class="grid gap-6">
+    <div class="flex flex-col gap-6">
       <section
         class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
       >
         <div>
           <p class="text-sm font-medium text-stone-900">Navigator</p>
           <p class="mt-1 text-sm text-stone-600">
-            Open any workflow card to edit steps, change enforcement, or
-            review which repositories are using it.
+            Open any workflow card to edit steps, change enforcement, or review
+            which repositories are using it.
           </p>
         </div>
         <a href="/dashboard" class="action-pill">Dashboard home</a>

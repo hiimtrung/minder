@@ -2,10 +2,10 @@
 set -euo pipefail
 
 MODEL_DIR="${HOME}/.minder/models"
-EMBED_URL="${MINDER_EMBED_MODEL_URL:-https://huggingface.co/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf?download=true}"
-LLM_URL="${MINDER_LLM_MODEL_URL:-https://huggingface.co/lmstudio-community/Qwen3.5-0.8B-GGUF/resolve/main/Qwen3.5-0.8B-Q8_0.gguf?download=true}"
-EMBED_FILE="${MODEL_DIR}/qwen3-embedding-0.6b.Q8_0.gguf"
-LLM_FILE="${MODEL_DIR}/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+EMBED_URL="${MINDER_EMBED_MODEL_URL:-https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/resolve/main/embeddinggemma-300M-Q8_0.gguf?download=true}"
+LLM_URL="${MINDER_LLM_MODEL_URL:-https://huggingface.co/ggml-org/gemma-4-E2B-it-GGUF/resolve/main/gemma-4-e2b-it-Q8_0.gguf?download=true}"
+EMBED_FILE="${MODEL_DIR}/embeddinggemma-300M-Q8_0.gguf"
+LLM_FILE="${MODEL_DIR}/gemma-4-e2b-it-Q8_0.gguf"
 EMBED_SHA256="${MINDER_EMBED_MODEL_SHA256:-}"
 LLM_SHA256="${MINDER_LLM_MODEL_SHA256:-}"
 

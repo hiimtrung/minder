@@ -187,6 +187,9 @@ async def test_admin_can_query_audit_log_via_http(
     assert response.status_code == 200
     body = response.json()
     assert body["events"]
+    assert body["limit"] == 50
+    assert body["offset"] == 0
+    assert body["total"] >= len(body["events"])
     assert any(event["event_type"] == "client.created" for event in body["events"])
 
 
@@ -234,6 +237,7 @@ async def test_onboarding_templates_follow_request_origin(
     assert '"tools"' in onboarding["templates"]["copilot_cli"]
     assert "https://minder.example.com/sse" in connection["templates"]["claude_code"]
     assert '"serverUrl":"https://minder.example.com/mcp"' in onboarding["templates"]["antigravity"]
+    assert '"url":"https://minder.example.com/mcp"' in onboarding["templates"]["cursor"]
 
 
 @pytest.mark.asyncio
@@ -516,6 +520,7 @@ async def test_dashboard_and_onboarding_routes_render_client_setup(
     assert "vscode" in onboarding["templates"]
     assert "copilot_cli" in onboarding["templates"]
     assert "antigravity" in onboarding["templates"]
+    assert "cursor" in onboarding["templates"]
     assert "claude_code" in onboarding["templates"]
     assert "[mcp_servers.minder]" in onboarding["templates"]["codex"]
 

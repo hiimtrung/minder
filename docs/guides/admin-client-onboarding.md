@@ -144,13 +144,14 @@ This returns templates for:
 - `codex`
 - `copilot`
 - `antigravity`
+- `cursor`
 - `claude_code`
 
 Remote templates default to the transport each client expects:
 
 ```text
 Codex / Copilot / Claude Code -> http://localhost:8800/sse
-Antigravity -> http://localhost:8800/mcp
+Antigravity / Cursor -> http://localhost:8800/mcp
 ```
 
 ## 6. Choose a client auth mode
@@ -164,7 +165,7 @@ Use this when the MCP client can send either:
 - `X-Minder-Client-Key: mkc_...` over `SSE`
 - `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
 
-This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity.
+This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity and Cursor.
 
 ### Option B: Token exchange
 
@@ -197,7 +198,7 @@ Expected response:
 
 ## 8. Connect an MCP client
 
-Minder currently exposes remote MCP over `SSE` and local MCP over `stdio`. That means:
+Minder currently exposes remote MCP over both `SSE` and streamable HTTP, plus local MCP over `stdio`. That means:
 
 - start with the remote endpoint first for every client snippet below
 - fall back to local `stdio` only when the client or your environment needs a local process
@@ -303,6 +304,45 @@ Optional local stdio fallback:
 {
   "mcpServers": {
     "minder": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "minder.server"],
+      "cwd": "/absolute/path/to/minder",
+      "env": {
+        "MINDER_SERVER__TRANSPORT": "stdio",
+        "MINDER_CLIENT_API_KEY": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+### Cursor .cursor/mcp.json snippet
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "url": "http://localhost:8800/mcp",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+You can place this in either:
+
+- project config: `.cursor/mcp.json`
+- global config: `~/.cursor/mcp.json`
+
+Optional local stdio fallback:
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "type": "stdio",
       "command": "uv",
       "args": ["run", "python", "-m", "minder.server"],
       "cwd": "/absolute/path/to/minder",

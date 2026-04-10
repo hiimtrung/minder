@@ -14,7 +14,7 @@ class SkillSchema(BaseModelMeta):
     content: str
     language: str
     tags: List[str] = Field(default_factory=list)
-    embedding: Optional[List[float]] = None  # vector(1024) stored as JSON list
+    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
     usage_count: int = 0
     quality_score: float = 0.0
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

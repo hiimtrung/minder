@@ -132,8 +132,8 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P1-T09: Embedding Layer (Qwen GGUF)
 
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/embedding/qwen.py` — load `Qwen/Qwen3-Embedding-0.6B` GGUF via `llama-cpp-python`. Generate 1024-dim embeddings. Implement `src/minder/embedding/base.py` as abstract interface.
-- **Result**: Text input → 1024-dim vector output. Model loads from configured path. Unit test validates embedding dimensions and determinism.
+- **Requirement**: Implement `src/minder/embedding/qwen.py` — load `ggml-org/embeddinggemma-300M-GGUF` via `llama-cpp-python`. Generate 768-dim embeddings. Implement `src/minder/embedding/base.py` as abstract interface.
+- **Result**: Text input → 768-dim vector output. Model loads from configured path. Unit test validates embedding dimensions and determinism.
 
 #### P1-T10: Embedding Fallback (OpenAI)
 
@@ -279,7 +279,7 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P2-T06: LLM Node (Qwen Local)
 
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/llm/qwen.py` and `src/minder/graph/nodes/llm.py` — load `Qwen3.5-0.8B` GGUF via `llama-cpp-python`. Route prompts to local model by default. Stream output.
+- **Requirement**: Implement `src/minder/llm/qwen.py` and `src/minder/graph/nodes/llm.py` — load `ggml-org/gemma-4-E2B-it-GGUF` via `llama-cpp-python`. Route prompts to local model by default. Stream output.
 - **Result**: Prompt in → generated text out. Model loads from configured path. Streaming works. Unit test validates generation.
 
 #### P2-T07: LLM Fallback (OpenAI via LiteLLM)
@@ -375,7 +375,7 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P2.1-T03: Local LLM Runtime via llama-cpp-python
 
 - **Owner**: `ML`
-- **Requirement**: Replace the placeholder local LLM in `src/minder/llm/qwen.py` with real `llama-cpp-python` loading of `Qwen3.5-0.8B` GGUF, including streaming support and structured generation result.
+- **Requirement**: Replace the placeholder local LLM in `src/minder/llm/qwen.py` with real `llama-cpp-python` loading of `ggml-org/gemma-4-E2B-it-GGUF`, including streaming support and structured generation result.
 - **Result**: Local inference runs against the configured GGUF model path and streams usable output.
 
 #### P2.1-T04: OpenAI Fallback via LiteLLM

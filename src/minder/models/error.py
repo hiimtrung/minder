@@ -14,7 +14,7 @@ class ErrorSchema(BaseModelMeta):
     stack_trace: Optional[str] = None
     context: Dict[str, Any] = Field(default_factory=dict)
     resolution: Optional[str] = None
-    embedding: Optional[List[float]] = None  # vector(1024) stored as JSON list
+    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
     resolved: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 

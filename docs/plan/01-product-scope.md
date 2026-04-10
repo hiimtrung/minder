@@ -60,18 +60,18 @@ This makes Minder both a knowledge system and a process orchestration layer for 
 
 ## Confirmed Decisions
 
-| #   | Topic                | Decision                                                                   |
-| --- | -------------------- | -------------------------------------------------------------------------- |
-| 1   | Target users         | Team, shared server, multi-user                                            |
-| 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback               |
-| 3   | Model priority       | `Qwen/Qwen3-Embedding-0.6B` GGUF and `Qwen3.5-0.8B` GGUF are mandatory     |
-| 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                      |
-| 5   | Knowledge graph      | Included in Phase 3                                                        |
-| 6   | Verification sandbox | Docker is mandatory in production                                          |
-| 7   | Existing data        | Skills seeded from an external GitHub repository                           |
-| 8   | Performance target   | Reasonable responsiveness, not ultra-low-latency at the expense of quality |
-| 9   | Concurrent users     | Multi-user with identity from email and Git username                       |
-| 10  | CI/CD                | Required from Phase 1 with GitHub Actions, Releases, and Packages          |
-| 11  | Workflow governance  | Required; Minder must enforce configured engineering workflows             |
-| 12  | Repository state     | Required; workflow state and context must be persisted in each repository  |
-| 13  | Dashboard            | Required for workflow configuration and governance                         |
+| #   | Topic                | Decision                                                                             |
+| --- | -------------------- | ------------------------------------------------------------------------------------ |
+| 1   | Target users         | Team, shared server, multi-user                                                      |
+| 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback                         |
+| 3   | Model priority       | `ggml-org/embeddinggemma-300M-GGUF` and `ggml-org/gemma-4-E2B-it-GGUF` are mandatory |
+| 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                                |
+| 5   | Knowledge graph      | Included in Phase 3                                                                  |
+| 6   | Verification sandbox | Docker is mandatory in production                                                    |
+| 7   | Existing data        | Skills seeded from an external GitHub repository                                     |
+| 8   | Performance target   | Reasonable responsiveness, not ultra-low-latency at the expense of quality           |
+| 9   | Concurrent users     | Multi-user with identity from email and Git username                                 |
+| 10  | CI/CD                | Required from Phase 1 with GitHub Actions, Releases, and Packages                    |
+| 11  | Workflow governance  | Required; Minder must enforce configured engineering workflows                       |
+| 12  | Repository state     | Required; workflow state and context must be persisted in each repository            |
+| 13  | Dashboard            | Required for workflow configuration and governance                                   |

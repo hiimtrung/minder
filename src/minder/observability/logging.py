@@ -6,7 +6,7 @@ import logging
 import time
 import uuid
 from contextvars import ContextVar
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, MutableMapping
 
 if TYPE_CHECKING:
     from starlette.types import ASGIApp, Receive, Scope, Send
@@ -136,7 +136,7 @@ class CorrelationIdMiddleware:
         cid = raw_cid.decode("latin-1", errors="replace") if raw_cid else uuid.uuid4().hex
         set_correlation_id(cid)
 
-        async def send_with_correlation(message: dict) -> None:  # type: ignore[type-arg]
+        async def send_with_correlation(message: MutableMapping[str, Any]) -> None:
             if message["type"] == "http.response.start":
                 # Append the correlation-ID header to the response
                 extra = [(b"x-correlation-id", cid.encode())]
@@ -168,7 +168,7 @@ class AccessLogMiddleware:
         start = time.perf_counter()
         status_code = [0]
 
-        async def capture_status(message: dict) -> None:  # type: ignore[type-arg]
+        async def capture_status(message: MutableMapping[str, Any]) -> None:
             if message["type"] == "http.response.start":
                 status_code[0] = message.get("status", 0)
             await send(message)

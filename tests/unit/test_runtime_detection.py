@@ -246,7 +246,7 @@ async def test_minder_graph_defaults_to_auto_runtimes(
                 "text": "ok",
                 "sources": [],
                 "provider": "qwen_local",
-                "model": "Qwen3.5-0.8B",
+                "model": "gemma-4-e2b-it",
                 "runtime": "mock",
                 "stream": ["ok"],
             }

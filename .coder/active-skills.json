@@ -1,38 +1,38 @@
 {
-  "task": "astro dashboard cleanup python lint tests",
+  "task": "python admin audit store contract",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T11:53:17.793561+07:00",
+  "resolved_at": "2026-04-10T16:36:14.374679+07:00",
   "keep": [],
   "add": [
-    "python-development-python-scaffold",
-    "aws-cost-cleanup",
-    "azure-containerregistry-py"
+    "skill-sentinel",
+    "pci-compliance",
+    "007"
   ],
   "drop": [
-    "ui-styling",
-    "instagram",
-    "grafana-dashboards"
+    "hugging-face-model-trainer",
+    "bazel-build-optimization",
+    "deployment-validation-config-validate"
   ],
   "skills": [
     {
-      "name": "python-development-python-scaffold",
-      "category": "backend",
-      "score": 0.016393442,
-      "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "aws-cost-cleanup",
+      "name": "skill-sentinel",
       "category": "general",
-      "score": 0.016129032,
+      "score": 0.016393442,
       "chunk_count": 5,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "azure-containerregistry-py",
+      "name": "pci-compliance",
+      "category": "frontend",
+      "score": 0.016129032,
+      "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "007",
       "category": "general",
-      "score": 0.015873017,
+      "score": 0.015625,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

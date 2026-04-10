@@ -55,36 +55,36 @@ Infrastructure→  src/minder/store                      (MongoDB · Milvus · R
 
 ### Runtime stack
 
-| Service         | Role                                          | Default port |
-|-----------------|-----------------------------------------------|--------------|
-| Minder API      | MCP server, admin HTTP, token exchange        | `8800`       |
-| Astro Dashboard | Admin console (dev: standalone, prod: proxied)| `8808` (dev) |
-| MongoDB 7       | Operational store — users, clients, sessions  | `27017`      |
-| Redis 7         | Cache, rate limiting, client token sessions   | `6379`       |
-| Milvus Standalone| Vector search for documents, code, errors    | `19530`      |
+| Service           | Role                                           | Default port |
+| ----------------- | ---------------------------------------------- | ------------ |
+| Minder API        | MCP server, admin HTTP, token exchange         | `8800`       |
+| Astro Dashboard   | Admin console (dev: standalone, prod: proxied) | `8808` (dev) |
+| MongoDB 7         | Operational store — users, clients, sessions   | `27017`      |
+| Redis 7           | Cache, rate limiting, client token sessions    | `6379`       |
+| Milvus Standalone | Vector search for documents, code, errors      | `19530`      |
 
 ### MCP tool surface
 
-| Tool                    | Description                              |
-|-------------------------|------------------------------------------|
-| `minder_query`          | Full RAG pipeline — reason + retrieve + verify |
-| `minder_search_code`    | Semantic code search across indexed repos |
-| `minder_search_errors`  | Semantic error search with resolution hints |
-| `minder_search`         | General document search                  |
-| `minder_memory_recall`  | Retrieve from persistent memory store    |
-| `minder_workflow_get`   | Inspect current workflow state           |
-| `minder_workflow_step`  | Advance a workflow step                  |
+| Tool                   | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| `minder_query`         | Full RAG pipeline — reason + retrieve + verify |
+| `minder_search_code`   | Semantic code search across indexed repos      |
+| `minder_search_errors` | Semantic error search with resolution hints    |
+| `minder_search`        | General document search                        |
+| `minder_memory_recall` | Retrieve from persistent memory store          |
+| `minder_workflow_get`  | Inspect current workflow state                 |
+| `minder_workflow_step` | Advance a workflow step                        |
 
 ---
 
 ## Prerequisites
 
-| Requirement    | Version          |
-|----------------|------------------|
-| Python         | `≥ 3.14`         |
-| uv             | latest           |
-| Docker + Compose| v2+             |
-| Bun            | `1.2.21+` (dashboard dev only) |
+| Requirement      | Version                        |
+| ---------------- | ------------------------------ |
+| Python           | `≥ 3.14`                       |
+| uv               | latest                         |
+| Docker + Compose | v2+                            |
+| Bun              | `1.2.21+` (dashboard dev only) |
 
 ---
 
@@ -159,11 +159,11 @@ Open [`http://localhost:8800/dashboard/login`](http://localhost:8800/dashboard/l
 3. Minder issues a `mkc_…` client API key **once**. Copy it immediately.
 4. Use the key in your MCP client:
 
-| Transport | Auth mechanism                              |
-|-----------|---------------------------------------------|
-| SSE       | `X-Minder-Client-Key: mkc_…` header         |
-| stdio     | `MINDER_CLIENT_API_KEY=mkc_…` env variable  |
-| OAuth-style| `POST /v1/auth/token-exchange` with the key|
+| Transport   | Auth mechanism                              |
+| ----------- | ------------------------------------------- |
+| SSE         | `X-Minder-Client-Key: mkc_…` header         |
+| stdio       | `MINDER_CLIENT_API_KEY=mkc_…` env variable  |
+| OAuth-style | `POST /v1/auth/token-exchange` with the key |
 
 5. Optionally copy a generated onboarding snippet from the client detail page (Codex, Copilot-style MCP, or Claude Desktop).
 
@@ -198,16 +198,16 @@ Minder loads configuration from `minder.toml` first, then environment overrides 
 
 Key variables:
 
-| Variable                           | Default                                     | Description                      |
-|------------------------------------|---------------------------------------------|----------------------------------|
-| `MINDER_SERVER__PORT`              | `8800`                                      | HTTP listen port                 |
-| `MINDER_MONGODB__URI`              | `mongodb://localhost:27017`                 | MongoDB connection string        |
-| `MINDER_REDIS__URI`                | `redis://localhost:6379/0`                  | Redis connection string          |
-| `MINDER_VECTOR_STORE__URI`         | `http://localhost:19530`                    | Milvus endpoint                  |
-| `MINDER_LLM__MODEL_PATH`           | `~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf` | Local LLM model |
-| `MINDER_EMBEDDING__MODEL_PATH`     | `~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf`    | Embedding model |
-| `MINDER_CACHE__PROVIDER`           | `redis`                                     | `redis` or `lru`                 |
-| `MINDER_WORKFLOW__ORCHESTRATION_RUNTIME` | `langgraph`                          | `langgraph` or `simple`          |
+| Variable                                 | Default                                          | Description               |
+| ---------------------------------------- | ------------------------------------------------ | ------------------------- |
+| `MINDER_SERVER__PORT`                    | `8800`                                           | HTTP listen port          |
+| `MINDER_MONGODB__URI`                    | `mongodb://localhost:27017`                      | MongoDB connection string |
+| `MINDER_REDIS__URI`                      | `redis://localhost:6379/0`                       | Redis connection string   |
+| `MINDER_VECTOR_STORE__URI`               | `http://localhost:19530`                         | Milvus endpoint           |
+| `MINDER_LLM__MODEL_PATH`                 | `~/.minder/models/gemma-4-e2b-it-Q8_0.gguf`      | Local LLM model           |
+| `MINDER_EMBEDDING__MODEL_PATH`           | `~/.minder/models/embeddinggemma-300M-Q8_0.gguf` | Embedding model           |
+| `MINDER_CACHE__PROVIDER`                 | `redis`                                          | `redis` or `lru`          |
+| `MINDER_WORKFLOW__ORCHESTRATION_RUNTIME` | `langgraph`                                      | `langgraph` or `simple`   |
 
 ---
 
@@ -233,13 +233,13 @@ Infrastructure-dependent tests (Milvus, MongoDB, Redis) require Docker services 
 
 ## Documentation
 
-| Document | Description |
-|---|---|
-| [System Design](docs/system-design.md) | Canonical architecture reference |
-| [Project Plan](docs/PLAN.md) | Phased delivery plan and current focus |
-| [Project Progress](docs/PROJECT_PROGRESS.md) | Per-task status tracker |
-| [Task Breakdown](docs/TASK_BREAKDOWN.md) | Full task catalog with requirements |
-| [Local Setup Guide](docs/guides/local-setup.md) | Step-by-step local environment setup |
-| [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md) | Admin setup and client provisioning |
-| [Production Deployment](docs/guides/production-deployment.md) | Production compose and gateway configuration |
-| [Gateway Auth Design](docs/design/mcp-gateway-auth-dashboard.md) | Phase 4.0 gateway auth design |
+| Document                                                            | Description                                  |
+| ------------------------------------------------------------------- | -------------------------------------------- |
+| [System Design](docs/system-design.md)                              | Canonical architecture reference             |
+| [Project Plan](docs/PLAN.md)                                        | Phased delivery plan and current focus       |
+| [Project Progress](docs/PROJECT_PROGRESS.md)                        | Per-task status tracker                      |
+| [Task Breakdown](docs/TASK_BREAKDOWN.md)                            | Full task catalog with requirements          |
+| [Local Setup Guide](docs/guides/local-setup.md)                     | Step-by-step local environment setup         |
+| [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md) | Admin setup and client provisioning          |
+| [Production Deployment](docs/guides/production-deployment.md)       | Production compose and gateway configuration |
+| [Gateway Auth Design](docs/design/mcp-gateway-auth-dashboard.md)    | Phase 4.0 gateway auth design                |

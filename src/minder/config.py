@@ -32,17 +32,17 @@ class AuthConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     provider: str = "llamacpp"
-    model_name: str = "Qwen/Qwen3-Embedding-0.6B"
-    model_path: str = "~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf"
-    dimensions: int = 1024
+    model_name: str = "ggml-org/embeddinggemma-300M-GGUF"
+    model_path: str = "~/.minder/models/embeddinggemma-300M-Q8_0.gguf"
+    dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
 
 
 class LLMConfig(BaseModel):
     provider: str = "llamacpp"
-    model_name: str = "Qwen3.5-0.8B"
-    model_path: str = "~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+    model_name: str = "ggml-org/gemma-4-E2B-it-GGUF"
+    model_path: str = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
     context_length: int = 4096
     temperature: float = 0.1
     openai_api_key: Optional[str] = None

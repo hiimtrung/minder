@@ -100,8 +100,6 @@ class AdminConsoleUseCases:
         self, username: str, password: str
     ) -> AdminLoginPayload:
         """Authenticate via username + password."""
-        from minder.auth.service import AuthError
-
         user = await self._auth_service.authenticate_username_password(username, password)
         if user.role != "admin":
             raise PermissionError("Admin role required")
@@ -296,6 +294,9 @@ class AdminConsoleUseCases:
             ),
             "antigravity": (
                 f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
+            ),
+            "cursor": (
+                f'{{"mcpServers":{{"minder":{{"url":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
             ),
             "claude_code": (
                 f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'

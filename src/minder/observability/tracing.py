@@ -28,10 +28,10 @@ F = TypeVar("F", bound=Callable[..., Any])
 # ---------------------------------------------------------------------------
 
 try:
-    from opentelemetry import trace as _otel_trace  # type: ignore[import-untyped]
-    from opentelemetry.sdk.resources import Resource  # type: ignore[import-untyped]
-    from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-untyped]
-    from opentelemetry.sdk.trace.export import (  # type: ignore[import-untyped]
+    from opentelemetry import trace as _otel_trace  # type: ignore[import-not-found,import-untyped]
+    from opentelemetry.sdk.resources import Resource  # type: ignore[import-not-found,import-untyped]
+    from opentelemetry.sdk.trace import TracerProvider  # type: ignore[import-not-found,import-untyped]
+    from opentelemetry.sdk.trace.export import (  # type: ignore[import-not-found,import-untyped]
         BatchSpanProcessor,
         ConsoleSpanExporter,
     )
@@ -93,7 +93,7 @@ def configure_tracing(
         provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
     elif otlp_endpoint:
         try:
-            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-untyped]
+            from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (  # type: ignore[import-not-found,import-untyped]
                 OTLPSpanExporter,
             )
 

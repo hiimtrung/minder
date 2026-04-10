@@ -4,18 +4,18 @@
 
 ### Skill Store
 
-| Field           | Type         | Description                                   |
-| --------------- | ------------ | --------------------------------------------- |
-| `id`            | UUID         | Primary key                                   |
-| `title`         | string       | Skill title                                   |
-| `content`       | text         | Code snippet, API usage, pattern, or guidance |
-| `language`      | string       | Programming language                          |
-| `tags`          | string[]     | Classification labels                         |
-| `embedding`     | vector(1024) | Qwen embedding                                |
-| `usage_count`   | int          | Retrieval count                               |
-| `quality_score` | float        | Feedback-derived quality score                |
-| `created_at`    | timestamp    | Created time                                  |
-| `updated_at`    | timestamp    | Last updated time                             |
+| Field           | Type        | Description                                   |
+| --------------- | ----------- | --------------------------------------------- |
+| `id`            | UUID        | Primary key                                   |
+| `title`         | string      | Skill title                                   |
+| `content`       | text        | Code snippet, API usage, pattern, or guidance |
+| `language`      | string      | Programming language                          |
+| `tags`          | string[]    | Classification labels                         |
+| `embedding`     | vector(768) | EmbeddingGemma embedding                      |
+| `usage_count`   | int         | Retrieval count                               |
+| `quality_score` | float       | Feedback-derived quality score                |
+| `created_at`    | timestamp   | Created time                                  |
+| `updated_at`    | timestamp   | Last updated time                             |
 
 ### History Store
 
@@ -33,17 +33,17 @@
 
 ### Error Store
 
-| Field           | Type         | Description                           |
-| --------------- | ------------ | ------------------------------------- |
-| `id`            | UUID         | Primary key                           |
-| `error_code`    | string       | Standardized error code               |
-| `error_message` | text         | Original message                      |
-| `stack_trace`   | text         | Stack trace                           |
-| `context`       | jsonb        | Query, input, state, and tool context |
-| `resolution`    | text         | Known resolution if available         |
-| `embedding`     | vector(1024) | Similar-error retrieval embedding     |
-| `resolved`      | boolean      | Resolution status                     |
-| `created_at`    | timestamp    | Created time                          |
+| Field           | Type        | Description                           |
+| --------------- | ----------- | ------------------------------------- |
+| `id`            | UUID        | Primary key                           |
+| `error_code`    | string      | Standardized error code               |
+| `error_message` | text        | Original message                      |
+| `stack_trace`   | text        | Stack trace                           |
+| `context`       | jsonb       | Query, input, state, and tool context |
+| `resolution`    | text        | Known resolution if available         |
+| `embedding`     | vector(768) | Similar-error retrieval embedding     |
+| `resolved`      | boolean     | Resolution status                     |
+| `created_at`    | timestamp   | Created time                          |
 
 ### User Store
 
@@ -89,18 +89,18 @@
 
 ### Document Store
 
-| Field         | Type         | Description                         |
-| ------------- | ------------ | ----------------------------------- |
-| `id`          | UUID         | Primary key                         |
-| `title`       | string       | Document title                      |
-| `content`     | text         | Raw content                         |
-| `doc_type`    | enum         | markdown, code, api_spec, or config |
-| `source_path` | string       | Original source path                |
-| `chunks`      | jsonb        | Chunked content with offsets        |
-| `embedding`   | vector(1024) | Document-level embedding            |
-| `project`     | string       | Project or repository name          |
-| `created_at`  | timestamp    | Import time                         |
-| `updated_at`  | timestamp    | Last sync time                      |
+| Field         | Type        | Description                         |
+| ------------- | ----------- | ----------------------------------- |
+| `id`          | UUID        | Primary key                         |
+| `title`       | string      | Document title                      |
+| `content`     | text        | Raw content                         |
+| `doc_type`    | enum        | markdown, code, api_spec, or config |
+| `source_path` | string      | Original source path                |
+| `chunks`      | jsonb       | Chunked content with offsets        |
+| `embedding`   | vector(768) | Document-level embedding            |
+| `project`     | string      | Project or repository name          |
+| `created_at`  | timestamp   | Import time                         |
+| `updated_at`  | timestamp   | Last sync time                      |
 
 ### Rule Store
 
@@ -274,16 +274,16 @@ default_admin_email = "${MINDER_ADMIN_EMAIL}"
 
 [embedding]
 provider = "llamacpp"
-model_name = "Qwen/Qwen3-Embedding-0.6B"
-model_path = "~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf"
-dimensions = 1024
+model_name = "ggml-org/embeddinggemma-300M-GGUF"
+model_path = "~/.minder/models/embeddinggemma-300M-Q8_0.gguf"
+dimensions = 768
 openai_api_key = "${OPENAI_API_KEY}"
 openai_model = "text-embedding-3-small"
 
 [llm]
 provider = "llamacpp"
-model_name = "Qwen3.5-0.8B"
-model_path = "~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+model_name = "ggml-org/gemma-4-E2B-it-GGUF"
+model_path = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
 context_length = 4096
 temperature = 0.1
 openai_api_key = "${OPENAI_API_KEY}"

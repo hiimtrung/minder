@@ -14,7 +14,7 @@ import json
 import logging
 import uuid
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -354,7 +354,7 @@ async def test_audit_emitter_token_exchanged_convenience() -> None:
 
 def test_metrics_route_is_in_http_app() -> None:
     """/metrics must appear in the routes built by build_http_routes."""
-    from unittest.mock import MagicMock, patch
+    from unittest.mock import patch
 
     from minder.config import MinderConfig
     from minder.presentation.http.admin.routes import build_http_routes

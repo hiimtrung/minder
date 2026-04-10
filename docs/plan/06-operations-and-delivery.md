@@ -156,19 +156,19 @@ minder/
 
 ## Risks and Mitigations
 
-| Risk                                                                  | Impact | Mitigation                                                                   |
-| --------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------- |
-| `Qwen/Qwen3-Embedding-0.6B` GGUF is too heavy for some local machines | High   | Optimize quantization, document hardware requirements, allow OpenAI fallback |
-| `Qwen3.5-0.8B` quality is insufficient for complex tasks              | Medium | Route allowed complex queries to OpenAI                                      |
-| Milvus Lite performance is not enough for team scale                  | Medium | Upgrade to Milvus Standalone in Phase 4                                      |
-| Workflow enforcement becomes too rigid                                | Medium | Support strict and advisory modes                                            |
-| Repository-local state drifts from centralized state                  | High   | Add sync and conflict detection between repo and server                      |
-| Docker sandbox escapes or misconfiguration                            | High   | Use locked-down containers, no network, read-only root, and resource limits  |
-| Multi-user data isolation bugs                                        | High   | Enforce repo and user scoping on every query and tool                        |
-| API key leakage                                                       | High   | Store only bcrypt hashes, support rotation, and maintain audit logs          |
-| Concurrent user load affects latency                                  | Medium | Async I/O, pooling, caching, and rate limits                                 |
-| GitHub source for seeded skills is unavailable                        | Low    | Cache imported skills locally                                                |
-| Dashboard adds scope creep too early                                  | Medium | Keep dashboard minimal until Phase 4                                         |
+| Risk                                                                     | Impact | Mitigation                                                                   |
+| ------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------- |
+| `ggml-org/embeddinggemma-300M-GGUF` is too heavy for some local machines | High   | Optimize quantization, document hardware requirements, allow OpenAI fallback |
+| `ggml-org/gemma-4-E2B-it-GGUF` quality is insufficient for complex tasks | Medium | Route allowed complex queries to OpenAI                                      |
+| Milvus Lite performance is not enough for team scale                     | Medium | Upgrade to Milvus Standalone in Phase 4                                      |
+| Workflow enforcement becomes too rigid                                   | Medium | Support strict and advisory modes                                            |
+| Repository-local state drifts from centralized state                     | High   | Add sync and conflict detection between repo and server                      |
+| Docker sandbox escapes or misconfiguration                               | High   | Use locked-down containers, no network, read-only root, and resource limits  |
+| Multi-user data isolation bugs                                           | High   | Enforce repo and user scoping on every query and tool                        |
+| API key leakage                                                          | High   | Store only bcrypt hashes, support rotation, and maintain audit logs          |
+| Concurrent user load affects latency                                     | Medium | Async I/O, pooling, caching, and rate limits                                 |
+| GitHub source for seeded skills is unavailable                           | Low    | Cache imported skills locally                                                |
+| Dashboard adds scope creep too early                                     | Medium | Keep dashboard minimal until Phase 4                                         |
 
 ## CI/CD Pipeline
 

@@ -99,6 +99,11 @@ async def test_admin_use_cases_detail_onboarding_activity_and_connection_contrac
     onboarding = await use_cases.get_onboarding(client.id)
     assert onboarding["client"]["slug"] == "detail-client"
     assert "codex" in onboarding["templates"]
+    assert '"servers"' in onboarding["templates"]["vscode"]
+    assert '"tools"' not in onboarding["templates"]["vscode"]
+    assert '"mcpServers"' not in onboarding["templates"]["vscode"]
+    assert '"mcpServers"' in onboarding["templates"]["copilot_cli"]
+    assert '"tools"' in onboarding["templates"]["copilot_cli"]
 
     activity = await use_cases.get_recent_client_activity(client.id)
     assert activity[0]["event_type"] == "client.created"
@@ -106,7 +111,10 @@ async def test_admin_use_cases_detail_onboarding_activity_and_connection_contrac
     connection = await use_cases.test_client_connection(client_api_key)
     assert connection["ok"] is True
     assert connection["client"]["slug"] == "detail-client"
-    assert "claude_desktop" in connection["templates"]
+    assert "claude_code" in connection["templates"]
+    assert "antigravity" in connection["templates"]
+    assert 'url = "http://localhost:8801/sse"' in connection["templates"]["codex"]
+    assert '"serverUrl":"http://localhost:8801/sse"' in connection["templates"]["antigravity"]
 
     with pytest.raises(LookupError):
         await use_cases.get_client_detail(uuid.uuid4())

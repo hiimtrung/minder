@@ -1,39 +1,39 @@
 {
-  "task": "architecture github release docker deployment",
+  "task": "python dev hot reload server command for minder",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T16:58:31.679544+07:00",
+  "resolved_at": "2026-04-10T09:41:16.939387+07:00",
   "keep": [],
   "add": [
-    "readme",
-    "c4-container",
-    "github-actions-templates"
+    "webapp-testing",
+    "diary",
+    "readme"
   ],
   "drop": [
-    "expo-api-routes",
-    "burpsuite-project-parser",
-    "junta-leiloeiros"
+    "devcontainer-setup",
+    "ai-native-cli",
+    "copilot-sdk"
   ],
   "skills": [
     {
-      "name": "readme",
+      "name": "webapp-testing",
       "category": "general",
       "score": 0.016393442,
       "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "c4-container",
+      "name": "diary",
       "category": "general",
       "score": 0.016129032,
-      "chunk_count": 3,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "github-actions-templates",
+      "name": "readme",
       "category": "general",
       "score": 0.015873017,
-      "chunk_count": 5,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

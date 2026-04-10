@@ -64,7 +64,7 @@ async def test_phase4_gateway_auth_e2e(
                 "name": "Codex Team",
                 "slug": "codex-team",
                 "description": "Primary Codex integration",
-                "tool_scopes": ["minder_query", "minder_search_code"],
+                "tool_scopes": ["minder_query", "minder_search_code", "inspect_principal"],
                 "repo_scopes": [str(tmp_path)],
             },
         )
@@ -88,7 +88,8 @@ async def test_phase4_gateway_auth_e2e(
         assert onboarding_response.status_code == 200
         onboarding = onboarding_response.json()
         assert "codex" in onboarding["templates"]
-        assert "http://testserver/sse" in onboarding["templates"]["codex"]
+        assert "[mcp_servers.minder]" in onboarding["templates"]["codex"]
+        assert "antigravity" in onboarding["templates"]
 
         preflight_response = await client.post(
             "/v1/gateway/test-connection",
@@ -96,13 +97,18 @@ async def test_phase4_gateway_auth_e2e(
         )
         assert preflight_response.status_code == 200
         assert preflight_response.json()["ok"] is True
-        assert "http://testserver/sse" in preflight_response.json()["templates"]["copilot"]
+        assert "http://testserver/sse" in preflight_response.json()["templates"]["vscode"]
+        assert '"servers"' in preflight_response.json()["templates"]["vscode"]
+        assert '"tools"' not in preflight_response.json()["templates"]["vscode"]
+        assert "http://testserver/sse" in preflight_response.json()["templates"]["copilot_cli"]
+        assert '"mcpServers"' in preflight_response.json()["templates"]["copilot_cli"]
+        assert "claude_code" in preflight_response.json()["templates"]
 
         exchange_response = await client.post(
             "/v1/auth/token-exchange",
             json={
                 "client_api_key": client_api_key,
-                "requested_scopes": ["minder_query"],
+                "requested_scopes": ["minder_query", "inspect_principal"],
             },
         )
         assert exchange_response.status_code == 200
@@ -123,7 +129,7 @@ async def test_phase4_gateway_auth_e2e(
         authorization=f"Bearer {access_token}",
     )
     assert protected_result["principal_type"] == "client"
-    assert protected_result["scopes"] == ["minder_query"]
+    assert protected_result["scopes"] == ["minder_query", "inspect_principal"]
 
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
         revoke_response = await client.post(

@@ -224,9 +224,16 @@ async def test_onboarding_templates_follow_request_origin(
     assert connection_response.status_code == 200
     onboarding = onboarding_response.json()
     connection = connection_response.json()
-    assert "https://minder.example.com/sse" in onboarding["templates"]["codex"]
-    assert "https://minder.example.com/sse" in onboarding["templates"]["copilot"]
-    assert "https://minder.example.com/sse" in connection["templates"]["claude_desktop"]
+    assert 'url = "https://minder.example.com/sse"' in onboarding["templates"]["codex"]
+    assert "https://minder.example.com/sse" in onboarding["templates"]["vscode"]
+    assert '"servers"' in onboarding["templates"]["vscode"]
+    assert '"tools"' not in onboarding["templates"]["vscode"]
+    assert '"mcpServers"' not in onboarding["templates"]["vscode"]
+    assert "https://minder.example.com/sse" in onboarding["templates"]["copilot_cli"]
+    assert '"mcpServers"' in onboarding["templates"]["copilot_cli"]
+    assert '"tools"' in onboarding["templates"]["copilot_cli"]
+    assert "https://minder.example.com/sse" in connection["templates"]["claude_code"]
+    assert '"serverUrl":"https://minder.example.com/sse"' in onboarding["templates"]["antigravity"]
 
 
 @pytest.mark.asyncio
@@ -431,9 +438,11 @@ async def test_dashboard_and_onboarding_routes_render_client_setup(
     assert onboarding_response.status_code == 200
     onboarding = onboarding_response.json()
     assert "codex" in onboarding["templates"]
-    assert "copilot" in onboarding["templates"]
-    assert "claude_desktop" in onboarding["templates"]
-    assert "onboarding-client" in onboarding["templates"]["codex"]
+    assert "vscode" in onboarding["templates"]
+    assert "copilot_cli" in onboarding["templates"]
+    assert "antigravity" in onboarding["templates"]
+    assert "claude_code" in onboarding["templates"]
+    assert "[mcp_servers.minder]" in onboarding["templates"]["codex"]
 
 
 @pytest.mark.asyncio

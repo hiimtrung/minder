@@ -93,7 +93,22 @@ It intentionally does not start the Minder app or the Astro dashboard. You run t
 
 ## 2a. Start Minder locally against the Docker infra
 
-Start Minder:
+Start Minder with hot reload:
+
+```bash
+uv run python scripts/dev_server.py
+```
+
+This launcher watches `src/**/*.py`, `.env`, and `minder.toml`, then restarts Minder automatically after code or config changes.
+
+Useful options:
+
+```bash
+uv run python scripts/dev_server.py --port 8810
+uv run python scripts/dev_server.py --transport stdio
+```
+
+If you need the old production-like one-shot entrypoint, you can still run:
 
 ```bash
 PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server

@@ -1,5 +1,6 @@
 import pytest
 
+from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport
 from minder.auth.service import AuthService
 from minder.auth.service import UserRole
 from minder.config import MinderConfig
@@ -171,11 +172,11 @@ async def test_sse_transport_dispatches_tool_with_authenticated_client_principal
         name="Codex Local",
         slug="codex-local",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_query"],
+        tool_scopes=["inspect_principal"],
     )
     exchange = await auth.exchange_client_api_key(
         client_api_key,
-        requested_scopes=["minder_query"],
+        requested_scopes=["inspect_principal"],
     )
     transport = SSETransport(config=config, auth_service=auth)
 
@@ -194,7 +195,93 @@ async def test_sse_transport_dispatches_tool_with_authenticated_client_principal
     )
 
     assert result["principal_type"] == "client"
-    assert result["scopes"] == ["minder_query"]
+    assert result["scopes"] == ["inspect_principal"]
+
+
+@pytest.mark.asyncio
+async def test_build_transport_registers_descriptions_for_all_runtime_tools(
+    store: RelationalStore,
+    config: MinderConfig,
+) -> None:
+    auth = AuthService(store, config)
+    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+
+    assert set(transport.list_tools()) == set(TOOL_DESCRIPTIONS)
+    assert all(transport._tools[name].description for name in transport.list_tools())
+
+
+@pytest.mark.asyncio
+async def test_build_transport_allows_client_memory_store_when_scoped(
+    store: RelationalStore,
+    config: MinderConfig,
+) -> None:
+    auth = AuthService(store, config)
+    admin, _ = await auth.register_user(
+        email="memory-admin@example.com",
+        username="memory_admin",
+        display_name="Memory Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_api_key = await auth.register_client(
+        name="Memory Client",
+        slug="memory-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_memory_store", "minder_memory_list"],
+    )
+    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+
+    stored = await transport.call_tool(
+        "minder_memory_store",
+        arguments={
+            "title": "Transport memory",
+            "content": "client principal can store memory",
+            "tags": ["transport", "memory"],
+            "language": "en",
+        },
+        client_key=client_api_key,
+    )
+    listed = await transport.call_tool(
+        "minder_memory_list",
+        client_key=client_api_key,
+    )
+
+    assert stored["title"] == "Transport memory"
+    assert any(entry["title"] == "Transport memory" for entry in listed)
+
+
+@pytest.mark.asyncio
+async def test_build_transport_rejects_client_tool_outside_scope(
+    store: RelationalStore,
+    config: MinderConfig,
+) -> None:
+    auth = AuthService(store, config)
+    admin, _ = await auth.register_user(
+        email="scope-admin@example.com",
+        username="scope_admin",
+        display_name="Scope Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_api_key = await auth.register_client(
+        name="Scoped Client",
+        slug="scoped-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_memory_list"],
+    )
+    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+
+    with pytest.raises(Exception) as exc:
+        await transport.call_tool(
+            "minder_memory_store",
+            arguments={
+                "title": "Forbidden memory",
+                "content": "should fail",
+                "tags": ["transport"],
+                "language": "en",
+            },
+            client_key=client_api_key,
+        )
+
+    assert getattr(exc.value, "code", None) == "AUTH_FORBIDDEN"
 
 
 @pytest.mark.asyncio

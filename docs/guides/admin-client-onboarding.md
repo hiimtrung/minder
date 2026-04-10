@@ -15,7 +15,7 @@ Today you can:
 - create MCP clients
 - generate client API keys
 - exchange a client key for an access token
-- onboard `Codex`, `Copilot-style MCP clients`, and `Claude Desktop`
+- onboard `Codex`, `GitHub Copilot CLI`, `Google Antigravity`, and `Claude Code`
 - authenticate SSE and stdio clients directly with the client API key
 
 Today you cannot yet:
@@ -143,7 +143,8 @@ This returns templates for:
 
 - `codex`
 - `copilot`
-- `claude_desktop`
+- `antigravity`
+- `claude_code`
 
 All templates now default to:
 
@@ -195,48 +196,141 @@ Expected response:
 
 ## 8. Connect an MCP client
 
-### Codex-style bootstrap payload
+Minder currently exposes remote MCP over `SSE` and local MCP over `stdio`. That means:
 
-```json
-{
-  "server_url": "http://localhost:8800/sse",
-  "client_api_key": "mkc_...",
-  "bootstrap_path": "/v1/auth/token-exchange",
-  "client_slug": "codex-local",
-  "preferred_tool": "minder_query"
-}
+- start with the remote endpoint first for every client snippet below
+- fall back to local `stdio` only when the client or your environment needs a local process
+
+The dashboard now renders these as remote-first tabs with optional local stdio fallback tabs for clients that support both shapes.
+
+### Codex config.toml snippet
+
+```toml
+[mcp_servers.minder]
+url = "http://localhost:8800/sse"
+http_headers = { "X-Minder-Client-Key" = "mkc_..." }
 ```
 
-### Copilot-style MCP snippet
+Optional local stdio fallback:
+
+```toml
+[mcp_servers.minder]
+command = "uv"
+args = ["run", "python", "-m", "minder.server"]
+cwd = "/absolute/path/to/minder"
+env = { MINDER_SERVER__TRANSPORT = "stdio", MINDER_CLIENT_API_KEY = "mkc_..." }
+```
+
+### VS Code mcp.json snippet
 
 ```json
 {
-  "type": "mcp",
-  "url": "http://localhost:8800/sse",
-  "headers": {
-    "X-Minder-Client-Key": "mkc_..."
+  "servers": {
+    "minder": {
+      "type": "sse",
+      "url": "http://localhost:8800/sse",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_..."
+      }
+    }
   },
-  "client": "codex-local"
+  "inputs": []
 }
 ```
 
-### Claude Desktop-style snippet
+Open this from either:
+
+- workspace: `.vscode/mcp.json`
+- user profile: `MCP: Open User Configuration`
+
+Recommended flow based on the GitHub Copilot Chat MCP guide:
+
+1. Save the `mcp.json` file and start or restart the server from the inline action or `MCP: List Servers`.
+2. Open Copilot Chat in `Agent` mode.
+3. Open the tools picker and confirm the `minder` server is running and its tools are available.
+
+References:
+
+- [GitHub Copilot Chat with MCP](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp)
+- [VS Code MCP configuration reference](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration)
+
+### GitHub Copilot CLI mcp-config.json snippet
 
 ```json
 {
   "mcpServers": {
     "minder": {
+      "type": "sse",
       "url": "http://localhost:8800/sse",
       "headers": {
         "X-Minder-Client-Key": "mkc_..."
       },
-      "client": "codex-local"
+      "tools": ["*"]
     }
   }
 }
 ```
 
-### Stdio client bootstrap
+Recommended flow based on the Copilot CLI MCP guide:
+
+1. Either edit `~/.copilot/mcp-config.json` directly or run `/mcp add`.
+2. If you use `/mcp add`, choose `HTTP or SSE`, paste the Minder URL, add the `X-Minder-Client-Key` header, and keep `Tools` as `*` unless you want to narrow it.
+3. Run `/mcp show` to confirm the server is listed and enabled.
+
+Reference:
+
+- [Adding MCP servers for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers)
+
+### Antigravity mcp_config.json snippet
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "serverUrl": "http://localhost:8800/sse",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+Optional local stdio fallback:
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "minder.server"],
+      "cwd": "/absolute/path/to/minder",
+      "env": {
+        "MINDER_SERVER__TRANSPORT": "stdio",
+        "MINDER_CLIENT_API_KEY": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+### Claude Code .mcp.json snippet
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "type": "sse",
+      "url": "http://localhost:8800/sse",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+### Optional local stdio bootstrap
 
 For stdio-based local integrations, export:
 
@@ -268,7 +362,7 @@ From the dashboard today you can:
 - revoke all client keys for that client
 - run a connection test
 - inspect onboarding snippets and recent client activity
-- read onboarding snippets for Codex, Copilot-style MCP, and Claude Desktop
+- read onboarding snippets for Codex, GitHub Copilot CLI, Google Antigravity, and Claude Code
 - run a browser-based connection test by pasting a client API key
 - inspect recent activity for that client from audit events
 

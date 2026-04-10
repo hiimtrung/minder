@@ -1,39 +1,39 @@
 {
-  "task": "astro dynamic routing client detail",
+  "task": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-09T14:51:13.347584+07:00",
+  "resolved_at": "2026-04-10T09:31:52.600055+07:00",
   "keep": [],
   "add": [
-    "azure-cosmos-java",
-    "istio-traffic-management",
-    "m365-agents-ts"
+    "dx-optimizer",
+    "bash-pro",
+    "shadcn"
   ],
   "drop": [
-    "radix-ui-design-system",
-    "react-native-skills",
-    "hig-components-layout"
+    "copilot-sdk",
+    "skill-creator",
+    "wiki-onboarding"
   ],
   "skills": [
     {
-      "name": "azure-cosmos-java",
-      "category": "backend",
-      "score": 0.016393442,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "istio-traffic-management",
-      "category": "frontend",
-      "score": 0.016129032,
-      "chunk_count": 6,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "m365-agents-ts",
+      "name": "dx-optimizer",
       "category": "general",
-      "score": 0.015873017,
+      "score": 0.016393442,
+      "chunk_count": 2,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "bash-pro",
+      "category": "general",
+      "score": 0.016129032,
       "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "shadcn",
+      "category": "frontend",
+      "score": 0.015873017,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

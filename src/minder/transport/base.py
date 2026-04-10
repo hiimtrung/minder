@@ -6,8 +6,9 @@ from typing import Any, Callable
 from mcp.server.fastmcp import FastMCP
 
 from minder.auth.middleware import AuthMiddleware
+from minder.auth.service import AuthError
 from minder.auth.rate_limiter import RateLimiter
-from minder.auth.principal import AdminUserPrincipal, Principal
+from minder.auth.principal import AdminUserPrincipal, ClientPrincipal, Principal
 from minder.auth.service import AuthService
 from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
@@ -63,11 +64,12 @@ class BaseTransport:
         require_auth: bool = True,
         description: str | None = None,
     ) -> None:
+        effective_description = description or inspect.getdoc(handler) or self._describe_tool(name)
         self._tools[name] = RegisteredTool(
             name=name,
             handler=handler,
             require_auth=require_auth,
-            description=description,
+            description=effective_description,
         )
 
         # We need to wrap the handler to inject auth logic, but we must
@@ -119,7 +121,7 @@ class BaseTransport:
         self._server.add_tool(
             wrapped_tool,
             name=name,
-            description=description,
+            description=effective_description,
             structured_output=False,
         )
 
@@ -145,12 +147,22 @@ class BaseTransport:
         effective_client_key = client_key or self._default_client_key()
         principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
         if principal is not None:
+            if isinstance(principal, ClientPrincipal) and name not in principal.scopes:
+                raise AuthError(
+                    "AUTH_FORBIDDEN",
+                    f"Client is not allowed to call tool '{name}'",
+                )
             if self._rate_limiter.enabled():
                 await self._rate_limiter.enforce(principal=principal, tool_name=name)
             kwargs["principal"] = principal
             if isinstance(principal, AdminUserPrincipal) and principal.user is not None:
                 kwargs["user"] = principal.user
         return await _invoke(registered.handler, **kwargs)
+
+    @staticmethod
+    def _describe_tool(name: str) -> str:
+        words = name.replace("minder_", "").replace("_", " ")
+        return f"Run the {words} tool in Minder."
 
     async def _authenticate_if_required(
         self,

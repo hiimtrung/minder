@@ -1,293 +1,245 @@
 # Minder
 
-<img src="favicon.png" width="300" alt="minder logo">
+<img src="favicon.png" width="240" alt="Minder logo">
 
-Minder is an MCP-first engineering assistant platform for repository search, workflow guidance, memory, session state, and low-friction client onboarding.
+**Minder** is a self-hosted MCP server for repository-aware code assistance — semantic search, workflow governance, memory, client onboarding, and session management over `SSE` and `stdio`.
 
-The local and self-hosted stack is built around:
+---
 
-- `Minder` over `SSE` or `stdio`
-- `MongoDB` for operational data
-- `Redis` for cache, rate limiting, and client sessions
-- `Milvus Standalone` for vector search
-- local `Qwen GGUF` models through `llama-cpp-python`
+## Contents
 
-## What You Get
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Quick Start](#quick-start)
+- [Operator Flows](#operator-flows)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [Documentation](#documentation)
 
-- MCP tools for `query`, `search`, `memory`, `workflow`, `session`, and `auth`
-- client onboarding flow for `Codex`, `Copilot-style MCP clients`, and `Claude Desktop`
-- admin/client API-key model with token exchange
-- repository-aware retrieval and workflow enforcement
-- local Docker stack for development
+---
 
-## Local Stack
+## Architecture
 
-The default local backend entrypoint is:
+```mermaid
+flowchart TB
+    Browser["Browser Admin"] --> Gateway["Gateway :8800"]
+    MCP["Codex · Copilot · Claude Desktop · stdio"] --> Gateway
 
-- SSE server: [http://localhost:8800/sse](http://localhost:8800/sse)
-- Dashboard route: [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-- Token exchange API: [http://localhost:8800/v1/auth/token-exchange](http://localhost:8800/v1/auth/token-exchange)
+    Gateway --> Dashboard["Astro Dashboard\n/dashboard/*"]
+    Gateway --> AdminAPI["Admin HTTP\n/v1/admin/*"]
+    Gateway --> AuthAPI["Token Exchange · Gateway Test\n/v1/auth/* · /v1/gateway/*"]
+    Gateway --> MCPTools["MCP Tool Surface\nSSE · stdio"]
 
-Note:
+    AdminAPI & AuthAPI & MCPTools --> UseCases["Application Use Cases"]
 
-- In containerized production, a gateway service keeps `:8800` as the single public origin and routes `/dashboard/*` to a dedicated Astro service plus `/v1/*` and MCP routes to the Minder API service.
-- In local frontend development, Astro can run separately on `8808` and call Minder on `8800` through `API_URL`.
+    UseCases --> Auth["Auth · RBAC · Rate Limiting"]
+    UseCases --> Services["Workflow · Memory · Session · Query"]
+
+    Services --> Mongo["MongoDB"]
+    Services --> Redis["Redis"]
+    Services --> Milvus["Milvus Standalone"]
+    Services --> LLM["Qwen GGUF\nllama-cpp-python"]
+```
+
+### Runtime layers
+
+```
+Presentation  →  src/minder/presentation/http/admin   (HTTP routes, DTOs)
+                 src/dashboard                         (Astro admin console)
+Application   →  src/minder/application/admin          (use cases)
+Domain        →  src/minder/models                     (entities, value objects)
+Infrastructure→  src/minder/store                      (MongoDB · Milvus · Redis adapters)
+               src/minder/auth                         (principals, middleware, rate limiter)
+               src/minder/graph                        (LangGraph pipeline, nodes)
+```
+
+### Runtime stack
+
+| Service         | Role                                          | Default port |
+|-----------------|-----------------------------------------------|--------------|
+| Minder API      | MCP server, admin HTTP, token exchange        | `8800`       |
+| Astro Dashboard | Admin console (dev: standalone, prod: proxied)| `8808` (dev) |
+| MongoDB 7       | Operational store — users, clients, sessions  | `27017`      |
+| Redis 7         | Cache, rate limiting, client token sessions   | `6379`       |
+| Milvus Standalone| Vector search for documents, code, errors    | `19530`      |
+
+### MCP tool surface
+
+| Tool                    | Description                              |
+|-------------------------|------------------------------------------|
+| `minder_query`          | Full RAG pipeline — reason + retrieve + verify |
+| `minder_search_code`    | Semantic code search across indexed repos |
+| `minder_search_errors`  | Semantic error search with resolution hints |
+| `minder_search`         | General document search                  |
+| `minder_memory_recall`  | Retrieve from persistent memory store    |
+| `minder_workflow_get`   | Inspect current workflow state           |
+| `minder_workflow_step`  | Advance a workflow step                  |
+
+---
+
+## Prerequisites
+
+| Requirement    | Version          |
+|----------------|------------------|
+| Python         | `≥ 3.14`         |
+| uv             | latest           |
+| Docker + Compose| v2+             |
+| Bun            | `1.2.21+` (dashboard dev only) |
+
+---
 
 ## Quick Start
 
-### 1. Download local models
+### 1. Download GGUF models
 
 ```bash
 ./scripts/download_models.sh
 ```
 
-Expected output:
+Models are written to `~/.minder/models`.
 
-```text
-models ready in /Users/<you>/.minder/models
-```
-
-### 1a. Prepare local env files
-
-Backend:
+### 2. Set up environment files
 
 ```bash
+# Backend
 cp .env.example .env
-```
 
-Frontend:
-
-```bash
+# Dashboard (only needed for local dev server)
 cp src/dashboard/.env.example src/dashboard/.env
 ```
 
-These defaults are already set for local split development:
+Default values target the local split-dev layout: Minder on `8800`, Astro on `8808`.
 
-- Minder backend on `8800`
-- Astro dev server on `8808`
-- dashboard API calls to `http://localhost:8800`
-
-### 2. Start the local infrastructure
+### 3. Start infrastructure services
 
 ```bash
 docker compose -f docker/docker-compose.local.yml up -d
 ```
 
-If you want to build the dashboard bundle outside Docker:
+Starts MongoDB, Redis, Milvus Standalone (with etcd and MinIO).
 
-```bash
-cd src/dashboard
-bun install
-bun run build
-```
-
-Frontend baseline:
-
-- Astro `6.1.4`
-- Bun `1.2.21`
-- Node `22.12+` if you run frontend tooling without Bun
-
-Services started by this stack:
-
-- `mongodb` on port `27017`
-- `redis` on port `6379`
-- `milvus-standalone` on port `19530`
-- `etcd` and `minio` as Milvus dependencies
-
-Local note:
-
-- `docker-compose.local.yml` is infra-only for local debugging.
-- run Minder locally with `uv run python -m minder.server`.
-- run Astro locally with `bun run dev` when you want dashboard hot reload.
-- the production stack is the default [docker/docker-compose.yml](docker/docker-compose.yml).
-- GitHub releases ship a one-shot installer script that writes the runtime compose bundle and starts the published images.
-
-### 2a. Run Minder and Astro against the local infrastructure
-
-Run the backend and the dashboard separately against the Docker services above.
-
-Backend:
+### 4. Start the backend
 
 ```bash
 PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
 ```
 
-Frontend:
+### 5. Start the dashboard (dev)
 
 ```bash
 cd src/dashboard
 bun install
-bun run dev
+bun run dev          # http://localhost:8808/dashboard
 ```
 
-In this mode:
+Or build static assets and let Minder serve them on port `8800`:
 
-- Astro dev server runs on [http://localhost:8808/dashboard](http://localhost:8808/dashboard)
-- Minder APIs stay on [http://localhost:8800](http://localhost:8800)
-- dashboard requests go cross-origin to `API_URL` from `src/dashboard/.env`
-- Astro bridges `API_URL` into the client bundle as `PUBLIC_API_URL`
-- onboarding snippets use the backend origin derived from the incoming API request, so local snippets point to the Minder backend on `8800`
+```bash
+cd src/dashboard && bun run build
+```
 
-### 3. Create the first admin in the browser
+### 6. Initialize the first admin
 
-Open:
+Open [`http://localhost:8800/dashboard/setup`](http://localhost:8800/dashboard/setup) in a browser.
 
-- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
+Enter username, email, and display name. Minder returns the bootstrap admin API key (`mk_…`) **exactly once** — save it before navigating away.
 
-Fill in:
+### 7. Sign in
 
-- email
-- username
-- display name
+Open [`http://localhost:8800/dashboard/login`](http://localhost:8800/dashboard/login) and authenticate with the `mk_…` key. A session cookie is set on success.
 
-After submission, Minder redirects to a one-time setup completion screen and shows the bootstrap admin API key exactly once.
-
-Save the `mk_...` value. That is the admin bootstrap key.
-
-### 4. Open the admin login page
-
-Open:
-
-- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
-
-Sign in with the `mk_...` admin API key from the previous step. Minder stores the admin browser session in an `HttpOnly` cookie.
-
-### 5. Continue with the onboarding guide
-
-Use the step-by-step guide here:
-
-- [Local Setup Guide](docs/guides/local-setup.md)
-- [Admin and Client Onboarding Guide](docs/guides/admin-client-onboarding.md)
-- [Production Deployment Guide](docs/guides/production-deployment.md)
+---
 
 ## Operator Flows
 
-### Browser admin onboarding
+### Create and onboard an MCP client
 
-1. Start the Docker stack.
-2. Open [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup) on a fresh deployment.
-3. Save the one-time `mk_...` admin API key.
-4. Open [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login) and sign in.
-5. Create one MCP client per real consumer directly from the dashboard.
+1. Sign into the dashboard and open **Client Registry**.
+2. Fill the **Create Client** form — name, slug, tool scopes, repo scopes.
+3. Minder issues a `mkc_…` client API key **once**. Copy it immediately.
+4. Use the key in your MCP client:
 
-### Client onboarding
+| Transport | Auth mechanism                              |
+|-----------|---------------------------------------------|
+| SSE       | `X-Minder-Client-Key: mkc_…` header         |
+| stdio     | `MINDER_CLIENT_API_KEY=mkc_…` env variable  |
+| OAuth-style| `POST /v1/auth/token-exchange` with the key|
 
-1. Create a client and capture its `mkc_...` client API key.
-2. Use one of these auth modes:
-   - `SSE`: send `X-Minder-Client-Key: mkc_...`
-   - `stdio`: export `MINDER_CLIENT_API_KEY=mkc_...`
-   - compatibility mode: exchange `mkc_...` at [`/v1/auth/token-exchange`](http://localhost:8800/v1/auth/token-exchange)
-3. Load the generated onboarding template for `Codex`, `Copilot-style MCP`, or `Claude Desktop`.
+5. Optionally copy a generated onboarding snippet from the client detail page (Codex, Copilot-style MCP, or Claude Desktop).
 
-### Admin recovery
+### Rotate or revoke a client key
 
-If the admin API key is lost, rotate it with:
+From the client detail page, use **Rotate Key** (issues a new key, invalidates the old) or **Revoke** (permanently blocks the client). Both actions are recorded in the audit log.
+
+### Recover admin access
+
+If the admin API key is lost:
 
 ```bash
 PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py \
-  --username admin
+  --username <admin-username>
 ```
 
-The old admin API key becomes invalid immediately, and Minder writes an audit event for the rotation.
+The previous key is invalidated immediately and an audit event is written.
 
-## Documentation Map
+### Production deployment
 
-- [Local Setup Guide](docs/guides/local-setup.md)
-- [Admin and Client Onboarding Guide](docs/guides/admin-client-onboarding.md)
-- [Production Deployment Guide](docs/guides/production-deployment.md)
-- [System Design](docs/system-design.md)
-- [Phase 4.1 Requirements](docs/requirements/p4_1_dashboard_setup_and_direct_auth.md)
-- [Gateway Auth and Dashboard Design](docs/design/mcp-gateway-auth-dashboard.md)
-- [Task Breakdown](docs/TASK_BREAKDOWN.md)
-- [Project Progress](docs/PROJECT_PROGRESS.md)
-- [Project Plan](docs/PLAN.md)
-
-## Architecture
-
-Canonical reference:
-
-- [System Design](docs/system-design.md)
-
-```mermaid
-flowchart TB
-    Browser["Browser Admin"] --> Dashboard["Astro Dashboard<br/>/dashboard"]
-    MCP["Codex / Copilot / Claude / stdio Clients"] --> Gateway["MCP Gateway<br/>SSE / stdio"]
-
-    Dashboard --> AdminHTTP["Admin HTTP Presentation<br/>/v1/admin/*"]
-    Dashboard --> TokenHTTP["Token Exchange / Gateway Test<br/>/v1/auth/* /v1/gateway/*"]
-
-    AdminHTTP --> UseCases["Application Use Cases<br/>admin / auth / workflow / query"]
-    TokenHTTP --> UseCases
-    Gateway --> UseCases
-
-    UseCases --> Auth["Auth / RBAC / Rate Limits / Sessions"]
-    UseCases --> Retrieval["Retrieval / Workflow / Memory / Session Services"]
-    Retrieval --> LLM["Qwen GGUF via llama.cpp"]
-    Retrieval --> Vector["Milvus Standalone"]
-    UseCases --> Cache["Redis"]
-    UseCases --> Ops["MongoDB"]
-
-    Models["GGUF Models<br/>~/.minder/models"] --> LLM
-    Gateway --> Auth
-    AdminHTTP --> Auth
+```bash
+docker compose -f docker/docker-compose.yml up -d
 ```
 
-### Runtime Layers
+The production compose runs `gateway` (Caddy), `minder-api`, and `dashboard` as separate services with a single public origin on `:8800`.
 
-See also:
+---
 
-- [System Design](docs/system-design.md)
+## Configuration
 
-```mermaid
-flowchart LR
-    Presentation["Presentation"]
-    Application["Application Use Cases"]
-    Domain["Domain Models / Policies"]
-    Infra["Infrastructure Adapters"]
+Minder loads configuration from `minder.toml` first, then environment overrides (prefix `MINDER_`).
 
-    Presentation --> Application
-    Application --> Domain
-    Infra --> Domain
-    Application --> Infra
-```
+Key variables:
 
-### Project Layout
+| Variable                           | Default                                     | Description                      |
+|------------------------------------|---------------------------------------------|----------------------------------|
+| `MINDER_SERVER__PORT`              | `8800`                                      | HTTP listen port                 |
+| `MINDER_MONGODB__URI`              | `mongodb://localhost:27017`                 | MongoDB connection string        |
+| `MINDER_REDIS__URI`                | `redis://localhost:6379/0`                  | Redis connection string          |
+| `MINDER_VECTOR_STORE__URI`         | `http://localhost:19530`                    | Milvus endpoint                  |
+| `MINDER_LLM__MODEL_PATH`           | `~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf` | Local LLM model |
+| `MINDER_EMBEDDING__MODEL_PATH`     | `~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf`    | Embedding model |
+| `MINDER_CACHE__PROVIDER`           | `redis`                                     | `redis` or `lru`                 |
+| `MINDER_WORKFLOW__ORCHESTRATION_RUNTIME` | `langgraph`                          | `langgraph` or `simple`          |
 
-See the consolidated architecture document:
+---
 
-- [System Design](docs/system-design.md)
+## Testing
 
-- [`src/dashboard`](src/dashboard): Astro admin console served by the Python app
-- [`src/minder/presentation/http/admin`](src/minder/presentation/http/admin): HTTP presentation layer
-- [`src/minder/application/admin`](src/minder/application/admin): admin use cases and DTOs
-- [`src/minder/auth`](src/minder/auth): auth, principals, middleware, rate limits
-- [`src/minder/tools`](src/minder/tools): MCP tool surface
-- [`src/minder/store`](src/minder/store): MongoDB/relational/vector/cache adapters
-
-`routes.py` still exists in the admin HTTP package because it is the composition boundary for the presentation layer. Details now live in [System Design](docs/system-design.md).
-
-## Runtime Notes
-
-- Local model files are expected in `~/.minder/models`
-- The dev stack defaults to port `8800`
-- Minder loads root `.env` automatically
-- `LangGraph`, `llama-cpp-python`, and `LiteLLM` are wired with runtime auto-detection
-- The admin console ships as an Astro runtime from [src/dashboard](src/dashboard); in containerized production it runs behind a gateway proxy that keeps `/dashboard` on the same public origin.
-- Local frontend development can instead run Astro on `8808` with `src/dashboard/.env` setting `API_URL=http://localhost:8800`.
-- Browser-native client registry, detail, rotate/revoke, onboarding snippets, activity, and connection testing are all available under `/dashboard`.
-- Production compose now uses `gateway`, `dashboard`, and `minder-api` services instead of baking Astro assets into the backend runtime.
-- `Phase 4.1`, `Phase 4.2`, and `Phase 4.3` are implemented and covered by tests.
-
-## Validation
-
-Core quality gate used during development:
+Run the full test suite:
 
 ```bash
 UV_CACHE_DIR=.uv-cache uv run pytest
 ```
 
-## Current UX Limits
+Gate tests by phase:
 
-- Admin bootstrap is now browser-first through `/dashboard/setup`, and admin API-key recovery is available through `scripts/reset_admin_api_key.py`
-- The Astro console covers client onboarding and client management. Broader workflow/repository/observability screens are still later `Phase 4` work.
-- Full workflow/repository/user management UI belongs to broader `Phase 4`, not the completed `Phase 4.0` onboarding slice
+```bash
+uv run pytest tests/integration/test_phase3_gate.py   # Phase 3 acceptance
+uv run pytest tests/e2e/test_phase4_gateway_auth.py   # Phase 4 gateway auth
+uv run pytest tests/integration/test_phase4_3_console_gate.py  # P4.3 console
+```
+
+Infrastructure-dependent tests (Milvus, MongoDB, Redis) require Docker services running.
+
+---
+
+## Documentation
+
+| Document | Description |
+|---|---|
+| [System Design](docs/system-design.md) | Canonical architecture reference |
+| [Project Plan](docs/PLAN.md) | Phased delivery plan and current focus |
+| [Project Progress](docs/PROJECT_PROGRESS.md) | Per-task status tracker |
+| [Task Breakdown](docs/TASK_BREAKDOWN.md) | Full task catalog with requirements |
+| [Local Setup Guide](docs/guides/local-setup.md) | Step-by-step local environment setup |
+| [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md) | Admin setup and client provisioning |
+| [Production Deployment](docs/guides/production-deployment.md) | Production compose and gateway configuration |
+| [Gateway Auth Design](docs/design/mcp-gateway-auth-dashboard.md) | Phase 4.0 gateway auth design |

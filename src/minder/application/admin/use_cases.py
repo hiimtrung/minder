@@ -231,19 +231,24 @@ class AdminConsoleUseCases:
         return self.dedupe_preserve_order(candidates)
 
     def onboarding_templates(self, client: Any, *, public_base_url: str | None = None) -> dict[str, str]:
-        exchange_url = "/v1/auth/token-exchange"
-        query_hint = client.tool_scopes[0] if client.tool_scopes else "minder_query"
         base_url = public_base_url.rstrip("/") if public_base_url else f"http://localhost:{self._config.server.port}"
         return {
             "codex": (
-                f'{{"server_url":"{base_url}/sse","client_api_key":"<mkc_...>",'
-                f'"bootstrap_path":"{exchange_url}","client_slug":"{client.slug}","preferred_tool":"{query_hint}"}}'
+                '[mcp_servers.minder]\n'
+                f'url = "{base_url}/sse"\n'
+                'http_headers = { "X-Minder-Client-Key" = "<mkc_...>" }'
             ),
-            "copilot": (
-                f'{{"type":"mcp","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}'
+            "vscode": (
+                f'{{"servers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}},"inputs":[]}}'
             ),
-            "claude_desktop": (
-                f'{{"mcpServers":{{"minder":{{"url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"client":"{client.slug}"}}}}}}'
+            "copilot_cli": (
+                f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"tools":["*"]}}}}}}'
+            ),
+            "antigravity": (
+                f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
+            ),
+            "claude_code": (
+                f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
             ),
         }
 

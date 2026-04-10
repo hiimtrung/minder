@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "minder": {
+      "url": "http://localhost:8801/sse",
+      "type": "sse",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_4_MDoRtZbqaakRaGaEXLjX5kSkTBmRtn1KhcR3i1rwE"
+      }
+    }
+  },
+  "inputs": []
+}

@@ -1,139 +1,144 @@
 {
-  "updated_at": "2026-04-09T16:58:31.905931+07:00",
+  "updated_at": "2026-04-10T09:41:48.094569+07:00",
   "skills": {
-    "task": "architecture github release docker deployment",
+    "task": "python dev hot reload server command for minder",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-09T16:58:31.679544+07:00",
+    "resolved_at": "2026-04-10T09:41:16.939387+07:00",
     "keep": [],
     "add": [
-      "readme",
-      "c4-container",
-      "github-actions-templates"
+      "webapp-testing",
+      "diary",
+      "readme"
     ],
     "drop": [
-      "expo-api-routes",
-      "burpsuite-project-parser",
-      "junta-leiloeiros"
+      "devcontainer-setup",
+      "ai-native-cli",
+      "copilot-sdk"
     ],
     "skills": [
       {
-        "name": "readme",
+        "name": "webapp-testing",
         "category": "general",
         "score": 0.016393442,
         "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "c4-container",
+        "name": "diary",
         "category": "general",
         "score": 0.016129032,
-        "chunk_count": 3,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "github-actions-templates",
+        "name": "readme",
         "category": "general",
         "score": 0.015873017,
-        "chunk_count": 5,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "github release docker deployment",
+    "query": "python dev hot reload server command for minder",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-09T16:58:31.90493+07:00",
+    "searched_at": "2026-04-10T09:41:48.093458+07:00",
     "results": [
       {
-        "id": "1825a677-2964-491d-9e4d-f434e5ab4832",
-        "title": "Phase 1 Wave 3 delivery assets",
+        "id": "8131aeee-d209-4d66-a5a2-b81863775cf3",
+        "title": "Minder onboarding now prefers remote snippets with optional local tabs",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-1-wave-3-delivery-assets",
+        "canonical_key": "document:minder-onboarding-now-prefers-remote-snippets-with-optional-local-tabs",
         "score": 0.086393446,
         "tags": [
-          "phase1",
-          "wave3",
-          "delivery",
-          "docker",
-          "github-actions",
-          "scripts",
-          "tracker"
+          "minder",
+          "mcp",
+          "onboarding",
+          "frontend",
+          "auth",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Implemented Wave 3 for Phase 1 closure. Added src/minder/server.py as the main app seam that builds the store, transport, and default tool registrations. Added bootstrap and delivery assets: scripts/create_admin.py with tested idempotent admin creation, scripts/seed_skills.py with local skill directory seeding and idempotence coverage, scripts/download_models.sh with skip and checksum behavior, docker/Dockerfile, docker/docker-compose.dev.yml, and GitHub workflows .github/workflows/ci.yml and release.yml. Added docs/PROJECT_PROGRESS.md as the dedicated project progress board and updated docs/TASK_BREAKDOWN.md to link to it. Added tests/integration/test_phase1_wave3_assets.py and verified with uv run ruff check, uv run mypy src, and uv run pytest (94 passed). Tracker status after Wave 3: P1-T22 DONE, P1-T17/P1-T18/P1-T19/P1-T20/P1-T21 PARTIAL pending real runtime execution. Committed as c3d4827 feat: add phase 1 delivery assets."
+        "content": "Updated Minder onboarding so API templates are remote-first for all supported clients, with Codex using a remote config.toml URL/header block and Antigravity using serverUrl plus headers. The dashboard client detail UI now renders each integration as a collapsible card with preferred remote and optional local stdio tabs, dynamic Expand/Collapse labels, and richer copy actions including full-file and server-entry copies where applicable. Docs were updated to explain remote-first setup with local stdio fallback. Files changed: src/minder/application/admin/use_cases.py, src/dashboard/src/scripts/clients-page.ts, src/dashboard/src/components/ClientDetailShell.astro, docs/guides/admin-client-onboarding.md, and related tests."
       },
       {
-        "id": "4bc6707e-c67c-4152-8a90-d2e860fbc87c",
-        "title": "Phase 1 task breakdown audit",
+        "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
+        "title": "Compose runtime activation uses auto runtimes with safe fallback",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-1-task-breakdown-audit",
+        "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
         "score": 0.086129025,
         "tags": [
-          "docs",
-          "planning",
+          "minder",
           "phase1",
-          "audit",
-          "deployment",
-          "workflow"
+          "phase2",
+          "compose",
+          "runtime",
+          "llama-cpp",
+          "langgraph",
+          "litellm"
         ],
         "conflict_detected": false,
-        "content": "Audited docs/TASK_BREAKDOWN.md against the actual minder repository state. Added a Phase 1 implementation audit, a per-task status map, a current runnable local flow section, and an explicit closure checklist. Key finding: Phase 1 is still open despite strong foundation code. Missing or partial areas are MCP transports (SSE/stdio), repo-local .minder state, standalone workflow/memory/auth/session tool modules, bootstrap scripts, docker development stack, GitHub Actions CI/release workflows, and tests/integration/test_phase1_gate.py. Also removed a stale reference to docs/PHASE2_MANUAL_TEST.md because that file does not exist in the workspace."
+        "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
       },
       {
-        "id": "60ba7da9-afbe-4e10-84e4-066b428e7c08",
-        "title": "Local onboarding docs and port 8800 defaults",
+        "id": "cb8a1cdd-727f-423b-b201-b833dc63d1d9",
+        "title": "P3-Wave3: ingest_url, ingest_git, RepoScanner",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:local-onboarding-docs-and-port-8800-defaults",
+        "canonical_key": "document:p3-wave3-ingest-url-ingest-git-reposcanner",
         "score": 0.08587302,
         "tags": [
-          "docs",
-          "onboarding",
-          "readme",
-          "port-8800",
-          "phase4"
+          "minder",
+          "phase3",
+          "ingest",
+          "repo-scanner",
+          "wave3"
         ],
         "conflict_detected": false,
-        "content": "Rewrote the root README as a real documentation entrypoint, added docs/guides/local-setup.md and docs/guides/admin-client-onboarding.md, and switched local dev defaults from port 8080 to 8800 in config, minder.toml, Dockerfile, docker-compose.dev.yml, and generated onboarding templates in src/minder/server.py. The guides are explicit that /dashboard exists but still needs bearer auth because a browser-native admin login form is not implemented yet. Verified with mypy and targeted pytest covering config, delivery assets, phase 4 admin HTTP, and the phase 4 gateway e2e flow."
+        "content": "Implemented minder_ingest_url (httpx + HTML strip + TextSplitter chunking, project from netloc), minder_ingest_git (subprocess shallow clone to tempdir + ingest_directory + shutil.rmtree cleanup), and RepoScanner (ast import parsing, pyproject.toml/package.json service boundary detection, idempotent upsert to KnowledgeGraphStore). httpx added to pyproject.toml. 17 tests, 200/200 total."
       },
       {
-        "id": "d20017e3-4468-46b0-be5b-e4d04959049f",
-        "title": "packageTourApi docker-compose with local.env",
+        "id": "440d41ec-9ae1-495d-910a-7dc025972a18",
+        "title": "Phase 4.3 Wave 1 bootstrap and presentation extraction",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:packagetourapi-docker-compose-with-local-env",
+        "canonical_key": "document:phase-4-3-wave-1-bootstrap-and-presentation-extraction",
         "score": 0.08562499,
         "tags": [
-          "packageTourApi",
-          "docker",
-          "compose",
-          "localenv"
+          "phase4",
+          "architecture",
+          "server",
+          "dashboard",
+          "refactor"
         ],
         "conflict_detected": false,
-        "content": "Created docker-compose.yml with single app service using Dockerfile build and env_file local.env, exposed port 8080:8080, restart unless-stopped. Validated configuration with docker compose config successfully."
+        "content": "Implemented Phase 4.3 Wave 1 without creating a commit. Added minder.bootstrap.providers and minder.bootstrap.transport, moved admin HTTP/dashboard route factory into minder.presentation.http.admin.routes, and reduced minder.server to a thin entrypoint plus runtime summary. Added unit architecture coverage asserting server builders are now re-exported from the new modules while existing dashboard/admin tests remain green."
       },
       {
-        "id": "8484fef7-8925-4dd5-bb75-9be67d587489",
-        "title": "Hardened Minder Docker verification contract",
+        "id": "f9336b20-9f6b-48f9-a8b0-406cda42669a",
+        "title": "Phase 1 Wave 2 repo state and tool modules",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:hardened-minder-docker-verification-contract",
+        "canonical_key": "document:phase-1-wave-2-repo-state-and-tool-modules",
         "score": 0.08538462,
         "tags": [
-          "minder",
-          "phase-2.2",
-          "verification",
-          "docker",
-          "tests"
+          "phase1",
+          "wave2",
+          "repo-state",
+          "tools",
+          "workflow",
+          "memory",
+          "session",
+          "auth"
         ],
         "conflict_detected": false,
-        "content": "Continued Phase 2.2 verification by classifying verification failures (docker_unavailable, image_missing, timeout, container_error, unsupported_language), normalizing result contracts, handling subprocess and docker timeouts explicitly, and checking docker image availability before run. Updated verification unit coverage and phase2x integration assertions. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (85 passed)."
+        "content": "Implemented Wave 2 for Phase 1 closure. Added src/minder/store/repo_state.py to persist .minder workflow/context/relationships/artifacts. Added standalone tool modules: src/minder/tools/workflow.py, memory.py, search.py, auth.py, and session.py, plus skill CRUD support in RelationalStore and a small auth hardening change to skip unknown legacy hashes during API-key verification. Added tests/integration/test_phase1_tools.py covering repo-state round-trip and workflow/auth/session/memory/search tool contracts. Updated docs/TASK_BREAKDOWN.md tracker: P1-T12 DONE, P1-T14 DONE, and P1-T13/P1-T15/P1-T16 PARTIAL pending final MCP transport registration. Verified with uv run mypy src and uv run pytest (90 passed). Committed as 26a6f2f feat: add phase 1 local state and tool modules."
       }
     ]
   }

@@ -90,6 +90,24 @@ async def test_phase4_3_console_gate_serves_root_favicon_png(
 
 
 @pytest.mark.asyncio
+async def test_phase4_3_console_gate_serves_health_endpoint(
+    store: RelationalStore,
+) -> None:
+    config = MinderConfig(_env_file=None)
+    app = build_http_app(config=config, store=store)
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://testserver",
+        follow_redirects=False,
+    ) as client:
+        response = await client.get("/health")
+
+    assert response.status_code == 200
+    assert response.text == "ok"
+
+
+@pytest.mark.asyncio
 async def test_phase4_3_console_gate_redirects_root_favicon_ico_to_png(
     store: RelationalStore,
 ) -> None:

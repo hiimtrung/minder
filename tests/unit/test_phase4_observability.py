@@ -370,4 +370,5 @@ def test_metrics_route_is_in_http_app() -> None:
                 routes = build_http_routes(config=config, store=mock_store)
 
     paths = [r.path for r in routes if hasattr(r, "path")]
+    assert "/health" in paths
     assert "/metrics" in paths

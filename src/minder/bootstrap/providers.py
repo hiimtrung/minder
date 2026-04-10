@@ -53,6 +53,11 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
         from minder.store.milvus.vector_store import MilvusVectorStore
 
         client = MilvusClient(uri=config.vector_store.uri)
-        return MilvusVectorStore(client, prefix=config.vector_store.collection_prefix)
+        return MilvusVectorStore(
+            client,
+            store,
+            prefix=config.vector_store.collection_prefix,
+            dimensions=config.embedding.dimensions,
+        )
 
     return VectorStore(store, store)

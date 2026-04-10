@@ -11,7 +11,11 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   navLinks={[
     { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
     { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
-    { href: "/dashboard/observability", label: "Observability", tone: "primary" },
+    {
+      href: "/dashboard/observability",
+      label: "Observability",
+      tone: "primary",
+    },
   ]}
 >
   <!-- Page header -->
@@ -148,8 +152,12 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             class="rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm"
             placeholder="Filter by actor ID…"
           />
-          <button type="button" id="audit-filter-apply" class="action-pill">Apply</button>
-          <button type="button" id="audit-filter-clear" class="action-pill">Clear</button>
+          <button type="button" id="audit-filter-apply" class="action-pill"
+            >Apply</button
+          >
+          <button type="button" id="audit-filter-clear" class="action-pill"
+            >Clear</button
+          >
         </div>
       </section>
 
@@ -191,7 +199,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         <table class="w-full text-sm">
           <thead>
             <tr
-              class="border-b border-stone-100 bg-stone-50/80 text-left text-xs font-semibold uppercase tracking-[0.1em] text-stone-500"
+              class="border-b border-stone-100 bg-stone-50/80 text-left text-xs font-semibold uppercase tracking-widest text-stone-500"
             >
               <th class="px-4 py-3">Event</th>
               <th class="px-4 py-3">Actor</th>

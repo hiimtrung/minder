@@ -542,6 +542,14 @@ class MongoOperationalStore:
         doc = await self._db.documents.find_one(query)
         return _to_doc(doc) if doc else None
 
+    async def get_documents_by_ids(self, doc_ids: list[uuid.UUID]) -> list[_MongoDoc]:
+        if not doc_ids:
+            return []
+        cursor = self._db.documents.find(
+            {"_id": {"$in": [_uuid_to_str(doc_id) for doc_id in doc_ids]}}
+        )
+        return [_to_doc(doc) async for doc in cursor]
+
     async def list_documents(self, project: str | None = None) -> list[_MongoDoc]:
         query: dict[str, Any] = {}
         if project is not None:

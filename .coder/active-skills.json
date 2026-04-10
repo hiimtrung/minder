@@ -1,37 +1,37 @@
 {
-  "task": "python admin audit store contract",
+  "task": "milvus payload json field limit",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T16:36:14.374679+07:00",
+  "resolved_at": "2026-04-10T17:16:50.994549+07:00",
   "keep": [],
   "add": [
-    "skill-sentinel",
-    "pci-compliance",
-    "007"
+    "burpsuite-project-parser",
+    "telegram-automation",
+    "web-scraper"
   ],
   "drop": [
-    "hugging-face-model-trainer",
-    "bazel-build-optimization",
-    "deployment-validation-config-validate"
+    "skill-creator",
+    "agent-orchestration-improve-agent",
+    "api-documentation"
   ],
   "skills": [
     {
-      "name": "skill-sentinel",
+      "name": "burpsuite-project-parser",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 5,
+      "chunk_count": 4,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "pci-compliance",
-      "category": "frontend",
-      "score": 0.016129032,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "007",
+      "name": "telegram-automation",
       "category": "general",
+      "score": 0.016129032,
+      "chunk_count": 1,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "web-scraper",
+      "category": "backend",
       "score": 0.015625,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

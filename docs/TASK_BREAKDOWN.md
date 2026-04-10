@@ -1,6 +1,6 @@
 # Minder — Task Breakdown
 
-> **Document version**: 1.3 — 2026-04-09 (post-P4.3 polish + release installer + production deploy bundle captured)
+> **Document version**: 1.4 — 2026-04-10 (Phase 4 closure posture and task ordering reconciled)
 > **Status**: ACTIVE DELIVERY BASELINE
 
 ---
@@ -28,14 +28,14 @@ This means the current codebase should be read as:
 - **Implemented baseline**: SQLite-backed operational store, local vector substrate, and Docker/dev-server scaffolding.
 - **Target architecture before Phase 3 sign-off**: MongoDB + Redis + Milvus Standalone all running through Docker Compose, with config and repository abstractions shaped so Milvus can later be promoted to cluster/distributed mode without rewriting the application layer.
 
-## Delivery Posture Update — 2026-04-09
+## Delivery Posture Update — 2026-04-10
 
 The planning baseline is now:
 
 - **Completed**: Phase 1, Phase 2, Phase 2.1, Phase 2.2, Phase 3, Phase 4.0, Phase 4.1, Phase 4.2, and Phase 4.3 are complete and verified.
 - **Completed**: Post-P4.3 dashboard routing polish, local Astro CORS fallback, favicon plumbing, and release deployment bundle work are implemented and verified.
-- **Current focus**: finish the non-scale Phase 4 product surface by prioritizing observability (`P4-T05`, `src/minder/observability/` is a confirmed-empty placeholder), broader admin/dashboard workflows (`P4-T07`–`P4-T09`), and a security hardening pass (`P4-T12`).
-- **Explicitly deferred for now**: cluster-ready MongoDB/Milvus topologies, Redis HA/failover work, and formal load-testing for scale-up readiness.
+- **Current focus**: the current non-scale Phase 4 product scope is closed through `P4-T10`; no active Phase 4 implementation slice remains open in this planning baseline.
+- **Explicitly deferred for now**: cluster-ready MongoDB/Milvus topologies, Redis HA/failover work, formal load-testing for scale-up readiness, and the dedicated security review/hardening pass.
 - **Planning rule**: [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md) is the canonical status board; this file remains the canonical task catalog and prioritization reference.
 
 ---
@@ -660,33 +660,31 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 
 **Phase 4.3 design doc**: [`docs/design/p4_3_console_clean_architecture_and_ui_modernization.md`](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
 
-### Current Delivery Posture — 2026-04-09
+### Current Delivery Posture — 2026-04-10
 
 #### Completed baseline
 
 - `P4.0`, `P4.1`, `P4.2`, and `P4.3` are complete.
 - The dashboard setup, login, client registry, client detail, onboarding snippets, connection testing, and clean-architecture refactor are all in place.
-- `P4-T04` rate limiting is complete.
+- `P4-T04`, `P4-T05`, `P4-T06`, `P4-T07`, `P4-T08`, `P4-T09`, and `P4-T10` are complete.
 
-#### Active next-step scope
+#### Phase closure posture
 
-1. `P4-T05` Observability Stack
-2. `P4-T07` Dashboard Backend API expansion for workflow, repository, and user administration
-3. `P4-T08` and `P4-T09` workflow/repository/user dashboard surfaces
-4. `P4-T10` observability UI after the backend metrics/audit surface exists
-5. `P4-T12` focused security review after the observability and admin surface stabilize
+- Phase 4 is closed for the current product scope.
+- Remaining scale and hardening items are explicitly deferred backlog, not active blockers.
 
 #### Explicitly deferred until needed
 
 - `P4-T01` MongoDB production topology upgrade
 - `P4-T02` Milvus cluster upgrade path
 - `P4-T03` Redis HA cache layer
-- `P4-T06` production Docker Compose hardening
 - `P4-T11` formal load testing for scale-up readiness
+- `P4-T12` focused security review / hardening report
+- `P4-VERIFY` full production-scale acceptance gate
 
 #### Planning note
 
-The deferred items remain part of the long-term catalog, but they are not the current delivery path. The next implementation slice should optimize for operability and admin product completeness, not cluster readiness.
+The deferred items remain part of the long-term catalog, but they no longer keep Phase 4 open. [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md) is the source of truth for the closed Phase 4 status.
 
 ### Phase 4.0 — MCP Gateway Auth and Dashboard Foundation
 
@@ -912,16 +910,16 @@ The deferred items remain part of the long-term catalog, but they are not the cu
 #### P4-T05: Observability Stack
 
 - **Owner**: `FE`
-- **Status**: `NOT STARTED` — `src/minder/observability/` exists as an empty placeholder directory.
+- **Status**: `DONE`
 - **Requirement**: Implement `src/minder/observability/` — OpenTelemetry tracing, Prometheus metrics, structured JSON logging, audit trails for auth and workflow events.
-- **Planned files**:
+- **Implemented files**:
   - `src/minder/observability/__init__.py` — module exports
   - `src/minder/observability/tracing.py` — OpenTelemetry SDK init, tracer factory, span decorators for graph nodes and transport handlers
   - `src/minder/observability/metrics.py` — Prometheus `Counter`/`Histogram`/`Gauge` registry; expose via `/metrics` route
   - `src/minder/observability/logging.py` — structured JSON log formatter, request-scoped correlation ID middleware
   - `src/minder/observability/audit.py` — durable audit event emitter wired to the existing `AuditLog` MongoDB model; replaces ad-hoc audit calls in auth/workflow paths
 - **Wire-up**: Bootstrap in `src/minder/bootstrap/providers.py`; mount `/metrics` in `src/minder/presentation/http/admin/routes.py`.
-- **Result**: Traces flow through pipeline. Metrics exposed at `/metrics`. Audit log records all auth and workflow events. Integration test validates tracing.
+- **Result**: Traces, metrics, structured logs, and durable audit events are wired into the running app. `/metrics` is exposed, request correlation is active, and the observability backend is verified.
 
 #### P4-T06: Production Docker Compose
 
@@ -950,8 +948,9 @@ The deferred items remain part of the long-term catalog, but they are not the cu
 #### P4-T10: Dashboard Frontend — Observability
 
 - **Owner**: `FE`
+- **Status**: `DONE`
 - **Requirement**: Extend the Astro dashboard with pages for metrics dashboard (latency, success rates, usage), audit log viewer, and CI/CD status integration.
-- **Result**: Metrics display in charts. Audit log is searchable. CI/CD status shows per repo.
+- **Result**: The Astro dashboard serves `/dashboard/observability` with a metrics summary surface plus a filterable, paginated audit log viewer backed by the admin APIs. CI/CD status integration remains outside the closed Phase 4 slice.
 
 #### P4-T11: Load Testing
 
@@ -962,14 +961,16 @@ The deferred items remain part of the long-term catalog, but they are not the cu
 #### P4-T12: Security Review
 
 - **Owner**: `BE` + `PE`
+- **Status**: `DEFERRED`
 - **Requirement**: Review auth (JWT validation, API key storage, RBAC enforcement), isolation (user data scoping, sandbox escapes), input validation, and dependency vulnerabilities.
-- **Result**: Security review report with findings and remediations. No critical vulnerabilities. All findings addressed.
+- **Result**: Deferred. No formal security review report artifact is checked into the repository yet.
 
 ### Phase 4 Verification Gate
 
 #### P4-VERIFY: Phase 4 Acceptance Test
 
 - **Owner**: `FE` + `PE`
+- **Status**: `DEFERRED`
 - **Requirement**: Write and run `tests/e2e/test_phase4_gate.py` + manual dashboard verification:
   1. Admin configures a workflow in the dashboard
   2. Workflow is assigned to a repo and state is visible
@@ -977,7 +978,7 @@ The deferred items remain part of the long-term catalog, but they are not the cu
   4. Metrics, audit logs, and tracing work end-to-end
   5. MongoDB, Redis, and Milvus deployment choices handle production load
   6. Security review passes with no critical findings
-- **Result**: All 6 checks pass. Phase 4 is complete.
+- **Result**: Deferred with the scale and hardening backlog. Phase 4 is considered complete for the delivered non-scale product slice tracked in [`docs/PROJECT_PROGRESS.md`](../docs/PROJECT_PROGRESS.md).
 
 ---
 

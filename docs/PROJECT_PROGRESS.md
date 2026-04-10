@@ -1,7 +1,7 @@
 # Minder — Project Progress
 
 > **Purpose**: single control board for tracking delivery progress across the whole project
-> **Last updated**: 2026-04-09 (post-P4.3 routing/favicon polish + release installer and production deploy bundle captured)
+> **Last updated**: 2026-04-10 (Phase 4 closure posture reconciled with delivered observability UI)
 
 ---
 
@@ -14,7 +14,7 @@
 | `Phase 2.1` | Runtime fidelity and orchestration replacement            | `DONE`        | `closed`                                    | -                                                                                                             | LangGraph/llama_cpp/LiteLLM all tested via monkeypatch; auto-detect runtime with graceful fallback. Provisioning is ops concern.                                                                                           |
 | `Phase 2.2` | Verification, retrieval, and workflow closure             | `DONE`        | `closed`                                    | -                                                                                                             | gate test passes; retrieval, ingest, verification, workflow contracts fully implemented.                                                                                                                                   |
 | `Phase 3`   | Advanced retrieval, knowledge graph, process intelligence | `DONE`        | `closed`                                    | -                                                                                                             | Wave 5 acceptance gate added and verified. Full suite passes in this environment with sandbox-related network/infrastructure tests skipped where bind/service access is unavailable.                                       |
-| `Phase 4`   | Production scale, multi-user, dashboard                   | `IN PROGRESS` | `P4.3-POST polish → P4-Wave2 observability` | Need observability and broader admin/dashboard coverage; cluster and scale-up work are intentionally deferred | `Phase 4.0`, `Phase 4.1`, `Phase 4.2`, and `Phase 4.3` are complete. Post-P4.3 routing/favicon/CORS polish and the release deployment bundle are now in place. Next active milestone is `P4-T05` observability foundation. |
+| `Phase 4`   | Production scale, multi-user, dashboard                   | `DONE`        | `closed`                                    | -                                                                                                             | The current non-scale Phase 4 product scope is complete through `P4-T10`. Remaining scale and hardening items (`P4-T01`, `P4-T02`, `P4-T03`, `P4-T11`, `P4-T12`, `P4-VERIFY`) are explicitly deferred and do not keep the phase open. |
 | `Phase 5`   | Learning and self-improvement                             | `NOT STARTED` | `backlog`                                   | Depends on reliable history/feedback foundation                                                               | Planning exists only in breakdown docs.                                                                                                                                                                                    |
 
 ---
@@ -53,9 +53,9 @@
 
 | Category                | Current Decision                               | Notes                                                                                                                     |
 | ----------------------- | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Active Phase 4 work     | `Observability and admin/dashboard expansion`  | Focus on `P4-T05`, then expand admin/backend and Astro dashboard surfaces.                                                |
-| Deferred infrastructure | `Cluster/HA/scale-up work deferred`            | `P4-T01`, `P4-T02`, `P4-T03`, and `P4-T11` stay in backlog but are not current milestones.                                |
-| Verification posture    | `Scope the next gate to current product needs` | Security and operability hardening should follow the active non-scale slice before reopening production-scale acceptance. |
+| Active Phase 4 work     | `Phase 4 product scope closed`                 | Core delivery through `P4-T10` is complete and reflected in the tracker below.                                            |
+| Deferred infrastructure | `Cluster/HA/scale-up work deferred`            | `P4-T01`, `P4-T02`, `P4-T03`, and `P4-T11` remain backlog items outside the closed product slice.                         |
+| Verification posture    | `Deferred hardening and scale gate`            | `P4-T12` and `P4-VERIFY` remain deferred until a dedicated hardening/release-readiness pass is scheduled.                 |
 
 ## Architecture Reset — 2026-04-03
 
@@ -121,7 +121,7 @@
 
 | Phase     | Status        | Notes                                                                                                                                                                                                                                                                                                                                               |
 | --------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Phase 4` | `IN PROGRESS` | [`docs/design/mcp-gateway-auth-dashboard.md`](../docs/design/mcp-gateway-auth-dashboard.md) is complete for `Phase 4.0`; [`docs/design/p4_3_console_clean_architecture_and_ui_modernization.md`](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md) now defines the `server.py` refactor and `Astro` dashboard migration plan. |
+| `Phase 4` | `DONE`        | The shipped Phase 4 slice covers gateway auth, setup/recovery, client management, clean-architecture dashboard refactor, observability backend, observability UI, and release deployment assets. Remaining scale/security work stays explicitly deferred. |
 | `Phase 5` | `NOT STARTED` | Breakdown exists; no dedicated implementation wave started.                                                                                                                                                                                                                                                                                         |
 
 ## Phase 4 Tracker
@@ -137,9 +137,9 @@
 | `P4-T07` Dashboard Backend API                             | `P4-Wave3` | `DONE`        | `-`                                                                | Added user management (`GET/PATCH/DELETE /v1/admin/users/{id}`), workflow CRUD (`GET/POST /v1/admin/workflows`, `GET/PATCH/DELETE /{id}`), and repository listing (`GET /v1/admin/repositories`). DTOs in `dto.py`, use-case methods in `use_cases.py`, TS types + API functions in `admin.ts`. 15 integration tests pass. |
 | `P4-T08` Dashboard Frontend — Workflow Management          | `P4-Wave3` | `DONE`        | `-`                                                                | Added `WorkflowRegistryShell.astro`, `WorkflowDetailShell.astro`, Astro pages at `/dashboard/workflows` and `/dashboard/workflows/[id]`, and `workflows-page.ts` with create/edit/delete/step-editor UI.                                                                                                                        |
 | `P4-T09` Dashboard Frontend — Repository & User Management | `P4-Wave3` | `DONE`        | `-`                                                                | Added `UserManagementShell.astro`, Astro page at `/dashboard/users`, and `users-page.ts` with user list, role/display-name/active editing, and show-inactive toggle.                                                                                                                                                            |
-| `P4-T10` Dashboard Frontend — Observability                | `backlog`  | `NOT STARTED` | `Depends on metrics/audit backend`                                 | No observability UI yet.                                                                                                                                                                                                                                                                                                         |
+| `P4-T10` Dashboard Frontend — Observability                | `P4-Wave4` | `DONE`        | `-`                                                                | Added [src/dashboard/src/pages/observability/index.astro](../src/dashboard/src/pages/observability/index.astro), [src/dashboard/src/components/ObservabilityShell.astro](../src/dashboard/src/components/ObservabilityShell.astro), and [src/dashboard/src/scripts/observability-page.ts](../src/dashboard/src/scripts/observability-page.ts) for metrics summary plus a filterable, paginated audit log viewer. |
 | `P4-T11` Load Testing                                      | `deferred` | `DEFERRED`    | `Explicitly deferred until scale-up readiness becomes a goal`      | No k6/locust suite yet; this is intentionally postponed.                                                                                                                                                                                                                                                                         |
-| `P4-T12` Security Review                                   | `backlog`  | `NOT STARTED` | `Best done after rate limiting and observability`                  | No formal security review report yet.                                                                                                                                                                                                                                                                                            |
+| `P4-T12` Security Review                                   | `deferred` | `DEFERRED`    | `Deferred until a dedicated hardening/release-readiness pass`      | No formal security review report artifact is checked into the repository yet, so this remains outside the closed Phase 4 delivery slice.                                                                                                                                                                                         |
 | `P4-VERIFY` Phase 4 Acceptance Test                        | `deferred` | `DEFERRED`    | `Depends on deferred scale scope or a newly scoped non-scale gate` | A single all-in Phase 4 gate is not the current target while cluster/load work stays deferred.                                                                                                                                                                                                                                   |
 
 ## Phase 4.3 Tracker
@@ -194,7 +194,13 @@
 
 | Wave         | Focus                                     | Tasks                                                                            | Status     |
 | ------------ | ----------------------------------------- | -------------------------------------------------------------------------------- | ---------- |
-| `P4-Wave1`   | Rate Limiting and Quotas                  | `P4-T04`                                                                         | `DONE`     |
+| `P4.0-Wave2` | Gateway HTTP/Admin Backend                | `P4.0-T02`, `P4.0-T04`, `P4.0-T05`, `P4.0-T08`                                   | `DONE`     |
+| `P4.0-Wave3` | Dashboard Frontend + Onboarding           | `P4.0-T05`, `P4.0-T06`, `P4.0-T07`, `P4.0-T08`                                   | `DONE`     |
+| `P4.0-Wave4` | End-to-End Verification                   | `P4.0-VERIFY`                                                                    | `DONE`     |
+| `P4.1-Wave1` | First-Time Setup Wizard                   | `P4.1-T01`                                                                       | `DONE`     |
+| `P4.1-Wave2` | Admin API-Key Recovery                    | `P4.1-T02`                                                                       | `DONE`     |
+| `P4.1-Wave3` | Direct API Key Auth                       | `P4.1-T03`                                                                       | `DONE`     |
+| `P4.1-Wave4` | Plug-and-Play Verification                | `P4.1-VERIFY`                                                                    | `DONE`     |
 | `P4.2-Wave1` | Client Registry + Create Client UI        | `P4.2-T01`, `P4.2-T02`                                                           | `DONE`     |
 | `P4.2-Wave2` | Client Detail + Onboarding UI             | `P4.2-T03`, `P4.2-T04`                                                           | `DONE`     |
 | `P4.2-Wave3` | Connection Test + Activity UI             | `P4.2-T05`                                                                       | `DONE`     |
@@ -205,11 +211,9 @@
 | `P4.3-Wave4` | Feature Migration                         | `P4.3-T06`                                                                       | `DONE`     |
 | `P4.3-Wave5` | Legacy Removal + Parity Gate              | `P4.3-T07`, `P4.3-VERIFY`                                                        | `DONE`     |
 | `P4.3-POST`  | Dashboard Routing Polish                  | `P4.3-POST` routing + CORS + favicon + Astro bundle refinements                  | `DONE`     |
+| `P4-Wave1`   | Rate Limiting and Quotas                  | `P4-T04`                                                                         | `DONE`     |
+| `P4-Wave2`   | Observability Foundation                  | `P4-T05`                                                                         | `DONE`     |
+| `P4-Wave3`   | Admin and Dashboard Expansion             | `P4-T07`, `P4-T08`, `P4-T09`                                                     | `DONE`     |
+| `P4-Wave4`   | Dashboard Operability Surface             | `P4-T10`                                                                         | `DONE`     |
 | `P4-Wave5`   | Release Deployment Bundle                 | `P4-T06` image-only compose, `docker-compose.full.yml`, GitHub release installer | `DONE`     |
-| `P4-Wave2`   | Observability Foundation                  | `P4-T05` — `src/minder/observability/` (empty placeholder today)                 | `DONE`     |
-| `P4-Wave3`   | Admin and Dashboard Expansion             | `P4-T07`, `P4-T08`, `P4-T09`                                                     | `IN PROGRESS` |
-| `P4-Wave4`   | Dashboard Operability Surface             | `P4-T10`, `P4-T12`                                                               | `BACKLOG`  |
-| `P4-Wave5`   | Deferred Scale and Production Hardening   | `P4-T01`, `P4-T02`, `P4-T03`, `P4-T06`, `P4-T11`, `P4-VERIFY`                    | `DEFERRED` |
-| `P4.0-Wave2` | Gateway HTTP/Admin Backend                | `P4.0-T02`, `P4.0-T04`, `P4.0-T05`, `P4.0-T08`                                   | `DONE`     |
-| `P4.0-Wave3` | Dashboard Frontend + Onboarding           | `P4.0-T05`, `P4.0-T06`, `P4.0-T07`, `P4.0-T08`                                   | `DONE`     |
-| `P4.0-Wave4` | End-to-End Verification                   | `P4.0-VERIFY`                                                                    | `DONE`     |
+| `P4-Deferred`| Deferred Scale and Hardening              | `P4-T01`, `P4-T02`, `P4-T03`, `P4-T11`, `P4-T12`, `P4-VERIFY`                    | `DEFERRED` |

@@ -17,7 +17,9 @@ const statAuthEventsSub = document.querySelector("#stat-auth-events-sub");
 const statHttpRequests = document.querySelector("#stat-http-requests");
 const statHttpSub = document.querySelector("#stat-http-sub");
 
-const breakdownToolOutcomes = document.querySelector("#breakdown-tool-outcomes");
+const breakdownToolOutcomes = document.querySelector(
+  "#breakdown-tool-outcomes",
+);
 const breakdownAuthTypes = document.querySelector("#breakdown-auth-types");
 const breakdownHttpStatus = document.querySelector("#breakdown-http-status");
 const breakdownAdminOps = document.querySelector("#breakdown-admin-ops");
@@ -30,8 +32,12 @@ const auditFilterApply = document.querySelector("#audit-filter-apply");
 const auditFilterClear = document.querySelector("#audit-filter-clear");
 const refreshButton = document.querySelector("#refresh-observability");
 const paginationInfo = document.querySelector("#audit-pagination-info");
-const paginationPrev = document.querySelector("#audit-prev") as HTMLButtonElement | null;
-const paginationNext = document.querySelector("#audit-next") as HTMLButtonElement | null;
+const paginationPrev = document.querySelector(
+  "#audit-prev",
+) as HTMLButtonElement | null;
+const paginationNext = document.querySelector(
+  "#audit-next",
+) as HTMLButtonElement | null;
 const pageSizeSelect = document.querySelector(
   "#audit-page-size",
 ) as HTMLSelectElement | null;
@@ -135,7 +141,8 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
     const success = data.tool_calls.by_outcome["success"] ?? 0;
     const total = data.tool_calls.total || 1;
     const rate = Math.round((success / total) * 100);
-    statToolCallsSub.textContent = total > 0 ? `${rate}% success rate` : "No calls yet";
+    statToolCallsSub.textContent =
+      total > 0 ? `${rate}% success rate` : "No calls yet";
   }
 
   if (statAuthEvents) statAuthEvents.textContent = fmt(data.auth_events.total);
@@ -145,7 +152,8 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
     statAuthEventsSub.textContent = `${fmt(logins)} login${logins !== 1 ? "s" : ""}, ${fmt(exchanges)} exchange${exchanges !== 1 ? "s" : ""}`;
   }
 
-  if (statHttpRequests) statHttpRequests.textContent = fmt(data.http_requests.total);
+  if (statHttpRequests)
+    statHttpRequests.textContent = fmt(data.http_requests.total);
   if (statHttpSub) {
     const s4xx = Object.entries(data.http_requests.by_status)
       .filter(([k]) => k.startsWith("4"))
@@ -155,7 +163,9 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
       .reduce((acc, [, v]) => acc + v, 0);
     const errorCount = s4xx + s5xx;
     statHttpSub.textContent =
-      errorCount > 0 ? `${fmt(errorCount)} error${errorCount !== 1 ? "s" : ""}` : "No errors";
+      errorCount > 0
+        ? `${fmt(errorCount)} error${errorCount !== 1 ? "s" : ""}`
+        : "No errors";
   }
 
   renderBreakdown(breakdownToolOutcomes, data.tool_calls.by_outcome);
@@ -178,7 +188,8 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
     paginationInfo.textContent = `${from}–${to} of ${total.toLocaleString()}`;
   }
   if (paginationPrev) paginationPrev.disabled = currentOffset === 0;
-  if (paginationNext) paginationNext.disabled = currentOffset + currentLimit >= total;
+  if (paginationNext)
+    paginationNext.disabled = currentOffset + currentLimit >= total;
 
   if (!events.length) {
     auditLogBody.innerHTML = `
@@ -191,19 +202,18 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   }
 
   auditLogBody.innerHTML = events
-    .map(
-      (evt) => {
-        // Actor display: prefer name, fall back to truncated ID
-        const actorLabel = evt.actor_name
-          ? escapeHtml(evt.actor_name)
-          : escapeHtml(evt.actor_id.slice(0, 10)) + "…";
+    .map((evt) => {
+      // Actor display: prefer name, fall back to truncated ID
+      const actorLabel = evt.actor_name
+        ? escapeHtml(evt.actor_name)
+        : escapeHtml(evt.actor_id.slice(0, 10)) + "…";
 
-        // Resource display: prefer name, fall back to truncated ID
-        const resourceLabel = evt.resource_name
-          ? escapeHtml(evt.resource_name)
-          : escapeHtml(evt.resource_id.slice(0, 10)) + "…";
+      // Resource display: prefer name, fall back to truncated ID
+      const resourceLabel = evt.resource_name
+        ? escapeHtml(evt.resource_name)
+        : escapeHtml(evt.resource_id.slice(0, 10)) + "…";
 
-        return `
+      return `
     <tr class="border-t border-stone-100 hover:bg-stone-50/60 transition-colors">
       <td class="px-4 py-3">
         <span class="font-medium text-stone-900">${escapeHtml(evt.event_type)}</span>
@@ -211,13 +221,13 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
       <td class="px-4 py-3">
         <div class="grid">
           <span class="text-xs font-medium uppercase tracking-wide text-stone-500">${escapeHtml(evt.actor_type)}</span>
-          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-[160px]" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
+          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-40" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
         </div>
       </td>
       <td class="px-4 py-3">
         <div class="grid">
           <span class="text-xs text-stone-500 uppercase">${escapeHtml(evt.resource_type)}</span>
-          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-[160px]" title="${escapeHtml(evt.resource_id)}">
+          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-40" title="${escapeHtml(evt.resource_id)}">
             ${resourceLabel}
           </span>
         </div>
@@ -230,8 +240,7 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
       <td class="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">${escapeHtml(relativeTime(evt.created_at))}</td>
     </tr>
   `;
-      }
-    )
+    })
     .join("");
 };
 
@@ -244,16 +253,22 @@ const loadMetrics = async (): Promise<void> => {
     const data = await getMetricsSummary();
     renderMetrics(data);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unable to load metrics.";
-    [statSessions, statToolCalls, statAuthEvents, statHttpRequests].forEach((el) => {
-      if (el) el.textContent = "—";
-    });
-    [breakdownToolOutcomes, breakdownAuthTypes, breakdownHttpStatus, breakdownAdminOps].forEach(
+    const msg =
+      error instanceof Error ? error.message : "Unable to load metrics.";
+    [statSessions, statToolCalls, statAuthEvents, statHttpRequests].forEach(
       (el) => {
-        if (el)
-          el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
+        if (el) el.textContent = "—";
       },
     );
+    [
+      breakdownToolOutcomes,
+      breakdownAuthTypes,
+      breakdownHttpStatus,
+      breakdownAdminOps,
+    ].forEach((el) => {
+      if (el)
+        el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
+    });
   }
 };
 
@@ -265,11 +280,16 @@ const loadAuditLog = async (): Promise<void> => {
       </tr>`;
   }
   try {
-    const payload = await listAudit(currentActorFilter, currentLimit, currentOffset);
+    const payload = await listAudit(
+      currentActorFilter,
+      currentLimit,
+      currentOffset,
+    );
     currentTotal = payload.total;
     renderAuditLog(payload.events, payload.total);
   } catch (error) {
-    const msg = error instanceof Error ? error.message : "Unable to load audit log.";
+    const msg =
+      error instanceof Error ? error.message : "Unable to load audit log.";
     if (auditLogBody) {
       auditLogBody.innerHTML = `
         <tr>

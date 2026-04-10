@@ -1,94 +1,93 @@
 {
   "mode": "search",
-  "query": "admin audit store contract",
+  "query": "milvus payload size json field",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-10T16:36:14.588323+07:00",
+  "searched_at": "2026-04-10T17:16:55.214385+07:00",
   "results": [
     {
-      "id": "9a0321ee-9f9a-40c1-85fe-6e8951ef54a2",
-      "title": "Cross-phase UAT audit for v1.0 verification debt",
+      "id": "eb8923cd-33ee-4b8c-ada0-e1e5ed7e4240",
+      "title": "Auto-recreate Milvus collection on embedding dimension mismatch",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:cross-phase-uat-audit-for-v1-0-verification-debt",
+      "canonical_key": "document:auto-recreate-milvus-collection-on-embedding-dimension-mismatch",
       "score": 0.086393446,
       "tags": [
-        "gsd",
-        "uat",
-        "audit",
-        "verification",
-        "milestone"
+        "minder",
+        "python",
+        "milvus",
+        "embedding",
+        "vector",
+        "bugfix"
       ],
       "conflict_detected": false,
-      "content": "Audit on 2026-03-30 found 12 outstanding UAT items across phases 03, 04, and 05: 10 pending active tests and 2 server-blocked invoice tests. Phase 03 contract tests are active because contracts endpoints and conflict rules still exist in contract.controller/service. Phase 05 payment/debt tests are active because payment creation, overpayment conflict handling, and debt reporting endpoints/services still exist. Phase 04 blocked items are infrastructure-related: invoice tables come from migration 1774900000000, runtime uses DB_MIGRATIONS_RUN default false, .env.example does not document it, and no phase VERIFICATION.md files exist anywhere in .planning/phases, so milestone verification debt remains broader than UAT alone."
+      "content": "Fixed search_code/query failures caused by Milvus collections retaining 1024-dim schema after switching the embedder to 768 dims. MilvusVectorStore now validates the existing collection schema, drops and recreates mismatched collections with config.embedding.dimensions, and validates query/upsert vector lengths. build_vector_store now passes the configured embedding dimension into the Milvus adapter. Added unit coverage for mismatch reset and dimension validation."
     },
     {
-      "id": "98218d37-8258-49fc-a293-398d91b7a8e8",
-      "title": "Phase 01.1 plan refinement from integration docs",
+      "id": "07298612-d3cc-440c-b871-06aafc1715c0",
+      "title": "Switch default local models to EmbeddingGemma and Gemma 4",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-01-1-plan-refinement-from-integration-docs",
+      "canonical_key": "document:switch-default-local-models-to-embeddinggemma-and-gemma-4",
       "score": 0.086129025,
       "tags": [
-        "planning",
-        "frontend",
-        "integration",
-        "phase-01.1",
-        "gsd"
+        "minder",
+        "python",
+        "models",
+        "gguf",
+        "config"
       ],
       "conflict_detected": false,
-      "content": "Reviewed .planning/frontend-integration-contract.md and .planning/frontend-screen-api-map.md in rental-management-ui and refined the active Phase 01.1 planning artifacts instead of creating a new phase. Updated 01.1-CONTEXT to lock in runtime decisions for base URL normalization with or without /api, typed query filters like houseId/roomId/billingMonth, no-content delete handling, string-or-string[] error message preservation, transport-vs-presentation date/money boundaries, and visible PDF/CORS risk. Updated 01.1-03-PLAN so smoke coverage now explicitly tests login plus one authenticated follow-up request, 401 vs 403 behavior, JSON envelope parsing, binary PDF flow, base URL normalization, query serialization, empty-body deletes, and localized TODOs for unresolved payloads such as debt summary, move-in/out, room-service assignments, and asset logs. Also corrected frontend-screen-api-map.md to link to the local frontend integration contract file in the UI repo."
+      "content": "Updated config defaults, compose envs, download script, docs, and runtime metadata from Qwen GGUFs to ggml-org/embeddinggemma-300M-GGUF and ggml-org/gemma-4-E2B-it-GGUF. Also changed default embedding dimension from 1024 to 768 and aligned Milvus collection defaults plus config tests."
     },
     {
-      "id": "70bfd4fa-615a-4337-baae-db9583a137ec",
-      "title": "Phase 4.1 Wave 2 admin API-key recovery",
+      "id": "8dc06bb9-2de4-4738-b868-df30cc800c86",
+      "title": "Zalo inbound webhook normalization and routing",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-1-wave-2-admin-api-key-recovery",
+      "canonical_key": "document:zalo-inbound-webhook-normalization-and-routing",
       "score": 0.08587302,
       "tags": [
-        "phase4.1",
-        "recovery",
-        "api-key",
-        "auth",
-        "audit"
+        "omi-channel-be",
+        "webhooks",
+        "zalo"
       ],
       "conflict_detected": false,
-      "content": "Implemented Wave 2 for Phase 4.1 by adding scripts/reset_admin_api_key.py. The script resolves an admin by username, rejects missing or non-admin users, rotates the admin API key through AuthService.rotate_api_key, and records an admin.api_key_rotated audit event. Added tests/integration/test_phase4_1_admin_recovery.py covering successful rotation, invalidation of the old key, audit log creation, and rejection for missing/non-admin users. Also carried forward supporting auth/store layer changes needed for clean setup-wizard behavior: has_admin_users on the repository boundary and the dashboard login integration test adjustment so login-page assertions don't get redirected to /setup in admin-present scenarios. Verified with pytest over phase4.1 recovery/setup, phase4 admin HTTP, phase4 gateway e2e, and unit auth tests: 45 passed. Mypy and ruff also pass."
+      "content": "Aligned ProcessZaloWebhookUseCase to publish message.received so SQS consumer routes correctly. Expanded Zalo payload typing for root and events[] shapes, normalized sender/message IDs from string or number, and updated HandleZaloWebhookUseCase extraction fallbacks for sender/recipient/message/event_time. Added unit tests for process and handler use-cases covering root payload numeric IDs and events[] payload path."
     },
     {
-      "id": "785cd8eb-f45f-4d12-bae0-c210e4e9828b",
-      "title": "packageTourApi admin subscription list with company owners",
+      "id": "52bd1979-2f01-48c8-9b3b-47f4dfbed045",
+      "title": "Typed Zalo send response contract",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:packagetourapi-admin-subscription-list-with-company-owners",
+      "canonical_key": "document:typed-zalo-send-response-contract",
       "score": 0.08562499,
       "tags": [
-        "packageTourApi",
-        "subscription",
-        "admin",
-        "company-owner"
+        "omi-channel-be",
+        "zalo",
+        "typing",
+        "error-handling"
       ],
       "conflict_detected": false,
-      "content": "Added GET /v1/admin/subscriptions in the plan_subscription module. Implemented GetAdminSubscriptionListUseCase with paged subscription loading from SubscriptionService, bulk company loading via ICompanyService.findBaseListId, and owner-user enrichment by resolving company users then filtering COMPANY_OWNER roles. Files: AdminSubscriptionController, SubscriptionService, SubscriptionServiceImpl, GetAdminSubscriptionListUseCase, GetAdminSubscriptionListUseCaseImpl, AdminSubscriptionFilterRequest, AdminSubscriptionPublicData."
+      "content": "Refactored zalo-oa.client sendTextMessage to use typed API contracts instead of generic Record\u003cstring,unknown\u003e. Added ZaloSendTextApiResponse/ZaloSendTextApiData with known fields (error, message, error_name, data message identifiers), parse function from unknown payload, and typed success/error handling. Also fixed numeric parsing to support negative provider error codes for 'error' while keeping positive-only behavior for fields like expires_in."
     },
     {
-      "id": "170511a6-e189-4d9b-903b-11b52c95b7ec",
-      "title": "Paused Phase 01.1 smoke coverage work",
+      "id": "2a72020a-a1bd-4659-90e1-db2a40e79568",
+      "title": "Flatten Zalo rawProfile metadata contract across backend and UI",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:paused-phase-01-1-smoke-coverage-work",
+      "canonical_key": "document:flatten-zalo-rawprofile-metadata-contract-across-backend-and-ui",
       "score": 0.08538462,
       "tags": [
-        "pause",
-        "gsd",
-        "phase-01.1",
-        "testing",
-        "frontend"
+        "omi-channel-be",
+        "findtourgoUI",
+        "zalo",
+        "metadata",
+        "shared-contract"
       ],
       "conflict_detected": false,
-      "content": "Paused rental-management-ui during Phase 01.1 Plan 01.1-03 after creating a WIP checkpoint commit. Added Vitest as the minimal smoke-test runner, created vitest.config.ts and a yarn test script, drafted shared API/session smoke tests under src/lib/api/__tests__/client.test.ts and src/lib/auth/__tests__/session.test.ts, patched src/lib/api/client.ts so protected 401 responses clear the stored access token, and wrote .planning/HANDOFF.json plus .planning/phases/01.1-api-integration-contract-and-typed-data-layer/.continue-here.md for resume context. The work is intentionally paused before running yarn test, so the next action is to run the new test suite, fix any mocking or assertion failures, then continue with contract-gap TODOs and final lint/build verification."
+      "content": "Refactored Zalo channel metadata rawProfile away from the old envelope shape { data, error, message }. In omi-channel-be, metadata.types.ts now defines a single flat ZaloOAProfileResponse interface with OA fields directly on the object (including zaloId/oaId/oa_id fallbacks), and VerifyChannelMetadataUseCase stores flat rawProfile objects. In findtourgoUI ListChannel.tsx, Zalo metadata reading now accesses rawProfile directly instead of rawProfile.data and falls back across oa_id, oaId, and zaloId."
     }
   ]
 }

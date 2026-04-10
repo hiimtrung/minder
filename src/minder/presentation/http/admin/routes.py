@@ -44,6 +44,9 @@ def build_http_routes(
 ) -> list[BaseRoute]:
     context = AdminRouteContext.build(config=config, store=store, cache=cache)
 
+    async def health(_request) -> PlainTextResponse:
+        return PlainTextResponse("ok", status_code=200)
+
     async def favicon_png(_request) -> FileResponse | PlainTextResponse:
         favicon = _favicon_path()
         if favicon.is_file():
@@ -54,6 +57,7 @@ def build_http_routes(
         return RedirectResponse(url="/favicon.png", status_code=308)
 
     return [
+        Route("/health", health, methods=["GET"]),
         Route("/favicon.ico", favicon_ico, methods=["GET"]),
         Route("/favicon.png", favicon_png, methods=["GET"]),
         Route("/metrics", metrics_endpoint, methods=["GET"]),

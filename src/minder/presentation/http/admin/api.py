@@ -5,6 +5,8 @@ import uuid
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
 
+from minder.observability.metrics import get_metrics_summary
+
 from .context import ADMIN_COOKIE_NAME, AdminRouteContext
 
 
@@ -19,6 +21,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         username = str(payload.get("username", "")).strip()
         email = str(payload.get("email", "")).strip()
         display_name = str(payload.get("display_name", "")).strip()
+        password = str(payload.get("password", "")).strip() or None
         if not all([username, email, display_name]):
             return JSONResponse({"error": "All fields are required."}, status_code=400)
         try:
@@ -26,22 +29,35 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 username=username,
                 email=email,
                 display_name=display_name,
+                password=password,
             )
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=400)
         return JSONResponse(result, status_code=201)
 
     async def dashboard_login_api(request):
+        """Accept either username+password or api_key authentication."""
         payload = await request.json()
+
+        username = str(payload.get("username", "")).strip()
+        password = str(payload.get("password", "")).strip()
         api_key = str(payload.get("api_key", "")).strip()
-        if not api_key:
-            return JSONResponse({"error": "Admin API key is required."}, status_code=400)
+
+        if not (username and password) and not api_key:
+            return JSONResponse(
+                {"error": "Provide username + password, or an admin API key."},
+                status_code=400,
+            )
+
         try:
-            result = await context.use_cases.login_admin(api_key)
+            if username and password:
+                result = await context.use_cases.login_admin_by_password(username, password)
+            else:
+                result = await context.use_cases.login_admin(api_key)
         except PermissionError:
             return JSONResponse({"error": "Admin role required."}, status_code=403)
         except Exception:
-            return JSONResponse({"error": "Invalid admin API key."}, status_code=401)
+            return JSONResponse({"error": "Invalid credentials."}, status_code=401)
 
         response = JSONResponse({"ok": True}, status_code=200)
         response.set_cookie(
@@ -229,7 +245,16 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
         actor_id = request.query_params.get("actor_id")
-        return JSONResponse(await context.use_cases.list_audit(actor_id=actor_id))
+        try:
+            limit = int(request.query_params.get("limit", "50"))
+            offset = int(request.query_params.get("offset", "0"))
+        except ValueError:
+            limit, offset = 50, 0
+        limit = max(1, min(limit, 200))  # cap at 200
+        offset = max(0, offset)
+        return JSONResponse(
+            await context.use_cases.list_audit(actor_id=actor_id, limit=limit, offset=offset)
+        )
 
     # ------------------------------------------------------------------
     # User management
@@ -371,6 +396,19 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         return JSONResponse({"error": "Method not allowed"}, status_code=405)
 
     # ------------------------------------------------------------------
+    # Observability
+    # ------------------------------------------------------------------
+
+    async def admin_metrics_summary(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse(get_metrics_summary())
+
+    # ------------------------------------------------------------------
     # Repository management
     # ------------------------------------------------------------------
 
@@ -406,4 +444,6 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/workflows/{workflow_id:uuid}", workflow_detail, methods=["GET", "PATCH", "DELETE"]),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
+        # Observability
+        Route("/v1/admin/metrics-summary", admin_metrics_summary, methods=["GET"]),
     ]

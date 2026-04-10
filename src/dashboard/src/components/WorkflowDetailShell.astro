@@ -19,13 +19,15 @@ const detailHref = workflowId
   sessionControls={true}
   navLinks={[
     { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/workflows", label: "Workflow Registry", tone: "secondary" },
+    { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
+    { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
     {
       href: detailHref,
       label: "Workflow Detail",
       tone: "primary",
       currentDetail: true,
     },
+    { href: "/dashboard/observability", label: "Observability", tone: "secondary" },
   ]}
 >
   <section class="mb-8 space-y-6">

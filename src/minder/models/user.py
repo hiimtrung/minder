@@ -14,6 +14,8 @@ class UserSchema(BaseModelMeta):
     username: str
     display_name: str
     api_key_hash: str
+    # bcrypt/pbkdf2 hash of the login password; None means password login disabled
+    password_hash: Optional[str] = None
     role: str
     settings: Dict[str, Any] = Field(default_factory=dict)
     is_active: bool = True
@@ -30,6 +32,8 @@ class User(Base):
     username: Mapped[str] = mapped_column(String, unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String)
     api_key_hash: Mapped[str] = mapped_column(String)
+    # Optional bcrypt/pbkdf2 hash — null means only API-key auth available
+    password_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     role: Mapped[str] = mapped_column(String)
     settings: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)

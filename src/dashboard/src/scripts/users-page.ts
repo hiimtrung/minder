@@ -1,6 +1,9 @@
 import {
+  getUserDetail,
   listUsers,
   updateUser,
+  type ClientPayload,
+  type UserDetailPayload,
   type UserPayload,
 } from "../lib/api/admin";
 
@@ -23,6 +26,8 @@ const toastRegion = document.querySelector("#dashboard-toast-region");
 
 let selectedUserId: string | null = null;
 let cachedUsers: UserPayload[] = [];
+// Cache fetched user details (incl. clients) keyed by user ID
+const cachedDetails: Record<string, UserDetailPayload> = {};
 
 // ---------------------------------------------------------------------------
 // Toast
@@ -52,6 +57,18 @@ const showToast = (
 };
 
 // ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+const escapeHtml = (value: string): string =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+// ---------------------------------------------------------------------------
 // Edit panel
 // ---------------------------------------------------------------------------
 
@@ -67,7 +84,35 @@ const setEditStatus = (
   else editUserStatus.classList.add("text-stone-600");
 };
 
-const openEditPanel = (user: UserPayload) => {
+const renderUserClients = (clients: ClientPayload[]): void => {
+  const container = document.querySelector("#edit-user-clients");
+  if (!container) return;
+  if (!clients.length) {
+    container.innerHTML = `<p class="text-xs text-stone-400 px-1">No MCP clients created by this user yet.</p>`;
+    return;
+  }
+  container.innerHTML = clients
+    .map(
+      (c) => `
+    <a
+      href="/dashboard/clients/${encodeURIComponent(c.id)}"
+      class="flex items-center justify-between rounded-2xl border border-stone-200 bg-stone-50/70 px-4 py-3 text-sm hover:border-stone-300 hover:bg-white transition"
+    >
+      <div class="min-w-0">
+        <p class="truncate font-medium text-stone-900">${escapeHtml(c.name)}</p>
+        <p class="mt-0.5 truncate text-xs text-stone-500">${escapeHtml(c.slug)}</p>
+      </div>
+      <span class="ml-3 shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+        c.status === "active"
+          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+          : "border-stone-200 bg-stone-100 text-stone-600"
+      }">${escapeHtml(c.status)}</span>
+    </a>`,
+    )
+    .join("");
+};
+
+const openEditPanel = (user: UserPayload, clients: ClientPayload[] = []) => {
   selectedUserId = user.id;
   if (editDisplayName) editDisplayName.value = user.display_name;
   if (editRole) editRole.value = user.role;
@@ -75,6 +120,7 @@ const openEditPanel = (user: UserPayload) => {
   setEditStatus("");
   editUserHint?.classList.add("hidden");
   editUserForm?.classList.remove("hidden");
+  renderUserClients(clients);
 };
 
 const closeEditPanel = () => {
@@ -97,10 +143,13 @@ editUserForm?.addEventListener("submit", async (event) => {
   try {
     const result = await updateUser(selectedUserId, { display_name, role, is_active });
     const updated = result.user;
-    // Patch cached list
+    // Refresh cache
+    cachedDetails[updated.id] = result;
     const idx = cachedUsers.findIndex((u) => u.id === updated.id);
     if (idx >= 0) cachedUsers[idx] = updated;
     await renderUsers();
+    // Re-open panel with refreshed data
+    openEditPanel(updated, result.clients ?? []);
     setEditStatus("Changes saved.", "success");
     showToast(`Saved ${updated.display_name}.`, "success");
   } catch (error) {
@@ -114,19 +163,11 @@ editUserForm?.addEventListener("submit", async (event) => {
 // User list
 // ---------------------------------------------------------------------------
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-
 const renderUsers = async () => {
   if (!userListEl) return;
-  const activeOnly = !(showInactiveToggle?.checked ?? false);
+  const includeInactive = showInactiveToggle?.checked ?? false;
   try {
-    const payload = await listUsers(!activeOnly);
+    const payload = await listUsers(includeInactive);
     cachedUsers = payload.users;
 
     if (!cachedUsers.length) {
@@ -162,22 +203,38 @@ const renderUsers = async () => {
               }
             </div>
           </div>
-        </button>
-      `,
+        </button>`,
       )
       .join("");
 
-    // Wire row clicks
+    // Wire row clicks — fetch full detail (incl. clients) on first click
     userListEl.querySelectorAll<HTMLButtonElement>("[data-user-id]").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      btn.addEventListener("click", async () => {
         const uid = btn.dataset.userId ?? "";
         const user = cachedUsers.find((u) => u.id === uid);
-        if (user) openEditPanel(user);
-        // Highlight selected row
+        if (!user) return;
+
+        // Highlight row immediately
         userListEl
           .querySelectorAll<HTMLButtonElement>("[data-user-id]")
           .forEach((b) => b.classList.remove("ring-2", "ring-amber-400"));
         btn.classList.add("ring-2", "ring-amber-400");
+
+        // Open panel with whatever is cached first
+        openEditPanel(user, cachedDetails[uid]?.clients ?? []);
+
+        // Fetch full detail in background and refresh clients section
+        if (!cachedDetails[uid]) {
+          try {
+            const detail = await getUserDetail(uid);
+            cachedDetails[uid] = detail;
+            if (selectedUserId === uid) {
+              renderUserClients(detail.clients ?? []);
+            }
+          } catch {
+            // Ignore — clients section stays empty
+          }
+        }
       });
     });
   } catch (error) {

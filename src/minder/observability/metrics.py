@@ -151,3 +151,51 @@ def get_registry_snapshot() -> dict[str, Any]:
         for metric in REGISTRY._names_to_collectors.values()  # noqa: SLF001
         if hasattr(metric, "describe")
     }
+
+
+def _counter_total(counter: Counter) -> float:
+    """Sum all label-value combinations of a Counter."""
+    total = 0.0
+    for child in counter._metrics.values():  # noqa: SLF001
+        total += child._value.get()  # noqa: SLF001
+    return total
+
+
+def _counter_by_label(counter: Counter, label_name: str) -> dict[str, float]:
+    """Aggregate a Counter by a single label, returning {label_value: total}."""
+    label_names: tuple[str, ...] = counter._labelnames  # noqa: SLF001
+    if label_name not in label_names:
+        return {}
+    idx = label_names.index(label_name)
+    result: dict[str, float] = {}
+    for label_tuple, child in counter._metrics.items():  # noqa: SLF001
+        key = label_tuple[idx]
+        result[key] = result.get(key, 0.0) + child._value.get()  # noqa: SLF001
+    return result
+
+
+def get_metrics_summary() -> dict[str, Any]:
+    """Return a lightweight JSON-serialisable snapshot of key runtime metrics.
+
+    Reads directly from the in-process Prometheus registry — no scrape needed.
+    All values are floats; counters reflect the totals since process start.
+    """
+    return {
+        "active_client_sessions": ACTIVE_CLIENT_SESSIONS._value.get(),  # noqa: SLF001
+        "tool_calls": {
+            "total": _counter_total(TOOL_CALLS_TOTAL),
+            "by_outcome": _counter_by_label(TOOL_CALLS_TOTAL, "outcome"),
+        },
+        "auth_events": {
+            "total": _counter_total(AUTH_EVENTS_TOTAL),
+            "by_type": _counter_by_label(AUTH_EVENTS_TOTAL, "event_type"),
+        },
+        "http_requests": {
+            "total": _counter_total(HTTP_REQUESTS_TOTAL),
+            "by_status": _counter_by_label(HTTP_REQUESTS_TOTAL, "status"),
+        },
+        "admin_operations": {
+            "total": _counter_total(ADMIN_OPERATIONS_TOTAL),
+            "by_outcome": _counter_by_label(ADMIN_OPERATIONS_TOTAL, "outcome"),
+        },
+    }

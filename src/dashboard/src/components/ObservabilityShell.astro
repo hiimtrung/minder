@@ -1,0 +1,217 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="Observability · Minder"
+  description="Runtime metrics, audit log, and system health for the Minder deployment."
+  navTitle="Minder Observability"
+  navDescription="Live metrics, auth events, and a full audit trail for every admin and client action."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
+    { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
+    { href: "/dashboard/observability", label: "Observability", tone: "primary" },
+  ]}
+>
+  <!-- Page header -->
+  <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div class="space-y-3">
+      <p class="eyebrow">Observability</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Runtime metrics &amp; audit trail.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        Live counters for tool calls, auth events, and HTTP traffic alongside a
+        paginated audit log. All values reflect the current process lifetime —
+        restart resets counters; the audit log is persistent.
+      </p>
+    </div>
+    <button
+      type="button"
+      id="refresh-observability"
+      class="action-pill self-end"
+    >
+      Refresh
+    </button>
+  </section>
+
+  <!-- Metric stat cards -->
+  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Active sessions -->
+    <div class="shell-card p-6">
+      <p class="eyebrow">Sessions</p>
+      <p
+        id="stat-sessions"
+        class="mt-3 text-4xl font-semibold tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p class="mt-1 text-sm text-stone-500">Active client sessions</p>
+    </div>
+
+    <!-- Tool calls -->
+    <div class="shell-card p-6">
+      <p class="eyebrow">Tool calls</p>
+      <p
+        id="stat-tool-calls"
+        class="mt-3 text-4xl font-semibold tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-tool-calls-sub" class="mt-1 text-sm text-stone-500">
+        Since process start
+      </p>
+    </div>
+
+    <!-- Auth events -->
+    <div class="shell-card p-6">
+      <p class="eyebrow">Auth events</p>
+      <p
+        id="stat-auth-events"
+        class="mt-3 text-4xl font-semibold tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-auth-events-sub" class="mt-1 text-sm text-stone-500">
+        Login + token exchange
+      </p>
+    </div>
+
+    <!-- HTTP requests -->
+    <div class="shell-card p-6">
+      <p class="eyebrow">HTTP requests</p>
+      <p
+        id="stat-http-requests"
+        class="mt-3 text-4xl font-semibold tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-http-sub" class="mt-1 text-sm text-stone-500">
+        Total handled
+      </p>
+    </div>
+  </section>
+
+  <!-- Main content: breakdown + audit log -->
+  <section class="grid gap-8 lg:grid-cols-[340px_minmax(0,1fr)]">
+    <!-- Left: metric breakdowns -->
+    <aside class="grid gap-6 self-start">
+      <!-- Tool calls by outcome -->
+      <div class="shell-card p-6">
+        <p class="eyebrow">Tool calls by outcome</p>
+        <div id="breakdown-tool-outcomes" class="mt-4 grid gap-2">
+          <p class="text-sm text-stone-400">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Auth by type -->
+      <div class="shell-card p-6">
+        <p class="eyebrow">Auth events by type</p>
+        <div id="breakdown-auth-types" class="mt-4 grid gap-2">
+          <p class="text-sm text-stone-400">Loading...</p>
+        </div>
+      </div>
+
+      <!-- HTTP by status -->
+      <div class="shell-card p-6">
+        <p class="eyebrow">HTTP by status code</p>
+        <div id="breakdown-http-status" class="mt-4 grid gap-2">
+          <p class="text-sm text-stone-400">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Admin operations -->
+      <div class="shell-card p-6">
+        <p class="eyebrow">Admin ops by outcome</p>
+        <div id="breakdown-admin-ops" class="mt-4 grid gap-2">
+          <p class="text-sm text-stone-400">Loading...</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Right: audit log -->
+    <div class="grid gap-6">
+      <section
+        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+      >
+        <div>
+          <p class="text-sm font-medium text-stone-900">Audit log</p>
+          <p class="mt-1 text-sm text-stone-600">
+            Every admin and client action is recorded with actor, outcome, and
+            timestamp. Filter by actor ID or use pagination to browse.
+          </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input
+            id="audit-actor-filter"
+            class="rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm"
+            placeholder="Filter by actor ID…"
+          />
+          <button type="button" id="audit-filter-apply" class="action-pill">Apply</button>
+          <button type="button" id="audit-filter-clear" class="action-pill">Clear</button>
+        </div>
+      </section>
+
+      <!-- Pagination bar -->
+      <div
+        class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm"
+      >
+        <div class="flex items-center gap-3">
+          <span id="audit-pagination-info" class="text-stone-500">—</span>
+          <select
+            id="audit-page-size"
+            class="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm"
+          >
+            <option value="25" selected>25 / page</option>
+            <option value="50">50 / page</option>
+            <option value="100">100 / page</option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            id="audit-prev"
+            type="button"
+            class="action-pill disabled:cursor-not-allowed disabled:opacity-40"
+            disabled>← Prev</button
+          >
+          <button
+            id="audit-next"
+            type="button"
+            class="action-pill disabled:cursor-not-allowed disabled:opacity-40"
+            disabled>Next →</button
+          >
+        </div>
+      </div>
+
+      <div
+        id="audit-log-container"
+        class="overflow-hidden rounded-3xl border border-stone-200 bg-white"
+      >
+        <table class="w-full text-sm">
+          <thead>
+            <tr
+              class="border-b border-stone-100 bg-stone-50/80 text-left text-xs font-semibold uppercase tracking-[0.1em] text-stone-500"
+            >
+              <th class="px-4 py-3">Event</th>
+              <th class="px-4 py-3">Actor</th>
+              <th class="px-4 py-3">Client / Resource</th>
+              <th class="px-4 py-3">Outcome</th>
+              <th class="px-4 py-3">When</th>
+            </tr>
+          </thead>
+          <tbody id="audit-log-body">
+            <tr>
+              <td
+                colspan="5"
+                class="px-4 py-6 text-center text-sm text-stone-400"
+                >Loading audit log...</td
+              >
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+  <script src="../scripts/observability-page.ts"></script>
+</DashboardLayout>

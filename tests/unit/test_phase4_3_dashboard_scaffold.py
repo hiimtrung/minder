@@ -106,7 +106,11 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     assert "dashboard-toast-region" in layout
     assert 'rel="icon"' in layout
     assert '/dashboard/favicon.png' in layout
-    assert 'First-Time Setup' in login_page
+    # Login page no longer has a static "First-Time Setup" nav link; the link
+    # to /dashboard/setup is rendered dynamically by login-page.ts when the
+    # bootstrap-state API reports no admin users yet (fresh install only).
+    assert '/dashboard/setup' in login_page
+    assert 'setup-hint' in login_page
     assert 'Admin Login' in setup_page
     assert 'Client Registry' in registry_shell
     assert 'sessionControls={true}' in registry_shell

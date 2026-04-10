@@ -138,8 +138,12 @@ class AuthService:
             (user, plaintext_api_key) — caller must surface the key once; it
             is never stored in plaintext.
 
+        If ``password`` is supplied it is hashed and stored separately so the
+        user can authenticate with username + password *in addition to* the API
+        key.
+
         Raises:
-            AuthError(AUTH_USER_EXISTS) if email is already registered.
+            AuthError(AUTH_USER_EXISTS) if email or username is already taken.
         """
         if await self._store.get_user_by_email(email):
             raise AuthError("AUTH_USER_EXISTS", f"Email '{email}' is already registered")
@@ -149,13 +153,15 @@ class AuthService:
 
         role_str = role.value if isinstance(role, UserRole) else str(role)
 
-        api_key = password if password else self._generate_api_key()
+        api_key = self._generate_api_key()
+        password_hash = self._hash_secret(password) if password else None
         user = await self._store.create_user(
             id=uuid.uuid4(),
             email=email,
             username=username,
             display_name=display_name,
             api_key_hash=self._hash_secret(api_key),
+            password_hash=password_hash,
             role=role_str,
             is_active=True,
             settings={},
@@ -186,6 +192,39 @@ class AuthService:
                 await self._store.update_user(user.id, last_login=datetime.now(UTC))
                 return user
         raise AuthError("AUTH_INVALID_KEY", "Invalid API key")
+
+    async def authenticate_username_password(self, username: str, password: str) -> User:
+        """Authenticate with username + password.
+
+        Raises:
+            AuthError(AUTH_USER_NOT_FOUND)  — username not found
+            AuthError(AUTH_PASSWORD_NOT_SET) — user has no password configured
+            AuthError(AUTH_INVALID_KEY)      — password mismatch
+            AuthError(AUTH_USER_INACTIVE)    — account deactivated
+        """
+        user = await self._store.get_user_by_username(username)
+        if user is None:
+            # Return a generic message to avoid username enumeration
+            raise AuthError("AUTH_INVALID_KEY", "Invalid username or password")
+        if not user.is_active:
+            raise AuthError("AUTH_USER_INACTIVE", "User account is inactive")
+        password_hash = getattr(user, "password_hash", None)
+        if not password_hash:
+            raise AuthError(
+                "AUTH_PASSWORD_NOT_SET",
+                "Password login is not configured for this account. Use your API key instead.",
+            )
+        try:
+            if not self._verify_secret(password, password_hash):
+                raise AuthError("AUTH_INVALID_KEY", "Invalid username or password")
+        except UnknownHashError:
+            raise AuthError("AUTH_INVALID_KEY", "Invalid username or password")
+        await self._store.update_user(user.id, last_login=datetime.now(UTC))
+        return user
+
+    async def set_password(self, user_id: uuid.UUID, password: str) -> None:
+        """Set or update the login password for an existing user."""
+        await self._store.update_user(user_id, password_hash=self._hash_secret(password))
 
     async def register_client(
         self,

@@ -78,20 +78,38 @@ class AdminConsoleUseCases:
         username: str,
         email: str,
         display_name: str,
+        password: str | None = None,
     ) -> SetupResultPayload:
         _user, api_key = await self._auth_service.register_user(
             email=email,
             username=username,
             display_name=display_name,
             role="admin",
+            password=password,
         )
         return {"api_key": api_key}
 
     async def login_admin(self, api_key: str) -> AdminLoginPayload:
+        """Authenticate via admin API key (``mk_...`` format)."""
         user = await self._auth_service.authenticate_api_key(api_key)
         if user.role != "admin":
             raise PermissionError("Admin role required")
         return {"jwt": self._auth_service.issue_jwt(user)}
+
+    async def login_admin_by_password(
+        self, username: str, password: str
+    ) -> AdminLoginPayload:
+        """Authenticate via username + password."""
+        from minder.auth.service import AuthError
+
+        user = await self._auth_service.authenticate_username_password(username, password)
+        if user.role != "admin":
+            raise PermissionError("Admin role required")
+        return {"jwt": self._auth_service.issue_jwt(user)}
+
+    async def set_user_password(self, user_id: uuid.UUID, password: str) -> None:
+        """Set or replace the login password for any user."""
+        await self._auth_service.set_password(user_id, password)
 
     @staticmethod
     def serialize_admin_session(user: Any) -> AdminSessionPayload:
@@ -224,9 +242,19 @@ class AdminConsoleUseCases:
             "templates": self.onboarding_templates(client, public_base_url=public_base_url),
         }
 
-    async def list_audit(self, *, actor_id: str | None = None) -> AuditListPayload:
-        events = await self._store.list_audit_logs(actor_id=actor_id)
-        return {"events": [self.serialize_audit_event(event) for event in events]}
+    async def list_audit(
+        self,
+        *,
+        actor_id: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> AuditListPayload:
+        events = await self._store.list_audit_logs(
+            actor_id=actor_id, limit=limit, offset=offset
+        )
+        total = await self._store.count_audit_logs(actor_id=actor_id)
+        serialized = [await self.serialize_audit_event_enriched(event) for event in events]
+        return {"events": serialized, "total": total, "limit": limit, "offset": offset}
 
     async def get_recent_client_activity(
         self,
@@ -308,12 +336,46 @@ class AdminConsoleUseCases:
             "id": str(event.id),
             "actor_type": event.actor_type,
             "actor_id": event.actor_id,
+            "actor_name": None,
             "event_type": event.event_type,
             "resource_type": event.resource_type,
             "resource_id": event.resource_id,
+            "resource_name": None,
             "outcome": event.outcome,
             "created_at": event.created_at.isoformat() if event.created_at else None,
         }
+
+    async def serialize_audit_event_enriched(self, event: Any) -> AuditEventPayload:
+        """Like serialize_audit_event but resolves human-readable names."""
+        base = self.serialize_audit_event(event)
+
+        # Resolve actor name
+        try:
+            if event.actor_type == "admin_user":
+                actor = await self._store.get_user_by_id(uuid.UUID(event.actor_id))
+                if actor:
+                    base["actor_name"] = getattr(actor, "display_name", None) or getattr(actor, "username", None)
+            elif event.actor_type == "client":
+                actor_client = await self._store.get_client_by_id(uuid.UUID(event.actor_id))
+                if actor_client:
+                    base["actor_name"] = getattr(actor_client, "name", None)
+        except Exception:
+            pass
+
+        # Resolve resource name
+        try:
+            if event.resource_type == "client":
+                resource_client = await self._store.get_client_by_id(uuid.UUID(event.resource_id))
+                if resource_client:
+                    base["resource_name"] = getattr(resource_client, "name", None)
+            elif event.resource_type == "user":
+                resource_user = await self._store.get_user_by_id(uuid.UUID(event.resource_id))
+                if resource_user:
+                    base["resource_name"] = getattr(resource_user, "display_name", None) or getattr(resource_user, "username", None)
+        except Exception:
+            pass
+
+        return base
 
     # ------------------------------------------------------------------
     # User management
@@ -327,7 +389,14 @@ class AdminConsoleUseCases:
         user = await self._store.get_user_by_id(user_id)
         if user is None:
             raise LookupError(f"User {user_id} not found")
-        return {"user": self.serialize_user(user)}
+        # Include MCP clients created by this user
+        all_clients = await self._store.list_clients()
+        owned_clients = [
+            self.serialize_client(c)
+            for c in all_clients
+            if str(getattr(c, "created_by_user_id", "")) == str(user_id)
+        ]
+        return {"user": self.serialize_user(user), "clients": owned_clients}
 
     async def update_user(
         self,
@@ -347,10 +416,11 @@ class AdminConsoleUseCases:
         updated = await self._store.update_user(user_id, **kwargs)
         if updated is None:
             raise LookupError(f"User {user_id} not found")
-        return {"user": self.serialize_user(updated)}
+        return await self.get_user_detail(user_id)
 
     async def deactivate_user(self, user_id: uuid.UUID) -> UserDetailPayload:
-        return await self.update_user(user_id, is_active=False)
+        await self._store.update_user(user_id, is_active=False)
+        return await self.get_user_detail(user_id)
 
     @staticmethod
     def serialize_user(user: Any) -> UserPayload:

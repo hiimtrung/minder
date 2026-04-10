@@ -24,9 +24,11 @@ class AuditEventPayload(TypedDict):
     id: str
     actor_type: str
     actor_id: str
+    actor_name: str | None        # display_name or slug for context
     event_type: str
     resource_type: str
     resource_id: str
+    resource_name: str | None     # human-readable name for the resource
     outcome: str
     created_at: str | None
 
@@ -65,6 +67,9 @@ class RevokeKeysPayload(TypedDict):
 
 class AuditListPayload(TypedDict):
     events: list[AuditEventPayload]
+    total: int
+    limit: int
+    offset: int
 
 
 class SetupResultPayload(TypedDict):
@@ -103,6 +108,7 @@ class UserListPayload(TypedDict):
 
 class UserDetailPayload(TypedDict):
     user: UserPayload
+    clients: list[ClientPayload]   # MCP clients created by this user
 
 
 # ---------------------------------------------------------------------------

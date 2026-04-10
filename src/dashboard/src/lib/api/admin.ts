@@ -32,15 +32,20 @@ export type AuditEventPayload = {
   id: string;
   actor_type: string;
   actor_id: string;
+  actor_name: string | null;
   event_type: string;
   resource_type: string;
   resource_id: string;
+  resource_name: string | null;
   outcome: string;
   created_at: string | null;
 };
 
 export type AuditListPayload = {
   events: AuditEventPayload[];
+  total: number;
+  limit: number;
+  offset: number;
 };
 
 export type TokenExchangePayload = {
@@ -163,6 +168,7 @@ export async function setupAdmin(payload: {
   username: string;
   email: string;
   display_name: string;
+  password?: string;
 }): Promise<SetupAdminPayload> {
   return requestJson<SetupAdminPayload>("/v1/admin/setup", {
     method: "POST",
@@ -170,12 +176,23 @@ export async function setupAdmin(payload: {
   });
 }
 
-export async function loginAdmin(api_key: string): Promise<{ ok: true }> {
+/** Login with username + password (preferred for human admins). */
+export async function loginAdmin(credentials: {
+  username: string;
+  password: string;
+}): Promise<{ ok: true }>;
+/** Login with a raw API key (fallback / scripted access). */
+export async function loginAdmin(credentials: {
+  api_key: string;
+}): Promise<{ ok: true }>;
+export async function loginAdmin(
+  credentials: { username: string; password: string } | { api_key: string },
+): Promise<{ ok: true }> {
   return requestJson<{ ok: true }>("/v1/admin/login", {
     method: "POST",
-    body: JSON.stringify({ api_key }),
+    body: JSON.stringify(credentials),
     // Prevent the global 401 redirect so the login page can display the
-    // "Invalid API key" error message instead of reloading the page.
+    // error message instead of reloading.
     headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
@@ -282,9 +299,16 @@ export async function updateClient(
   });
 }
 
-export async function listAudit(actorId?: string): Promise<AuditListPayload> {
-  const query = actorId ? `?actor_id=${encodeURIComponent(actorId)}` : "";
-  return requestJson<AuditListPayload>(`/v1/admin/audit${query}`);
+export async function listAudit(
+  actorId?: string,
+  limit = 50,
+  offset = 0,
+): Promise<AuditListPayload> {
+  const params = new URLSearchParams();
+  if (actorId) params.set("actor_id", actorId);
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  return requestJson<AuditListPayload>(`/v1/admin/audit?${params.toString()}`);
 }
 
 export async function exchangeClientKey(
@@ -311,7 +335,7 @@ export type UserPayload = {
 };
 
 export type UserListPayload = { users: UserPayload[] };
-export type UserDetailPayload = { user: UserPayload };
+export type UserDetailPayload = { user: UserPayload; clients: ClientPayload[] };
 
 export async function listUsers(activeOnly = false): Promise<UserListPayload> {
   const query = activeOnly ? "?active_only=true" : "";
@@ -419,4 +443,27 @@ export type RepositoryListPayload = { repositories: RepositoryPayload[] };
 
 export async function listRepositories(): Promise<RepositoryListPayload> {
   return requestJson<RepositoryListPayload>("/v1/admin/repositories");
+}
+
+// ---------------------------------------------------------------------------
+// Observability
+// ---------------------------------------------------------------------------
+
+export type MetricsBucket = {
+  total: number;
+  by_outcome?: Record<string, number>;
+  by_type?: Record<string, number>;
+  by_status?: Record<string, number>;
+};
+
+export type MetricsSummaryPayload = {
+  active_client_sessions: number;
+  tool_calls: { total: number; by_outcome: Record<string, number> };
+  auth_events: { total: number; by_type: Record<string, number> };
+  http_requests: { total: number; by_status: Record<string, number> };
+  admin_operations: { total: number; by_outcome: Record<string, number> };
+};
+
+export async function getMetricsSummary(): Promise<MetricsSummaryPayload> {
+  return requestJson<MetricsSummaryPayload>("/v1/admin/metrics-summary");
 }

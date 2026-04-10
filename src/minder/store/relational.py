@@ -376,13 +376,34 @@ class RelationalStore:
             await sess.refresh(audit_log)
             return audit_log
 
-    async def list_audit_logs(self, *, actor_id: str | None = None) -> List[AuditLog]:
+    async def list_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[AuditLog]:
+        from sqlalchemy import desc
+
         async with self._session() as sess:
-            stmt = select(AuditLog)
+            stmt = select(AuditLog).order_by(desc(AuditLog.created_at))
+            if actor_id is not None:
+                stmt = stmt.where(AuditLog.actor_id == actor_id)
+            stmt = stmt.offset(offset)
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
+    async def count_audit_logs(self, *, actor_id: str | None = None) -> int:
+        from sqlalchemy import func as sqlfunc
+
+        async with self._session() as sess:
+            stmt = select(sqlfunc.count()).select_from(AuditLog)
             if actor_id is not None:
                 stmt = stmt.where(AuditLog.actor_id == actor_id)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            return result.scalar_one() or 0
 
     # ------------------------------------------------------------------
     # RepositoryWorkflowState

@@ -13,13 +13,18 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     { href: "/dashboard/clients", label: "Clients", tone: "primary" },
     { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
     { href: "/dashboard/users", label: "Users", tone: "secondary" },
+    {
+      href: "/dashboard/observability",
+      label: "Observability",
+      tone: "secondary",
+    },
   ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div class="space-y-3">
       <p class="eyebrow">Client Registry</p>
       <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Manage MCP clients from the production dashboard.
+        Manage MCP clients.
       </h1>
       <p class="max-w-3xl text-lg leading-8 text-stone-700">
         Create clients, issue keys, and route into a dedicated client detail

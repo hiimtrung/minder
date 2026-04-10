@@ -7,35 +7,40 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   description="Browser login shell for the Astro-based Minder dashboard."
   navTitle="Minder Admin Login"
   navDescription="Use the bootstrap or rotated admin API key to open the dashboard."
-  navLinks={[
-    { href: "/dashboard/setup", label: "First-Time Setup", tone: "secondary" },
-  ]}
+  navLinks={[]}
 >
   <section class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
     <div class="space-y-5">
       <p class="eyebrow">Admin Access</p>
-      <h1 class="max-w-3xl text-5xl font-semibold tracking-tight text-stone-950">
+      <h1
+        class="max-w-3xl text-5xl font-semibold tracking-tight text-stone-950"
+      >
         Sign into Minder without leaving the browser.
       </h1>
       <p class="max-w-2xl text-lg leading-8 text-stone-700">
-        The dashboard uses an `HttpOnly` cookie-backed admin session. After login you stay on the
-        same origin and manage clients, snippets, and activity from one place.
+        The dashboard uses an `HttpOnly` cookie-backed admin session. After
+        login you stay on the same origin and manage clients, snippets, and
+        activity from one place.
       </p>
     </div>
 
     <div class="shell-card p-8">
       <div class="mb-6">
         <p class="eyebrow">Admin Login</p>
-        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">Sign in with your admin API key</h2>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          Sign in with your admin API key
+        </h2>
         <p class="mt-2 text-sm leading-6 text-stone-600">
-          If this is a fresh environment, complete setup first. Otherwise paste the current
-          `mk_...` admin key to open the dashboard.
+          If this is a fresh environment, complete setup first. Otherwise paste
+          the current `mk_...` admin key to open the dashboard.
         </p>
       </div>
 
       <form id="login-form" class="space-y-5">
         <label class="block">
-          <span class="mb-2 block text-sm font-medium text-stone-800">Admin API key</span>
+          <span class="mb-2 block text-sm font-medium text-stone-800"
+            >Admin API key</span
+          >
           <input
             id="api-key"
             type="password"
@@ -43,9 +48,20 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900 outline-none ring-0 transition focus:border-amber-700"
           />
         </label>
-        <p id="login-status" class="min-h-6 text-sm text-stone-600"></p>
-        <button type="submit" class="primary-pill w-full">Continue to dashboard</button>
+        <p id="login-status" class="min-h-6 text-sm text-red-600"></p>
+        <button type="submit" class="primary-pill w-full"
+          >Continue to dashboard</button
+        >
       </form>
+      <!-- Shown only when no admin users exist yet (fresh install) -->
+      <p id="setup-hint" class="mt-5 hidden text-center text-sm text-stone-500">
+        Fresh install?
+        <a
+          href="/dashboard/setup"
+          class="font-medium text-amber-700 hover:underline"
+          >Complete first-time setup →</a
+        >
+      </p>
     </div>
   </section>
   <script src="../scripts/login-page.ts"></script>

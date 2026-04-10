@@ -174,6 +174,9 @@ export async function loginAdmin(api_key: string): Promise<{ ok: true }> {
   return requestJson<{ ok: true }>("/v1/admin/login", {
     method: "POST",
     body: JSON.stringify({ api_key }),
+    // Prevent the global 401 redirect so the login page can display the
+    // "Invalid API key" error message instead of reloading the page.
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
 

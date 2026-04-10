@@ -10,6 +10,8 @@ from starlette.responses import FileResponse, PlainTextResponse, RedirectRespons
 from starlette.routing import BaseRoute, Route
 
 from minder.config import MinderConfig
+from minder.observability.logging import AccessLogMiddleware, CorrelationIdMiddleware
+from minder.observability.metrics import metrics_endpoint
 from minder.store.interfaces import ICacheProvider, IOperationalStore
 
 from .api import build_admin_api_routes
@@ -54,6 +56,7 @@ def build_http_routes(
     return [
         Route("/favicon.ico", favicon_ico, methods=["GET"]),
         Route("/favicon.png", favicon_png, methods=["GET"]),
+        Route("/metrics", metrics_endpoint, methods=["GET"]),
         *build_admin_api_routes(context),
         *build_dashboard_routes(context),
     ]
@@ -66,6 +69,11 @@ def build_http_app(
     cache: ICacheProvider | None = None,
 ) -> Starlette:
     middleware: list[Middleware] = []
+
+    # Observability middleware (innermost first — applied outermost-last)
+    middleware.append(Middleware(CorrelationIdMiddleware))
+    middleware.append(Middleware(AccessLogMiddleware))
+
     dev_origin = dashboard_dev_origin(config)
     if dev_origin:
         middleware.append(

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 import sys
 from pathlib import Path
 
@@ -52,8 +51,14 @@ def runtime_summary(config: Settings) -> dict[str, object]:
 async def _async_run() -> None:
     print("MINDER SERVER STARTING", file=sys.stderr, flush=True)
     config = Settings()
-    log_level = getattr(logging, config.server.log_level.upper(), logging.INFO)
-    logging.basicConfig(level=log_level, stream=sys.stderr)
+
+    # Initialise structured JSON logging and tracing before anything else
+    from minder.observability import configure_json_logging, configure_tracing
+    configure_json_logging(level=config.server.log_level)
+    configure_tracing(
+        service_name=config.server.name,
+        service_version=config.server.version,
+    )
 
     store = build_store(config)
     print(f"MINDER DB URL: {config.relational_store.db_path}", file=sys.stderr, flush=True)

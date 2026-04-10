@@ -15,36 +15,11 @@ from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
 from minder.tools.memory import MemoryTools
 from minder.tools.query import QueryTools
+from minder.tools.registry import TOOL_DESCRIPTIONS
 from minder.tools.search import SearchTools
 from minder.tools.session import SessionTools
 from minder.tools.workflow import WorkflowTools
 from minder.transport import SSETransport, StdioTransport
-
-
-TOOL_DESCRIPTIONS: dict[str, str] = {
-    "minder_auth_ping": "Verify that MCP authentication is working and the current principal can reach protected tools.",
-    "minder_auth_login": "Exchange a human admin API key for a JWT bearer token.",
-    "minder_auth_exchange_client_key": "Exchange a client API key for a scoped client access token.",
-    "minder_auth_whoami": "Return the authenticated principal identity, role, and any active scopes.",
-    "minder_auth_manage": "Run admin-only authentication management actions such as listing registered users.",
-    "minder_auth_create_client": "Create a new MCP client and issue its initial client API key.",
-    "minder_session_create": "Create a persisted Minder session for an authenticated human user.",
-    "minder_session_save": "Persist state and active skill context for an existing Minder session.",
-    "minder_session_restore": "Load the saved state and context for an existing Minder session.",
-    "minder_session_context": "Update branch and open-file context for an existing Minder session.",
-    "minder_workflow_get": "Fetch the workflow assigned to a repository and sync repo-state files.",
-    "minder_workflow_step": "Return the current workflow step for a repository and sync repo-state files.",
-    "minder_workflow_update": "Mark a workflow step complete and optionally persist an artifact for the repository.",
-    "minder_workflow_guard": "Check whether a requested workflow step is currently allowed for the repository.",
-    "minder_memory_store": "Store a memory entry with title, content, tags, and language metadata.",
-    "minder_memory_recall": "Search stored memory entries by semantic similarity.",
-    "minder_memory_list": "List the currently stored memory entries.",
-    "minder_memory_delete": "Delete a stored memory entry by its ID.",
-    "minder_search": "Search Minder knowledge and stored project context.",
-    "minder_query": "Run a full Minder repository query with retrieval, reasoning, and verification.",
-    "minder_search_code": "Search indexed repository code for relevant files and snippets.",
-    "minder_search_errors": "Search indexed errors and troubleshooting history for relevant matches.",
-}
 
 
 def build_transport(

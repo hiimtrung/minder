@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from minder.tools.registry import SCOPEABLE_TOOLS
 from minder.application.admin.dto import (
     ActivityEventPayload,
     AdminLoginPayload,
@@ -23,15 +24,7 @@ from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.store.interfaces import IOperationalStore
 
-DASHBOARD_TOOL_SCOPE_OPTIONS = [
-    "minder_query",
-    "minder_search_code",
-    "minder_search_errors",
-    "minder_search",
-    "minder_memory_recall",
-    "minder_workflow_get",
-    "minder_workflow_step",
-]
+DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
 DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
     "Query Only": ["minder_query", "minder_search_code", "minder_search_errors"],
@@ -43,7 +36,15 @@ DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
         "minder_memory_recall",
         "minder_workflow_get",
     ],
-    "Full Dev Assistant": DASHBOARD_TOOL_SCOPE_OPTIONS,
+    "Full Dev Assistant": [
+        "minder_query",
+        "minder_search_code",
+        "minder_search_errors",
+        "minder_search",
+        "minder_memory_recall",
+        "minder_workflow_get",
+        "minder_workflow_step",
+    ],
 }
 
 
@@ -104,6 +105,13 @@ class AdminConsoleUseCases:
             requested_scopes=requested_scopes,
         )
 
+    def list_tools(self) -> list[dict[str, str]]:
+        """Return all tools that can be granted to client principals."""
+        return [
+            {"name": tool.name, "description": tool.description}
+            for tool in SCOPEABLE_TOOLS
+        ]
+
     async def list_clients(self) -> ClientListPayload:
         return {"clients": [self.serialize_client(client) for client in await self._store.list_clients()]}
 
@@ -140,16 +148,21 @@ class AdminConsoleUseCases:
         self,
         *,
         client_id: uuid.UUID,
-        description: str,
-        repo_scopes: list[str],
-        tool_scopes: list[str],
+        name: str | None = None,
+        description: str | None = None,
+        repo_scopes: list[str] | None = None,
+        tool_scopes: list[str] | None = None,
     ) -> ClientDetailPayload:
-        updated = await self._store.update_client(
-            client_id,
-            description=description,
-            repo_scopes=repo_scopes,
-            tool_scopes=tool_scopes,
-        )
+        kwargs: dict[str, Any] = {}
+        if name is not None:
+            kwargs["name"] = name
+        if description is not None:
+            kwargs["description"] = description
+        if repo_scopes is not None:
+            kwargs["repo_scopes"] = repo_scopes
+        if tool_scopes is not None:
+            kwargs["tool_scopes"] = tool_scopes
+        updated = await self._store.update_client(client_id, **kwargs)
         if updated is None:
             raise LookupError("Client not found")
         return {"client": self.serialize_client(updated)}
@@ -245,7 +258,7 @@ class AdminConsoleUseCases:
                 f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"tools":["*"]}}}}}}'
             ),
             "antigravity": (
-                f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
+                f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
             ),
             "claude_code": (
                 f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'

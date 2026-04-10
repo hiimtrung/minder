@@ -233,7 +233,7 @@ async def test_onboarding_templates_follow_request_origin(
     assert '"mcpServers"' in onboarding["templates"]["copilot_cli"]
     assert '"tools"' in onboarding["templates"]["copilot_cli"]
     assert "https://minder.example.com/sse" in connection["templates"]["claude_code"]
-    assert '"serverUrl":"https://minder.example.com/sse"' in onboarding["templates"]["antigravity"]
+    assert '"serverUrl":"https://minder.example.com/mcp"' in onboarding["templates"]["antigravity"]
 
 
 @pytest.mark.asyncio
@@ -317,6 +317,81 @@ async def test_token_exchange_persists_client_session_in_redis_cache(
     assert principal.principal_type == "client"
 
     await cache.close()
+
+
+@pytest.mark.asyncio
+async def test_admin_can_list_tools_via_http(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    admin_token: str,
+) -> None:
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        # Authenticated request returns tool list
+        response = await client.get(
+            "/v1/admin/tools",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        # Unauthenticated request returns 401
+        unauth = await client.get("/v1/admin/tools")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "tools" in payload
+    tools = payload["tools"]
+    assert isinstance(tools, list)
+    assert len(tools) > 0
+    names = [t["name"] for t in tools]
+    # Memory tools should be scopeable and present
+    assert "minder_memory_recall" in names
+    assert "minder_memory_store" in names
+    # Auth-internal tools should NOT appear in the scopeable list
+    assert "minder_auth_ping" not in names
+    assert "minder_auth_login" not in names
+    # Each tool has name + description
+    for tool in tools:
+        assert "name" in tool
+        assert "description" in tool
+        assert tool["name"].startswith("minder_")
+        assert tool["description"]
+
+    assert unauth.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_client_name_via_http(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    auth: AuthService,
+    admin_token: str,
+) -> None:
+    admin = await auth.get_user_from_jwt(admin_token)
+    created_client, _ = await auth.register_client(
+        name="Original Name",
+        slug="rename-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_query"],
+        repo_scopes=["*"],
+    )
+    app = build_http_app(config=config, store=store, cache=cache)
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as client:
+        # Update only the name
+        response = await client.patch(
+            f"/v1/admin/clients/{created_client.id}",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            json={"name": "Renamed Client"},
+        )
+
+    assert response.status_code == 200
+    updated = response.json()["client"]
+    assert updated["name"] == "Renamed Client"
+    # Other fields unchanged
+    assert updated["slug"] == "rename-client"
+    assert updated["tool_scopes"] == ["minder_query"]
 
 
 @pytest.mark.asyncio

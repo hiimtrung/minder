@@ -84,47 +84,111 @@ const detailHref = clientId
 
   <section
     id="client-detail-shell"
-    class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]"
+    class="grid gap-8 lg:grid-cols-[400px_minmax(0,1fr)]"
   >
-    <aside class="shell-card p-7">
-      <p class="eyebrow">Lifecycle</p>
-      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-        Key management
-      </h2>
-      <div class="mt-6 grid gap-3">
-        <button id="rotate-client-key" type="button" class="primary-pill w-full"
-          >Issue new client key</button
+    <aside class="space-y-6">
+      <!-- Key management -->
+      <section class="shell-card p-7">
+        <p class="eyebrow">Lifecycle</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          Key management
+        </h2>
+        <div class="mt-6 grid gap-3">
+          <button id="rotate-client-key" type="button" class="primary-pill w-full"
+            >Issue new client key</button
+          >
+          <button id="revoke-client-key" type="button" class="action-pill w-full"
+            >Revoke all keys</button
+          >
+        </div>
+        <label class="mt-5 block">
+          <span class="mb-2 block text-sm font-medium text-stone-800"
+            >Connection test API key</span
+          >
+          <input
+            id="connection-api-key"
+            class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="mkc_..."
+          />
+        </label>
+        <button
+          id="test-client-connection"
+          type="button"
+          class="action-pill mt-3 w-full">Run connection test</button
         >
-        <button id="revoke-client-key" type="button" class="action-pill w-full"
-          >Revoke all keys</button
+        <p id="detail-status" class="mt-4 min-h-6 text-sm text-stone-600"></p>
+        <div
+          id="rotated-key-result"
+          class="mt-4 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4"
         >
-      </div>
-      <label class="mt-5 block">
-        <span class="mb-2 block text-sm font-medium text-stone-800"
-          >Connection test API key</span
-        >
-        <input
-          id="connection-api-key"
-          class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="mkc_..."
-        />
-      </label>
-      <button
-        id="test-client-connection"
-        type="button"
-        class="action-pill mt-3 w-full">Run connection test</button
-      >
-      <p id="detail-status" class="mt-4 min-h-6 text-sm text-stone-600"></p>
-      <div
-        id="rotated-key-result"
-        class="mt-4 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4"
-      >
-        <p class="eyebrow">New Client API Key</p>
-        <code
-          id="rotated-key-value"
-          class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
-        ></code>
-      </div>
+          <p class="eyebrow">New Client API Key</p>
+          <code
+            id="rotated-key-value"
+            class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
+          ></code>
+        </div>
+      </section>
+
+      <!-- Edit client -->
+      <section class="shell-card p-7">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="eyebrow">Edit Client</p>
+            <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+              Name, description &amp; scopes
+            </h2>
+          </div>
+          <button
+            id="refresh-tools"
+            type="button"
+            title="Refresh tool list from server"
+            class="action-pill shrink-0 text-xs"
+          >
+            Refresh tools
+          </button>
+        </div>
+
+        <form id="edit-client-form" class="mt-6 grid gap-4">
+          <label class="grid gap-2 text-sm text-stone-700">
+            Name
+            <input
+              id="edit-client-name"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Client name"
+            />
+          </label>
+
+          <label class="grid gap-2 text-sm text-stone-700">
+            Description
+            <textarea
+              id="edit-client-description"
+              class="min-h-20 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Short description of this client's purpose"
+            ></textarea>
+          </label>
+
+          <div class="grid gap-2 text-sm text-stone-700">
+            <div class="flex items-center justify-between gap-2">
+              <span class="font-medium">Tool scopes</span>
+              <div class="flex gap-2">
+                <button type="button" data-edit-preset="query" class="action-pill text-xs">Query Only</button>
+                <button type="button" data-edit-preset="read" class="action-pill text-xs">Read Only</button>
+                <button type="button" data-edit-preset="full" class="action-pill text-xs">Full Dev</button>
+                <button type="button" id="edit-select-none" class="action-pill text-xs">None</button>
+              </div>
+            </div>
+            <div
+              id="edit-tool-scopes"
+              class="min-h-32 rounded-2xl border border-stone-300 bg-white p-3 space-y-2"
+            >
+              <p class="text-sm text-stone-400 px-1">Loading tools...</p>
+            </div>
+          </div>
+
+          <p id="edit-client-status" class="min-h-6 text-sm text-stone-600"></p>
+          <button type="submit" class="primary-pill w-full">Save changes</button>
+        </form>
+      </section>
     </aside>
 
     <div class="grid gap-6">

@@ -72,6 +72,15 @@ export type SetupAdminPayload = {
   api_key: string;
 };
 
+export type ToolInfo = {
+  name: string;
+  description: string;
+};
+
+export type ToolListPayload = {
+  tools: ToolInfo[];
+};
+
 const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "")
   .trim()
   .replace(/\/$/, "");
@@ -248,6 +257,25 @@ export async function testClientConnection(client_api_key: string): Promise<{
     method: "POST",
     body: JSON.stringify({ client_api_key }),
     headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+  });
+}
+
+export async function listTools(): Promise<ToolListPayload> {
+  return requestJson<ToolListPayload>("/v1/admin/tools");
+}
+
+export async function updateClient(
+  clientId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    tool_scopes?: string[];
+    repo_scopes?: string[];
+  },
+): Promise<ClientDetailPayload> {
+  return requestJson<ClientDetailPayload>(`/v1/admin/clients/${clientId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
   });
 }
 

@@ -138,6 +138,15 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return await list_clients(request)
         return await create_client(request)
 
+    async def admin_tools(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse({"tools": context.use_cases.list_tools()})
+
     async def client_detail(request):
         try:
             await context.admin_user_from_request(request)
@@ -155,12 +164,12 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
         payload = await request.json()
         try:
-            current = await context.use_cases.get_client_detail(client_id)
             updated = await context.use_cases.update_client(
                 client_id=client_id,
-                description=payload.get("description", current["client"]["description"]),
-                repo_scopes=payload.get("repo_scopes", current["client"]["repo_scopes"]),
-                tool_scopes=payload.get("tool_scopes", current["client"]["tool_scopes"]),
+                name=payload.get("name"),
+                description=payload.get("description"),
+                repo_scopes=payload.get("repo_scopes"),
+                tool_scopes=payload.get("tool_scopes"),
             )
         except LookupError:
             return JSONResponse({"error": "Client not found"}, status_code=404)
@@ -230,6 +239,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/bootstrap-state", dashboard_bootstrap_state, methods=["GET"]),
         Route("/v1/auth/token-exchange", token_exchange, methods=["POST"]),
         Route("/v1/gateway/test-connection", gateway_test_connection, methods=["POST"]),
+        Route("/v1/admin/tools", admin_tools, methods=["GET"]),
         Route("/v1/admin/clients", admin_clients, methods=["GET", "POST"]),
         Route("/v1/admin/clients/{client_id:uuid}", client_detail, methods=["GET", "PATCH"]),
         Route("/v1/admin/clients/{client_id:uuid}/keys", client_key_rotate, methods=["POST"]),

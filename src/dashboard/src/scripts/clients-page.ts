@@ -4,16 +4,19 @@ import {
   getClientOnboarding,
   listAudit,
   listClients,
+  listTools,
   revokeClientKeys,
   rotateClientKey,
   testClientConnection,
+  updateClient,
+  type ToolInfo,
 } from "../lib/api/admin";
 
 const registry = document.querySelector("#client-registry");
 const status = document.querySelector("#create-client-status");
 const createdResult = document.querySelector("#client-created-result");
 const createdKey = document.querySelector("#client-created-key");
-const toolScopes = document.querySelector("#client-tool-scopes");
+const createToolScopes = document.querySelector("#client-tool-scopes");
 const detailShell = document.querySelector("#client-detail-shell");
 const detailTitle = document.querySelector("#detail-title");
 const detailStatus = document.querySelector("#detail-status");
@@ -23,6 +26,14 @@ const rotatedKeyResult = document.querySelector("#rotated-key-result");
 const rotatedKeyValue = document.querySelector("#rotated-key-value");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 let lastSelectedClientName = "";
+let cachedTools: ToolInfo[] = [];
+
+// Edit form elements (detail page only)
+const editClientForm = document.querySelector("#edit-client-form");
+const editClientName = document.querySelector("#edit-client-name") as HTMLInputElement | null;
+const editClientDescription = document.querySelector("#edit-client-description") as HTMLTextAreaElement | null;
+const editToolScopes = document.querySelector("#edit-tool-scopes");
+const editClientStatus = document.querySelector("#edit-client-status");
 
 const snippetTitles: Record<string, string> = {
   codex: "OpenAI Codex",
@@ -560,6 +571,99 @@ const presets: Record<string, string[]> = {
   ],
 };
 
+// ─── Edit preset map (mirrors create-form presets) ────────────────────────────
+const editPresets: Record<string, string[]> = {
+  query: ["minder_query", "minder_search_code", "minder_search_errors"],
+  read: [
+    "minder_query",
+    "minder_search_code",
+    "minder_search_errors",
+    "minder_search",
+    "minder_memory_recall",
+    "minder_workflow_get",
+  ],
+  full: [
+    "minder_query",
+    "minder_search_code",
+    "minder_search_errors",
+    "minder_search",
+    "minder_memory_recall",
+    "minder_workflow_get",
+    "minder_workflow_step",
+  ],
+};
+
+const setEditStatus = (
+  message: string,
+  tone: "default" | "success" | "danger" = "default",
+) => {
+  if (!editClientStatus) return;
+  editClientStatus.textContent = message;
+  editClientStatus.className = "min-h-6 text-sm";
+  if (tone === "success") editClientStatus.classList.add("text-emerald-700");
+  else if (tone === "danger") editClientStatus.classList.add("text-red-700");
+  else editClientStatus.classList.add("text-stone-600");
+};
+
+const renderToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
+  if (!editToolScopes) return;
+  if (!tools.length) {
+    editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">No tools available.</p>`;
+    return;
+  }
+  editToolScopes.innerHTML = tools
+    .map((tool) => {
+      const checked = selected.includes(tool.name) ? "checked" : "";
+      const id = `scope-${tool.name}`;
+      return `
+        <label for="${id}" class="flex items-start gap-3 rounded-xl px-2 py-2 hover:bg-stone-50 cursor-pointer group">
+          <input
+            type="checkbox"
+            id="${id}"
+            name="tool_scope"
+            value="${escapeHtml(tool.name)}"
+            ${checked}
+            class="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 accent-amber-600"
+          />
+          <span class="grid gap-0.5">
+            <code class="text-xs font-semibold text-stone-900">${escapeHtml(tool.name)}</code>
+            <span class="text-xs leading-5 text-stone-500">${escapeHtml(tool.description)}</span>
+          </span>
+        </label>
+      `;
+    })
+    .join("");
+};
+
+const applyEditPreset = (key: string) => {
+  const selected = editPresets[key] ?? [];
+  if (!editToolScopes) return;
+  editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
+    cb.checked = selected.includes(cb.value);
+  });
+};
+
+const getCheckedScopes = (): string[] => {
+  if (!editToolScopes) return [];
+  return Array.from(
+    editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked"),
+  ).map((cb) => cb.value);
+};
+
+const loadAndRenderTools = async (selectedScopes: string[] = []) => {
+  try {
+    if (!cachedTools.length) {
+      const payload = await listTools();
+      cachedTools = payload.tools;
+    }
+    renderToolCheckboxes(cachedTools, selectedScopes);
+  } catch {
+    if (editToolScopes) {
+      editToolScopes.innerHTML = `<p class="text-sm text-red-600 px-1">Failed to load tools. Check server connection.</p>`;
+    }
+  }
+};
+
 const currentPath = window.location.pathname.replace(/\/$/, "");
 const pathSegments = currentPath.split("/").filter(Boolean);
 const selectedClientId =
@@ -632,6 +736,11 @@ const renderDetail = async () => {
     document.title = `${detail.client.name} · Minder`;
     lastSelectedClientName = detail.client.name;
     detailTitle.textContent = detail.client.name;
+
+    // Populate edit form
+    if (editClientName) editClientName.value = detail.client.name;
+    if (editClientDescription) editClientDescription.value = detail.client.description;
+    void loadAndRenderTools(detail.client.tool_scopes);
     snippets.innerHTML = Object.entries(onboarding.templates)
       .map(([target, template]) => {
         const title = snippetTitles[target] ?? target.replaceAll("_", " ");
@@ -750,15 +859,75 @@ const renderDetail = async () => {
   }
 };
 
+const getCreateCheckedScopes = (): string[] => {
+  if (!createToolScopes) return [];
+  return Array.from(
+    createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked"),
+  ).map((cb) => cb.value);
+};
+
+const renderCreateToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
+  if (!createToolScopes) return;
+  if (!tools.length) {
+    createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">No tools available.</p>`;
+    return;
+  }
+  createToolScopes.innerHTML = tools
+    .map((tool) => {
+      const checked = selected.includes(tool.name) ? "checked" : "";
+      const id = `create-scope-${tool.name}`;
+      return `
+        <label for="${id}" class="flex items-start gap-3 rounded-xl px-2 py-2 hover:bg-stone-50 cursor-pointer">
+          <input
+            type="checkbox"
+            id="${id}"
+            name="create_tool_scope"
+            value="${escapeHtml(tool.name)}"
+            ${checked}
+            class="mt-0.5 h-4 w-4 shrink-0 rounded border-stone-300 accent-amber-600"
+          />
+          <span class="grid gap-0.5">
+            <code class="text-xs font-semibold text-stone-900">${escapeHtml(tool.name)}</code>
+            <span class="text-xs leading-5 text-stone-500">${escapeHtml(tool.description)}</span>
+          </span>
+        </label>
+      `;
+    })
+    .join("");
+};
+
+const loadCreateTools = async (selectedScopes: string[] = []) => {
+  try {
+    if (!cachedTools.length) {
+      const payload = await listTools();
+      cachedTools = payload.tools;
+    }
+    renderCreateToolCheckboxes(cachedTools, selectedScopes);
+  } catch {
+    if (createToolScopes) {
+      createToolScopes.innerHTML = `<p class="text-sm text-red-600 px-1">Failed to load tools.</p>`;
+    }
+  }
+};
+
 document.querySelectorAll("[data-tool-preset]").forEach((button) => {
   button.addEventListener("click", () => {
     const key = button.getAttribute("data-tool-preset") ?? "";
     const selected = presets[key] ?? [];
-    if (!(toolScopes instanceof HTMLSelectElement)) return;
-    Array.from(toolScopes.options).forEach((option) => {
-      option.selected = selected.includes(option.value);
+    if (!createToolScopes) return;
+    createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
+      cb.checked = selected.includes(cb.value);
     });
   });
+});
+
+document.querySelector("#create-refresh-tools")?.addEventListener("click", async () => {
+  cachedTools = [];
+  if (createToolScopes) {
+    createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
+  }
+  await loadCreateTools();
+  showToast("Tool list refreshed.", "success");
 });
 
 document
@@ -787,10 +956,7 @@ document
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
-    const selectedTools =
-      toolScopes instanceof HTMLSelectElement
-        ? Array.from(toolScopes.selectedOptions).map((option) => option.value)
-        : [];
+    const selectedTools = getCreateCheckedScopes();
 
     if (!name || !slug) {
       if (status) status.textContent = "Name and slug are required.";
@@ -929,5 +1095,62 @@ snippets?.addEventListener("click", async (event) => {
   }
 });
 
+// ─── Edit form — preset buttons ───────────────────────────────────────────────
+document.querySelectorAll("[data-edit-preset]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const key = button.getAttribute("data-edit-preset") ?? "";
+    applyEditPreset(key);
+  });
+});
+
+document.querySelector("#edit-select-none")?.addEventListener("click", () => {
+  if (!editToolScopes) return;
+  editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
+    cb.checked = false;
+  });
+});
+
+// ─── Edit form — refresh tools button ────────────────────────────────────────
+document.querySelector("#refresh-tools")?.addEventListener("click", async () => {
+  cachedTools = [];
+  const currentScopes = getCheckedScopes();
+  if (editToolScopes) {
+    editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
+  }
+  await loadAndRenderTools(currentScopes);
+  showToast("Tool list refreshed.", "success");
+});
+
+// ─── Edit form — submit ───────────────────────────────────────────────────────
+editClientForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (!selectedClientId) return;
+
+  const name = editClientName?.value.trim() ?? "";
+  const description = editClientDescription?.value.trim() ?? "";
+  const tool_scopes = getCheckedScopes();
+
+  if (!name) {
+    setEditStatus("Name is required.", "danger");
+    return;
+  }
+
+  setEditStatus("Saving changes...");
+  try {
+    const result = await updateClient(selectedClientId, { name, description, tool_scopes });
+    lastSelectedClientName = result.client.name;
+    if (detailTitle) detailTitle.textContent = result.client.name;
+    document.title = `${result.client.name} · Minder`;
+    setEditStatus("Changes saved.", "success");
+    showToast(`Saved ${result.client.slug}.`, "success");
+    await renderClients();
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unable to save changes.";
+    setEditStatus(message, "danger");
+    showToast(message, "danger");
+  }
+});
+
 void renderClients();
 void renderDetail();
+void loadCreateTools();

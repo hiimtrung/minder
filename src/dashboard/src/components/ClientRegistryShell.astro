@@ -54,33 +54,34 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           id="client-description"
           class="min-h-28 rounded-2xl border border-stone-300 bg-white px-4 py-3"
           placeholder="Description"></textarea>
-        <div class="flex flex-wrap gap-2">
-          <button type="button" data-tool-preset="query" class="action-pill"
-            >Query Only</button
-          >
-          <button type="button" data-tool-preset="read" class="action-pill"
-            >Read Only</button
-          >
-          <button type="button" data-tool-preset="full" class="action-pill"
-            >Full Dev Assistant</button
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-2">
+            <button type="button" data-tool-preset="query" class="action-pill"
+              >Query Only</button
+            >
+            <button type="button" data-tool-preset="read" class="action-pill"
+              >Read Only</button
+            >
+            <button type="button" data-tool-preset="full" class="action-pill"
+              >Full Dev Assistant</button
+            >
+          </div>
+          <button
+            type="button"
+            id="create-refresh-tools"
+            class="action-pill text-xs"
+            title="Reload tool list from server">Refresh tools</button
           >
         </div>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Tool scopes
-          <select
+        <div class="grid gap-2 text-sm text-stone-700">
+          <span class="font-medium">Tool scopes</span>
+          <div
             id="client-tool-scopes"
-            multiple
-            class="min-h-32 rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            class="min-h-32 rounded-2xl border border-stone-300 bg-white p-3 space-y-2"
           >
-            <option value="minder_query">minder_query</option>
-            <option value="minder_search_code">minder_search_code</option>
-            <option value="minder_search_errors">minder_search_errors</option>
-            <option value="minder_search">minder_search</option>
-            <option value="minder_memory_recall">minder_memory_recall</option>
-            <option value="minder_workflow_get">minder_workflow_get</option>
-            <option value="minder_workflow_step">minder_workflow_step</option>
-          </select>
-        </label>
+            <p class="text-sm text-stone-400 px-1">Loading tools...</p>
+          </div>
+        </div>
         <input
           id="client-repo-scopes"
           class="rounded-2xl border border-stone-300 bg-white px-4 py-3"

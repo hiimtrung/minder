@@ -551,45 +551,79 @@ const showToast = (
 };
 
 const presets: Record<string, string[]> = {
-  query: ["minder_query", "minder_search_code", "minder_search_errors"],
+  query: [
+    "minder_query",
+    "minder_search_code",
+    "minder_search_errors",
+    "minder_search",
+  ],
   read: [
     "minder_query",
     "minder_search_code",
     "minder_search_errors",
     "minder_search",
     "minder_memory_recall",
+    "minder_memory_list",
     "minder_workflow_get",
+    "minder_session_restore",
+    "minder_session_context",
   ],
   full: [
-    "minder_query",
+    "minder_memory_store",
+    "minder_memory_recall",
+    "minder_memory_list",
+    "minder_memory_delete",
+    "minder_search",
     "minder_search_code",
     "minder_search_errors",
-    "minder_search",
-    "minder_memory_recall",
+    "minder_query",
     "minder_workflow_get",
     "minder_workflow_step",
+    "minder_workflow_update",
+    "minder_workflow_guard",
+    "minder_session_create",
+    "minder_session_save",
+    "minder_session_restore",
+    "minder_session_context",
   ],
 };
 
 // ─── Edit preset map (mirrors create-form presets) ────────────────────────────
 const editPresets: Record<string, string[]> = {
-  query: ["minder_query", "minder_search_code", "minder_search_errors"],
+  query: [
+    "minder_query",
+    "minder_search_code",
+    "minder_search_errors",
+    "minder_search",
+  ],
   read: [
     "minder_query",
     "minder_search_code",
     "minder_search_errors",
     "minder_search",
     "minder_memory_recall",
+    "minder_memory_list",
     "minder_workflow_get",
+    "minder_session_restore",
+    "minder_session_context",
   ],
   full: [
-    "minder_query",
+    "minder_memory_store",
+    "minder_memory_recall",
+    "minder_memory_list",
+    "minder_memory_delete",
+    "minder_search",
     "minder_search_code",
     "minder_search_errors",
-    "minder_search",
-    "minder_memory_recall",
+    "minder_query",
     "minder_workflow_get",
     "minder_workflow_step",
+    "minder_workflow_update",
+    "minder_workflow_guard",
+    "minder_session_create",
+    "minder_session_save",
+    "minder_session_restore",
+    "minder_session_context",
   ],
 };
 
@@ -636,8 +670,14 @@ const renderToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
 };
 
 const applyEditPreset = (key: string) => {
-  const selected = editPresets[key] ?? [];
   if (!editToolScopes) return;
+  if (key === "all") {
+    editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
+      cb.checked = true;
+    });
+    return;
+  }
+  const selected = editPresets[key] ?? [];
   editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
     cb.checked = selected.includes(cb.value);
   });
@@ -913,8 +953,14 @@ const loadCreateTools = async (selectedScopes: string[] = []) => {
 document.querySelectorAll("[data-tool-preset]").forEach((button) => {
   button.addEventListener("click", () => {
     const key = button.getAttribute("data-tool-preset") ?? "";
-    const selected = presets[key] ?? [];
     if (!createToolScopes) return;
+    if (key === "all") {
+      createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
+        cb.checked = true;
+      });
+      return;
+    }
+    const selected = presets[key] ?? [];
     createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
       cb.checked = selected.includes(cb.value);
     });
@@ -1153,4 +1199,4 @@ editClientForm?.addEventListener("submit", async (event) => {
 
 void renderClients();
 void renderDetail();
-void loadCreateTools();
+if (createToolScopes) void loadCreateTools();

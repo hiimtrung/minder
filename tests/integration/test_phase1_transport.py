@@ -205,7 +205,6 @@ async def test_build_transport_registers_descriptions_for_all_runtime_tools(
     store: RelationalStore,
     config: MinderConfig,
 ) -> None:
-    auth = AuthService(store, config)
     transport = build_transport(config=config, store=store, vector_store=store, cache=None)
 
     assert set(transport.list_tools()) == set(TOOL_DESCRIPTIONS)

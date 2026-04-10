@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from importlib import import_module
 from pathlib import Path
 
 
@@ -13,8 +14,7 @@ def _bootstrap_src_path() -> None:
 
 _bootstrap_src_path()
 
-from minder.dev import main
-
 
 if __name__ == "__main__":
+    main = import_module("minder.dev").main
     raise SystemExit(main())

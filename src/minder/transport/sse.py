@@ -133,8 +133,8 @@ class SSETransport(BaseTransport):
     ) -> None:
         super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
         self._extra_routes = list(extra_routes or [])
-        self._legacy_sse_app: ASGIApp | None = None
-        self._streamable_http_app: ASGIApp | None = None
+        self._legacy_sse_app: Starlette | None = None
+        self._streamable_http_app: Starlette | None = None
 
     @staticmethod
     async def _oauth_protected_resource_metadata(request: Request) -> JSONResponse:
@@ -161,8 +161,8 @@ class SSETransport(BaseTransport):
             yield
 
     def build_starlette_app(self) -> Starlette:
-        legacy_sse_app = self._server.sse_app()
-        streamable_http_app = self._server.streamable_http_app()
+        legacy_sse_app: Starlette = self._server.sse_app()
+        streamable_http_app: Starlette = self._server.streamable_http_app()
         self._legacy_sse_app = legacy_sse_app
         self._streamable_http_app = streamable_http_app
         mcp_app = MCPCompatApp(

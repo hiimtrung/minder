@@ -1,40 +1,40 @@
 {
-  "updated_at": "2026-04-10T09:59:57.748185+07:00",
+  "updated_at": "2026-04-10T11:53:28.177622+07:00",
   "skills": {
-    "task": "mcp http transport python",
+    "task": "astro dashboard cleanup python lint tests",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-10T09:59:54.530831+07:00",
+    "resolved_at": "2026-04-10T11:53:17.793561+07:00",
     "keep": [],
     "add": [
-      "mcp-builder-ms",
-      "copilot-sdk",
-      "appdeploy"
+      "python-development-python-scaffold",
+      "aws-cost-cleanup",
+      "azure-containerregistry-py"
     ],
     "drop": [
-      "webapp-testing",
-      "diary",
-      "readme"
+      "ui-styling",
+      "instagram",
+      "grafana-dashboards"
     ],
     "skills": [
       {
-        "name": "mcp-builder-ms",
-        "category": "frontend",
-        "score": 0.022643443,
-        "chunk_count": 3,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "copilot-sdk",
-        "category": "general",
-        "score": 0.016393442,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "appdeploy",
+        "name": "python-development-python-scaffold",
         "category": "backend",
+        "score": 0.016393442,
+        "chunk_count": 1,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "aws-cost-cleanup",
+        "category": "general",
         "score": 0.016129032,
+        "chunk_count": 5,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "azure-containerregistry-py",
+        "category": "general",
+        "score": 0.015873017,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
@@ -42,99 +42,93 @@
   },
   "memory": {
     "mode": "search",
-    "query": "Antigravity MCP SSE streamable HTTP oauth protected resource",
+    "query": "ClientConsoleShell cleanup lint ruff test_phase1_transport",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-10T09:59:57.747128+07:00",
+    "searched_at": "2026-04-10T11:53:28.17619+07:00",
     "results": [
       {
-        "id": "73bd02bb-afa6-463a-8eaa-bdfa6311a1d4",
-        "title": "Auth \u0026 Client Tracking Feature — coder CLI",
+        "id": "fc7d00a2-97b4-4241-8f72-8f366acff0ba",
+        "title": "fixed lint regression after subscription consumer updates",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:auth-client-tracking-feature-coder-cli",
+        "canonical_key": "document:fixed-lint-regression-after-subscription-consumer-updates",
         "score": 0.086393446,
         "tags": [
-          "coder",
-          "auth",
-          "security",
-          "golang",
-          "client-tracking"
+          "omi-channel-be",
+          "lint",
+          "subscription-guard"
         ],
         "conflict_detected": false,
-        "content": "Implemented --secure mode for coder-node and client registration flow. New packages: domain/auth (Client, Activity entities + AuthRepository/AuthManager interfaces), infra/postgres/auth.go (coder_server_config, coder_clients, coder_client_activity tables, SHA-256 token hashing), usecase/auth/manager.go (bootstrap token generation, client registration, token validation), transport/http/middleware/auth.go (Bearer token middleware), transport/http/server/auth.go (/v1/auth/register-client, /v1/auth/clients, /v1/auth/log-activity). Client side: Config.Auth.AccessToken in config.json, cmd_login.go prompts for bootstrap token + auto-detects git identity, cmd_activity.go fire-and-forget logActivity(). HTTP clients (memory + skill) now accept accessToken param and inject Authorization: Bearer header. Server reads SECURE_MODE=true env var. Bootstrap token printed once at first startup. Open mode: all auth calls are no-ops."
+        "content": "Resolved project lint failure by removing unused AuthUserResponseDto import in src/auth/guards/subscription.guard.ts. Verified with yarn lint and yarn build both passing."
       },
       {
-        "id": "95aba6e0-1c65-4da0-9be0-22e611cf5233",
-        "title": "Phase 4.0 Wave 2 HTTP admin backend implemented",
+        "id": "079b909f-0464-472d-bbe1-c31533a103c9",
+        "title": "InboxSidebarProvider readability refactor",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-0-wave-2-http-admin-backend-implemented",
+        "canonical_key": "document:inboxsidebarprovider-readability-refactor",
         "score": 0.086129025,
         "tags": [
-          "minder",
-          "phase-4",
-          "wave-2",
-          "http",
-          "admin",
-          "token-exchange",
-          "redis"
+          "findtourgo",
+          "inboxes",
+          "refactor",
+          "readability",
+          "maintainability"
         ],
         "conflict_detected": false,
-        "content": "Implemented Phase 4.0 Wave 2 by adding HTTP/admin backend routes in src/minder/server.py using Starlette. New endpoints: POST /v1/auth/token-exchange, GET/POST /v1/admin/clients, GET /v1/admin/audit. Mounted these routes into the SSE runtime through src/minder/transport/sse.py so one process serves both MCP SSE and admin HTTP. Added integration test tests/integration/test_phase4_http_admin.py that verifies token exchange, admin create/list clients, audit query, and fakeredis-backed cache persistence for client sessions with principal resolution. Updated docs/PROJECT_PROGRESS.md to mark P4.0-Wave2 complete. Verified with ruff, mypy, and full pytest: 242 passed, 14 skipped. Committed as e124feb."
+        "content": "Improved readability without behavior changes by extracting helper utilities (mergeInboxWithRealtimeTimestamp, upsertAndSortInboxes), reducing duplicated state update logic in socket/detail/update handlers, and introducing completeCurrentDetailInboxRequest to centralize queue cleanup flow. File: src/app/[locale]/(company)/company/[companyId]/inboxes/providers/InboxSidebarProvider.tsx"
       },
       {
-        "id": "0dc05d3a-381d-4c01-af57-5fa6ad6fd6da",
-        "title": "Auth \u0026 Client Tracking with --secure mode in coder/coder-node",
+        "id": "83e543e5-c64f-461b-aa0c-ade74b4f6358",
+        "title": "Remove deprecated useUrlQueryState hook",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:auth-client-tracking-with-secure-mode-in-coder-coder-node",
+        "canonical_key": "document:remove-deprecated-useurlquerystate-hook",
         "score": 0.08587302,
         "tags": [
-          "coder",
-          "golang",
-          "authentication",
-          "secure-mode",
-          "bearer-token",
-          "client-tracking"
+          "findtourgo",
+          "cleanup",
+          "hooks",
+          "query-state"
         ],
         "conflict_detected": false,
-        "content": "ection, URL sanitisation), cmd/coder/cmd_login.go (registration flow with bootstrap token prompt + git identity detection), cmd/coder/config.go (Auth.AccessToken field in Config, passed to httpclient.NewClient and httpclient.NewSkillClient), cmd/coder-node/main.go (SECURE_MODE=true env var, bootstrap token printed once on first startup, httpmiddleware.Auth wraps the HTTP mux). HTTP clients updated: NewClient(baseURL, accessToken) and NewSkillClient(baseURL, accessToken) — addAuth() helper injects Bearer header on every request. logActivity() called at start of runMemoryStore, runMemorySearch, runSkillSearch, runSkillIngest."
+        "content": "Deleted src/hooks/common/useUrlQueryState.ts and src/hooks/common/useUrlQueryState.test.ts after migrating inbox filter to useSearchParamsState. Verified no remaining useUrlQueryState references under src and linted related hooks."
       },
       {
-        "id": "7739641d-7ab4-4f9e-be1b-2d020816a9a0",
-        "title": "Phase 4 Wave 1 rate limiting",
+        "id": "b866a920-bf3e-4bae-9efa-9d4c7bcd565c",
+        "title": "Contact merge cache invalidation hook",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-wave-1-rate-limiting",
+        "canonical_key": "document:contact-merge-cache-invalidation-hook",
         "score": 0.08562499,
         "tags": [
-          "phase4",
-          "rate-limiting",
-          "transport",
-          "auth"
+          "omi-channel-be",
+          "contact-merge",
+          "cache",
+          "redis",
+          "nestjs"
         ],
         "conflict_detected": false,
-        "content": "Implemented role-based MCP tool rate limiting in src/minder/auth/rate_limiter.py and enforced it centrally in BaseTransport after auth resolution. Settings now expose configurable thresholds for admin, member, readonly, and client principals. SSE and stdio both inherit the same enforcement because server wiring passes the shared cache provider into transport construction. Added unit coverage in tests/unit/test_rate_limiter.py and integration coverage in tests/integration/test_phase1_transport.py, then verified with a full suite pass: 250 passed, 14 skipped. docs/PROJECT_PROGRESS.md now has a dedicated broader Phase 4 tracker and marks P4-T04 done."
+        "content": "Implemented Redis-backed ContactResolutionService.clearResolutionCache and wired MergeContactsUseCase to invalidate master, slave, and flattened contact resolution keys after transaction commit with warning-only failure handling. Added focused specs and verified with yarn lint, yarn build, and yarn test. Files: src/modules/contacts/application/services/contact-resolution.service.ts, src/modules/contacts/application/use-cases/merge-contacts.use-case.ts, src/modules/contacts/application/use-cases/merge-contacts.use-case.spec.ts, src/modules/contacts/application/services/contact-resolution.service.spec.ts, src/modules/contacts/contacts.module.ts, docs/design/contact-merge-progress.md"
       },
       {
-        "id": "498133b0-b665-4b39-9aa3-67e200ce87a5",
-        "title": "Phase 01.1 shared API runtime",
+        "id": "922da774-0d6f-48bd-b4c2-63364e0841ae",
+        "title": "Deduplicate channel token refresh logic",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-01-1-shared-api-runtime",
+        "canonical_key": "document:deduplicate-channel-token-refresh-logic",
         "score": 0.08538462,
         "tags": [
-          "phase-01.1",
-          "api-runtime",
-          "auth",
-          "bearer-token",
-          "pdf",
-          "nextjs"
+          "omi-channel-be",
+          "channels",
+          "refactor",
+          "token-refresh",
+          "dedup"
         ],
         "conflict_detected": false,
-        "content": "Phase 01.1 plan 01 introduced a shared frontend API runtime under src/lib/api with NEXT_PUBLIC_API_BASE_URL config, one-level ApiSuccess data unwrapping, explicit 400/401/403/404/409/500+ error mapping, and a binary download helper. Auth session helpers in src/lib/auth/session.ts now support bearer tokens; the shared client clears session on 401, preserves it on 403, and refresh-token behavior remains intentionally deferred until the backend provides it."
+        "content": "Extracted duplicated LINE/ZALO token refresh logic into ChannelAccessTokenRefreshService. Service now handles provider-specific refresh operations, disconnect metadata cleanup, mark disconnected with reason, and mark connected after manual refresh. Refactored RefreshLINEAccessTokensUseCase, RefreshZALOAccessTokensUseCase, and RefreshChannelAccessTokenUseCase to reuse shared service methods. Registered service in channels.module providers."
       }
     ]
   }

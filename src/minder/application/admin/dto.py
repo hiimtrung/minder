@@ -81,3 +81,70 @@ class AdminSessionPayload(TypedDict):
     email: str
     display_name: str
     role: str
+
+
+# ---------------------------------------------------------------------------
+# User management
+# ---------------------------------------------------------------------------
+
+class UserPayload(TypedDict):
+    id: str
+    username: str
+    email: str
+    display_name: str
+    role: str
+    is_active: bool
+    created_at: str | None
+
+
+class UserListPayload(TypedDict):
+    users: list[UserPayload]
+
+
+class UserDetailPayload(TypedDict):
+    user: UserPayload
+
+
+# ---------------------------------------------------------------------------
+# Workflow management
+# ---------------------------------------------------------------------------
+
+class WorkflowStepPayload(TypedDict):
+    name: str
+    description: str
+    gate: str | None
+
+
+class WorkflowPayload(TypedDict):
+    id: str
+    name: str
+    description: str
+    enforcement: str
+    steps: list[WorkflowStepPayload]
+    created_at: str | None
+
+
+class WorkflowListPayload(TypedDict):
+    workflows: list[WorkflowPayload]
+
+
+class WorkflowDetailPayload(TypedDict):
+    workflow: WorkflowPayload
+
+
+# ---------------------------------------------------------------------------
+# Repository management
+# ---------------------------------------------------------------------------
+
+class RepositoryPayload(TypedDict):
+    id: str
+    name: str
+    path: str
+    workflow_name: str | None
+    workflow_state: str | None
+    current_step: str | None
+    created_at: str | None
+
+
+class RepositoryListPayload(TypedDict):
+    repositories: list[RepositoryPayload]

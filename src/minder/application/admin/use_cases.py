@@ -17,8 +17,17 @@ from minder.application.admin.dto import (
     ClientPayload,
     CreateClientPayload,
     OnboardingPayload,
+    RepositoryListPayload,
+    RepositoryPayload,
     RevokeKeysPayload,
     SetupResultPayload,
+    UserDetailPayload,
+    UserListPayload,
+    UserPayload,
+    WorkflowDetailPayload,
+    WorkflowListPayload,
+    WorkflowPayload,
+    WorkflowStepPayload,
 )
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
@@ -304,4 +313,162 @@ class AdminConsoleUseCases:
             "resource_id": event.resource_id,
             "outcome": event.outcome,
             "created_at": event.created_at.isoformat() if event.created_at else None,
+        }
+
+    # ------------------------------------------------------------------
+    # User management
+    # ------------------------------------------------------------------
+
+    async def list_users(self, *, active_only: bool = False) -> UserListPayload:
+        users = await self._store.list_users(active_only=active_only)
+        return {"users": [self.serialize_user(u) for u in users]}
+
+    async def get_user_detail(self, user_id: uuid.UUID) -> UserDetailPayload:
+        user = await self._store.get_user_by_id(user_id)
+        if user is None:
+            raise LookupError(f"User {user_id} not found")
+        return {"user": self.serialize_user(user)}
+
+    async def update_user(
+        self,
+        user_id: uuid.UUID,
+        *,
+        role: str | None = None,
+        is_active: bool | None = None,
+        display_name: str | None = None,
+    ) -> UserDetailPayload:
+        kwargs: dict[str, Any] = {}
+        if role is not None:
+            kwargs["role"] = role
+        if is_active is not None:
+            kwargs["is_active"] = is_active
+        if display_name is not None:
+            kwargs["display_name"] = display_name
+        updated = await self._store.update_user(user_id, **kwargs)
+        if updated is None:
+            raise LookupError(f"User {user_id} not found")
+        return {"user": self.serialize_user(updated)}
+
+    async def deactivate_user(self, user_id: uuid.UUID) -> UserDetailPayload:
+        return await self.update_user(user_id, is_active=False)
+
+    @staticmethod
+    def serialize_user(user: Any) -> UserPayload:
+        return {
+            "id": str(user.id),
+            "username": user.username,
+            "email": user.email,
+            "display_name": getattr(user, "display_name", user.username),
+            "role": user.role,
+            "is_active": bool(getattr(user, "is_active", True)),
+            "created_at": user.created_at.isoformat() if getattr(user, "created_at", None) else None,
+        }
+
+    # ------------------------------------------------------------------
+    # Workflow management
+    # ------------------------------------------------------------------
+
+    async def list_workflows(self) -> WorkflowListPayload:
+        workflows = await self._store.list_workflows()
+        return {"workflows": [self.serialize_workflow(w) for w in workflows]}
+
+    async def get_workflow_detail(self, workflow_id: uuid.UUID) -> WorkflowDetailPayload:
+        workflow = await self._store.get_workflow_by_id(workflow_id)
+        if workflow is None:
+            raise LookupError(f"Workflow {workflow_id} not found")
+        return {"workflow": self.serialize_workflow(workflow)}
+
+    async def create_workflow(
+        self,
+        *,
+        name: str,
+        description: str = "",
+        enforcement: str = "strict",
+        steps: list[dict[str, Any]] | None = None,
+    ) -> WorkflowDetailPayload:
+        workflow = await self._store.create_workflow(
+            id=uuid.uuid4(),
+            name=name,
+            description=description,
+            enforcement=enforcement,
+            steps=steps or [],
+        )
+        return {"workflow": self.serialize_workflow(workflow)}
+
+    async def update_workflow(
+        self,
+        workflow_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        description: str | None = None,
+        enforcement: str | None = None,
+        steps: list[dict[str, Any]] | None = None,
+    ) -> WorkflowDetailPayload:
+        kwargs: dict[str, Any] = {}
+        if name is not None:
+            kwargs["name"] = name
+        if description is not None:
+            kwargs["description"] = description
+        if enforcement is not None:
+            kwargs["enforcement"] = enforcement
+        if steps is not None:
+            kwargs["steps"] = steps
+        updated = await self._store.update_workflow(workflow_id, **kwargs)
+        if updated is None:
+            raise LookupError(f"Workflow {workflow_id} not found")
+        return {"workflow": self.serialize_workflow(updated)}
+
+    async def delete_workflow(self, workflow_id: uuid.UUID) -> dict[str, bool]:
+        existing = await self._store.get_workflow_by_id(workflow_id)
+        if existing is None:
+            raise LookupError(f"Workflow {workflow_id} not found")
+        await self._store.delete_workflow(workflow_id)
+        return {"deleted": True}
+
+    @staticmethod
+    def serialize_workflow(workflow: Any) -> WorkflowPayload:
+        raw_steps = getattr(workflow, "steps", []) or []
+        steps: list[WorkflowStepPayload] = [
+            {
+                "name": s.get("name", "") if isinstance(s, dict) else str(s),
+                "description": s.get("description", "") if isinstance(s, dict) else "",
+                "gate": s.get("gate", None) if isinstance(s, dict) else None,
+            }
+            for s in raw_steps
+        ]
+        return {
+            "id": str(workflow.id),
+            "name": workflow.name,
+            "description": getattr(workflow, "description", ""),
+            "enforcement": getattr(workflow, "enforcement", "strict"),
+            "steps": steps,
+            "created_at": workflow.created_at.isoformat() if getattr(workflow, "created_at", None) else None,
+        }
+
+    # ------------------------------------------------------------------
+    # Repository management
+    # ------------------------------------------------------------------
+
+    async def list_repositories(self) -> RepositoryListPayload:
+        repos = await self._store.list_repositories()
+        result: list[RepositoryPayload] = []
+        for repo in repos:
+            state = None
+            try:
+                state = await self._store.get_workflow_state_by_repo(repo.id)
+            except Exception:
+                pass
+            result.append(self.serialize_repository(repo, state))
+        return {"repositories": result}
+
+    @staticmethod
+    def serialize_repository(repo: Any, state: Any = None) -> RepositoryPayload:
+        return {
+            "id": str(repo.id),
+            "name": repo.name,
+            "path": getattr(repo, "path", ""),
+            "workflow_name": getattr(state, "workflow_name", None) if state else None,
+            "workflow_state": getattr(state, "state", None) if state else None,
+            "current_step": getattr(state, "current_step", None) if state else None,
+            "created_at": repo.created_at.isoformat() if getattr(repo, "created_at", None) else None,
         }

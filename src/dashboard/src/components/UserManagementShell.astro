@@ -1,0 +1,118 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="User Management · Minder"
+  description="Manage admin users — view roles, activate/deactivate accounts, and update display names."
+  navTitle="Minder User Management"
+  navDescription="Administer the users who have access to the Minder dashboard and admin API."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
+    { href: "/dashboard/users", label: "User Management", tone: "primary" },
+  ]}
+>
+  <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div class="space-y-3">
+      <p class="eyebrow">User Management</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Manage admin users.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        View all registered admin users, update their roles and display names,
+        and deactivate accounts that no longer need access to the Minder
+        dashboard.
+      </p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+      <label class="flex items-center gap-2 text-sm text-stone-700">
+        <input type="checkbox" id="show-inactive-toggle" class="accent-amber-600" />
+        Show inactive users
+      </label>
+    </div>
+  </section>
+
+  <section class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
+    <!-- Edit panel (shown when a user row is selected) -->
+    <aside class="shell-card p-7">
+      <p class="eyebrow">Edit User</p>
+      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+        User details
+      </h2>
+      <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
+        Select a user from the list to edit their profile.
+      </p>
+
+      <form id="edit-user-form" class="mt-6 grid gap-4 hidden">
+        <label class="grid gap-2 text-sm text-stone-700">
+          Display name
+          <input
+            id="edit-user-display-name"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+            placeholder="Display name"
+          />
+        </label>
+
+        <label class="grid gap-2 text-sm text-stone-700">
+          Role
+          <select
+            id="edit-user-role"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+          >
+            <option value="admin">Admin</option>
+            <option value="member">Member</option>
+            <option value="readonly">Read Only</option>
+          </select>
+        </label>
+
+        <div class="flex items-center gap-3">
+          <input
+            type="checkbox"
+            id="edit-user-is-active"
+            class="h-4 w-4 rounded border-stone-300 accent-amber-600"
+          />
+          <label for="edit-user-is-active" class="text-sm text-stone-700">
+            Active (uncheck to deactivate)
+          </label>
+        </div>
+
+        <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
+        <div class="flex gap-2">
+          <button type="submit" class="primary-pill flex-1">Save changes</button>
+          <button
+            type="button"
+            id="cancel-edit-user"
+            class="action-pill">Cancel</button
+          >
+        </div>
+      </form>
+    </aside>
+
+    <!-- User list -->
+    <div class="grid gap-6">
+      <section
+        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+      >
+        <div>
+          <p class="text-sm font-medium text-stone-900">User roster</p>
+          <p class="mt-1 text-sm text-stone-600">
+            Click any user row to load their profile into the edit panel.
+            Deactivating a user invalidates their session but preserves their
+            audit history.
+          </p>
+        </div>
+        <a href="/dashboard" class="action-pill">Dashboard home</a>
+      </section>
+
+      <div id="user-list" class="grid gap-3">
+        <div
+          class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600"
+        >
+          Loading users...
+        </div>
+      </div>
+    </div>
+  </section>
+  <script src="../scripts/users-page.ts"></script>
+</DashboardLayout>

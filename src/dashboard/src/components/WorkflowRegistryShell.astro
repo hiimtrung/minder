@@ -1,0 +1,109 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="Workflow Registry · Minder"
+  description="Manage workflow definitions — create, edit, and assign TDD/review workflows to repositories."
+  navTitle="Minder Workflow Registry"
+  navDescription="Define and manage the step-gated workflows that govern your AI agent's delivery process."
+  sessionControls={true}
+  navLinks={[
+    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
+    { href: "/dashboard/workflows", label: "Workflows", tone: "primary" },
+  ]}
+>
+  <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
+    <div class="space-y-3">
+      <p class="eyebrow">Workflow Registry</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Manage delivery workflows.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        Create step-gated workflows that control how Minder guides AI agents
+        through your development process. Assign workflows to repositories and
+        track their progress from a single view.
+      </p>
+    </div>
+  </section>
+
+  <section class="grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
+    <!-- Create workflow form -->
+    <aside class="shell-card p-7">
+      <p class="eyebrow">Create Workflow</p>
+      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+        New workflow definition
+      </h2>
+      <p class="mt-3 text-sm leading-6 text-stone-600">
+        Define a named sequence of steps with optional gate conditions.
+        Steps are enforced in order; an agent cannot advance until each
+        gate passes.
+      </p>
+
+      <form id="create-workflow-form" class="mt-6 grid gap-4">
+        <input
+          id="workflow-name"
+          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Name (e.g. tdd, review)"
+        />
+        <textarea
+          id="workflow-description"
+          class="min-h-20 rounded-2xl border border-stone-300 bg-white px-4 py-3"
+          placeholder="Description"></textarea>
+
+        <label class="grid gap-2 text-sm text-stone-700">
+          Enforcement
+          <select
+            id="workflow-enforcement"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+          >
+            <option value="strict">Strict — block on gate failure</option>
+            <option value="advisory">Advisory — warn only</option>
+            <option value="off">Off — no enforcement</option>
+          </select>
+        </label>
+
+        <div class="grid gap-2 text-sm text-stone-700">
+          <div class="flex items-center justify-between gap-2">
+            <span class="font-medium">Steps</span>
+            <button
+              type="button"
+              id="add-step-button"
+              class="action-pill text-xs">+ Add step</button
+            >
+          </div>
+          <div id="workflow-steps-list" class="grid gap-2">
+            <!-- Steps rendered by JS -->
+            <p class="px-1 text-xs text-stone-400">No steps yet — add the first one above.</p>
+          </div>
+        </div>
+
+        <p id="create-workflow-status" class="min-h-6 text-sm text-stone-600"></p>
+        <button type="submit" class="primary-pill w-full">Create workflow</button>
+      </form>
+    </aside>
+
+    <!-- Workflow list -->
+    <div class="grid gap-6">
+      <section
+        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+      >
+        <div>
+          <p class="text-sm font-medium text-stone-900">Navigator</p>
+          <p class="mt-1 text-sm text-stone-600">
+            Open any workflow card to edit steps, change enforcement, or
+            review which repositories are using it.
+          </p>
+        </div>
+        <a href="/dashboard" class="action-pill">Dashboard home</a>
+      </section>
+
+      <div id="workflow-registry" class="grid gap-4 md:grid-cols-2">
+        <article class="shell-card p-6 text-sm text-stone-600">
+          Loading workflows...
+        </article>
+      </div>
+    </div>
+  </section>
+  <script src="../scripts/workflows-page.ts"></script>
+</DashboardLayout>

@@ -231,6 +231,158 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         actor_id = request.query_params.get("actor_id")
         return JSONResponse(await context.use_cases.list_audit(actor_id=actor_id))
 
+    # ------------------------------------------------------------------
+    # User management
+    # ------------------------------------------------------------------
+
+    async def admin_users(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        active_only = request.query_params.get("active_only", "false").lower() == "true"
+        return JSONResponse(await context.use_cases.list_users(active_only=active_only))
+
+    async def user_detail(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        user_id = uuid.UUID(str(request.path_params["user_id"]))
+
+        if request.method == "GET":
+            try:
+                return JSONResponse(await context.use_cases.get_user_detail(user_id))
+            except LookupError:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            try:
+                return JSONResponse(
+                    await context.use_cases.update_user(
+                        user_id,
+                        role=payload.get("role"),
+                        is_active=payload.get("is_active"),
+                        display_name=payload.get("display_name"),
+                    )
+                )
+            except LookupError:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        if request.method == "DELETE":
+            try:
+                return JSONResponse(await context.use_cases.deactivate_user(user_id))
+            except LookupError:
+                return JSONResponse({"error": "User not found"}, status_code=404)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    # ------------------------------------------------------------------
+    # Workflow management
+    # ------------------------------------------------------------------
+
+    async def admin_workflows(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if request.method == "GET":
+            return JSONResponse(await context.use_cases.list_workflows())
+
+        if request.method == "POST":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            name = str(payload.get("name", "")).strip()
+            if not name:
+                return JSONResponse({"error": "name is required"}, status_code=400)
+            try:
+                return JSONResponse(
+                    await context.use_cases.create_workflow(
+                        name=name,
+                        description=str(payload.get("description", "")),
+                        enforcement=str(payload.get("enforcement", "strict")),
+                        steps=payload.get("steps"),
+                    ),
+                    status_code=201,
+                )
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    async def workflow_detail(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        workflow_id = uuid.UUID(str(request.path_params["workflow_id"]))
+
+        if request.method == "GET":
+            try:
+                return JSONResponse(await context.use_cases.get_workflow_detail(workflow_id))
+            except LookupError:
+                return JSONResponse({"error": "Workflow not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            try:
+                return JSONResponse(
+                    await context.use_cases.update_workflow(
+                        workflow_id,
+                        name=payload.get("name"),
+                        description=payload.get("description"),
+                        enforcement=payload.get("enforcement"),
+                        steps=payload.get("steps"),
+                    )
+                )
+            except LookupError:
+                return JSONResponse({"error": "Workflow not found"}, status_code=404)
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        if request.method == "DELETE":
+            try:
+                return JSONResponse(await context.use_cases.delete_workflow(workflow_id))
+            except LookupError:
+                return JSONResponse({"error": "Workflow not found"}, status_code=404)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    # ------------------------------------------------------------------
+    # Repository management
+    # ------------------------------------------------------------------
+
+    async def admin_repositories(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse(await context.use_cases.list_repositories())
+
     return [
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
@@ -246,4 +398,12 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/clients/{client_id:uuid}/keys/revoke", client_key_revoke, methods=["POST"]),
         Route("/v1/admin/onboarding/{client_id:uuid}", client_onboarding, methods=["GET"]),
         Route("/v1/admin/audit", admin_audit, methods=["GET"]),
+        # User management
+        Route("/v1/admin/users", admin_users, methods=["GET"]),
+        Route("/v1/admin/users/{user_id:uuid}", user_detail, methods=["GET", "PATCH", "DELETE"]),
+        # Workflow management
+        Route("/v1/admin/workflows", admin_workflows, methods=["GET", "POST"]),
+        Route("/v1/admin/workflows/{workflow_id:uuid}", workflow_detail, methods=["GET", "PATCH", "DELETE"]),
+        # Repository management
+        Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
     ]

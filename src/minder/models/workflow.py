@@ -10,6 +10,8 @@ from .base import Base, BaseModelMeta
 class WorkflowSchema(BaseModelMeta):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     name: str
+    description: str = ""
+    enforcement: str = "strict"
     version: int = 1
     steps: List[Dict[str, Any]] = Field(default_factory=list)
     policies: Dict[str, Any] = Field(default_factory=dict)
@@ -23,6 +25,8 @@ class Workflow(Base):
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[str] = mapped_column(String, index=True, default="default")
     name: Mapped[str] = mapped_column(String, index=True)
+    description: Mapped[str] = mapped_column(String, default="")
+    enforcement: Mapped[str] = mapped_column(String, default="strict")
     version: Mapped[int] = mapped_column(Integer, default=1)
     steps: Mapped[Dict[str, Any]] = mapped_column(JSON, default=list)  # list of step dicts
     policies: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)

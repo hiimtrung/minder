@@ -292,3 +292,128 @@ export async function exchangeClientKey(
     body: JSON.stringify({ client_api_key }),
   });
 }
+
+// ---------------------------------------------------------------------------
+// User management
+// ---------------------------------------------------------------------------
+
+export type UserPayload = {
+  id: string;
+  username: string;
+  email: string;
+  display_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string | null;
+};
+
+export type UserListPayload = { users: UserPayload[] };
+export type UserDetailPayload = { user: UserPayload };
+
+export async function listUsers(activeOnly = false): Promise<UserListPayload> {
+  const query = activeOnly ? "?active_only=true" : "";
+  return requestJson<UserListPayload>(`/v1/admin/users${query}`);
+}
+
+export async function getUserDetail(userId: string): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`);
+}
+
+export async function updateUser(
+  userId: string,
+  payload: { role?: string; is_active?: boolean; display_name?: string },
+): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deactivateUser(userId: string): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Workflow management
+// ---------------------------------------------------------------------------
+
+export type WorkflowStepPayload = {
+  name: string;
+  description: string;
+  gate: string | null;
+};
+
+export type WorkflowPayload = {
+  id: string;
+  name: string;
+  description: string;
+  enforcement: string;
+  steps: WorkflowStepPayload[];
+  created_at: string | null;
+};
+
+export type WorkflowListPayload = { workflows: WorkflowPayload[] };
+export type WorkflowDetailPayload = { workflow: WorkflowPayload };
+
+export async function listWorkflows(): Promise<WorkflowListPayload> {
+  return requestJson<WorkflowListPayload>("/v1/admin/workflows");
+}
+
+export async function getWorkflowDetail(workflowId: string): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>(`/v1/admin/workflows/${workflowId}`);
+}
+
+export async function createWorkflow(payload: {
+  name: string;
+  description?: string;
+  enforcement?: string;
+  steps?: WorkflowStepPayload[];
+}): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>("/v1/admin/workflows", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateWorkflow(
+  workflowId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    enforcement?: string;
+    steps?: WorkflowStepPayload[];
+  },
+): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>(`/v1/admin/workflows/${workflowId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(`/v1/admin/workflows/${workflowId}`, {
+    method: "DELETE",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Repository management
+// ---------------------------------------------------------------------------
+
+export type RepositoryPayload = {
+  id: string;
+  name: string;
+  path: string;
+  workflow_name: string | null;
+  workflow_state: string | null;
+  current_step: string | null;
+  created_at: string | null;
+};
+
+export type RepositoryListPayload = { repositories: RepositoryPayload[] };
+
+export async function listRepositories(): Promise<RepositoryListPayload> {
+  return requestJson<RepositoryListPayload>("/v1/admin/repositories");
+}

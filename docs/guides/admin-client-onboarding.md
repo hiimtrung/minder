@@ -98,7 +98,7 @@ Use the `Create Client` form to submit:
 
 Quick UX notes:
 
-- use preset buttons like `Query Only`, `Read Only`, or `Full Dev Assistant` to prefill `Tool Scopes`
+- use preset buttons like `Query Only`, `Read Only`, or `All` to prefill `Tool Scopes`
 - use `All Repos (*)` when the client should not be limited to one repository
 - use `Custom Repo Scopes` when the path you need is not already listed
 

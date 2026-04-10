@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from minder.config import MinderConfig
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
 from minder.store.interfaces import IOperationalStore, IVectorStore
@@ -25,7 +25,7 @@ class QueryTools:
         self._config = config
         self._graph = graph or MinderGraph(store, config)
         self._vector_store = vector_store or VectorStore(store, store)
-        self._embedding_provider = QwenEmbeddingProvider(
+        self._embedding_provider = LocalEmbeddingProvider(
             config.embedding.model_path,
             dimensions=config.embedding.dimensions,
             runtime="auto",

@@ -16,6 +16,7 @@ from minder.application.admin.dto import (
     ClientListPayload,
     ClientPayload,
     CreateClientPayload,
+    CreateUserPayload,
     OnboardingPayload,
     RepositoryListPayload,
     RepositoryPayload,
@@ -385,6 +386,24 @@ class AdminConsoleUseCases:
     async def list_users(self, *, active_only: bool = False) -> UserListPayload:
         users = await self._store.list_users(active_only=active_only)
         return {"users": [self.serialize_user(u) for u in users]}
+
+    async def create_user(
+        self,
+        *,
+        username: str,
+        email: str,
+        display_name: str,
+        role: str = "admin",
+        password: str | None = None,
+    ) -> CreateUserPayload:
+        user, api_key = await self._auth_service.register_user(
+            email=email,
+            username=username,
+            display_name=display_name,
+            role=role,
+            password=password,
+        )
+        return {"user": self.serialize_user(user), "api_key": api_key}
 
     async def get_user_detail(self, user_id: uuid.UUID) -> UserDetailPayload:
         user = await self._store.get_user_by_id(user_id)

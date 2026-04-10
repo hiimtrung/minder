@@ -36,7 +36,7 @@ At runtime:
 ## Prerequisites
 
 - Docker Engine or Docker Desktop
-- local Qwen GGUF files under `~/.minder/models`
+- local EmbeddingGemma and Gemma GGUF files under `~/.minder/models`
 - enough memory for MongoDB, Redis, Milvus, and local inference
 - `Bun 1.2.21` for local dashboard work
 - `Node 22.12+` only if you run frontend tooling outside Bun

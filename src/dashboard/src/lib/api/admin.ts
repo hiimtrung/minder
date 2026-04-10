@@ -336,13 +336,29 @@ export type UserPayload = {
 
 export type UserListPayload = { users: UserPayload[] };
 export type UserDetailPayload = { user: UserPayload; clients: ClientPayload[] };
+export type CreateUserPayload = { user: UserPayload; api_key: string };
+
+export async function createUser(payload: {
+  username: string;
+  email: string;
+  display_name: string;
+  role?: string;
+  password?: string;
+}): Promise<CreateUserPayload> {
+  return requestJson<CreateUserPayload>("/v1/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
 
 export async function listUsers(activeOnly = false): Promise<UserListPayload> {
   const query = activeOnly ? "?active_only=true" : "";
   return requestJson<UserListPayload>(`/v1/admin/users${query}`);
 }
 
-export async function getUserDetail(userId: string): Promise<UserDetailPayload> {
+export async function getUserDetail(
+  userId: string,
+): Promise<UserDetailPayload> {
   return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`);
 }
 
@@ -356,7 +372,9 @@ export async function updateUser(
   });
 }
 
-export async function deactivateUser(userId: string): Promise<UserDetailPayload> {
+export async function deactivateUser(
+  userId: string,
+): Promise<UserDetailPayload> {
   return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`, {
     method: "DELETE",
   });
@@ -388,8 +406,12 @@ export async function listWorkflows(): Promise<WorkflowListPayload> {
   return requestJson<WorkflowListPayload>("/v1/admin/workflows");
 }
 
-export async function getWorkflowDetail(workflowId: string): Promise<WorkflowDetailPayload> {
-  return requestJson<WorkflowDetailPayload>(`/v1/admin/workflows/${workflowId}`);
+export async function getWorkflowDetail(
+  workflowId: string,
+): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>(
+    `/v1/admin/workflows/${workflowId}`,
+  );
 }
 
 export async function createWorkflow(payload: {
@@ -413,16 +435,24 @@ export async function updateWorkflow(
     steps?: WorkflowStepPayload[];
   },
 ): Promise<WorkflowDetailPayload> {
-  return requestJson<WorkflowDetailPayload>(`/v1/admin/workflows/${workflowId}`, {
-    method: "PATCH",
-    body: JSON.stringify(payload),
-  });
+  return requestJson<WorkflowDetailPayload>(
+    `/v1/admin/workflows/${workflowId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
 }
 
-export async function deleteWorkflow(workflowId: string): Promise<{ deleted: boolean }> {
-  return requestJson<{ deleted: boolean }>(`/v1/admin/workflows/${workflowId}`, {
-    method: "DELETE",
-  });
+export async function deleteWorkflow(
+  workflowId: string,
+): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(
+    `/v1/admin/workflows/${workflowId}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------

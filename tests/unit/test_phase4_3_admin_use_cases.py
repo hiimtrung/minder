@@ -71,6 +71,35 @@ async def test_admin_use_cases_create_client_and_shape_typed_payloads(
 
 
 @pytest.mark.asyncio
+async def test_admin_use_cases_can_create_user_and_reveal_api_key(
+    store: RelationalStore,
+    config: MinderConfig,
+    auth: AuthService,
+) -> None:
+    from minder.application.admin.use_cases import AdminConsoleUseCases
+
+    await auth.register_user(
+        email="admin-owner@example.com",
+        username="admin_owner",
+        display_name="Admin Owner",
+        role=UserRole.ADMIN,
+    )
+    use_cases = AdminConsoleUseCases(store=store, auth_service=auth, config=config)
+
+    created = await use_cases.create_user(
+        username="new_admin",
+        email="new-admin@example.com",
+        display_name="New Admin",
+        role="admin",
+        password="secret-pass",
+    )
+
+    assert created["user"]["username"] == "new_admin"
+    assert created["user"]["role"] == "admin"
+    assert created["api_key"].startswith("mk_")
+
+
+@pytest.mark.asyncio
 async def test_admin_use_cases_detail_onboarding_activity_and_connection_contracts(
     store: RelationalStore,
     config: MinderConfig,
@@ -110,14 +139,15 @@ async def test_admin_use_cases_detail_onboarding_activity_and_connection_contrac
     assert activity[0]["event_type"] == "client.created"
 
     connection = await use_cases.test_client_connection(client_api_key)
+    base_url = f"http://localhost:{config.server.port}"
     assert connection["ok"] is True
     assert connection["client"]["slug"] == "detail-client"
     assert "claude_code" in connection["templates"]
     assert "antigravity" in connection["templates"]
     assert "cursor" in connection["templates"]
-    assert 'url = "http://localhost:8801/sse"' in connection["templates"]["codex"]
-    assert '"serverUrl":"http://localhost:8801/mcp"' in connection["templates"]["antigravity"]
-    assert '"url":"http://localhost:8801/mcp"' in connection["templates"]["cursor"]
+    assert f'url = "{base_url}/sse"' in connection["templates"]["codex"]
+    assert f'"serverUrl":"{base_url}/mcp"' in connection["templates"]["antigravity"]
+    assert f'"url":"{base_url}/mcp"' in connection["templates"]["cursor"]
 
     with pytest.raises(LookupError):
         await use_cases.get_client_detail(uuid.uuid4())

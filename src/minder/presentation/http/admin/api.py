@@ -267,6 +267,39 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": "Admin role required"}, status_code=403)
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if request.method == "POST":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+
+            username = str(payload.get("username", "")).strip()
+            email = str(payload.get("email", "")).strip()
+            display_name = str(payload.get("display_name", "")).strip()
+            role = str(payload.get("role", "admin")).strip() or "admin"
+            password = str(payload.get("password", "")).strip() or None
+
+            if not username or not email or not display_name:
+                return JSONResponse(
+                    {"error": "username, email, and display_name are required"},
+                    status_code=400,
+                )
+
+            try:
+                return JSONResponse(
+                    await context.use_cases.create_user(
+                        username=username,
+                        email=email,
+                        display_name=display_name,
+                        role=role,
+                        password=password,
+                    ),
+                    status_code=201,
+                )
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
         active_only = request.query_params.get("active_only", "false").lower() == "true"
         return JSONResponse(await context.use_cases.list_users(active_only=active_only))
 
@@ -437,7 +470,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/onboarding/{client_id:uuid}", client_onboarding, methods=["GET"]),
         Route("/v1/admin/audit", admin_audit, methods=["GET"]),
         # User management
-        Route("/v1/admin/users", admin_users, methods=["GET"]),
+        Route("/v1/admin/users", admin_users, methods=["GET", "POST"]),
         Route("/v1/admin/users/{user_id:uuid}", user_detail, methods=["GET", "PATCH", "DELETE"]),
         # Workflow management
         Route("/v1/admin/workflows", admin_workflows, methods=["GET", "POST"]),

@@ -1,8 +1,10 @@
 import {
+  createUser,
   getUserDetail,
   listUsers,
   updateUser,
   type ClientPayload,
+  type CreateUserPayload,
   type UserDetailPayload,
   type UserPayload,
 } from "../lib/api/admin";
@@ -12,11 +14,37 @@ import {
 // ---------------------------------------------------------------------------
 
 const userListEl = document.querySelector("#user-list");
+const createUserForm = document.querySelector("#create-user-form");
+const createUserUsername = document.querySelector(
+  "#create-user-username",
+) as HTMLInputElement | null;
+const createUserEmail = document.querySelector(
+  "#create-user-email",
+) as HTMLInputElement | null;
+const createUserDisplayName = document.querySelector(
+  "#create-user-display-name",
+) as HTMLInputElement | null;
+const createUserRole = document.querySelector(
+  "#create-user-role",
+) as HTMLSelectElement | null;
+const createUserPassword = document.querySelector(
+  "#create-user-password",
+) as HTMLInputElement | null;
+const createUserStatus = document.querySelector("#create-user-status");
+const createUserResult = document.querySelector("#create-user-result");
+const createUserResultHint = document.querySelector("#create-user-result-hint");
+const createUserApiKey = document.querySelector("#create-user-api-key");
 const editUserForm = document.querySelector("#edit-user-form");
 const editUserHint = document.querySelector("#edit-user-hint");
-const editDisplayName = document.querySelector("#edit-user-display-name") as HTMLInputElement | null;
-const editRole = document.querySelector("#edit-user-role") as HTMLSelectElement | null;
-const editIsActive = document.querySelector("#edit-user-is-active") as HTMLInputElement | null;
+const editDisplayName = document.querySelector(
+  "#edit-user-display-name",
+) as HTMLInputElement | null;
+const editRole = document.querySelector(
+  "#edit-user-role",
+) as HTMLSelectElement | null;
+const editIsActive = document.querySelector(
+  "#edit-user-is-active",
+) as HTMLInputElement | null;
 const editUserStatus = document.querySelector("#edit-user-status");
 const cancelEditButton = document.querySelector("#cancel-edit-user");
 const showInactiveToggle = document.querySelector(
@@ -42,7 +70,11 @@ const showToast = (
   toast.className =
     "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
   if (tone === "success") {
-    toast.classList.add("border-emerald-200", "bg-emerald-50/95", "text-emerald-900");
+    toast.classList.add(
+      "border-emerald-200",
+      "bg-emerald-50/95",
+      "text-emerald-900",
+    );
   } else if (tone === "danger") {
     toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
   } else {
@@ -67,6 +99,69 @@ const escapeHtml = (value: string): string =>
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
+
+const setCreateUserStatus = (
+  message: string,
+  tone: "default" | "success" | "danger" = "default",
+) => {
+  if (!createUserStatus) return;
+  createUserStatus.textContent = message;
+  createUserStatus.className = "min-h-6 text-sm";
+  if (tone === "success") createUserStatus.classList.add("text-emerald-700");
+  else if (tone === "danger") createUserStatus.classList.add("text-red-700");
+  else createUserStatus.classList.add("text-stone-600");
+};
+
+const showCreatedUser = (payload: CreateUserPayload): void => {
+  if (createUserResult instanceof HTMLElement) {
+    createUserResult.classList.remove("hidden");
+  }
+  if (createUserResultHint) {
+    createUserResultHint.textContent = `${payload.user.display_name} created. Copy this API key now; it will not be shown again.`;
+  }
+  if (createUserApiKey) {
+    createUserApiKey.textContent = payload.api_key;
+  }
+};
+
+createUserForm?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const username = createUserUsername?.value.trim() ?? "";
+  const email = createUserEmail?.value.trim() ?? "";
+  const display_name = createUserDisplayName?.value.trim() ?? "";
+  const role = createUserRole?.value ?? "admin";
+  const password = createUserPassword?.value ?? "";
+
+  if (!username || !email || !display_name) {
+    setCreateUserStatus(
+      "Username, email, and display name are required.",
+      "danger",
+    );
+    return;
+  }
+
+  setCreateUserStatus("Creating user...");
+  try {
+    const result = await createUser({
+      username,
+      email,
+      display_name,
+      role,
+      password: password.trim() || undefined,
+    });
+    showCreatedUser(result);
+    setCreateUserStatus("User created successfully.", "success");
+    showToast(`Created ${result.user.display_name}.`, "success");
+    createUserForm.reset();
+    await renderUsers();
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to create user.";
+    setCreateUserStatus(message, "danger");
+    showToast(message, "danger");
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Edit panel
@@ -141,7 +236,11 @@ editUserForm?.addEventListener("submit", async (event) => {
 
   setEditStatus("Saving changes...");
   try {
-    const result = await updateUser(selectedUserId, { display_name, role, is_active });
+    const result = await updateUser(selectedUserId, {
+      display_name,
+      role,
+      is_active,
+    });
     const updated = result.user;
     // Refresh cache
     cachedDetails[updated.id] = result;
@@ -153,7 +252,8 @@ editUserForm?.addEventListener("submit", async (event) => {
     setEditStatus("Changes saved.", "success");
     showToast(`Saved ${updated.display_name}.`, "success");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to save changes.";
+    const message =
+      error instanceof Error ? error.message : "Unable to save changes.";
     setEditStatus(message, "danger");
     showToast(message, "danger");
   }
@@ -208,35 +308,37 @@ const renderUsers = async () => {
       .join("");
 
     // Wire row clicks — fetch full detail (incl. clients) on first click
-    userListEl.querySelectorAll<HTMLButtonElement>("[data-user-id]").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const uid = btn.dataset.userId ?? "";
-        const user = cachedUsers.find((u) => u.id === uid);
-        if (!user) return;
+    userListEl
+      .querySelectorAll<HTMLButtonElement>("[data-user-id]")
+      .forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const uid = btn.dataset.userId ?? "";
+          const user = cachedUsers.find((u) => u.id === uid);
+          if (!user) return;
 
-        // Highlight row immediately
-        userListEl
-          .querySelectorAll<HTMLButtonElement>("[data-user-id]")
-          .forEach((b) => b.classList.remove("ring-2", "ring-amber-400"));
-        btn.classList.add("ring-2", "ring-amber-400");
+          // Highlight row immediately
+          userListEl
+            .querySelectorAll<HTMLButtonElement>("[data-user-id]")
+            .forEach((b) => b.classList.remove("ring-2", "ring-amber-400"));
+          btn.classList.add("ring-2", "ring-amber-400");
 
-        // Open panel with whatever is cached first
-        openEditPanel(user, cachedDetails[uid]?.clients ?? []);
+          // Open panel with whatever is cached first
+          openEditPanel(user, cachedDetails[uid]?.clients ?? []);
 
-        // Fetch full detail in background and refresh clients section
-        if (!cachedDetails[uid]) {
-          try {
-            const detail = await getUserDetail(uid);
-            cachedDetails[uid] = detail;
-            if (selectedUserId === uid) {
-              renderUserClients(detail.clients ?? []);
+          // Fetch full detail in background and refresh clients section
+          if (!cachedDetails[uid]) {
+            try {
+              const detail = await getUserDetail(uid);
+              cachedDetails[uid] = detail;
+              if (selectedUserId === uid) {
+                renderUserClients(detail.clients ?? []);
+              }
+            } catch {
+              // Ignore — clients section stays empty
             }
-          } catch {
-            // Ignore — clients section stays empty
           }
-        }
+        });
       });
-    });
   } catch (error) {
     if (userListEl) {
       userListEl.innerHTML = `<div class="rounded-2xl border border-red-200 bg-red-50/80 px-4 py-3 text-sm text-red-700">${

@@ -864,7 +864,7 @@ const renderDetail = async () => {
       .map(([target, template]) => {
         const title = snippetTitles[target] ?? target.replaceAll("_", " ");
         const variants = buildSnippetVariants(target, template);
-        const isExpandedByDefault = target === "vscode";
+        const isExpandedByDefault = target === "";
         const tabButtons = variants
           .map(
             (variant, index) => `

@@ -129,17 +129,17 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 - **Requirement**: Implement `src/minder/auth/middleware.py` — JWT validation on SSE connections. Extract user identity, inject into request context. Reject unauthorized connections.
 - **Result**: Unauthenticated SSE connections are rejected with 401. Valid JWT grants access with user context available to all tools. Integration test validates auth flow.
 
-#### P1-T09: Embedding Layer (Qwen GGUF)
+#### P1-T09: Embedding Layer (Local GGUF)
 
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/embedding/qwen.py` — load `ggml-org/embeddinggemma-300M-GGUF` via `llama-cpp-python`. Generate 768-dim embeddings. Implement `src/minder/embedding/base.py` as abstract interface.
+- **Requirement**: Implement `src/minder/embedding/local.py` — load `ggml-org/embeddinggemma-300M-GGUF` via `llama-cpp-python`. Generate 768-dim embeddings. Implement `src/minder/embedding/base.py` as abstract interface.
 - **Result**: Text input → 768-dim vector output. Model loads from configured path. Unit test validates embedding dimensions and determinism.
 
 #### P1-T10: Embedding Fallback (OpenAI)
 
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/embedding/openai.py` — OpenAI `text-embedding-3-small` as optional fallback. Same interface as Qwen embedder. Auto-fallback when local model fails and OpenAI key is configured.
-- **Result**: When Qwen unavailable and API key set, OpenAI embeddings are used transparently. Unit test validates fallback logic.
+- **Requirement**: Implement `src/minder/embedding/openai.py` — OpenAI `text-embedding-3-small` as optional fallback. Same interface as the local embedder. Auto-fallback when the local model fails and OpenAI key is configured.
+- **Result**: When the local GGUF embedder is unavailable and an API key is set, OpenAI embeddings are used transparently. Unit test validates fallback logic.
 
 #### P1-T11: Vector Store (Milvus Standalone)
 
@@ -192,7 +192,7 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P1-T18: Model Download Script
 
 - **Owner**: `PE`
-- **Requirement**: Implement `scripts/download_models.sh` — download Qwen embedding and LLM GGUF files to `~/.minder/models/`. Verify checksums. Skip if already present.
+- **Requirement**: Implement `scripts/download_models.sh` — download EmbeddingGemma and Gemma GGUF files to `~/.minder/models/`. Verify checksums. Skip if already present.
 - **Result**: Models download successfully. Checksum validation passes. Re-run skips existing files.
 
 #### P1-T19: Docker Development Stack
@@ -276,10 +276,10 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 - **Requirement**: Implement `src/minder/graph/nodes/reasoning.py` — build final prompt with retrieved context, inject workflow rules and step constraints, enforce current process stage.
 - **Result**: Prompt output includes retrieved context + workflow instructions. Unit tests validate prompt construction.
 
-#### P2-T06: LLM Node (Qwen Local)
+#### P2-T06: LLM Node (Local GGUF)
 
 - **Owner**: `ML`
-- **Requirement**: Implement `src/minder/llm/qwen.py` and `src/minder/graph/nodes/llm.py` — load `ggml-org/gemma-4-E2B-it-GGUF` via `llama-cpp-python`. Route prompts to local model by default. Stream output.
+- **Requirement**: Implement `src/minder/llm/local.py` and `src/minder/graph/nodes/llm.py` — load `ggml-org/gemma-4-E2B-it-GGUF` via `llama-cpp-python`. Route prompts to the local model by default. Stream output.
 - **Result**: Prompt in → generated text out. Model loads from configured path. Streaming works. Unit test validates generation.
 
 #### P2-T07: LLM Fallback (OpenAI via LiteLLM)
@@ -375,7 +375,7 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 #### P2.1-T03: Local LLM Runtime via llama-cpp-python
 
 - **Owner**: `ML`
-- **Requirement**: Replace the placeholder local LLM in `src/minder/llm/qwen.py` with real `llama-cpp-python` loading of `ggml-org/gemma-4-E2B-it-GGUF`, including streaming support and structured generation result.
+- **Requirement**: Replace the placeholder local LLM in `src/minder/llm/local.py` with real `llama-cpp-python` loading of `ggml-org/gemma-4-E2B-it-GGUF`, including streaming support and structured generation result.
 - **Result**: Local inference runs against the configured GGUF model path and streams usable output.
 
 #### P2.1-T04: OpenAI Fallback via LiteLLM
@@ -467,7 +467,7 @@ No remaining Phase 1 closure work is required. Future infrastructure changes sho
 - **Owner**: `ML` + `BE` + `PE`
 - **Requirement**: Write and run `tests/integration/test_phase2x_gate.py`:
   1. `minder_query` runs on the Phase 2.x orchestrator with conditional routing metadata
-  2. Local Qwen runtime exposes runtime/provider metadata and stream chunks
+  2. Local GGUF runtime exposes runtime/provider metadata and stream chunks
   3. Local failure triggers fallback path when configured
   4. Search tools expose the same retrieval and source contract as query
   5. Generated Python executes through a real or injectable Docker runner contract

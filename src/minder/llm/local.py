@@ -7,7 +7,7 @@ from minder.graph.state import GraphState
 from minder.runtime import load_attr, module_available
 
 
-class QwenLocalLLM:
+class LocalModelLLM:
     def __init__(
         self,
         model_path: str,
@@ -29,7 +29,7 @@ class QwenLocalLLM:
 
     def generate(self, state: GraphState) -> dict[str, object]:
         if self._fail:
-            raise RuntimeError("Local Qwen model unavailable")
+            raise RuntimeError("Local model unavailable")
 
         runtime = self.runtime
 
@@ -47,7 +47,7 @@ class QwenLocalLLM:
         return {
             "text": text,
             "sources": source_paths,
-            "provider": "qwen_local",
+            "provider": "local_llm",
             "model": "gemma-4-e2b-it",
             "model_path": self._model_path,
             "runtime": runtime,

@@ -32,7 +32,7 @@
 | `P1-T06` SSE Transport                       | `1`     | `DONE` | `-`    | `SSE server lifecycle and session management implemented`                                                         |
 | `P1-T07` Stdio Transport                     | `1`     | `DONE` | `-`    | `Full JSON-RPC stdio lifecycle verified via test_phase1_stdio_roundtrip.py`                                       |
 | `P1-T08` Auth Middleware for SSE             | `1`     | `DONE` | `-`    | `ASGI body-injection auth bridging implemented and verified`                                                      |
-| `P1-T09` Embedding Layer (Qwen GGUF)         | `done`  | `DONE` | `-`    | `auto-detect runtime (llama_cpp if available, else mock); both paths unit-tested via monkeypatch`                 |
+| `P1-T09` Embedding Layer (Local GGUF)        | `done`  | `DONE` | `-`    | `auto-detect runtime (llama_cpp if available, else mock); both paths unit-tested via monkeypatch`                 |
 | `P1-T10` Embedding Fallback (OpenAI)         | `done`  | `DONE` | `-`    | `Fallback provider exists`                                                                                        |
 | `P1-T11` Vector Store (Milvus Standalone)    | `done`  | `DONE` | `-`    | `Milvus integration and search/upsert implemented`                                                                |
 | `P1-T11A` Redis Runtime Layer                | `done`  | `DONE` | `-`    | `Redis and LRU fallback providers implemented`                                                                    |

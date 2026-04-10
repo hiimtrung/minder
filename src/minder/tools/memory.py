@@ -5,14 +5,14 @@ import uuid
 from typing import Any
 
 from minder.config import MinderConfig
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.store.interfaces import IOperationalStore
 
 
 class MemoryTools:
     def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
         self._store = store
-        self._embedder = QwenEmbeddingProvider(
+        self._embedder = LocalEmbeddingProvider(
             config.embedding.model_path,
             dimensions=min(config.embedding.dimensions, 16),
             runtime="auto",

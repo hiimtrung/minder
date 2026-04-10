@@ -86,6 +86,25 @@ async def test_admin_can_list_users(admin_client: TestClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_can_create_user(admin_client: TestClient) -> None:
+    resp = admin_client.post(
+        "/v1/admin/users",
+        json={
+            "username": "created_admin",
+            "email": "created-admin@example.com",
+            "display_name": "Created Admin",
+            "role": "admin",
+            "password": "secret-pass",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["user"]["username"] == "created_admin"
+    assert data["user"]["role"] == "admin"
+    assert data["api_key"].startswith("mk_")
+
+
+@pytest.mark.asyncio
 async def test_admin_can_get_user_detail(
     admin_client: TestClient,
     store: RelationalStore,

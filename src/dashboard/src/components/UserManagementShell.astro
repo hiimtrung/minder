@@ -45,72 +45,165 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   </section>
 
   <section class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-    <!-- Edit panel (shown when a user row is selected) -->
-    <aside class="shell-card p-7">
-      <p class="eyebrow">Edit User</p>
-      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-        User details
-      </h2>
-      <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
-        Select a user from the list to edit their profile.
-      </p>
+    <aside class="flex flex-col gap-6">
+      <section class="shell-card p-7">
+        <p class="eyebrow">Create User</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          Add another admin or member
+        </h2>
+        <p class="mt-3 text-sm leading-6 text-stone-500">
+          Create a new dashboard user and reveal their bootstrap API key exactly
+          once.
+        </p>
 
-      <form id="edit-user-form" class="mt-6 gap-4 hidden">
-        <label class="grid gap-2 text-sm text-stone-700">
-          Display name
-          <input
-            id="edit-user-display-name"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-            placeholder="Display name"
-          />
-        </label>
-
-        <label class="grid gap-2 text-sm text-stone-700">
-          Role
-          <select
-            id="edit-user-role"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-          >
-            <option value="admin">Admin</option>
-            <option value="member">Member</option>
-            <option value="readonly">Read Only</option>
-          </select>
-        </label>
-
-        <div class="flex items-center gap-3">
-          <input
-            type="checkbox"
-            id="edit-user-is-active"
-            class="h-4 w-4 rounded border-stone-300 accent-amber-600"
-          />
-          <label for="edit-user-is-active" class="text-sm text-stone-700">
-            Active (uncheck to deactivate)
+        <form id="create-user-form" class="mt-6 grid gap-4">
+          <label class="grid gap-2 text-sm text-stone-700">
+            Username
+            <input
+              id="create-user-username"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="new_admin"
+              required
+            />
           </label>
-        </div>
 
-        <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
-        <div class="flex gap-2">
-          <button type="submit" class="primary-pill flex-1">Save changes</button
-          >
-          <button type="button" id="cancel-edit-user" class="action-pill"
-            >Cancel</button
-          >
-        </div>
+          <label class="grid gap-2 text-sm text-stone-700">
+            Email
+            <input
+              id="create-user-email"
+              type="email"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="admin@example.com"
+              required
+            />
+          </label>
 
-        <!-- MCP clients owned by this user -->
-        <div class="mt-2 border-t border-stone-100 pt-4">
-          <p class="mb-3 text-sm font-medium text-stone-700">MCP clients</p>
-          <div id="edit-user-clients" class="grid gap-2">
-            <p class="text-xs text-stone-400 px-1">Loading clients…</p>
+          <label class="grid gap-2 text-sm text-stone-700">
+            Display name
+            <input
+              id="create-user-display-name"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Operations Admin"
+              required
+            />
+          </label>
+
+          <label class="grid gap-2 text-sm text-stone-700">
+            Role
+            <select
+              id="create-user-role"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="readonly">Read Only</option>
+            </select>
+          </label>
+
+          <label class="grid gap-2 text-sm text-stone-700">
+            Password (optional)
+            <input
+              id="create-user-password"
+              type="password"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Leave blank for API-key-only login"
+            />
+          </label>
+
+          <p id="create-user-status" class="min-h-6 text-sm text-stone-600"></p>
+
+          <button type="submit" class="primary-pill">Create user</button>
+        </form>
+
+        <div
+          id="create-user-result"
+          class="mt-5 hidden rounded-3xl border border-emerald-200 bg-emerald-50/80 p-4"
+        >
+          <p
+            class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700"
+          >
+            Bootstrap API key
+          </p>
+          <p
+            id="create-user-result-hint"
+            class="mt-2 text-sm leading-6 text-emerald-900"
+          >
+          </p>
+          <pre
+            id="create-user-api-key"
+            class="mt-3 overflow-x-auto rounded-2xl bg-emerald-950 px-4 py-3 text-xs text-emerald-50">
+          </pre>
+        </div>
+      </section>
+
+      <!-- Edit panel (shown when a user row is selected) -->
+      <section class="shell-card p-7">
+        <p class="eyebrow">Edit User</p>
+        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          User details
+        </h2>
+        <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
+          Select a user from the list to edit their profile.
+        </p>
+
+        <form id="edit-user-form" class="mt-6 gap-4 hidden">
+          <label class="grid gap-2 text-sm text-stone-700">
+            Display name
+            <input
+              id="edit-user-display-name"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Display name"
+            />
+          </label>
+
+          <label class="grid gap-2 text-sm text-stone-700">
+            Role
+            <select
+              id="edit-user-role"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="readonly">Read Only</option>
+            </select>
+          </label>
+
+          <div class="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="edit-user-is-active"
+              class="h-4 w-4 rounded border-stone-300 accent-amber-600"
+            />
+            <label for="edit-user-is-active" class="text-sm text-stone-700">
+              Active (uncheck to deactivate)
+            </label>
           </div>
-          <a
-            href="/dashboard/clients"
-            class="mt-3 inline-block text-xs text-amber-700 hover:underline"
-          >
-            Manage all clients →
-          </a>
-        </div>
-      </form>
+
+          <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
+          <div class="flex gap-2">
+            <button type="submit" class="primary-pill flex-1"
+              >Save changes</button
+            >
+            <button type="button" id="cancel-edit-user" class="action-pill"
+              >Cancel</button
+            >
+          </div>
+
+          <!-- MCP clients owned by this user -->
+          <div class="mt-2 border-t border-stone-100 pt-4">
+            <p class="mb-3 text-sm font-medium text-stone-700">MCP clients</p>
+            <div id="edit-user-clients" class="grid gap-2">
+              <p class="text-xs text-stone-400 px-1">Loading clients…</p>
+            </div>
+            <a
+              href="/dashboard/clients"
+              class="mt-3 inline-block text-xs text-amber-700 hover:underline"
+            >
+              Manage all clients →
+            </a>
+          </div>
+        </form>
+      </section>
     </aside>
 
     <!-- User list -->

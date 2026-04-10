@@ -6,8 +6,8 @@ import pytest
 from minder.config import MinderConfig
 from minder.graph import MinderGraph
 from minder.graph.nodes import LLMNode, VerificationNode, WorkflowPlannerNode
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
 from minder.store.error import ErrorStore
 from minder.store.history import HistoryStore
 from minder.store.relational import RelationalStore
@@ -121,7 +121,7 @@ async def test_phase2_gate(tmp_path: Path, store: RelationalStore, config: Minde
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path),
+            primary=LocalModelLLM(config.llm.model_path),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=FakeDockerRunner()),

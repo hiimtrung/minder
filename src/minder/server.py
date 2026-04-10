@@ -7,10 +7,10 @@ from pathlib import Path
 from minder.bootstrap.providers import build_cache, build_store, build_vector_store
 from minder.bootstrap.transport import build_transport
 from minder.config import Settings
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
 from minder.presentation.http.admin.routes import build_http_app, build_http_routes
 
 __all__ = [
@@ -26,8 +26,8 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    llm = QwenLocalLLM(config.llm.model_path, runtime="auto")
-    embedder = QwenEmbeddingProvider(
+    llm = LocalModelLLM(config.llm.model_path, runtime="auto")
+    embedder = LocalEmbeddingProvider(
         config.embedding.model_path,
         dimensions=config.embedding.dimensions,
         runtime="auto",

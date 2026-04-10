@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 
 
-class OpenAIEmbeddingProvider(QwenEmbeddingProvider):
+class OpenAIEmbeddingProvider(LocalEmbeddingProvider):
     pass

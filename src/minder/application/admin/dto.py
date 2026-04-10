@@ -111,6 +111,11 @@ class UserDetailPayload(TypedDict):
     clients: list[ClientPayload]   # MCP clients created by this user
 
 
+class CreateUserPayload(TypedDict):
+    user: UserPayload
+    api_key: str
+
+
 # ---------------------------------------------------------------------------
 # Workflow management
 # ---------------------------------------------------------------------------

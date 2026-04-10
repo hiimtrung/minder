@@ -62,11 +62,11 @@ minder/
 │   │       └── reflection.py
 │   ├── embedding/
 │   │   ├── base.py
-│   │   ├── qwen.py
+│   │   ├── local.py
 │   │   └── openai.py
 │   ├── llm/
 │   │   ├── base.py
-│   │   ├── qwen.py
+│   │   ├── local.py
 │   │   └── openai.py
 │   ├── store/
 │   │   ├── base.py

@@ -7,7 +7,7 @@ from typing import Any
 from minder.runtime import load_attr, module_available
 
 
-class QwenEmbeddingProvider:
+class LocalEmbeddingProvider:
     def __init__(self, model_path: str, dimensions: int = 768, runtime: str = "mock") -> None:
         self._model_path = model_path
         self._dimensions = dimensions
@@ -58,6 +58,7 @@ class QwenEmbeddingProvider:
             self._client = llama_cls(
                 model_path=str(Path(self._model_path).expanduser()),
                 embedding=True,
+                verbose=False,
             )
         except Exception:
             return None

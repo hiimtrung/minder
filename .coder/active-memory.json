@@ -1,28 +1,47 @@
 {
   "mode": "search",
-  "query": "milvus payload size json field",
+  "query": "qwen references local model rename docs",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-10T17:16:55.214385+07:00",
+  "searched_at": "2026-04-10T17:56:15.456538+07:00",
   "results": [
     {
-      "id": "eb8923cd-33ee-4b8c-ada0-e1e5ed7e4240",
-      "title": "Auto-recreate Milvus collection on embedding dimension mismatch",
+      "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
+      "title": "Minder switched to Qwen plan split",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:auto-recreate-milvus-collection-on-embedding-dimension-mismatch",
+      "canonical_key": "document:minder-switched-to-qwen-plan-split",
       "score": 0.086393446,
       "tags": [
         "minder",
-        "python",
-        "milvus",
-        "embedding",
-        "vector",
-        "bugfix"
+        "plan",
+        "qwen",
+        "docs",
+        "split"
       ],
       "conflict_detected": false,
-      "content": "Fixed search_code/query failures caused by Milvus collections retaining 1024-dim schema after switching the embedder to 768 dims. MilvusVectorStore now validates the existing collection schema, drops and recreates mismatched collections with config.embedding.dimensions, and validates query/upsert vector lengths. build_vector_store now passes the configured embedding dimension into the Milvus adapter. Added unit coverage for mismatch reset and dimension validation."
+      "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
+    },
+    {
+      "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
+      "title": "Compose runtime activation uses auto runtimes with safe fallback",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+      "score": 0.086129025,
+      "tags": [
+        "minder",
+        "phase1",
+        "phase2",
+        "compose",
+        "runtime",
+        "llama-cpp",
+        "langgraph",
+        "litellm"
+      ],
+      "conflict_detected": false,
+      "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
     },
     {
       "id": "07298612-d3cc-440c-b871-06aafc1715c0",
@@ -30,7 +49,7 @@
       "type": "document",
       "status": "active",
       "canonical_key": "document:switch-default-local-models-to-embeddinggemma-and-gemma-4",
-      "score": 0.086129025,
+      "score": 0.08587302,
       "tags": [
         "minder",
         "python",
@@ -42,52 +61,38 @@
       "content": "Updated config defaults, compose envs, download script, docs, and runtime metadata from Qwen GGUFs to ggml-org/embeddinggemma-300M-GGUF and ggml-org/gemma-4-E2B-it-GGUF. Also changed default embedding dimension from 1024 to 768 and aligned Milvus collection defaults plus config tests."
     },
     {
-      "id": "8dc06bb9-2de4-4738-b868-df30cc800c86",
-      "title": "Zalo inbound webhook normalization and routing",
+      "id": "a7f10bd1-0d61-4212-8912-6521b3a84638",
+      "title": "Inquiry and Live Chat edit-mode guidance copy",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:zalo-inbound-webhook-normalization-and-routing",
-      "score": 0.08587302,
-      "tags": [
-        "omi-channel-be",
-        "webhooks",
-        "zalo"
-      ],
-      "conflict_detected": false,
-      "content": "Aligned ProcessZaloWebhookUseCase to publish message.received so SQS consumer routes correctly. Expanded Zalo payload typing for root and events[] shapes, normalized sender/message IDs from string or number, and updated HandleZaloWebhookUseCase extraction fallbacks for sender/recipient/message/event_time. Added unit tests for process and handler use-cases covering root payload numeric IDs and events[] payload path."
-    },
-    {
-      "id": "52bd1979-2f01-48c8-9b3b-47f4dfbed045",
-      "title": "Typed Zalo send response contract",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:typed-zalo-send-response-contract",
+      "canonical_key": "document:inquiry-and-live-chat-edit-mode-guidance-copy",
       "score": 0.08562499,
       "tags": [
-        "omi-channel-be",
-        "zalo",
-        "typing",
-        "error-handling"
+        "findtourgo",
+        "inquiry",
+        "live-chat",
+        "edit-mode",
+        "i18n",
+        "ux"
       ],
       "conflict_detected": false,
-      "content": "Refactored zalo-oa.client sendTextMessage to use typed API contracts instead of generic Record\u003cstring,unknown\u003e. Added ZaloSendTextApiResponse/ZaloSendTextApiData with known fields (error, message, error_name, data message identifiers), parse function from unknown payload, and typed success/error handling. Also fixed numeric parsing to support negative provider error codes for 'error' while keeping positive-only behavior for fields like expires_in."
+      "content": "Updated InquiryConnect and LiveChatConnect to use edit-mode-specific heading copy instead of reusing create-mode text. Both flows now switch wizard title/subtitle, create-step section title, and create-step guidance title/description/empty-description based on mode=edit. Added matching i18n keys in en, vi, id, ja, zh, while keeping the rest of the install/embed flow shared."
     },
     {
-      "id": "2a72020a-a1bd-4659-90e1-db2a40e79568",
-      "title": "Flatten Zalo rawProfile metadata contract across backend and UI",
+      "id": "b7499b43-96a1-4d94-b887-02e2a7d49b9f",
+      "title": "Zalo locale step title renumber to 5-step flow",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:flatten-zalo-rawprofile-metadata-contract-across-backend-and-ui",
+      "canonical_key": "document:zalo-locale-step-title-renumber-to-5-step-flow",
       "score": 0.08538462,
       "tags": [
-        "omi-channel-be",
         "findtourgoUI",
         "zalo",
-        "metadata",
-        "shared-contract"
+        "i18n",
+        "step-flow"
       ],
       "conflict_detected": false,
-      "content": "Refactored Zalo channel metadata rawProfile away from the old envelope shape { data, error, message }. In omi-channel-be, metadata.types.ts now defines a single flat ZaloOAProfileResponse interface with OA fields directly on the object (including zaloId/oaId/oa_id fallbacks), and VerifyChannelMetadataUseCase stores flat rawProfile objects. In findtourgoUI ListChannel.tsx, Zalo metadata reading now accesses rawProfile directly instead of rawProfile.data and falls back across oa_id, oaId, and zaloId."
+      "content": "Renumbered Zalo locale step titles to match the 5-step flow: domain verification title changed from step 5 to step 4, and webhook configuration title changed from step 6 to step 5 across en/vi/ja/zh/id. Guide panel titles remained unchanged because they already matched the shorter flow."
     }
   ]
 }

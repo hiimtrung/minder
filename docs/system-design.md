@@ -46,7 +46,7 @@ flowchart TB
     Workflow --> Mongo["MongoDB"]
     Workflow --> Redis["Redis"]
     Workflow --> Milvus["Milvus Standalone"]
-    Workflow --> LLM["Qwen GGUF via llama.cpp"]
+    Workflow --> LLM["Gemma GGUF via llama.cpp"]
     Models["~/.minder/models"] --> LLM
 ```
 

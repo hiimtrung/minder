@@ -3,9 +3,9 @@ import pytest
 import minder.graph.executor as executor_module
 import minder.graph.graph as graph_module
 import minder.graph.runtime as graph_runtime_module
+import minder.llm.local as local_llm_module
 import minder.llm.openai as openai_module
-import minder.llm.qwen as qwen_module
-import minder.embedding.qwen as qwen_embedding_module
+import minder.embedding.local as local_embedding_module
 from minder.config import MinderConfig
 from minder.graph.executor import GraphNodes, InternalGraphExecutor, LangGraphExecutorAdapter
 from minder.graph.graph import MinderGraph
@@ -21,9 +21,9 @@ from minder.graph.nodes import (
 )
 from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
 from minder.store.relational import RelationalStore
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
@@ -33,8 +33,8 @@ def test_graph_runtime_reports_supported_mode() -> None:
     assert graph_runtime_name() in {"internal", "langgraph"}
 
 
-def test_qwen_runtime_auto_reports_supported_mode() -> None:
-    llm = QwenLocalLLM("~/.minder/models/qwen.gguf", runtime="auto")
+def test_local_model_runtime_auto_reports_supported_mode() -> None:
+    llm = LocalModelLLM("~/.minder/models/local.gguf", runtime="auto")
     result = llm.generate(
         type(
             "StubState",
@@ -66,7 +66,7 @@ def test_openai_runtime_auto_reports_supported_mode() -> None:
     assert result["runtime"] in {"mock", "litellm"}
 
 
-def test_qwen_llama_cpp_path_uses_loaded_client(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_local_model_llama_cpp_path_uses_loaded_client(monkeypatch: pytest.MonkeyPatch) -> None:
     class FakeLlama:
         def __init__(self, **kwargs) -> None:  # noqa: ANN003
             self.kwargs = kwargs
@@ -74,10 +74,10 @@ def test_qwen_llama_cpp_path_uses_loaded_client(monkeypatch: pytest.MonkeyPatch)
         def create_completion(self, **kwargs) -> dict[str, object]:  # noqa: ANN003
             return {"choices": [{"text": "llama output"}]}
 
-    monkeypatch.setattr(qwen_module, "module_available", lambda name: True)
-    monkeypatch.setattr(qwen_module, "load_attr", lambda module, attr: FakeLlama)
+    monkeypatch.setattr(local_llm_module, "module_available", lambda name: True)
+    monkeypatch.setattr(local_llm_module, "load_attr", lambda module, attr: FakeLlama)
 
-    llm = QwenLocalLLM("/tmp/model.gguf", runtime="llama_cpp")
+    llm = LocalModelLLM("/tmp/model.gguf", runtime="llama_cpp")
     result = llm.generate(
         type(
             "StubState",
@@ -95,7 +95,7 @@ def test_qwen_llama_cpp_path_uses_loaded_client(monkeypatch: pytest.MonkeyPatch)
     assert result["text"] == "llama output"
 
 
-def test_qwen_embedding_llama_cpp_path_uses_loaded_client(
+def test_local_embedding_llama_cpp_path_uses_loaded_client(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     class FakeLlama:
@@ -105,10 +105,10 @@ def test_qwen_embedding_llama_cpp_path_uses_loaded_client(
         def embed(self, text: str) -> list[float]:
             return [0.1, 0.2, 0.3, 0.4]
 
-    monkeypatch.setattr(qwen_embedding_module, "module_available", lambda name: True)
-    monkeypatch.setattr(qwen_embedding_module, "load_attr", lambda module, attr: FakeLlama)
+    monkeypatch.setattr(local_embedding_module, "module_available", lambda name: True)
+    monkeypatch.setattr(local_embedding_module, "load_attr", lambda module, attr: FakeLlama)
 
-    embedder = QwenEmbeddingProvider("/tmp/model.gguf", dimensions=4, runtime="llama_cpp")
+    embedder = LocalEmbeddingProvider("/tmp/model.gguf", dimensions=4, runtime="llama_cpp")
     assert embedder.embed("hello") == [0.1, 0.2, 0.3, 0.4]
 
 
@@ -153,7 +153,7 @@ async def test_internal_executor_sets_internal_runtime(store: RelationalStore) -
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=QwenLocalLLM("~/.minder/models/qwen.gguf")),
+        llm=LLMNode(primary=LocalModelLLM("~/.minder/models/local.gguf")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -172,7 +172,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=QwenLocalLLM("~/.minder/models/qwen.gguf")),
+        llm=LLMNode(primary=LocalModelLLM("~/.minder/models/local.gguf")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -219,7 +219,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=QwenLocalLLM("~/.minder/models/qwen.gguf")),
+        llm=LLMNode(primary=LocalModelLLM("~/.minder/models/local.gguf")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -237,15 +237,15 @@ async def test_minder_graph_defaults_to_auto_runtimes(
 ) -> None:
     captured: dict[str, object] = {}
 
-    class CaptureQwen:
+    class CaptureLocalModel:
         def __init__(self, model_path: str, fail: bool = False, runtime: str = "mock") -> None:
-            captured["qwen_runtime"] = runtime
+            captured["local_model_runtime"] = runtime
 
         def generate(self, state):  # noqa: ANN001, ANN201
             return {
                 "text": "ok",
                 "sources": [],
-                "provider": "qwen_local",
+                "provider": "local_llm",
                 "model": "gemma-4-e2b-it",
                 "runtime": "mock",
                 "stream": ["ok"],
@@ -258,10 +258,10 @@ async def test_minder_graph_defaults_to_auto_runtimes(
         def available(self) -> bool:
             return False
 
-    monkeypatch.setattr(graph_module, "QwenLocalLLM", CaptureQwen)
+    monkeypatch.setattr(graph_module, "LocalModelLLM", CaptureLocalModel)
     monkeypatch.setattr(graph_module, "OpenAIFallbackLLM", CaptureFallback)
 
     MinderGraph(store, MinderConfig())
 
-    assert captured["qwen_runtime"] == "auto"
+    assert captured["local_model_runtime"] == "auto"
     assert captured["fallback_runtime"] == "auto"

@@ -3,7 +3,7 @@ from __future__ import annotations
 from time import perf_counter
 
 from minder.config import MinderConfig
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph.executor import GraphNodes, InternalGraphExecutor, LangGraphExecutorAdapter
 from minder.graph.nodes import (
     EvaluatorNode,
@@ -17,8 +17,8 @@ from minder.graph.nodes import (
     WorkflowPlannerNode,
 )
 from minder.graph.state import GraphState
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
 from minder.store.interfaces import IOperationalStore, IErrorRepository, IHistoryRepository
 
 
@@ -46,7 +46,7 @@ class MinderGraph:
         self._workflow_planner = workflow_planner or WorkflowPlannerNode(store)
         self._planning = planning or PlanningNode()
         vector_store = VectorStore(store, store)
-        embedder = QwenEmbeddingProvider(
+        embedder = LocalEmbeddingProvider(
             config.embedding.model_path,
             dimensions=config.embedding.dimensions,
             runtime="auto",
@@ -60,7 +60,7 @@ class MinderGraph:
         self._reranker = reranker  # None by default; pass RerankerNode(...) to activate
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path, runtime="auto"),
+            primary=LocalModelLLM(config.llm.model_path, runtime="auto"),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key,
                 config.llm.openai_model,

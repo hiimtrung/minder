@@ -6,8 +6,8 @@ import pytest
 from minder.config import MinderConfig
 from minder.graph import MinderGraph
 from minder.graph.nodes import LLMNode, VerificationNode, WorkflowPlannerNode
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
 from minder.store.error import ErrorStore
 from minder.store.history import HistoryStore
 from minder.store.relational import RelationalStore
@@ -143,7 +143,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path, runtime="auto"),
+            primary=LocalModelLLM(config.llm.model_path, runtime="auto"),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=retry_runner),
@@ -162,7 +162,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         verification_payload={"language": "python", "code": "print('ok')"},
     )
 
-    assert result["provider"] == "qwen_local"
+    assert result["provider"] == "local_llm"
     assert result["runtime"] in {"auto", "mock", "llama_cpp"}
     assert result["transition_log"]
     assert result["transition_log"][0]["edge"] == "verification_failed"
@@ -178,7 +178,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         store,
         config,
         llm=LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path, fail=True),
+            primary=LocalModelLLM(config.llm.model_path, fail=True),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=FakeDockerRunner()),
@@ -200,7 +200,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
 
     history_entries = await HistoryStore(store).list_history_for_session(session_id)
     assert history_entries
-    assert history_entries[-1].tool_calls["provider"] in {"qwen_local", "openai_fallback"}
+    assert history_entries[-1].tool_calls["provider"] in {"local_llm", "openai_fallback"}
 
     error_hits = await ErrorStore(store).search_errors("first run failed")
     assert error_hits

@@ -38,7 +38,7 @@ flowchart TB
     Services --> Mongo["MongoDB"]
     Services --> Redis["Redis"]
     Services --> Milvus["Milvus Standalone"]
-    Services --> LLM["Qwen GGUF\nllama-cpp-python"]
+    Services --> LLM["Gemma GGUF\nllama-cpp-python"]
 ```
 
 ### Runtime layers

@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 
 from minder.config import MinderConfig
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph.nodes.workflow_planner import WorkflowPlannerNode
 from minder.graph.state import GraphState
 from minder.prompts import PromptRegistry
@@ -205,7 +205,7 @@ async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: 
     _, repo_id, _session_id = await _seed_phase3_context(store, orders_dir)
 
     vector_store = VectorStore(store, store)
-    embedder = QwenEmbeddingProvider(config.embedding.model_path, dimensions=16, runtime="mock")
+    embedder = LocalEmbeddingProvider(config.embedding.model_path, dimensions=16, runtime="mock")
     ingest = IngestTools(store, embedder, vector_store=vector_store)
 
     # 1. Ingestion pipeline processes a real repository.

@@ -1,4 +1,6 @@
 import pytest
+from httpx import ASGITransport
+from httpx import AsyncClient
 
 from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport
 from minder.auth.service import AuthService
@@ -320,3 +322,58 @@ async def test_transport_enforces_rate_limit_for_member_user(
         )
 
     assert getattr(exc.value, "code", None) == "AUTH_RATE_LIMITED"
+
+
+@pytest.mark.asyncio
+async def test_sse_transport_exposes_streamable_http_for_antigravity_compat(
+    store: RelationalStore,
+    config: MinderConfig,
+    auth: AuthService,
+) -> None:
+    transport = SSETransport(config=config, auth_service=auth)
+    app = transport.build_starlette_app()
+
+    async with app.router.lifespan_context(app):
+        async with AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://testserver",
+            follow_redirects=False,
+        ) as client:
+            streamable_headers = {"accept": "application/json, text/event-stream"}
+            metadata = await client.get("/.well-known/oauth-protected-resource")
+            mcp_initialize = await client.post(
+                "/mcp",
+                headers=streamable_headers,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 1,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "clientInfo": {"name": "antigravity", "version": "1.0.0"},
+                    },
+                },
+            )
+            sse_initialize = await client.post(
+                "/sse",
+                headers=streamable_headers,
+                json={
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "clientInfo": {"name": "antigravity", "version": "1.0.0"},
+                    },
+                },
+            )
+
+    assert metadata.status_code == 200
+    assert metadata.json() == {
+        "resource": "http://testserver/mcp",
+        "authorization_servers": [],
+    }
+    assert mcp_initialize.status_code == 200
+    assert sse_initialize.status_code == 200

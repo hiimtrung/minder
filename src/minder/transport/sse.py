@@ -1,11 +1,20 @@
 import json
 import logging
+from contextlib import AsyncExitStack
+from contextlib import asynccontextmanager
+from typing import AsyncIterator
 from typing import Any
 
 import uvicorn
 from starlette.applications import Starlette
 from starlette.middleware.cors import CORSMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute
+from starlette.types import ASGIApp
+from starlette.types import Receive
+from starlette.types import Scope
+from starlette.types import Send
 from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
@@ -14,6 +23,41 @@ from minder.store.interfaces import ICacheProvider
 from minder.transport.base import BaseTransport
 
 logger = logging.getLogger(__name__)
+
+
+class MCPCompatApp:
+    def __init__(self, *, sse_app: ASGIApp, streamable_http_app: ASGIApp) -> None:
+        self._sse_app = sse_app
+        self._streamable_http_app = streamable_http_app
+
+    @staticmethod
+    def _rewrite_path(scope: Scope, path: str) -> Scope:
+        updated_scope = dict(scope)
+        updated_scope["path"] = path
+        updated_scope["raw_path"] = path.encode("utf-8")
+        return updated_scope
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http":
+            await self._streamable_http_app(scope, receive, send)
+            return
+
+        path = scope.get("path", "")
+        method = scope.get("method", "GET").upper()
+
+        if path == "/sse" and method in {"GET", "HEAD"}:
+            await self._sse_app(scope, receive, send)
+            return
+
+        if path.startswith("/messages"):
+            await self._sse_app(scope, receive, send)
+            return
+
+        if path == "/sse" and method in {"POST", "DELETE", "OPTIONS"}:
+            await self._streamable_http_app(self._rewrite_path(scope, "/mcp"), receive, send)
+            return
+
+        await self._streamable_http_app(scope, receive, send)
 
 
 class SSEAuthMiddleware:
@@ -89,13 +133,44 @@ class SSETransport(BaseTransport):
     ) -> None:
         super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
         self._extra_routes = list(extra_routes or [])
+        self._legacy_sse_app: ASGIApp | None = None
+        self._streamable_http_app: ASGIApp | None = None
 
-    async def run(self) -> None:
-        """Custom run loop to handle starlette app with middleware."""
-        # Get the Starlette app from FastMCP
-        mcp_app = self._server.sse_app()
+    @staticmethod
+    async def _oauth_protected_resource_metadata(request: Request) -> JSONResponse:
+        base_url = str(request.base_url).rstrip("/")
+        return JSONResponse(
+            {
+                "resource": f"{base_url}/mcp",
+                "authorization_servers": [],
+            }
+        )
 
-        app = Starlette(debug=True)
+    @asynccontextmanager
+    async def _app_lifespan(self, app: Starlette) -> AsyncIterator[None]:
+        del app
+        async with AsyncExitStack() as stack:
+            if self._legacy_sse_app is not None:
+                await stack.enter_async_context(
+                    self._legacy_sse_app.router.lifespan_context(self._legacy_sse_app)
+                )
+            if self._streamable_http_app is not None:
+                await stack.enter_async_context(
+                    self._streamable_http_app.router.lifespan_context(self._streamable_http_app)
+                )
+            yield
+
+    def build_starlette_app(self) -> Starlette:
+        legacy_sse_app = self._server.sse_app()
+        streamable_http_app = self._server.streamable_http_app()
+        self._legacy_sse_app = legacy_sse_app
+        self._streamable_http_app = streamable_http_app
+        mcp_app = MCPCompatApp(
+            sse_app=legacy_sse_app,
+            streamable_http_app=streamable_http_app,
+        )
+
+        app = Starlette(debug=True, lifespan=self._app_lifespan)
         dev_origin = dashboard_dev_origin(self._config)
         if dev_origin:
             app.add_middleware(
@@ -110,10 +185,30 @@ class SSETransport(BaseTransport):
 
         for route in self._extra_routes:
             app.router.routes.append(route)
-        
-        # Mount FastMCP app at root
+
+        app.add_route(
+            "/.well-known/oauth-protected-resource",
+            self._oauth_protected_resource_metadata,
+            methods=["GET"],
+        )
+        app.add_route(
+            "/.well-known/oauth-protected-resource/sse",
+            self._oauth_protected_resource_metadata,
+            methods=["GET"],
+        )
+        app.add_route(
+            "/.well-known/oauth-protected-resource/mcp",
+            self._oauth_protected_resource_metadata,
+            methods=["GET"],
+        )
+
         app.mount("/", mcp_app)
-        
+        return app
+
+    async def run(self) -> None:
+        """Custom run loop to handle starlette app with middleware."""
+        app = self.build_starlette_app()
+
         config = uvicorn.Config(
             app, 
             host=self._config.server.host, 

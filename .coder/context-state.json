@@ -1,40 +1,40 @@
 {
-  "updated_at": "2026-04-10T09:41:48.094569+07:00",
+  "updated_at": "2026-04-10T09:59:57.748185+07:00",
   "skills": {
-    "task": "python dev hot reload server command for minder",
+    "task": "mcp http transport python",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-10T09:41:16.939387+07:00",
+    "resolved_at": "2026-04-10T09:59:54.530831+07:00",
     "keep": [],
     "add": [
+      "mcp-builder-ms",
+      "copilot-sdk",
+      "appdeploy"
+    ],
+    "drop": [
       "webapp-testing",
       "diary",
       "readme"
     ],
-    "drop": [
-      "devcontainer-setup",
-      "ai-native-cli",
-      "copilot-sdk"
-    ],
     "skills": [
       {
-        "name": "webapp-testing",
+        "name": "mcp-builder-ms",
+        "category": "frontend",
+        "score": 0.022643443,
+        "chunk_count": 3,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "copilot-sdk",
         "category": "general",
         "score": 0.016393442,
         "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "diary",
-        "category": "general",
+        "name": "appdeploy",
+        "category": "backend",
         "score": 0.016129032,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "readme",
-        "category": "general",
-        "score": 0.015873017,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
@@ -42,103 +42,99 @@
   },
   "memory": {
     "mode": "search",
-    "query": "python dev hot reload server command for minder",
+    "query": "Antigravity MCP SSE streamable HTTP oauth protected resource",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-10T09:41:48.093458+07:00",
+    "searched_at": "2026-04-10T09:59:57.747128+07:00",
     "results": [
       {
-        "id": "8131aeee-d209-4d66-a5a2-b81863775cf3",
-        "title": "Minder onboarding now prefers remote snippets with optional local tabs",
+        "id": "73bd02bb-afa6-463a-8eaa-bdfa6311a1d4",
+        "title": "Auth \u0026 Client Tracking Feature — coder CLI",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-onboarding-now-prefers-remote-snippets-with-optional-local-tabs",
+        "canonical_key": "document:auth-client-tracking-feature-coder-cli",
         "score": 0.086393446,
         "tags": [
-          "minder",
-          "mcp",
-          "onboarding",
-          "frontend",
+          "coder",
           "auth",
-          "docs"
+          "security",
+          "golang",
+          "client-tracking"
         ],
         "conflict_detected": false,
-        "content": "Updated Minder onboarding so API templates are remote-first for all supported clients, with Codex using a remote config.toml URL/header block and Antigravity using serverUrl plus headers. The dashboard client detail UI now renders each integration as a collapsible card with preferred remote and optional local stdio tabs, dynamic Expand/Collapse labels, and richer copy actions including full-file and server-entry copies where applicable. Docs were updated to explain remote-first setup with local stdio fallback. Files changed: src/minder/application/admin/use_cases.py, src/dashboard/src/scripts/clients-page.ts, src/dashboard/src/components/ClientDetailShell.astro, docs/guides/admin-client-onboarding.md, and related tests."
+        "content": "Implemented --secure mode for coder-node and client registration flow. New packages: domain/auth (Client, Activity entities + AuthRepository/AuthManager interfaces), infra/postgres/auth.go (coder_server_config, coder_clients, coder_client_activity tables, SHA-256 token hashing), usecase/auth/manager.go (bootstrap token generation, client registration, token validation), transport/http/middleware/auth.go (Bearer token middleware), transport/http/server/auth.go (/v1/auth/register-client, /v1/auth/clients, /v1/auth/log-activity). Client side: Config.Auth.AccessToken in config.json, cmd_login.go prompts for bootstrap token + auto-detects git identity, cmd_activity.go fire-and-forget logActivity(). HTTP clients (memory + skill) now accept accessToken param and inject Authorization: Bearer header. Server reads SECURE_MODE=true env var. Bootstrap token printed once at first startup. Open mode: all auth calls are no-ops."
       },
       {
-        "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
-        "title": "Compose runtime activation uses auto runtimes with safe fallback",
+        "id": "95aba6e0-1c65-4da0-9be0-22e611cf5233",
+        "title": "Phase 4.0 Wave 2 HTTP admin backend implemented",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+        "canonical_key": "document:phase-4-0-wave-2-http-admin-backend-implemented",
         "score": 0.086129025,
         "tags": [
           "minder",
-          "phase1",
-          "phase2",
-          "compose",
-          "runtime",
-          "llama-cpp",
-          "langgraph",
-          "litellm"
+          "phase-4",
+          "wave-2",
+          "http",
+          "admin",
+          "token-exchange",
+          "redis"
         ],
         "conflict_detected": false,
-        "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
+        "content": "Implemented Phase 4.0 Wave 2 by adding HTTP/admin backend routes in src/minder/server.py using Starlette. New endpoints: POST /v1/auth/token-exchange, GET/POST /v1/admin/clients, GET /v1/admin/audit. Mounted these routes into the SSE runtime through src/minder/transport/sse.py so one process serves both MCP SSE and admin HTTP. Added integration test tests/integration/test_phase4_http_admin.py that verifies token exchange, admin create/list clients, audit query, and fakeredis-backed cache persistence for client sessions with principal resolution. Updated docs/PROJECT_PROGRESS.md to mark P4.0-Wave2 complete. Verified with ruff, mypy, and full pytest: 242 passed, 14 skipped. Committed as e124feb."
       },
       {
-        "id": "cb8a1cdd-727f-423b-b201-b833dc63d1d9",
-        "title": "P3-Wave3: ingest_url, ingest_git, RepoScanner",
+        "id": "0dc05d3a-381d-4c01-af57-5fa6ad6fd6da",
+        "title": "Auth \u0026 Client Tracking with --secure mode in coder/coder-node",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:p3-wave3-ingest-url-ingest-git-reposcanner",
+        "canonical_key": "document:auth-client-tracking-with-secure-mode-in-coder-coder-node",
         "score": 0.08587302,
         "tags": [
-          "minder",
-          "phase3",
-          "ingest",
-          "repo-scanner",
-          "wave3"
+          "coder",
+          "golang",
+          "authentication",
+          "secure-mode",
+          "bearer-token",
+          "client-tracking"
         ],
         "conflict_detected": false,
-        "content": "Implemented minder_ingest_url (httpx + HTML strip + TextSplitter chunking, project from netloc), minder_ingest_git (subprocess shallow clone to tempdir + ingest_directory + shutil.rmtree cleanup), and RepoScanner (ast import parsing, pyproject.toml/package.json service boundary detection, idempotent upsert to KnowledgeGraphStore). httpx added to pyproject.toml. 17 tests, 200/200 total."
+        "content": "ection, URL sanitisation), cmd/coder/cmd_login.go (registration flow with bootstrap token prompt + git identity detection), cmd/coder/config.go (Auth.AccessToken field in Config, passed to httpclient.NewClient and httpclient.NewSkillClient), cmd/coder-node/main.go (SECURE_MODE=true env var, bootstrap token printed once on first startup, httpmiddleware.Auth wraps the HTTP mux). HTTP clients updated: NewClient(baseURL, accessToken) and NewSkillClient(baseURL, accessToken) — addAuth() helper injects Bearer header on every request. logActivity() called at start of runMemoryStore, runMemorySearch, runSkillSearch, runSkillIngest."
       },
       {
-        "id": "440d41ec-9ae1-495d-910a-7dc025972a18",
-        "title": "Phase 4.3 Wave 1 bootstrap and presentation extraction",
+        "id": "7739641d-7ab4-4f9e-be1b-2d020816a9a0",
+        "title": "Phase 4 Wave 1 rate limiting",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-3-wave-1-bootstrap-and-presentation-extraction",
+        "canonical_key": "document:phase-4-wave-1-rate-limiting",
         "score": 0.08562499,
         "tags": [
           "phase4",
-          "architecture",
-          "server",
-          "dashboard",
-          "refactor"
-        ],
-        "conflict_detected": false,
-        "content": "Implemented Phase 4.3 Wave 1 without creating a commit. Added minder.bootstrap.providers and minder.bootstrap.transport, moved admin HTTP/dashboard route factory into minder.presentation.http.admin.routes, and reduced minder.server to a thin entrypoint plus runtime summary. Added unit architecture coverage asserting server builders are now re-exported from the new modules while existing dashboard/admin tests remain green."
-      },
-      {
-        "id": "f9336b20-9f6b-48f9-a8b0-406cda42669a",
-        "title": "Phase 1 Wave 2 repo state and tool modules",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:phase-1-wave-2-repo-state-and-tool-modules",
-        "score": 0.08538462,
-        "tags": [
-          "phase1",
-          "wave2",
-          "repo-state",
-          "tools",
-          "workflow",
-          "memory",
-          "session",
+          "rate-limiting",
+          "transport",
           "auth"
         ],
         "conflict_detected": false,
-        "content": "Implemented Wave 2 for Phase 1 closure. Added src/minder/store/repo_state.py to persist .minder workflow/context/relationships/artifacts. Added standalone tool modules: src/minder/tools/workflow.py, memory.py, search.py, auth.py, and session.py, plus skill CRUD support in RelationalStore and a small auth hardening change to skip unknown legacy hashes during API-key verification. Added tests/integration/test_phase1_tools.py covering repo-state round-trip and workflow/auth/session/memory/search tool contracts. Updated docs/TASK_BREAKDOWN.md tracker: P1-T12 DONE, P1-T14 DONE, and P1-T13/P1-T15/P1-T16 PARTIAL pending final MCP transport registration. Verified with uv run mypy src and uv run pytest (90 passed). Committed as 26a6f2f feat: add phase 1 local state and tool modules."
+        "content": "Implemented role-based MCP tool rate limiting in src/minder/auth/rate_limiter.py and enforced it centrally in BaseTransport after auth resolution. Settings now expose configurable thresholds for admin, member, readonly, and client principals. SSE and stdio both inherit the same enforcement because server wiring passes the shared cache provider into transport construction. Added unit coverage in tests/unit/test_rate_limiter.py and integration coverage in tests/integration/test_phase1_transport.py, then verified with a full suite pass: 250 passed, 14 skipped. docs/PROJECT_PROGRESS.md now has a dedicated broader Phase 4 tracker and marks P4-T04 done."
+      },
+      {
+        "id": "498133b0-b665-4b39-9aa3-67e200ce87a5",
+        "title": "Phase 01.1 shared API runtime",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:phase-01-1-shared-api-runtime",
+        "score": 0.08538462,
+        "tags": [
+          "phase-01.1",
+          "api-runtime",
+          "auth",
+          "bearer-token",
+          "pdf",
+          "nextjs"
+        ],
+        "conflict_detected": false,
+        "content": "Phase 01.1 plan 01 introduced a shared frontend API runtime under src/lib/api with NEXT_PUBLIC_API_BASE_URL config, one-level ApiSuccess data unwrapping, explicit 400/401/403/404/409/500+ error mapping, and a binary download helper. Auth session helpers in src/lib/auth/session.ts now support bearer tokens; the shared client clears session on 401, preserves it on 403, and refresh-token behavior remains intentionally deferred until the backend provides it."
       }
     ]
   }

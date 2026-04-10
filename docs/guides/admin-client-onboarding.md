@@ -146,10 +146,11 @@ This returns templates for:
 - `antigravity`
 - `claude_code`
 
-All templates now default to:
+Remote templates default to the transport each client expects:
 
 ```text
-http://localhost:8800/sse
+Codex / Copilot / Claude Code -> http://localhost:8800/sse
+Antigravity -> http://localhost:8800/mcp
 ```
 
 ## 6. Choose a client auth mode
@@ -163,7 +164,7 @@ Use this when the MCP client can send either:
 - `X-Minder-Client-Key: mkc_...` over `SSE`
 - `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
 
-This is the lowest-friction path and is the default recommendation for local integrations.
+This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity.
 
 ### Option B: Token exchange
 
@@ -287,7 +288,7 @@ Reference:
 {
   "mcpServers": {
     "minder": {
-      "serverUrl": "http://localhost:8800/sse",
+      "serverUrl": "http://localhost:8800/mcp",
       "headers": {
         "X-Minder-Client-Key": "mkc_..."
       }

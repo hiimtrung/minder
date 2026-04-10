@@ -13,6 +13,7 @@ def test_build_dev_command_targets_minder_server_module() -> None:
 
 def test_build_dev_env_prepends_src_and_sets_dev_defaults(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setenv("PYTHONPATH", "/existing/path")
+    monkeypatch.delenv("UV_CACHE_DIR", raising=False)
 
     env = build_dev_env(tmp_path, transport="sse", port=9900)
 

@@ -113,8 +113,8 @@ async def test_admin_use_cases_detail_onboarding_activity_and_connection_contrac
     assert connection["client"]["slug"] == "detail-client"
     assert "claude_code" in connection["templates"]
     assert "antigravity" in connection["templates"]
-    assert 'url = "http://localhost:8801/sse"' in connection["templates"]["codex"]
-    assert '"serverUrl":"http://localhost:8801/mcp"' in connection["templates"]["antigravity"]
+    assert 'url = "http://localhost:8800/sse"' in connection["templates"]["codex"]
+    assert '"serverUrl":"http://localhost:8800/mcp"' in connection["templates"]["antigravity"]
 
     with pytest.raises(LookupError):
         await use_cases.get_client_detail(uuid.uuid4())

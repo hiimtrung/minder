@@ -220,7 +220,55 @@ Onboarding snippets and connection-test templates derive their base URL like thi
 - local split-runtime mode: from the backend API request origin, which follows `API_URL`
 - Docker and production static mode: from the current request origin on the same host
 
-## 8. Frontend Structure
+## 8. Context Continuity Layer (Memory + Session Intelligence)
+
+Minder now treats memory/session as a context continuity subsystem, not only a CRUD surface.
+
+Primary objective:
+
+- keep long-running engineering flows coherent across many tool calls
+- reduce primary LLM context-window drift on large tasks
+- summarize and compact high-signal context for later reuse
+
+### Layered Design
+
+```mermaid
+flowchart LR
+    ToolCalls["MCP tool calls<br/>workflow/query/code ops"] --> EventLog["Session + memory events"]
+    EventLog --> Recall["Top-K memory recall<br/>embedding similarity"]
+    Recall --> Synth["Gemma 4 local synthesis<br/>issue framing + summary + next actions"]
+    Synth --> Brief["Session brief / continuity packet"]
+    Brief --> Primary["Primary LLM prompt context"]
+    Brief --> Store["Mongo session snapshot + memory artifacts"]
+```
+
+### Responsibilities
+
+- `minder_memory_*` remains the durable memory primitive:
+  - store entries with embeddings
+  - retrieve candidate context by semantic similarity
+- `minder_session_*` remains the session state primitive:
+  - persist active state, context, and working set
+  - restore progress deterministically
+- Gemma 4 local acts as a context synthesizer:
+  - convert raw recalled items into concise issue-centric summaries
+  - highlight unresolved blockers, decisions, and assumptions
+  - suggest next valid actions aligned with workflow state
+
+### Continuity Packet Contract
+
+The continuity payload injected into primary LLM prompts should include:
+
+- `problem_summary`: what is being solved now
+- `progress_summary`: what has been completed
+- `open_questions`: unresolved technical/product questions
+- `risk_flags`: likely failure points or missing evidence
+- `next_actions`: ordered, workflow-compatible next steps
+- `source_refs`: memory/session artifact IDs for auditability
+
+This packet is regenerated per major step transition and on explicit restore calls.
+
+## 9. Frontend Structure
 
 ```mermaid
 flowchart TB
@@ -254,7 +302,7 @@ Key paths:
 - [`src/dashboard/src/scripts/clients-page.ts`](../src/dashboard/src/scripts/clients-page.ts)
 - [`src/dashboard/src/lib/api/admin.ts`](../src/dashboard/src/lib/api/admin.ts)
 
-## 9. Deployment Shape
+## 10. Deployment Shape
 
 ### Local / Dev
 
@@ -273,7 +321,7 @@ Key paths:
   - `dashboard` on internal `8808`
   - `minder-api` on internal `8801`
 
-## 10. Related Design Documents
+## 11. Related Design Documents
 
 Feature-specific design docs still exist and remain useful, but this file is the system-level source of truth.
 

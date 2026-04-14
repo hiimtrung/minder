@@ -29,6 +29,33 @@ Once a workflow is configured, Minder must:
 - Read repository state back into context for future sessions
 - Suggest the next valid step after each completed step
 - Track step completion and relationships between artifacts
+- Maintain a compact continuity brief so long-running flows survive context-window limits
+- Use local Gemma 4 synthesis to clarify unresolved issues, assumptions, and next actions
+
+## Long-Flow Continuity Process
+
+For large flows, Minder should run a continuity loop at each major transition:
+
+1. Collect the current workflow state, session state, and top memory candidates.
+2. Synthesize a short continuity brief with Gemma 4 local.
+3. Validate suggested next actions against workflow gates and required artifacts.
+4. Persist the brief to session state and memory metadata.
+5. Inject the brief into the next primary LLM prompt with token budgeting.
+
+The loop must prioritize deterministic process constraints first, then free-form suggestions.
+
+## Continuity Brief Requirements
+
+Each generated brief should contain:
+
+- current problem framing
+- confirmed progress and completed artifacts
+- unresolved blockers and open questions
+- risk and confidence signals
+- next valid actions (ordered, process-compliant)
+- source references (session/memory artifact IDs)
+
+This keeps the primary LLM grounded when the original conversation exceeds effective context windows.
 
 ## Repository-Local State Requirement
 

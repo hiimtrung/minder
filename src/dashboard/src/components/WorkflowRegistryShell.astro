@@ -5,20 +5,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 <DashboardLayout
   title="Workflow Registry · Minder"
   description="Manage workflow definitions — create, edit, and assign TDD/review workflows to repositories."
-  navTitle="Minder Workflow Registry"
+  navTitle="Minder Dashboard"
   navDescription="Define and manage the step-gated workflows that govern your AI agent's delivery process."
   sessionControls={true}
-  navLinks={[
-    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
-    { href: "/dashboard/workflows", label: "Workflows", tone: "primary" },
-    { href: "/dashboard/users", label: "Users", tone: "secondary" },
-    {
-      href: "/dashboard/observability",
-      label: "Observability",
-      tone: "secondary",
-    },
-  ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div class="space-y-3">

@@ -245,13 +245,23 @@ class AdminConsoleUseCases:
         self,
         *,
         actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
         limit: int = 50,
         offset: int = 0,
     ) -> AuditListPayload:
         events = await self._store.list_audit_logs(
-            actor_id=actor_id, limit=limit, offset=offset
+            actor_id=actor_id,
+            event_type=event_type,
+            outcome=outcome,
+            limit=limit,
+            offset=offset,
         )
-        total = await self._store.count_audit_logs(actor_id=actor_id)
+        total = await self._store.count_audit_logs(
+            actor_id=actor_id,
+            event_type=event_type,
+            outcome=outcome,
+        )
         serialized = [await self.serialize_audit_event_enriched(event) for event in events]
         return {"events": serialized, "total": total, "limit": limit, "offset": offset}
 

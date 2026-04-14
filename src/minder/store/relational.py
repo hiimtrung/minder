@@ -351,6 +351,19 @@ class RelationalStore:
             await sess.refresh(client_session)
             return client_session
 
+    async def count_active_client_sessions(self) -> int:
+        from sqlalchemy import func as sqlfunc
+        from datetime import datetime
+        async with self._session() as sess:
+            # Using naive comparison for SQLite compatibility
+            now = datetime.utcnow()
+            stmt = select(sqlfunc.count(ClientSession.id)).where(
+                ClientSession.status == "active",
+                ClientSession.expires_at > now,
+            )
+            result = await sess.execute(stmt)
+            return result.scalar_one() or 0
+
     async def get_client_session_by_token_id(self, token_id: str) -> Optional[ClientSession]:
         async with self._session() as sess:
             result = await sess.execute(
@@ -380,6 +393,8 @@ class RelationalStore:
         self,
         *,
         actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> List[AuditLog]:
@@ -389,21 +404,65 @@ class RelationalStore:
             stmt = select(AuditLog).order_by(desc(AuditLog.created_at))
             if actor_id is not None:
                 stmt = stmt.where(AuditLog.actor_id == actor_id)
+            if event_type is not None:
+                stmt = stmt.where(AuditLog.event_type == event_type)
+            if outcome is not None:
+                stmt = stmt.where(AuditLog.outcome == outcome)
             stmt = stmt.offset(offset)
             if limit is not None:
                 stmt = stmt.limit(limit)
             result = await sess.execute(stmt)
             return list(result.scalars().all())
 
-    async def count_audit_logs(self, *, actor_id: str | None = None) -> int:
+    async def count_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+    ) -> int:
         from sqlalchemy import func as sqlfunc
 
         async with self._session() as sess:
             stmt = select(sqlfunc.count()).select_from(AuditLog)
             if actor_id is not None:
                 stmt = stmt.where(AuditLog.actor_id == actor_id)
+            if event_type is not None:
+                stmt = stmt.where(AuditLog.event_type == event_type)
+            if outcome is not None:
+                stmt = stmt.where(AuditLog.outcome == outcome)
             result = await sess.execute(stmt)
             return result.scalar_one() or 0
+
+    async def get_audit_summary(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+        group_by: str = "event_type",
+    ) -> dict[str, int]:
+        from sqlalchemy import func as sqlfunc
+
+        async with self._session() as sess:
+            # Handle nested group_by like "audit_metadata.client_id"
+            if "." in group_by:
+                parent, child = group_by.split(".", 1)
+                col = getattr(AuditLog, parent)[child].as_string()
+            else:
+                col = getattr(AuditLog, group_by)
+
+            stmt = select(col, sqlfunc.count()).group_by(col)
+            
+            if actor_id is not None:
+                stmt = stmt.where(AuditLog.actor_id == actor_id)
+            if event_type is not None:
+                stmt = stmt.where(AuditLog.event_type == event_type)
+            if outcome is not None:
+                stmt = stmt.where(AuditLog.outcome == outcome)
+            
+            result = await sess.execute(stmt)
+            return {str(row[0]) if row[0] is not None else "unknown": int(row[1]) for row in result.all()}
 
     # ------------------------------------------------------------------
     # RepositoryWorkflowState

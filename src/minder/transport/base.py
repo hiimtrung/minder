@@ -37,8 +37,10 @@ class BaseTransport:
         config: MinderConfig,
         auth_service: AuthService | None = None,
         cache_provider: ICacheProvider | None = None,
+        store: IOperationalStore | None = None,
     ) -> None:
         self._config = config
+        self._store = store
         self._middleware = AuthMiddleware(auth_service) if auth_service is not None else None
         effective_cache = cache_provider or LRUCacheProvider(
             max_size=config.cache.max_size,
@@ -99,24 +101,35 @@ class BaseTransport:
             p for p in orig_sig.parameters.values() 
             if p.name not in {"user", "principal"}
         ]
-        # Inject minder_authorization into the signature so FastMCP doesn't strip it.
-        new_params.append(
+        # New parameters to inject (must be before VAR_KEYWORD if present)
+        injected = [
             inspect.Parameter(
                 "minder_authorization",
                 kind=inspect.Parameter.KEYWORD_ONLY,
                 default=None,
                 annotation=str | None,
-            )
-        )
-        new_params.append(
+            ),
             inspect.Parameter(
                 "minder_client_key",
                 kind=inspect.Parameter.KEYWORD_ONLY,
                 default=None,
                 annotation=str | None,
-            )
-        )
-        wrapped_tool.__signature__ = orig_sig.replace(parameters=new_params)  # type: ignore
+            ),
+        ]
+
+        final_params = []
+        var_kw = None
+        for p in new_params:
+            if p.kind == inspect.Parameter.VAR_KEYWORD:
+                var_kw = p
+            else:
+                final_params.append(p)
+
+        final_params.extend(injected)
+        if var_kw:
+            final_params.append(var_kw)
+
+        wrapped_tool.__signature__ = orig_sig.replace(parameters=final_params)  # type: ignore
 
         self._server.add_tool(
             wrapped_tool,
@@ -144,20 +157,72 @@ class BaseTransport:
 
         registered = self._tools[name]
         kwargs = dict(arguments or {})
-        effective_client_key = client_key or self._default_client_key()
-        principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
-        if principal is not None:
-            if isinstance(principal, ClientPrincipal) and name not in principal.scopes:
-                raise AuthError(
-                    "AUTH_FORBIDDEN",
-                    f"Client is not allowed to call tool '{name}'",
-                )
-            if self._rate_limiter.enabled():
-                await self._rate_limiter.enforce(principal=principal, tool_name=name)
-            kwargs["principal"] = principal
-            if isinstance(principal, AdminUserPrincipal) and principal.user is not None:
-                kwargs["user"] = principal.user
-        return await _invoke(registered.handler, **kwargs)
+        import time
+        start = time.perf_counter()
+        outcome = "error"
+        principal = None
+        try:
+            effective_client_key = client_key or self._default_client_key()
+            principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
+            if principal is not None:
+                if isinstance(principal, ClientPrincipal) and name not in principal.scopes:
+                    outcome = "denied"
+                    raise AuthError(
+                        "AUTH_FORBIDDEN",
+                        f"Client is not allowed to call tool '{name}'",
+                    )
+                if self._rate_limiter.enabled():
+                    await self._rate_limiter.enforce(principal=principal, tool_name=name)
+                kwargs["principal"] = principal
+                if isinstance(principal, AdminUserPrincipal) and principal.user is not None:
+                    kwargs["user"] = principal.user
+            
+            outcome = "success"
+            return await _invoke(registered.handler, **kwargs)
+        except Exception as exc:
+            if isinstance(exc, AuthError):
+                outcome = "denied"
+            elif outcome == "success": # Should not happen if we caught an exception
+                outcome = "error"
+            raise
+        finally:
+            elapsed = time.perf_counter() - start
+            
+            client_id = "unknown"
+            actor_id = "unknown"
+            actor_type = "unknown"
+            if principal is not None:
+                client_id = getattr(principal, "client_slug") if hasattr(principal, "client_slug") else "unknown"
+                actor_id = str(principal.principal_id)
+                actor_type = principal.principal_type
+
+            # Record metrics (Prometheus - in-memory)
+            try:
+                from minder.observability.metrics import record_tool_call
+                record_tool_call(name, outcome, elapsed, client_id=client_id)
+            except Exception:
+                pass
+
+            # Record audit log (Persistent)
+            if self._store is not None:
+                try:
+                    await self._store.create_audit_log(
+                        actor_type=actor_type,
+                        actor_id=actor_id,
+                        event_type="tool_call",
+                        tool_name=name,
+                        resource_type="tool",
+                        resource_id=name,
+                        outcome=outcome,
+                        audit_metadata={
+                            "client_id": client_id,
+                            "latency_ms": round(elapsed * 1000, 2),
+                            "arguments": arguments,
+                        }
+                    )
+                except Exception:
+                    # Don't let audit logging fail the whole tool call
+                    pass
 
     @staticmethod
     def _describe_tool(name: str) -> str:

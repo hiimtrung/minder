@@ -40,10 +40,16 @@ def build_transport(
 
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
-        transport = StdioTransport(config=config, auth_service=auth_service, cache_provider=cache)
+        transport = StdioTransport(
+            config=config, 
+            auth_service=auth_service, 
+            cache_provider=cache,
+            store=store,
+        )
     else:
         transport = SSETransport(
             config=config,
+            store=store,
             auth_service=auth_service,
             extra_routes=build_http_routes(config=config, store=store, cache=cache),
             cache_provider=cache,
@@ -286,5 +292,5 @@ def build_transport(
     transport.register_tool("minder_search_errors", minder_search_errors, require_auth=True, description=TOOL_DESCRIPTIONS["minder_search_errors"])
 
     ResourceRegistry.register(transport.app, store)
-    PromptRegistry.register(transport.app)
+    PromptRegistry.register(transport.app, store=store)
     return transport

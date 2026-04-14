@@ -5,20 +5,10 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 <DashboardLayout
   title="Client Registry · Minder"
   description="Astro shell for the Minder client registry."
-  navTitle="Minder Client Registry"
+  navTitle="Minder Dashboard"
   navDescription="Provision client keys, then open each client in a dedicated detail route."
   sessionControls={true}
-  navLinks={[
-    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/clients", label: "Clients", tone: "primary" },
-    { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
-    { href: "/dashboard/users", label: "Users", tone: "secondary" },
-    {
-      href: "/dashboard/observability",
-      label: "Observability",
-      tone: "secondary",
-    },
-  ]}
+  sessionControls={true}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div class="space-y-3">

@@ -1,11 +1,18 @@
 from __future__ import annotations
 
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
 
-from minder.observability.metrics import get_metrics_summary
+from minder.observability.metrics import (
+    get_metrics_summary,
+    record_admin_operation,
+    record_auth_event,
+)
 
 from .context import ADMIN_COOKIE_NAME, AdminRouteContext
 
@@ -55,10 +62,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             else:
                 result = await context.use_cases.login_admin(api_key)
         except PermissionError:
+            await record_auth_event("login", "denied", client_id="dashboard", store=context.store)
             return JSONResponse({"error": "Admin role required."}, status_code=403)
         except Exception:
+            await record_auth_event("login", "failure", client_id="dashboard", store=context.store)
             return JSONResponse({"error": "Invalid credentials."}, status_code=401)
 
+        await record_auth_event("login", "success", client_id="dashboard", store=context.store)
         response = JSONResponse({"ok": True}, status_code=200)
         response.set_cookie(
             ADMIN_COOKIE_NAME,
@@ -73,6 +83,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     async def dashboard_logout_api(request):
         del request
+        await record_auth_event("logout", "success", client_id="dashboard", store=context.store)
         response = JSONResponse({"ok": True}, status_code=200)
         response.delete_cookie(ADMIN_COOKIE_NAME, path="/")
         return response
@@ -105,10 +116,16 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     async def token_exchange(request):
         payload = await request.json()
-        exchange = await context.use_cases.exchange_client_key(
-            client_api_key=payload["client_api_key"],
-            requested_scopes=payload.get("requested_scopes"),
-        )
+        try:
+            exchange = await context.use_cases.exchange_client_key(
+                client_api_key=payload["client_api_key"],
+                requested_scopes=payload.get("requested_scopes"),
+            )
+        except Exception as exc:
+            await record_auth_event("token_exchange", "failure", store=context.store)
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        client_slug = str(exchange.get("client_slug", "unknown"))
+        await record_auth_event("token_exchange", "success", client_id=client_slug, store=context.store)
         return JSONResponse(exchange)
 
     async def gateway_test_connection(request):
@@ -139,14 +156,19 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
         payload = await request.json()
-        created = await context.use_cases.create_client(
-            actor_user_id=user.id,
-            name=payload["name"],
-            slug=payload["slug"],
-            description=payload.get("description", ""),
-            tool_scopes=payload.get("tool_scopes"),
-            repo_scopes=payload.get("repo_scopes"),
-        )
+        try:
+            created = await context.use_cases.create_client(
+                actor_user_id=user.id,
+                name=payload["name"],
+                slug=payload["slug"],
+                description=payload.get("description", ""),
+                tool_scopes=payload.get("tool_scopes"),
+                repo_scopes=payload.get("repo_scopes"),
+            )
+        except Exception as exc:
+            await record_admin_operation("create_client", "error", actor_id=str(user.id), store=context.store)
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        await record_admin_operation("create_client", "success", actor_id=str(user.id), store=context.store)
         return JSONResponse(created, status_code=201)
 
     async def admin_clients(request):
@@ -188,7 +210,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 tool_scopes=payload.get("tool_scopes"),
             )
         except LookupError:
+            await record_admin_operation("update_client", "error", actor_id=str(user.id), store=context.store)
             return JSONResponse({"error": "Client not found"}, status_code=404)
+        except Exception:
+            await record_admin_operation("update_client", "error", actor_id=str(user.id), store=context.store)
+            raise
+            
+        await record_admin_operation("update_client", "success", actor_id=str(user.id), store=context.store)
         return JSONResponse(updated)
 
     async def client_key_rotate(request):
@@ -205,7 +233,9 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 actor_user_id=user.id,
             )
         except Exception as exc:
+            await record_admin_operation("key_rotate", "error", actor_id=str(user.id), store=context.store)
             return JSONResponse({"error": str(exc)}, status_code=404)
+        await record_admin_operation("key_rotate", "success", actor_id=str(user.id), store=context.store)
         return JSONResponse(result, status_code=201)
 
     async def client_key_revoke(request):
@@ -216,9 +246,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
         client_id = uuid.UUID(str(request.path_params["client_id"]))
-        return JSONResponse(
-            await context.use_cases.revoke_client_keys(client_id=client_id, actor_user_id=user.id)
-        )
+        try:
+            result = await context.use_cases.revoke_client_keys(client_id=client_id, actor_user_id=user.id)
+            await record_admin_operation("key_revoke", "success", actor_id=str(user.id), store=context.store)
+            return JSONResponse(result)
+        except Exception:
+            await record_admin_operation("key_revoke", "error", actor_id=str(user.id), store=context.store)
+            raise
 
     async def client_onboarding(request):
         try:
@@ -244,7 +278,10 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": "Admin role required"}, status_code=403)
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
-        actor_id = request.query_params.get("actor_id")
+        # Allow filtering by client_id as an alias for actor_id
+        actor_id = request.query_params.get("client_id") or request.query_params.get("actor_id") or None
+        event_type = request.query_params.get("event_type") or None
+        outcome = request.query_params.get("outcome") or None
         try:
             limit = int(request.query_params.get("limit", "50"))
             offset = int(request.query_params.get("offset", "0"))
@@ -253,7 +290,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         limit = max(1, min(limit, 200))  # cap at 200
         offset = max(0, offset)
         return JSONResponse(
-            await context.use_cases.list_audit(actor_id=actor_id, limit=limit, offset=offset)
+            await context.use_cases.list_audit(
+                actor_id=actor_id,
+                event_type=event_type,
+                outcome=outcome,
+                limit=limit,
+                offset=offset,
+            )
         )
 
     # ------------------------------------------------------------------
@@ -439,7 +482,25 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": "Admin role required"}, status_code=403)
         except Exception as exc:
             return JSONResponse({"error": str(exc)}, status_code=401)
-        return JSONResponse(get_metrics_summary())
+
+        try:
+            active_sessions = await context.store.count_active_client_sessions()
+        except Exception as exc:
+            logger.warning("Failed to count active client sessions: %s", exc)
+            active_sessions = None
+            
+        client_id = request.query_params.get("client_id")
+        event_type = request.query_params.get("event_type")
+        outcome = request.query_params.get("outcome")
+
+        summary = await get_metrics_summary(
+            store=context.store,
+            active_sessions=active_sessions,
+            client_id=client_id,
+            event_type=event_type,
+            outcome=outcome,
+        )
+        return JSONResponse(summary)
 
     # ------------------------------------------------------------------
     # Repository management

@@ -17,20 +17,27 @@ const statAuthEventsSub = document.querySelector("#stat-auth-events-sub");
 const statHttpRequests = document.querySelector("#stat-http-requests");
 const statHttpSub = document.querySelector("#stat-http-sub");
 
-const breakdownToolOutcomes = document.querySelector(
-  "#breakdown-tool-outcomes",
-);
-const breakdownAuthTypes = document.querySelector("#breakdown-auth-types");
-const breakdownHttpStatus = document.querySelector("#breakdown-http-status");
-const breakdownAdminOps = document.querySelector("#breakdown-admin-ops");
+const chartToolOutcomes = document.querySelector("#chart-tool-outcomes");
+const chartAuthTypes = document.querySelector("#chart-auth-types");
+const chartHttpStatus = document.querySelector("#chart-http-status");
+const chartAdminOps = document.querySelector("#chart-admin-ops");
 
 const auditLogBody = document.querySelector("#audit-log-body");
 const auditActorFilter = document.querySelector(
   "#audit-actor-filter",
 ) as HTMLInputElement | null;
+const auditEventTypeFilter = document.querySelector(
+  "#audit-event-type-filter",
+) as HTMLSelectElement | null;
+const auditOutcomeFilter = document.querySelector(
+  "#audit-outcome-filter",
+) as HTMLSelectElement | null;
 const auditFilterApply = document.querySelector("#audit-filter-apply");
 const auditFilterClear = document.querySelector("#audit-filter-clear");
 const refreshButton = document.querySelector("#refresh-observability");
+const autoRefreshToggle = document.querySelector(
+  "#auto-refresh-toggle",
+) as HTMLInputElement | null;
 const paginationInfo = document.querySelector("#audit-pagination-info");
 const paginationPrev = document.querySelector(
   "#audit-prev",
@@ -41,9 +48,10 @@ const paginationNext = document.querySelector(
 const pageSizeSelect = document.querySelector(
   "#audit-page-size",
 ) as HTMLSelectElement | null;
+const activeFilterPills = document.querySelector("#active-filter-pills");
 
 // ---------------------------------------------------------------------------
-// Pagination state
+// Pagination / filter state
 // ---------------------------------------------------------------------------
 
 const PAGE_SIZE_DEFAULT = 25;
@@ -51,6 +59,10 @@ let currentOffset = 0;
 let currentTotal = 0;
 let currentLimit = PAGE_SIZE_DEFAULT;
 let currentActorFilter: string | undefined;
+let currentEventTypeFilter: string | undefined;
+let currentOutcomeFilter: string | undefined;
+
+let autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -94,40 +106,87 @@ const outcomeClass = (outcome: string): string => {
 };
 
 // ---------------------------------------------------------------------------
-// Render breakdown rows
+// Donut SVG chart
 // ---------------------------------------------------------------------------
 
-const renderBreakdown = (
+// Colour palette: green, amber, blue, red, violet, cyan, orange, rose
+const DONUT_COLORS = [
+  "#22c55e",
+  "#f59e0b",
+  "#3b82f6",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#f97316",
+  "#f43f5e",
+];
+
+function renderDonut(
   container: Element | null,
   data: Record<string, number>,
-  emptyMessage = "No data yet.",
-): void => {
+): void {
   if (!container) return;
-  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+
+  const entries = Object.entries(data)
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+
   if (!entries.length) {
-    container.innerHTML = `<p class="text-sm text-stone-400">${emptyMessage}</p>`;
+    container.innerHTML =
+      '<p class="text-sm text-stone-400 text-center py-4">No data yet.</p>';
     return;
   }
-  const max = Math.max(...entries.map(([, v]) => v), 1);
-  container.innerHTML = entries
-    .map(
-      ([label, value]) => `
-    <div class="grid gap-1">
-      <div class="flex items-center justify-between gap-2 text-xs">
-        <span class="font-medium text-stone-700 truncate">${escapeHtml(label)}</span>
-        <span class="shrink-0 tabular-nums text-stone-500">${fmt(value)}</span>
-      </div>
-      <div class="h-1.5 rounded-full bg-stone-100 overflow-hidden">
-        <div
-          class="h-full rounded-full bg-amber-400"
-          style="width:${Math.round((value / max) * 100)}%"
-        ></div>
-      </div>
-    </div>
-  `,
-    )
+
+  const total = entries.reduce((s, [, v]) => s + v, 0);
+  const SIZE = 120;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const RADIUS = 42;
+  const STROKE_W = 22;
+  const circumference = 2 * Math.PI * RADIUS;
+
+  let cumPct = 0;
+  const segments = entries
+    .map(([, value], i) => {
+      const pct = value / total;
+      const dash = (pct * circumference).toFixed(3);
+      const gap = (circumference * (1 - pct)).toFixed(3);
+      const rotation = (cumPct * 360 - 90).toFixed(3);
+      cumPct += pct;
+      const color = DONUT_COLORS[i % DONUT_COLORS.length];
+      return `<circle cx="${cx}" cy="${cy}" r="${RADIUS}" fill="none" stroke="${color}" stroke-width="${STROKE_W}" stroke-dasharray="${dash} ${gap}" transform="rotate(${rotation} ${cx} ${cy})" />`;
+    })
     .join("");
-};
+
+  const legend = entries
+    .map(([label, value], i) => {
+      const pct = Math.round((value / total) * 100);
+      const color = DONUT_COLORS[i % DONUT_COLORS.length];
+      return `
+        <div class="flex items-center gap-2 text-xs">
+          <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background:${color}"></span>
+          <span class="truncate text-stone-700 flex-1">${escapeHtml(label)}</span>
+          <span class="tabular-nums text-stone-500 shrink-0">${pct}%</span>
+        </div>`;
+    })
+    .join("");
+
+  const totalLabel =
+    total >= 1000
+      ? (total / 1000).toFixed(1) + "k"
+      : String(Math.round(total));
+
+  container.innerHTML = `
+    <div class="flex flex-col items-center gap-3 w-full">
+      <svg width="${SIZE}" height="${SIZE}" viewBox="0 0 ${SIZE} ${SIZE}" style="overflow:visible">
+        <circle cx="${cx}" cy="${cy}" r="${RADIUS}" fill="none" stroke="#e7e5e4" stroke-width="${STROKE_W}"/>
+        ${segments}
+        <text x="${cx}" y="${cy - 6}" text-anchor="middle" font-size="16" font-weight="700" fill="#1c1917">${totalLabel}</text>
+        <text x="${cx}" y="${cy + 10}" text-anchor="middle" font-size="10" fill="#78716c">total</text>
+      </svg>
+      <div class="w-full grid gap-1.5">${legend}</div>
+    </div>`;
+}
 
 // ---------------------------------------------------------------------------
 // Render metrics summary
@@ -139,8 +198,8 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
   if (statToolCalls) statToolCalls.textContent = fmt(data.tool_calls.total);
   if (statToolCallsSub) {
     const success = data.tool_calls.by_outcome["success"] ?? 0;
-    const total = data.tool_calls.total || 1;
-    const rate = Math.round((success / total) * 100);
+    const total = data.tool_calls.total;
+    const rate = total > 0 ? Math.round((success / total) * 100) : 0;
     statToolCallsSub.textContent =
       total > 0 ? `${rate}% success rate` : "No calls yet";
   }
@@ -168,10 +227,65 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
         : "No errors";
   }
 
-  renderBreakdown(breakdownToolOutcomes, data.tool_calls.by_outcome);
-  renderBreakdown(breakdownAuthTypes, data.auth_events.by_type);
-  renderBreakdown(breakdownHttpStatus, data.http_requests.by_status);
-  renderBreakdown(breakdownAdminOps, data.admin_operations.by_outcome);
+  renderDonut(chartToolOutcomes, data.tool_calls.by_outcome);
+  renderDonut(chartAuthTypes, data.auth_events.by_type);
+  renderDonut(chartHttpStatus, data.http_requests.by_status);
+  renderDonut(chartAdminOps, data.admin_operations.by_outcome);
+};
+
+// ---------------------------------------------------------------------------
+// Active filter pills
+// ---------------------------------------------------------------------------
+
+const renderFilterPills = (): void => {
+  if (!activeFilterPills) return;
+  const pills: string[] = [];
+  if (currentEventTypeFilter) {
+    pills.push(
+      `<span class="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800">
+        type: ${escapeHtml(currentEventTypeFilter)}
+        <button data-clear="event_type" class="ml-1 text-amber-500 hover:text-amber-900">✕</button>
+      </span>`,
+    );
+  }
+  if (currentOutcomeFilter) {
+    pills.push(
+      `<span class="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-800">
+        outcome: ${escapeHtml(currentOutcomeFilter)}
+        <button data-clear="outcome" class="ml-1 text-blue-500 hover:text-blue-900">✕</button>
+      </span>`,
+    );
+  }
+  if (currentActorFilter) {
+    pills.push(
+      `<span class="inline-flex items-center gap-1 rounded-full border border-stone-200 bg-stone-100 px-3 py-1 text-xs font-medium text-stone-700">
+        actor: ${escapeHtml(currentActorFilter.slice(0, 12))}…
+        <button data-clear="actor" class="ml-1 text-stone-400 hover:text-stone-900">✕</button>
+      </span>`,
+    );
+  }
+  activeFilterPills.innerHTML = pills.join("");
+  // Wire pill clear buttons
+  activeFilterPills
+    .querySelectorAll<HTMLButtonElement>("[data-clear]")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const field = btn.dataset.clear;
+        if (field === "event_type") {
+          currentEventTypeFilter = undefined;
+          if (auditEventTypeFilter) auditEventTypeFilter.value = "";
+        } else if (field === "outcome") {
+          currentOutcomeFilter = undefined;
+          if (auditOutcomeFilter) auditOutcomeFilter.value = "";
+        } else if (field === "actor") {
+          currentActorFilter = undefined;
+          if (auditActorFilter) auditActorFilter.value = "";
+        }
+        currentOffset = 0;
+        renderFilterPills();
+        void loadAuditLog();
+      });
+    });
 };
 
 // ---------------------------------------------------------------------------
@@ -194,8 +308,8 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   if (!events.length) {
     auditLogBody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-4 py-6 text-center text-sm text-stone-400">
-          No audit events found.
+        <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">
+          No audit events found matching the current filters.
         </td>
       </tr>`;
     return;
@@ -203,33 +317,33 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
 
   auditLogBody.innerHTML = events
     .map((evt) => {
-      // Actor display: prefer name, fall back to truncated ID
       const actorLabel = evt.actor_name
         ? escapeHtml(evt.actor_name)
-        : escapeHtml(evt.actor_id.slice(0, 10)) + "…";
+        : evt.actor_id
+          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.actor_id.slice(0, 8))}…</span>`
+          : "—";
 
-      // Resource display: prefer name, fall back to truncated ID
       const resourceLabel = evt.resource_name
         ? escapeHtml(evt.resource_name)
-        : escapeHtml(evt.resource_id.slice(0, 10)) + "…";
+        : evt.resource_id
+          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.resource_id.slice(0, 8))}…</span>`
+          : "—";
 
       return `
     <tr class="border-t border-stone-100 hover:bg-stone-50/60 transition-colors">
       <td class="px-4 py-3">
-        <span class="font-medium text-stone-900">${escapeHtml(evt.event_type)}</span>
+        <span class="font-medium text-stone-900 text-xs">${escapeHtml(evt.event_type)}</span>
       </td>
       <td class="px-4 py-3">
-        <div class="grid">
-          <span class="text-xs font-medium uppercase tracking-wide text-stone-500">${escapeHtml(evt.actor_type)}</span>
-          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-40" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.actor_type)}</span>
+          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
         </div>
       </td>
       <td class="px-4 py-3">
-        <div class="grid">
-          <span class="text-xs text-stone-500 uppercase">${escapeHtml(evt.resource_type)}</span>
-          <span class="mt-0.5 truncate text-xs text-stone-700 max-w-40" title="${escapeHtml(evt.resource_id)}">
-            ${resourceLabel}
-          </span>
+        <div class="flex flex-col gap-0.5">
+          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.resource_type)}</span>
+          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.resource_id ?? "")}">${resourceLabel}</span>
         </div>
       </td>
       <td class="px-4 py-3">
@@ -237,7 +351,7 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
           ${escapeHtml(evt.outcome)}
         </span>
       </td>
-      <td class="px-4 py-3 text-xs text-stone-500 whitespace-nowrap">${escapeHtml(relativeTime(evt.created_at))}</td>
+      <td class="px-4 py-3 text-xs text-stone-500 whitespace-nowrap" title="${evt.created_at ?? ""}">${escapeHtml(relativeTime(evt.created_at))}</td>
     </tr>
   `;
     })
@@ -250,7 +364,11 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
 
 const loadMetrics = async (): Promise<void> => {
   try {
-    const data = await getMetricsSummary();
+    const data = await getMetricsSummary(
+      currentActorFilter,
+      currentEventTypeFilter,
+      currentOutcomeFilter,
+    );
     renderMetrics(data);
   } catch (error) {
     const msg =
@@ -260,15 +378,12 @@ const loadMetrics = async (): Promise<void> => {
         if (el) el.textContent = "—";
       },
     );
-    [
-      breakdownToolOutcomes,
-      breakdownAuthTypes,
-      breakdownHttpStatus,
-      breakdownAdminOps,
-    ].forEach((el) => {
-      if (el)
-        el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
-    });
+    [chartToolOutcomes, chartAuthTypes, chartHttpStatus, chartAdminOps].forEach(
+      (el) => {
+        if (el)
+          el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
+      },
+    );
   }
 };
 
@@ -284,6 +399,8 @@ const loadAuditLog = async (): Promise<void> => {
       currentActorFilter,
       currentLimit,
       currentOffset,
+      currentEventTypeFilter,
+      currentOutcomeFilter,
     );
     currentTotal = payload.total;
     renderAuditLog(payload.events, payload.total);
@@ -299,6 +416,29 @@ const loadAuditLog = async (): Promise<void> => {
   }
 };
 
+const applyFilters = () => {
+  currentActorFilter = auditActorFilter?.value.trim() || undefined;
+  currentEventTypeFilter = auditEventTypeFilter?.value || undefined;
+  currentOutcomeFilter = auditOutcomeFilter?.value || undefined;
+  currentOffset = 0;
+  renderFilterPills();
+  void loadMetrics();
+  void loadAuditLog();
+};
+
+const clearFilters = () => {
+  if (auditActorFilter) auditActorFilter.value = "";
+  if (auditEventTypeFilter) auditEventTypeFilter.value = "";
+  if (auditOutcomeFilter) auditOutcomeFilter.value = "";
+  currentActorFilter = undefined;
+  currentEventTypeFilter = undefined;
+  currentOutcomeFilter = undefined;
+  currentOffset = 0;
+  renderFilterPills();
+  void loadMetrics();
+  void loadAuditLog();
+};
+
 const refresh = (): void => {
   void loadMetrics();
   currentOffset = 0;
@@ -306,29 +446,34 @@ const refresh = (): void => {
 };
 
 // ---------------------------------------------------------------------------
+// Auto-refresh
+// ---------------------------------------------------------------------------
+
+const startAutoRefresh = () => {
+  if (autoRefreshInterval) return;
+  autoRefreshInterval = setInterval(refresh, 30_000);
+};
+
+const stopAutoRefresh = () => {
+  if (autoRefreshInterval) {
+    clearInterval(autoRefreshInterval);
+    autoRefreshInterval = null;
+  }
+};
+
+// ---------------------------------------------------------------------------
 // Event wiring
 // ---------------------------------------------------------------------------
 
-auditFilterApply?.addEventListener("click", () => {
-  currentActorFilter = auditActorFilter?.value.trim() || undefined;
-  currentOffset = 0;
-  void loadAuditLog();
-});
-
-auditFilterClear?.addEventListener("click", () => {
-  if (auditActorFilter) auditActorFilter.value = "";
-  currentActorFilter = undefined;
-  currentOffset = 0;
-  void loadAuditLog();
-});
+auditFilterApply?.addEventListener("click", applyFilters);
+auditFilterClear?.addEventListener("click", clearFilters);
 
 auditActorFilter?.addEventListener("keydown", (e) => {
-  if (e.key === "Enter") {
-    currentActorFilter = auditActorFilter.value.trim() || undefined;
-    currentOffset = 0;
-    void loadAuditLog();
-  }
+  if (e.key === "Enter") applyFilters();
 });
+
+auditEventTypeFilter?.addEventListener("change", applyFilters);
+auditOutcomeFilter?.addEventListener("change", applyFilters);
 
 paginationPrev?.addEventListener("click", () => {
   currentOffset = Math.max(0, currentOffset - currentLimit);
@@ -349,6 +494,14 @@ pageSizeSelect?.addEventListener("change", () => {
 });
 
 refreshButton?.addEventListener("click", refresh);
+
+autoRefreshToggle?.addEventListener("change", () => {
+  if (autoRefreshToggle.checked) {
+    startAutoRefresh();
+  } else {
+    stopAutoRefresh();
+  }
+});
 
 // ---------------------------------------------------------------------------
 // Boot

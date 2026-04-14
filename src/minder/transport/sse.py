@@ -19,7 +19,12 @@ from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.presentation.http.admin.routes import dashboard_dev_origin
-from minder.store.interfaces import ICacheProvider
+from minder.observability.logging import (
+    AccessLogMiddleware, 
+    CorrelationIdMiddleware,
+    GlobalExceptionMiddleware
+)
+from minder.store.interfaces import ICacheProvider, IOperationalStore
 from minder.transport.base import BaseTransport
 
 logger = logging.getLogger(__name__)
@@ -127,11 +132,17 @@ class SSETransport(BaseTransport):
         self,
         *,
         config: MinderConfig,
+        store: IOperationalStore | None = None,
         auth_service: AuthService | None = None,
         extra_routes: list[BaseRoute] | None = None,
         cache_provider: ICacheProvider | None = None,
     ) -> None:
-        super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
+        super().__init__(
+            config=config, 
+            auth_service=auth_service, 
+            cache_provider=cache_provider,
+            store=store,
+        )
         self._extra_routes = list(extra_routes or [])
         self._legacy_sse_app: Starlette | None = None
         self._streamable_http_app: Starlette | None = None
@@ -180,6 +191,12 @@ class SSETransport(BaseTransport):
                 allow_methods=["*"],
                 allow_headers=["*"],
             )
+        
+        # Observability middleware
+        app.add_middleware(GlobalExceptionMiddleware)
+        app.add_middleware(CorrelationIdMiddleware)
+        app.add_middleware(AccessLogMiddleware)
+
         if self._middleware and self._middleware._auth:
             app.add_middleware(SSEAuthMiddleware, auth_service=self._middleware._auth)
 

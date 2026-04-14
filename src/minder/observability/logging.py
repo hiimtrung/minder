@@ -152,7 +152,9 @@ class CorrelationIdMiddleware:
 
 
 class AccessLogMiddleware:
-    """ASGI middleware that emits a structured access log entry per request."""
+    """ASGI middleware that emits a structured access log entry per request
+    and records the request in the Prometheus metrics registry.
+    """
 
     def __init__(self, app: "ASGIApp", logger_name: str = "minder.access") -> None:
         self.app = app
@@ -191,3 +193,61 @@ class AccessLogMiddleware:
                     "duration_ms": round(elapsed * 1000, 2),
                 },
             )
+            # Record into the Prometheus registry (import deferred to avoid
+            # circular imports at module load time).
+            try:
+                from minder.observability.metrics import record_http_request  # noqa: PLC0415
+                record_http_request(method, path, status_code[0], elapsed)
+            except Exception:  # noqa: BLE001
+                pass
+
+
+class GlobalExceptionMiddleware:
+    """Catch-all middleware that ensures 500s are returned as clean JSON."""
+
+    def __init__(self, app: "ASGIApp") -> None:
+        self.app = app
+
+    async def __call__(self, scope: "Scope", receive: "Receive", send: "Send") -> None:
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        response_started = [False]
+
+        async def send_wrapper(message: MutableMapping[str, Any]) -> None:
+            if message["type"] == "http.response.start":
+                response_started[0] = True
+            await send(message)
+
+        try:
+            await self.app(scope, receive, send_wrapper)
+        except Exception as exc:
+            import traceback
+
+            from starlette.responses import JSONResponse
+
+            logger = logging.getLogger("minder.errors")
+            logger.exception("Unhandled exception in ASGI application: %s", exc)
+
+            if response_started[0]:
+                # We can't send a clean JSON error response if we've already
+                # sent the 200/initial status code and headers.
+                # Just log and let the connection drop or raise.
+                return
+
+            response = JSONResponse(
+                {
+                    "error": {
+                        "code": "SYS_INTERNAL_ERROR",
+                        "message": str(exc),
+                        "details": (
+                            traceback.format_exc()
+                            if scope.get("debug") or True
+                            else None
+                        ),
+                    }
+                },
+                status_code=500,
+            )
+            await response(scope, receive, send)

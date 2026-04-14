@@ -257,6 +257,14 @@ class MongoOperationalStore:
         doc = await self._db.client_sessions.find_one({"_id": _uuid_to_str(session_id)})
         return _to_doc(doc) if doc else None
 
+    async def count_active_client_sessions(self) -> int:
+        now = _now()
+        query = {
+            "status": "active",
+            "expires_at": {"$gt": now}
+        }
+        return int(await self._db.client_sessions.count_documents(query))
+
     async def create_audit_log(self, **kwargs: Any) -> _MongoDoc:
         if "id" not in kwargs:
             kwargs["id"] = _uuid_to_str(uuid.uuid4())
@@ -272,22 +280,67 @@ class MongoOperationalStore:
         self,
         *,
         actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
         limit: int | None = None,
         offset: int = 0,
     ) -> list[_MongoDoc]:
         query: dict[str, Any] = {}
         if actor_id is not None:
             query["actor_id"] = actor_id
+        if event_type is not None:
+            query["event_type"] = event_type
+        if outcome is not None:
+            query["outcome"] = outcome
         cursor = self._db.audit_logs.find(query).sort("created_at", -1).skip(offset)
         if limit is not None:
             cursor = cursor.limit(limit)
         return [_to_doc(doc) async for doc in cursor]
 
-    async def count_audit_logs(self, *, actor_id: str | None = None) -> int:
+    async def count_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+    ) -> int:
         query: dict[str, Any] = {}
         if actor_id is not None:
             query["actor_id"] = actor_id
+        if event_type is not None:
+            query["event_type"] = event_type
+        if outcome is not None:
+            query["outcome"] = outcome
         return int(await self._db.audit_logs.count_documents(query))
+
+    async def get_audit_summary(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+        group_by: str = "event_type",
+    ) -> dict[str, int]:
+        match_query: dict[str, Any] = {}
+        if actor_id is not None:
+            match_query["actor_id"] = actor_id
+        if event_type is not None:
+            match_query["event_type"] = event_type
+        if outcome is not None:
+            match_query["outcome"] = outcome
+
+        pipeline = []
+        if match_query:
+            pipeline.append({"$match": match_query})
+        
+        pipeline.append({"$group": {"_id": f"${group_by}", "count": {"$sum": 1}}})
+
+        cursor = self._db.audit_logs.aggregate(pipeline)
+        result: dict[str, int] = {}
+        async for doc in cursor:
+            label = doc["_id"] or "unknown"
+            result[label] = doc["count"]
+        return result
 
     # ------------------------------------------------------------------
     # Skill

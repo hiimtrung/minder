@@ -14,22 +14,9 @@ const detailHref = clientId
 <DashboardLayout
   title="Client Detail · Minder"
   description="Dedicated Astro shell for Minder client detail operations."
-  navTitle="Minder Client Detail"
+  navTitle="Minder Dashboard"
   navDescription="Operate one client with full breadcrumb context, lifecycle controls, and onboarding assets."
   sessionControls={true}
-  navLinks={[
-    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
-    {
-      href: detailHref,
-      label: "Client Detail",
-      tone: "primary",
-      currentDetail: true,
-    },
-    { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
-    { href: "/dashboard/users", label: "Users", tone: "secondary" },
-    { href: "/dashboard/observability", label: "Observability", tone: "secondary" },
-  ]}
 >
   <section class="mb-8 space-y-6">
     <nav
@@ -39,7 +26,7 @@ const detailHref = clientId
       <a href="/dashboard" class="transition hover:text-stone-950">Dashboard</a>
       <span aria-hidden="true">/</span>
       <a href="/dashboard/clients" class="transition hover:text-stone-950"
-        >Client Registry</a
+        >Clients</a
       >
       <span aria-hidden="true">/</span>
       <span class="font-medium text-stone-950">Client Detail</span>

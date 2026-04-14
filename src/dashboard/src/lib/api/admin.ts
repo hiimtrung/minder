@@ -35,7 +35,7 @@ export type AuditEventPayload = {
   actor_name: string | null;
   event_type: string;
   resource_type: string;
-  resource_id: string;
+  resource_id: string | null;
   resource_name: string | null;
   outcome: string;
   created_at: string | null;
@@ -303,9 +303,13 @@ export async function listAudit(
   actorId?: string,
   limit = 50,
   offset = 0,
+  eventType?: string,
+  outcome?: string,
 ): Promise<AuditListPayload> {
   const params = new URLSearchParams();
   if (actorId) params.set("actor_id", actorId);
+  if (eventType) params.set("event_type", eventType);
+  if (outcome) params.set("outcome", outcome);
   params.set("limit", String(limit));
   params.set("offset", String(offset));
   return requestJson<AuditListPayload>(`/v1/admin/audit?${params.toString()}`);
@@ -494,6 +498,19 @@ export type MetricsSummaryPayload = {
   admin_operations: { total: number; by_outcome: Record<string, number> };
 };
 
-export async function getMetricsSummary(): Promise<MetricsSummaryPayload> {
-  return requestJson<MetricsSummaryPayload>("/v1/admin/metrics-summary");
+export async function getMetricsSummary(
+  client_id?: string,
+  event_type?: string,
+  outcome?: string,
+): Promise<MetricsSummaryPayload> {
+  const params = new URLSearchParams();
+  if (client_id) params.set("client_id", client_id);
+  if (event_type) params.set("event_type", event_type);
+  if (outcome) params.set("outcome", outcome);
+
+  const query = params.toString();
+  const path = query
+    ? `/v1/admin/metrics-summary?${query}`
+    : "/v1/admin/metrics-summary";
+  return requestJson<MetricsSummaryPayload>(path);
 }

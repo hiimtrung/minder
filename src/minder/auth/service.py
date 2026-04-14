@@ -430,6 +430,7 @@ class AuthService:
             "expires_in": self._config.auth.client_token_expiry_minutes * 60,
             "token_type": "Bearer",
             "client_id": str(client.id),
+            "client_slug": client.slug,
         }
 
     # ------------------------------------------------------------------

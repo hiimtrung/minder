@@ -14,7 +14,9 @@ import {
 // ---------------------------------------------------------------------------
 
 const userListEl = document.querySelector("#user-list");
-const createUserForm = document.querySelector("#create-user-form");
+const createUserForm = document.querySelector(
+  "#create-user-form",
+) as HTMLFormElement | null;
 const createUserUsername = document.querySelector(
   "#create-user-username",
 ) as HTMLInputElement | null;
@@ -51,6 +53,11 @@ const showInactiveToggle = document.querySelector(
   "#show-inactive-toggle",
 ) as HTMLInputElement | null;
 const toastRegion = document.querySelector("#dashboard-toast-region");
+
+// Create User panel toggle
+const toggleCreateUserBtn = document.querySelector("#toggle-create-user");
+const closeCreateUserBtn = document.querySelector("#close-create-user");
+const createUserPanel = document.querySelector("#create-user-panel");
 
 let selectedUserId: string | null = null;
 let cachedUsers: UserPayload[] = [];
@@ -123,6 +130,36 @@ const showCreatedUser = (payload: CreateUserPayload): void => {
     createUserApiKey.textContent = payload.api_key;
   }
 };
+
+// ---------------------------------------------------------------------------
+// Create User panel toggle
+// ---------------------------------------------------------------------------
+
+const openCreatePanel = () => {
+  createUserPanel?.classList.remove("hidden");
+  toggleCreateUserBtn?.setAttribute("aria-expanded", "true");
+};
+
+const closeCreatePanel = () => {
+  createUserPanel?.classList.add("hidden");
+  toggleCreateUserBtn?.setAttribute("aria-expanded", "false");
+  createUserForm?.reset();
+  if (createUserResult instanceof HTMLElement) {
+    createUserResult.classList.add("hidden");
+  }
+  setCreateUserStatus("");
+};
+
+toggleCreateUserBtn?.addEventListener("click", () => {
+  const isOpen = !createUserPanel?.classList.contains("hidden");
+  if (isOpen) {
+    closeCreatePanel();
+  } else {
+    openCreatePanel();
+  }
+});
+
+closeCreateUserBtn?.addEventListener("click", closeCreatePanel);
 
 createUserForm?.addEventListener("submit", async (event) => {
   event.preventDefault();

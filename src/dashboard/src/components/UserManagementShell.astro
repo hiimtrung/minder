@@ -5,20 +5,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 <DashboardLayout
   title="User Management · Minder"
   description="Manage admin users — view roles, activate/deactivate accounts, and update display names."
-  navTitle="Minder User Management"
+  navTitle="Minder Dashboard"
   navDescription="Administer the users who have access to the Minder dashboard and admin API."
   sessionControls={true}
-  navLinks={[
-    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/clients", label: "Clients", tone: "secondary" },
-    { href: "/dashboard/workflows", label: "Workflows", tone: "secondary" },
-    { href: "/dashboard/users", label: "User Management", tone: "primary" },
-    {
-      href: "/dashboard/observability",
-      label: "Observability",
-      tone: "secondary",
-    },
-  ]}
 >
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
     <div class="space-y-3">
@@ -32,31 +21,137 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         dashboard.
       </p>
     </div>
-    <div class="flex flex-wrap gap-2">
+    <div class="flex flex-wrap items-center gap-3">
       <label class="flex items-center gap-2 text-sm text-stone-700">
         <input
           type="checkbox"
           id="show-inactive-toggle"
           class="accent-amber-600"
         />
-        Show inactive users
+        Show inactive
       </label>
+      <button id="toggle-create-user" type="button" class="primary-pill">
+        + New user
+      </button>
     </div>
   </section>
 
   <section class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-    <aside class="flex flex-col gap-6">
+    <!-- Sidebar: Edit User panel (always at top, sticky) -->
+    <aside class="flex flex-col gap-4 self-start lg:sticky lg:top-4">
       <section class="shell-card p-7">
-        <p class="eyebrow">Create User</p>
+        <p class="eyebrow">Edit User</p>
         <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-          Add another admin or member
+          User details
         </h2>
-        <p class="mt-3 text-sm leading-6 text-stone-500">
-          Create a new dashboard user and reveal their bootstrap API key exactly
-          once.
+        <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
+          Select a user from the list on the right to edit their profile.
         </p>
 
-        <form id="create-user-form" class="mt-6 grid gap-4">
+        <form id="edit-user-form" class="mt-6 gap-4 hidden">
+          <label class="grid gap-2 text-sm text-stone-700">
+            Display name
+            <input
+              id="edit-user-display-name"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+              placeholder="Display name"
+            />
+          </label>
+
+          <label class="grid gap-2 text-sm text-stone-700">
+            Role
+            <select
+              id="edit-user-role"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
+            >
+              <option value="admin">Admin</option>
+              <option value="member">Member</option>
+              <option value="readonly">Read Only</option>
+            </select>
+          </label>
+
+          <div class="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="edit-user-is-active"
+              class="h-4 w-4 rounded border-stone-300 accent-amber-600"
+            />
+            <label for="edit-user-is-active" class="text-sm text-stone-700">
+              Active (uncheck to deactivate)
+            </label>
+          </div>
+
+          <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
+          <div class="flex gap-2">
+            <button type="submit" class="primary-pill flex-1">
+              Save changes
+            </button>
+            <button type="button" id="cancel-edit-user" class="action-pill">
+              Cancel
+            </button>
+          </div>
+
+          <!-- MCP clients owned by this user -->
+          <div class="mt-2 border-t border-stone-100 pt-4">
+            <p class="mb-3 text-sm font-medium text-stone-700">MCP clients</p>
+            <div id="edit-user-clients" class="grid gap-2">
+              <p class="text-xs text-stone-400 px-1">Loading clients…</p>
+            </div>
+            <a
+              href="/dashboard/clients"
+              class="mt-3 inline-block text-xs text-amber-700 hover:underline"
+            >
+              Manage all clients →
+            </a>
+          </div>
+        </form>
+      </section>
+    </aside>
+
+    <!-- Main area: Create User collapsible + User list -->
+    <div class="flex flex-col gap-6">
+      <!-- Create User panel (collapsed by default, toggled via "+ New user") -->
+      <section
+        id="create-user-panel"
+        class="shell-card overflow-hidden transition-all hidden"
+      >
+        <div class="flex items-start justify-between gap-4 p-7 pb-0">
+          <div>
+            <p class="eyebrow">Create User</p>
+            <h2
+              class="mt-2 text-2xl font-semibold tracking-tight text-stone-950"
+            >
+              Add another admin or member
+            </h2>
+            <p class="mt-2 text-sm leading-6 text-stone-500">
+              Create a new dashboard user and reveal their bootstrap API key
+              exactly once.
+            </p>
+          </div>
+          <button
+            id="close-create-user"
+            type="button"
+            class="shrink-0 rounded-full p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
+            aria-label="Close create user panel"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+
+        <form id="create-user-form" class="p-7 pt-5 grid gap-4 sm:grid-cols-2">
           <label class="grid gap-2 text-sm text-stone-700">
             Username
             <input
@@ -100,8 +195,8 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             </select>
           </label>
 
-          <label class="grid gap-2 text-sm text-stone-700">
-            Password (optional)
+          <label class="grid gap-2 text-sm text-stone-700 sm:col-span-2">
+            Password <span class="text-stone-400 font-normal">(optional)</span>
             <input
               id="create-user-password"
               type="password"
@@ -110,14 +205,19 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             />
           </label>
 
-          <p id="create-user-status" class="min-h-6 text-sm text-stone-600"></p>
-
-          <button type="submit" class="primary-pill">Create user</button>
+          <div class="sm:col-span-2">
+            <p
+              id="create-user-status"
+              class="min-h-6 mb-3 text-sm text-stone-600"
+            >
+            </p>
+            <button type="submit" class="primary-pill">Create user</button>
+          </div>
         </form>
 
         <div
           id="create-user-result"
-          class="mt-5 hidden rounded-3xl border border-emerald-200 bg-emerald-50/80 p-4"
+          class="mx-7 mb-7 hidden rounded-3xl border border-emerald-200 bg-emerald-50/80 p-4"
         >
           <p
             class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700"
@@ -136,92 +236,21 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         </div>
       </section>
 
-      <!-- Edit panel (shown when a user row is selected) -->
-      <section class="shell-card p-7">
-        <p class="eyebrow">Edit User</p>
-        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-          User details
-        </h2>
-        <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
-          Select a user from the list to edit their profile.
-        </p>
-
-        <form id="edit-user-form" class="mt-6 gap-4 hidden">
-          <label class="grid gap-2 text-sm text-stone-700">
-            Display name
-            <input
-              id="edit-user-display-name"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-              placeholder="Display name"
-            />
-          </label>
-
-          <label class="grid gap-2 text-sm text-stone-700">
-            Role
-            <select
-              id="edit-user-role"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-            >
-              <option value="admin">Admin</option>
-              <option value="member">Member</option>
-              <option value="readonly">Read Only</option>
-            </select>
-          </label>
-
-          <div class="flex items-center gap-3">
-            <input
-              type="checkbox"
-              id="edit-user-is-active"
-              class="h-4 w-4 rounded border-stone-300 accent-amber-600"
-            />
-            <label for="edit-user-is-active" class="text-sm text-stone-700">
-              Active (uncheck to deactivate)
-            </label>
-          </div>
-
-          <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
-          <div class="flex gap-2">
-            <button type="submit" class="primary-pill flex-1"
-              >Save changes</button
-            >
-            <button type="button" id="cancel-edit-user" class="action-pill"
-              >Cancel</button
-            >
-          </div>
-
-          <!-- MCP clients owned by this user -->
-          <div class="mt-2 border-t border-stone-100 pt-4">
-            <p class="mb-3 text-sm font-medium text-stone-700">MCP clients</p>
-            <div id="edit-user-clients" class="grid gap-2">
-              <p class="text-xs text-stone-400 px-1">Loading clients…</p>
-            </div>
-            <a
-              href="/dashboard/clients"
-              class="mt-3 inline-block text-xs text-amber-700 hover:underline"
-            >
-              Manage all clients →
-            </a>
-          </div>
-        </form>
-      </section>
-    </aside>
-
-    <!-- User list -->
-    <div class="flex flex-col gap-6">
+      <!-- User roster header -->
       <section
         class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
       >
         <div>
           <p class="text-sm font-medium text-stone-900">User roster</p>
           <p class="mt-1 text-sm text-stone-600">
-            Click any user row to load their profile into the edit panel.
-            Deactivating a user invalidates their session but preserves their
-            audit history.
+            Click any user row to load their profile into the edit panel on the
+            left.
           </p>
         </div>
         <a href="/dashboard" class="action-pill">Dashboard home</a>
       </section>
 
+      <!-- User list -->
       <div id="user-list" class="grid gap-3">
         <div
           class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600"
@@ -231,5 +260,13 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </div>
     </div>
   </section>
+
+  <!-- Toast region -->
+  <div
+    id="dashboard-toast-region"
+    class="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3"
+  >
+  </div>
+
   <script src="../scripts/users-page.ts"></script>
 </DashboardLayout>

@@ -36,6 +36,21 @@ class MemoryTools:
             usage_count=0,
             quality_score=0.0,
         )
+        
+        # Record persistent audit event
+        try:
+            await self._store.create_audit_log(
+                actor_type="system",
+                actor_id="minder",
+                event_type="skill.created",
+                resource_type="skill",
+                resource_id=str(skill.id),
+                outcome="success",
+                audit_metadata={"title": title}
+            )
+        except Exception:
+            pass
+
         return {"id": str(skill.id), "title": skill.title, "tags": list(skill.tags)}
 
     async def minder_memory_recall(self, query: str, *, limit: int = 5) -> list[dict[str, Any]]:
@@ -73,6 +88,20 @@ class MemoryTools:
 
     async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:
         await self._store.delete_skill(uuid.UUID(skill_id))
+        
+        # Record persistent audit event
+        try:
+            await self._store.create_audit_log(
+                actor_type="system",
+                actor_id="minder",
+                event_type="skill.deleted",
+                resource_type="skill",
+                resource_id=skill_id,
+                outcome="success"
+            )
+        except Exception:
+            pass
+            
         return {"deleted": True}
 
     @staticmethod

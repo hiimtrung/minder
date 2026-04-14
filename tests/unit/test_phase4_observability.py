@@ -52,13 +52,14 @@ def test_record_tool_call_increments_counter() -> None:
     assert after == before + 1
 
 
-def test_record_auth_event_increments_counter() -> None:
+@pytest.mark.asyncio
+async def test_record_auth_event_increments_counter() -> None:
     from minder.observability.metrics import AUTH_EVENTS_TOTAL, record_auth_event
 
     before = AUTH_EVENTS_TOTAL.labels(
         event_type="auth.login_test", outcome="success"
     )._value.get()
-    record_auth_event("auth.login_test", "success")
+    await record_auth_event("auth.login_test", "success")
     after = AUTH_EVENTS_TOTAL.labels(
         event_type="auth.login_test", outcome="success"
     )._value.get()

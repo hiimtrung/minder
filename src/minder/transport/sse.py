@@ -135,7 +135,7 @@ class SSETransport(BaseTransport):
         store: IOperationalStore | None = None,
         auth_service: AuthService | None = None,
         extra_routes: list[BaseRoute] | None = None,
-        cache_provider: ICacheProvider | None = None,
+        cache_provider: ICacheProvider,
     ) -> None:
         super().__init__(
             config=config, 

@@ -193,6 +193,11 @@ class RelationalStore:
             result = await sess.execute(select(Session).where(Session.user_id == user_id))
             return list(result.scalars().all())
 
+    async def get_sessions_by_client(self, client_id: uuid.UUID) -> List[Session]:
+        async with self._session() as sess:
+            result = await sess.execute(select(Session).where(Session.client_id == client_id))
+            return list(result.scalars().all())
+
     async def update_session(self, session_id: uuid.UUID, **kwargs) -> Optional[Session]:
         async with self._session() as sess:
             await sess.execute(

@@ -9,7 +9,8 @@ from .base import Base, BaseModelMeta
 
 class SessionSchema(BaseModelMeta):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    user_id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None
+    client_id: Optional[uuid.UUID] = None
     repo_id: Optional[uuid.UUID] = None
     project_context: Dict[str, Any] = Field(default_factory=dict)
     active_skills: Dict[str, Any] = Field(default_factory=dict)
@@ -23,7 +24,9 @@ class Session(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     company_id: Mapped[str] = mapped_column(String, index=True, default="default")
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    # Exactly one of user_id / client_id must be set.
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
+    client_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     repo_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     project_context: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)
     active_skills: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)

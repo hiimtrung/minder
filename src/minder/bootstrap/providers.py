@@ -1,11 +1,8 @@
 from __future__ import annotations
 
-from pathlib import Path
-
-from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
+from minder.cache.providers import RedisCacheProvider
 from minder.config import MinderConfig
 from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
-from minder.store.relational import RelationalStore
 from minder.store.vector import VectorStore
 
 
@@ -24,26 +21,25 @@ def build_store(config: MinderConfig) -> IOperationalStore:
         )
         return MongoOperationalStore(client)  # type: ignore[return-value]
 
-    db_path = config.relational_store.db_path
-    if db_path.startswith(("sqlite+", "postgresql+", "postgres://")):
-        db_url = db_path
-    else:
-        expanded = Path(db_path).expanduser()
-        expanded.parent.mkdir(parents=True, exist_ok=True)
-        db_url = f"sqlite+aiosqlite:///{expanded}"
-    return RelationalStore(db_url)  # type: ignore[return-value]
+    raise ValueError(
+        f"Unsupported relational_store.provider '{provider}'. "
+        "Only 'mongodb' is supported. Set [relational_store] provider = \"mongodb\" in minder.toml."
+    )
 
 
 def build_cache(config: MinderConfig) -> ICacheProvider:
-    if config.cache.provider == "redis":
+    provider = config.cache.provider
+
+    if provider == "redis":
         return RedisCacheProvider(
             uri=config.redis.uri,
             prefix=config.redis.prefix,
             default_ttl=config.redis.cache_ttl,
         )
-    return LRUCacheProvider(
-        max_size=config.cache.max_size,
-        default_ttl=config.cache.ttl_seconds,
+
+    raise ValueError(
+        f"Unsupported cache.provider '{provider}'. "
+        "Only 'redis' is supported. Set [cache] provider = \"redis\" in minder.toml."
     )
 
 

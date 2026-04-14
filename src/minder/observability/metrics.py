@@ -35,14 +35,14 @@ REGISTRY = CollectorRegistry(auto_describe=True)
 TOOL_CALLS_TOTAL = Counter(
     "minder_tool_calls_total",
     "Total number of MCP tool invocations.",
-    ["tool_name", "outcome", "client_id"],  # Added client_id
+    ["tool_name", "outcome"],  # client_id is high-cardinality → stored in audit DB, not here
     registry=REGISTRY,
 )
 
 TOOL_CALL_DURATION = Histogram(
     "minder_tool_call_duration_seconds",
     "MCP tool call latency in seconds.",
-    ["tool_name", "client_id"],  # Added client_id
+    ["tool_name"],
     buckets=(0.01, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0),
     registry=REGISTRY,
 )
@@ -54,7 +54,7 @@ TOOL_CALL_DURATION = Histogram(
 AUTH_EVENTS_TOTAL = Counter(
     "minder_auth_events_total",
     "Total number of authentication and authorisation events.",
-    ["event_type", "outcome", "client_id"],  # Added client_id
+    ["event_type", "outcome"],  # client_id is high-cardinality → stored in audit DB
     registry=REGISTRY,
 )
 
@@ -100,30 +100,29 @@ ADMIN_OPERATIONS_TOTAL = Counter(
 
 
 def record_tool_call(
-    tool_name: str, 
-    outcome: str, 
-    duration_seconds: float, 
-    client_id: str = "unknown"
+    tool_name: str,
+    outcome: str,
+    duration_seconds: float,
+    client_id: str = "unknown",  # kept for API compat; stored in audit DB, not Prometheus label
 ) -> None:
     """Record a tool invocation outcome and latency."""
-    import logging
-    logging.getLogger("minder.metrics").debug(
-        "Recording tool call: %s outcome=%s client=%s", 
-        tool_name, outcome, client_id
-    )
-    TOOL_CALLS_TOTAL.labels(tool_name=tool_name, outcome=outcome, client_id=client_id).inc()
-    TOOL_CALL_DURATION.labels(tool_name=tool_name, client_id=client_id).observe(duration_seconds)
+    TOOL_CALLS_TOTAL.labels(tool_name=tool_name, outcome=outcome).inc()
+    TOOL_CALL_DURATION.labels(tool_name=tool_name).observe(duration_seconds)
 
 
 async def record_auth_event(
-    event_type: str, 
-    outcome: str, 
+    event_type: str,
+    outcome: str,
     client_id: str = "unknown",
-    store: IOperationalStore | None = None
+    store: "IOperationalStore | None" = None,
 ) -> None:
-    """Record an auth/session lifecycle event."""
-    AUTH_EVENTS_TOTAL.labels(event_type=event_type, outcome=outcome, client_id=client_id).inc()
-    
+    """Record an auth/session lifecycle event.
+
+    Increments the Prometheus counter (synchronous) then writes an audit log
+    entry to the store (async, best-effort — failures are swallowed).
+    """
+    AUTH_EVENTS_TOTAL.labels(event_type=event_type, outcome=outcome).inc()
+
     if store is not None:
         try:
             await store.create_audit_log(
@@ -133,9 +132,9 @@ async def record_auth_event(
                 resource_type="session",
                 resource_id=client_id,
                 outcome=outcome,
-                audit_metadata={"client_id": client_id}
+                audit_metadata={"client_id": client_id},
             )
-        except Exception:
+        except Exception:  # noqa: BLE001
             pass
 
 
@@ -307,8 +306,6 @@ async def get_metrics_summary(
         "tool_calls": {
             "total": tool_total,
             "by_outcome": tool_by_outcome,
-            "by_client": tool_by_client if not client_id else None,
-            "by_tool": tool_by_name,
         },
         "auth_events": {
             "total": auth_total,

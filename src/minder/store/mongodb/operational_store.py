@@ -383,7 +383,7 @@ class MongoOperationalStore:
         else:
             kwargs["id"] = _uuid_to_str(kwargs["id"])
         kwargs.setdefault("company_id", "default")
-        for uuid_field in ("user_id", "repo_id"):
+        for uuid_field in ("user_id", "client_id", "repo_id"):
             if uuid_field in kwargs and isinstance(kwargs[uuid_field], uuid.UUID):
                 kwargs[uuid_field] = _uuid_to_str(kwargs[uuid_field])
         kwargs.setdefault("project_context", {})
@@ -402,6 +402,10 @@ class MongoOperationalStore:
 
     async def get_sessions_by_user(self, user_id: uuid.UUID) -> list[_MongoDoc]:
         cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)})
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def get_sessions_by_client(self, client_id: uuid.UUID) -> list[_MongoDoc]:
+        cursor = self._db.sessions.find({"client_id": _uuid_to_str(client_id)})
         return [_to_doc(doc) async for doc in cursor]
 
     async def update_session(self, session_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:

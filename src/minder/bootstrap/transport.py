@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from minder.auth.principal import Principal
+from minder.auth.principal import ClientPrincipal, Principal
 from minder.auth.service import AuthError
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
@@ -124,14 +124,34 @@ def build_transport(
         )
 
     async def minder_session_create(
-        *, user=None, repo_id: str | None = None, project_context: dict[str, Any] | None = None  # noqa: ANN001
+        *,
+        user=None,  # noqa: ANN001
+        principal: Principal | None = None,
+        repo_id: str | None = None,
+        project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        if isinstance(principal, ClientPrincipal):
+            return await session_tools.minder_session_create(
+                client_id=principal.client_id,
+                repo_id=uuid.UUID(repo_id) if repo_id else None,
+                project_context=project_context,
+            )
         authenticated_user = require_authenticated_user(user)
         return await session_tools.minder_session_create(
             user_id=authenticated_user.id,
             repo_id=uuid.UUID(repo_id) if repo_id else None,
             project_context=project_context,
         )
+
+    async def minder_session_list(
+        *,
+        user=None,  # noqa: ANN001
+        principal: Principal | None = None,
+    ) -> dict[str, Any]:
+        if isinstance(principal, ClientPrincipal):
+            return await session_tools.minder_session_list(client_id=principal.client_id)
+        authenticated_user = require_authenticated_user(user)
+        return await session_tools.minder_session_list(user_id=authenticated_user.id)
 
     async def minder_session_save(
         *, user=None, session_id: str, state: dict[str, Any] | None = None, active_skills: dict[str, Any] | None = None  # noqa: ANN001
@@ -275,6 +295,7 @@ def build_transport(
         description=TOOL_DESCRIPTIONS["minder_auth_create_client"],
     )
     transport.register_tool("minder_session_create", minder_session_create, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_create"])
+    transport.register_tool("minder_session_list", minder_session_list, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_list"])
     transport.register_tool("minder_session_save", minder_session_save, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_save"])
     transport.register_tool("minder_session_restore", minder_session_restore, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_restore"])
     transport.register_tool("minder_session_context", minder_session_context, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_context"])

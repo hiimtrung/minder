@@ -57,8 +57,7 @@ class VectorStoreConfig(BaseModel):
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "sqlite"  # "sqlite" | "mongodb"
-    db_path: str = "~/.minder/data/minder.db"  # used by sqlite only
+    provider: str = "mongodb"  # "mongodb" is the only supported runtime backend
 
 
 class MongoDBConfig(BaseModel):
@@ -84,8 +83,8 @@ class RetrievalConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     enabled: bool = True
-    provider: str = "lru"  # "lru" | "redis"
-    max_size: int = 1000  # used by lru only
+    provider: str = "redis"  # "redis" is the only supported runtime backend
+    max_size: int = 1000  # unused; kept for backwards-compat with any existing .env files
     ttl_seconds: int = 3600
 
 

@@ -15,7 +15,7 @@ class StdioTransport(BaseTransport):
         config: MinderConfig,
         store: IOperationalStore | None = None,
         auth_service: AuthService | None = None,
-        cache_provider: ICacheProvider | None = None,
+        cache_provider: ICacheProvider,
     ) -> None:
         super().__init__(
             config=config, 

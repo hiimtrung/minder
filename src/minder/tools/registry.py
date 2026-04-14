@@ -15,6 +15,8 @@ class ToolMeta:
     description: str
     scopeable: bool = True
     """Whether this tool can be granted to client principals via tool_scopes."""
+    always_available: bool = False
+    """If True, ClientPrincipal can call this tool regardless of their tool_scopes grant list."""
 
 
 # All registered MCP tools — ordered for display
@@ -73,19 +75,28 @@ ALL_TOOLS: list[ToolMeta] = [
     # ── Session ───────────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_session_create",
-        description="Create a persisted Minder session for an authenticated human user.",
+        description="Create a persisted Minder session for an authenticated principal (human or client).",
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_session_list",
+        description="List active Minder sessions for the calling principal.",
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_save",
         description="Persist state and active skill context for an existing Minder session.",
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_restore",
         description="Load the saved state and context for an existing Minder session.",
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_context",
         description="Update branch and open-file context for an existing Minder session.",
+        always_available=True,
     ),
     # ── Auth (internal — not grantable to client principals) ─────────────────
     ToolMeta(
@@ -107,6 +118,7 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_auth_whoami",
         description="Return the authenticated principal identity, role, and any active scopes.",
         scopeable=False,
+        always_available=True,
     ),
     ToolMeta(
         name="minder_auth_manage",
@@ -125,3 +137,8 @@ TOOL_DESCRIPTIONS: dict[str, str] = {tool.name: tool.description for tool in ALL
 
 # Tools that can be granted to client principals
 SCOPEABLE_TOOLS: list[ToolMeta] = [tool for tool in ALL_TOOLS if tool.scopeable]
+
+# Tools always callable by any authenticated ClientPrincipal (no scope grant required)
+ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
+    tool.name for tool in ALL_TOOLS if tool.always_available
+)

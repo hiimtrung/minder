@@ -10,10 +10,10 @@ from minder.auth.service import AuthError
 from minder.auth.rate_limiter import RateLimiter
 from minder.auth.principal import AdminUserPrincipal, ClientPrincipal, Principal
 from minder.auth.service import AuthService
-from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
 from minder.auth.context import get_current_principal
-from minder.store.interfaces import ICacheProvider
+from minder.store.interfaces import ICacheProvider, IOperationalStore
+from minder.tools.registry import ALWAYS_AVAILABLE_FOR_CLIENTS
 
 logger = logging.getLogger(__name__)
 
@@ -36,17 +36,13 @@ class BaseTransport:
         *,
         config: MinderConfig,
         auth_service: AuthService | None = None,
-        cache_provider: ICacheProvider | None = None,
+        cache_provider: ICacheProvider,
         store: IOperationalStore | None = None,
     ) -> None:
         self._config = config
         self._store = store
         self._middleware = AuthMiddleware(auth_service) if auth_service is not None else None
-        effective_cache = cache_provider or LRUCacheProvider(
-            max_size=config.cache.max_size,
-            default_ttl=max(config.cache.ttl_seconds, config.rate_limit.window_seconds),
-        )
-        self._rate_limiter = RateLimiter(cache=effective_cache, config=config)
+        self._rate_limiter = RateLimiter(cache=cache_provider, config=config)
         self._server = FastMCP(
             name=config.server.name,
             host=config.server.host,
@@ -165,7 +161,11 @@ class BaseTransport:
             effective_client_key = client_key or self._default_client_key()
             principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
             if principal is not None:
-                if isinstance(principal, ClientPrincipal) and name not in principal.scopes:
+                if (
+                    isinstance(principal, ClientPrincipal)
+                    and name not in ALWAYS_AVAILABLE_FOR_CLIENTS
+                    and name not in principal.scopes
+                ):
                     outcome = "denied"
                     raise AuthError(
                         "AUTH_FORBIDDEN",

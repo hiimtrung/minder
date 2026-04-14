@@ -187,7 +187,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     async def client_detail(request):
         try:
-            await context.admin_user_from_request(request)
+            user = await context.admin_user_from_request(request)
         except PermissionError:
             return JSONResponse({"error": "Admin role required"}, status_code=403)
         except Exception as exc:
@@ -215,7 +215,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         except Exception:
             await record_admin_operation("update_client", "error", actor_id=str(user.id), store=context.store)
             raise
-            
+
         await record_admin_operation("update_client", "success", actor_id=str(user.id), store=context.store)
         return JSONResponse(updated)
 

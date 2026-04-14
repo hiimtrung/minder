@@ -61,7 +61,6 @@ async def _async_run() -> None:
     )
 
     store = build_store(config)
-    print(f"MINDER DB URL: {config.relational_store.db_path}", file=sys.stderr, flush=True)
     await store.init_db()
 
     vector_store = build_vector_store(config, store)

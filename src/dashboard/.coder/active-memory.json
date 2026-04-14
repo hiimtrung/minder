@@ -1,77 +1,100 @@
 {
-  "mode": "search",
-  "query": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
-  "limit": 5,
+  "mode": "recall",
+  "query": "current session dashboard observability user management",
+  "trigger": "execution",
+  "budget": 5,
+  "limit": 15,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-10T09:31:54.72508+07:00",
+  "searched_at": "2026-04-14T09:28:04.942379Z",
+  "keep": [
+    "document:phase-4-1-requirements-refined-for-setup-and-direct-auth"
+  ],
+  "add": [
+    "document:astro-dashboard-header-session-and-toast-feedback",
+    "document:findtourgo-auth-cross-tab-readiness-fix",
+    "document:findtourgo-auth-refactor-bootstrap-recovery",
+    "document:dashboard-integration-flow-guarded-by-server-state"
+  ],
+  "drop": [
+    "document:phase-4-1-docs-refreshed",
+    "document:phase-4-3-completed-with-console-serving-seam",
+    "document:astro-dashboard-ux-refinement",
+    "document:minder-mcp-onboarding-snippets-aligned-to-client-native-formats"
+  ],
+  "coverage": "weak",
   "results": [
     {
-      "id": "c99f18da-5754-4cfa-b0c7-7758e6ff2cac",
-      "title": "Phase 4.1 docs refreshed",
+      "id": "5a88eb3b-b7f5-4e8a-b7d3-4b82cd5b1adb",
+      "title": "Astro dashboard header session and toast feedback",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-1-docs-refreshed",
+      "canonical_key": "document:astro-dashboard-header-session-and-toast-feedback",
       "score": 0.086393446,
-      "tags": [
-        "docs",
-        "phase-4.1",
-        "onboarding",
-        "auth",
-        "readme"
-      ],
-      "conflict_detected": false,
-      "content": "Updated README.md, docs/guides/local-setup.md, docs/guides/admin-client-onboarding.md, and docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to reflect the completed Phase 4.1 flow: browser-first setup via /setup, one-time setup-complete API key reveal, browser admin login, direct SSE client-key auth, stdio bootstrap via MINDER_CLIENT_API_KEY, and admin API-key recovery. Added operator flow guidance and marked the Phase 4.1 requirement doc as implemented. Commit: aeaa3ca."
-    },
-    {
-      "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
-      "title": "Phase 4.3 completed with console serving seam",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
-      "score": 0.086129025,
-      "tags": [
-        "phase4",
-        "dashboard",
-        "astro",
-        "console",
-        "parity"
-      ],
-      "conflict_detected": false,
-      "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
-    },
-    {
-      "id": "e145a3c1-534b-42f7-ad90-8e268e9a48e4",
-      "title": "Astro dashboard UX refinement",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:astro-dashboard-ux-refinement",
-      "score": 0.08587302,
       "tags": [
         "dashboard",
         "astro",
         "ux",
-        "frontend"
+        "session",
+        "toast"
       ],
       "conflict_detected": false,
-      "content": "Refined the Astro admin console UX by making onboarding snippets full-width readable cards with copy buttons, keeping connection-test and key-lifecycle failures inline instead of redirecting away on 401, and switching the header from a global Setup/Login/Clients button set to contextual per-page navigation. Also updated the frontend API client to surface backend error messages instead of generic status-only errors."
+      "reason": "added: recalled for the current task",
+      "content": "Added a clients-page session badge and logout button in the shared Astro layout, backed by a session-header script that loads the admin session and calls the logout API. Added a shared dashboard toast region and used it for client creation, key rotation/revocation, connection tests, and snippet copy actions while keeping inline status text for context-sensitive detail feedback."
     },
     {
-      "id": "8cdb753a-8689-4e4f-a6f7-96de1f636444",
-      "title": "Minder MCP onboarding snippets aligned to client-native formats",
+      "id": "36080d8b-3d19-4a55-a826-738c742cc733",
+      "title": "FindTourGo auth cross-tab readiness fix",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-mcp-onboarding-snippets-aligned-to-client-native-formats",
-      "score": 0.08562499,
+      "canonical_key": "document:findtourgo-auth-cross-tab-readiness-fix",
+      "score": 0.086129025,
       "tags": [
-        "minder",
-        "mcp",
-        "onboarding",
-        "python",
-        "frontend"
+        "findtourgo",
+        "auth",
+        "cross-tab",
+        "session",
+        "refactor"
       ],
       "conflict_detected": false,
-      "content": "Updated src/minder/application/admin/use_cases.py and related tests/docs so dashboard onboarding now emits official client-native snippets: Codex uses stdio config.toml with MINDER_CLIENT_API_KEY, Copilot CLI uses mcp-config.json with type=sse, Antigravity uses stdio mcp_config.json, and Claude Code uses .mcp.json with type=sse. Also updated dashboard snippet titles and admin onboarding guide."
+      "reason": "added: recalled for the current task",
+      "content": "Follow-up fix after auth refactor review: useSession storage-event handling now recalculates sessionMeta (isRecovering/isReady) from the latest session snapshot before updating local state, preventing tabs from getting stuck in not-ready state after cross-tab login/logout. AuthProvider refresh success now also emits notifySessionChange so sibling tabs update immediately when cookies are refreshed in another tab."
+    },
+    {
+      "id": "5dc10f57-d73b-49d0-8148-66efe1821374",
+      "title": "FindTourGo auth refactor bootstrap recovery",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:findtourgo-auth-refactor-bootstrap-recovery",
+      "score": 0.08587302,
+      "tags": [
+        "findtourgo",
+        "auth",
+        "refactor",
+        "refresh-token",
+        "jwt",
+        "session"
+      ],
+      "conflict_detected": false,
+      "reason": "added: recalled for the current task",
+      "content": "Refactored FindTourGo auth flow around a single session snapshot in AuthService. Added getSessionSnapshot/hasValidSession/isSessionRecoverable so UI can distinguish authenticated vs recoverable session. useSession now exposes isRecovering and isReady, preventing private layouts/pages from redirecting while the app is still trying to restore a session from a valid refresh token. AuthProvider now performs immediate refresh on bootstrap when access token is gone but refresh token remains, dedupes concurrent refreshes, and restarts the timer using JWT iat decoded from the token instead of client time. changeAuth now preserves or accepts deviceSessionId explicitly, and fast-access supports passing device_session_id. Also corrected 401 logout handling and enabled auth error handling on authenticated HTTP clients."
+    },
+    {
+      "id": "77f1c132-ec3e-4d5e-b0c0-cd64c10e7651",
+      "title": "Dashboard integration flow guarded by server state",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:dashboard-integration-flow-guarded-by-server-state",
+      "score": 0.08562499,
+      "tags": [
+        "dashboard",
+        "auth",
+        "flow",
+        "astro"
+      ],
+      "conflict_detected": false,
+      "reason": "added: recalled for the current task",
+      "content": "The Astro dashboard cannot be treated as a blind static site for admin flows. The correct integration is stateful at the Python layer: /dashboard redirects to /dashboard/setup when no admin exists, to /dashboard/login when admins exist but there is no valid session, and to /dashboard/clients when an admin session is present. Static asset requests under /dashboard must bypass those auth redirects. Frontend JSON admin calls should also redirect 401 responses back to login/setup so the browser flow stays coherent."
     },
     {
       "id": "401fc8bf-dbe8-4ff3-a140-f5f056534c1b",
@@ -88,6 +111,7 @@
         "dashboard"
       ],
       "conflict_detected": false,
+      "reason": "kept active: still relevant to the current task",
       "content": "Reviewed and rewrote docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to align with Minder's actual auth model. Key correction: admin auth remains API-key based, so the requirements now target first-run /setup, admin API-key recovery via CLI, and direct client_api_key parity across transports instead of inventing password auth. The doc now distinguishes current baseline capabilities already present in code (/dashboard/login browser flow, SSE X-Minder-Client-Key, token exchange, onboarding routes) from the remaining gaps to implement. It also preserves token exchange as a supported compatibility path and records open questions around stdio bootstrap shape, session invalidation on recovery, and whether first-admin setup needs an extra deployment secret."
     }
   ]

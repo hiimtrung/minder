@@ -43,8 +43,7 @@ uri = "http://localhost:19530"
 collection_prefix = "minder_"
 
 [relational_store]
-provider = "sqlite"
-db_path = "~/.minder/data/minder.db"
+provider = "mongodb"
 
 [mongodb]
 uri = "mongodb://localhost:27017"
@@ -66,8 +65,7 @@ hybrid_alpha = 0.7
 
 [cache]
 enabled = true
-provider = "lru"
-max_size = 1000
+provider = "redis"
 ttl_seconds = 3600
 
 [verification]

@@ -75,7 +75,7 @@ class IngestTools:
             embedding=embedding,
         )
         
-        if vector_enabled and embedding:
+        if self._vector_store and vector_enabled and embedding:
             await self._vector_store.upsert_document(
                 doc_id=document.id,
                 embedding=embedding,

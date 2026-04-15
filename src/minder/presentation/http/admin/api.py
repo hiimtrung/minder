@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import uuid
 import logging
-
-logger = logging.getLogger(__name__)
+import uuid
 
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
@@ -15,6 +13,8 @@ from minder.observability.metrics import (
 )
 
 from .context import ADMIN_COOKIE_NAME, AdminRouteContext
+
+logger = logging.getLogger(__name__)
 
 
 def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:

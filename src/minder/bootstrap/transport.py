@@ -6,6 +6,7 @@ from typing import Any
 from minder.auth.principal import ClientPrincipal, Principal
 from minder.auth.service import AuthError
 from minder.auth.service import AuthService
+from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
 from minder.presentation.http.admin.routes import build_http_routes
 from minder.prompts import PromptRegistry
@@ -30,6 +31,7 @@ def build_transport(
     cache: ICacheProvider | None = None,
 ) -> SSETransport | StdioTransport:
     auth_service = AuthService(store, config, cache=cache)
+    cache_provider = cache or LRUCacheProvider()
     repo_state_store = RepoStateStore(config.workflow.repo_state_dir)
     auth_tools = AuthTools(store, auth_service)
     session_tools = SessionTools(store)
@@ -41,9 +43,9 @@ def build_transport(
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
         transport = StdioTransport(
-            config=config, 
-            auth_service=auth_service, 
-            cache_provider=cache,
+            config=config,
+            auth_service=auth_service,
+            cache_provider=cache_provider,
             store=store,
         )
     else:
@@ -52,7 +54,7 @@ def build_transport(
             store=store,
             auth_service=auth_service,
             extra_routes=build_http_routes(config=config, store=store, cache=cache),
-            cache_provider=cache,
+            cache_provider=cache_provider,
         )
 
     def require_authenticated_user(user: Any | None) -> Any:

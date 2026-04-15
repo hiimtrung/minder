@@ -270,13 +270,13 @@ async def get_metrics_summary(
     tool_by_client = await store.get_audit_summary(
         event_type="tool_call",
         outcome=outcome,
-        group_by="audit_metadata.client_id" # This depends on Mongo/SQL support for nested fields
+        group_by="audit_metadata.client_id",  # This depends on Mongo/SQL support for nested fields
     )
     tool_by_name = await store.get_audit_summary(
         actor_id=client_id,
         event_type="tool_call",
         outcome=outcome,
-        group_by="tool_name"
+        group_by="tool_name",
     )
     tool_total = sum(tool_by_outcome.values())
 
@@ -306,6 +306,8 @@ async def get_metrics_summary(
         "tool_calls": {
             "total": tool_total,
             "by_outcome": tool_by_outcome,
+            "by_client": tool_by_client,
+            "by_name": tool_by_name,
         },
         "auth_events": {
             "total": auth_total,

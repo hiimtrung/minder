@@ -15,16 +15,15 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
 
-from minder.auth.principal import AdminUserPrincipal, ClientPrincipal
-from minder.auth.service import AuthError
+from minder.auth.principal import ClientPrincipal
 from minder.models.user import User
-from minder.store.relational import RelationalStore
-from minder.tools.session import SessionTools
 from minder.tools.registry import ALWAYS_AVAILABLE_FOR_CLIENTS
+from minder.tools.session import SessionTools
+from minder.store.relational import RelationalStore
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 

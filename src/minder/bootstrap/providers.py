@@ -21,9 +21,19 @@ def build_store(config: MinderConfig) -> IOperationalStore:
         )
         return MongoOperationalStore(client)  # type: ignore[return-value]
 
+    if provider in ("sqlite", "postgresql"):
+        from minder.store.relational import RelationalStore
+
+        if provider == "sqlite":
+            db_url = f"sqlite+aiosqlite:///{config.relational_store.db_path}"
+        else:
+            db_url = config.relational_store.uri
+
+        return RelationalStore(db_url)  # type: ignore[return-value]
+
     raise ValueError(
         f"Unsupported relational_store.provider '{provider}'. "
-        "Only 'mongodb' is supported. Set [relational_store] provider = \"mongodb\" in minder.toml."
+        "Supported: 'mongodb', 'sqlite', 'postgresql'."
     )
 
 

@@ -117,7 +117,7 @@ async def test_phase4_gateway_auth_e2e(
         assert exchange_response.status_code == 200
         access_token = exchange_response.json()["access_token"]
 
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
         return {

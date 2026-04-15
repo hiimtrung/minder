@@ -6,6 +6,7 @@ from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport
 from minder.auth.service import AuthService
 from minder.auth.service import UserRole
 from minder.config import MinderConfig
+from minder.cache.providers import LRUCacheProvider
 from minder.store.relational import RelationalStore
 from minder.transport import SSETransport, StdioTransport
 
@@ -24,17 +25,21 @@ async def store() -> RelationalStore:
 def config() -> MinderConfig:
     return MinderConfig()
 
+@pytest.fixture
+def cache() -> LRUCacheProvider:
+    return LRUCacheProvider()
+
 
 @pytest.fixture
-def auth(store: RelationalStore, config: MinderConfig) -> AuthService:
-    return AuthService(store, config)
+def auth(store: RelationalStore, config: MinderConfig, cache: LRUCacheProvider) -> AuthService:
+    return AuthService(store, config, cache=cache)
 
 
 @pytest.mark.asyncio
 async def test_sse_transport_rejects_missing_jwt_for_protected_tool(
-    store: RelationalStore, config: MinderConfig, auth: AuthService
+    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
 ) -> None:
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def whoami(*, user):  # noqa: ANN001, ANN202
         return {"user_id": str(user.id), "email": user.email}
@@ -49,7 +54,7 @@ async def test_sse_transport_rejects_missing_jwt_for_protected_tool(
 
 @pytest.mark.asyncio
 async def test_sse_transport_dispatches_tool_with_authenticated_user(
-    store: RelationalStore, config: MinderConfig, auth: AuthService
+    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
 ) -> None:
     user, _ = await auth.register_user(
         email="transport@example.com",
@@ -57,7 +62,7 @@ async def test_sse_transport_dispatches_tool_with_authenticated_user(
         display_name="Transport User",
     )
     token = auth.issue_jwt(user)
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def whoami(*, user):  # noqa: ANN001, ANN202
         return {"user_id": str(user.id), "email": user.email, "role": user.role}
@@ -76,7 +81,7 @@ async def test_sse_transport_dispatches_tool_with_authenticated_user(
 
 @pytest.mark.asyncio
 async def test_stdio_transport_uses_same_dispatch_contract(
-    store: RelationalStore, config: MinderConfig, auth: AuthService
+    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
 ) -> None:
     user, _ = await auth.register_user(
         email="stdio@example.com",
@@ -84,7 +89,7 @@ async def test_stdio_transport_uses_same_dispatch_contract(
         display_name="Stdio User",
     )
     token = auth.issue_jwt(user)
-    transport = StdioTransport(config=config, auth_service=auth)
+    transport = StdioTransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def echo(*, message: str, user):  # noqa: ANN001, ANN202
         return {"message": message, "user_id": str(user.id)}
@@ -105,9 +110,10 @@ async def test_stdio_transport_uses_same_dispatch_contract(
 async def test_stdio_transport_can_authenticate_client_principal_from_env(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     admin, _ = await auth.register_user(
         email="stdio-client-admin@example.com",
         username="stdio_client_admin",
@@ -121,7 +127,7 @@ async def test_stdio_transport_can_authenticate_client_principal_from_env(
         tool_scopes=["inspect_principal"],
     )
     monkeypatch.setenv("MINDER_CLIENT_API_KEY", client_api_key)
-    transport = StdioTransport(config=config, auth_service=auth)
+    transport = StdioTransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
         return {
@@ -142,11 +148,12 @@ async def test_stdio_transport_can_authenticate_client_principal_from_env(
 async def test_stdio_transport_rejects_invalid_client_key_from_env(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     monkeypatch.setenv("MINDER_CLIENT_API_KEY", "mkc_invalid_key")
-    transport = StdioTransport(config=config, auth_service=auth)
+    transport = StdioTransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
         return {"principal_type": principal.principal_type}
@@ -161,9 +168,9 @@ async def test_stdio_transport_rejects_invalid_client_key_from_env(
 
 @pytest.mark.asyncio
 async def test_sse_transport_dispatches_tool_with_authenticated_client_principal(
-    store: RelationalStore, config: MinderConfig
+    store: RelationalStore, config: MinderConfig, cache: LRUCacheProvider
 ) -> None:
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     admin, _ = await auth.register_user(
         email="principal-admin@example.com",
         username="principal_admin",
@@ -180,7 +187,7 @@ async def test_sse_transport_dispatches_tool_with_authenticated_client_principal
         client_api_key,
         requested_scopes=["inspect_principal"],
     )
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
         return {
@@ -204,8 +211,9 @@ async def test_sse_transport_dispatches_tool_with_authenticated_client_principal
 async def test_build_transport_registers_descriptions_for_all_runtime_tools(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
 ) -> None:
-    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
 
     assert set(transport.list_tools()) == set(TOOL_DESCRIPTIONS)
     assert all(transport._tools[name].description for name in transport.list_tools())
@@ -215,8 +223,9 @@ async def test_build_transport_registers_descriptions_for_all_runtime_tools(
 async def test_build_transport_allows_client_memory_store_when_scoped(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
 ) -> None:
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     admin, _ = await auth.register_user(
         email="memory-admin@example.com",
         username="memory_admin",
@@ -229,7 +238,7 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
         created_by_user_id=admin.id,
         tool_scopes=["minder_memory_store", "minder_memory_list"],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
 
     stored = await transport.call_tool(
         "minder_memory_store",
@@ -254,8 +263,9 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
 async def test_build_transport_rejects_client_tool_outside_scope(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
 ) -> None:
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     admin, _ = await auth.register_user(
         email="scope-admin@example.com",
         username="scope_admin",
@@ -268,7 +278,7 @@ async def test_build_transport_rejects_client_tool_outside_scope(
         created_by_user_id=admin.id,
         tool_scopes=["minder_memory_list"],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=None)
+    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(
@@ -289,17 +299,18 @@ async def test_build_transport_rejects_client_tool_outside_scope(
 async def test_transport_enforces_rate_limit_for_member_user(
     store: RelationalStore,
     config: MinderConfig,
+    cache: LRUCacheProvider,
 ) -> None:
     config.rate_limit.enabled = True
     config.rate_limit.member_limit = 1
-    auth = AuthService(store, config)
+    auth = AuthService(store, config, cache=cache)
     user, _ = await auth.register_user(
         email="rate-user@example.com",
         username="rate_user",
         display_name="Rate User",
     )
     token = auth.issue_jwt(user)
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def echo(*, user, message: str):  # noqa: ANN001, ANN202
         return {"message": message, "user_id": str(user.id)}
@@ -328,8 +339,9 @@ async def test_sse_transport_exposes_streamable_http_for_antigravity_compat(
     store: RelationalStore,
     config: MinderConfig,
     auth: AuthService,
+    cache: LRUCacheProvider,
 ) -> None:
-    transport = SSETransport(config=config, auth_service=auth)
+    transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
     app = transport.build_starlette_app()
 
     async with app.router.lifespan_context(app):

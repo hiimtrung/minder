@@ -262,22 +262,25 @@ class TestPromptRegistry:
     # debug prompt
     # ------------------------------------------------------------------
 
-    def test_debug_prompt_contains_error(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_debug_prompt_contains_error(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["debug"]
-        messages = fn(error="AttributeError: 'NoneType' has no attribute 'id'")  # type: ignore[operator]
+        messages = await fn(error="AttributeError: 'NoneType' has no attribute 'id'")  # type: ignore[operator]
         assert len(messages) == 1
         assert messages[0]["role"] == "user"
         assert "AttributeError" in messages[0]["content"]
 
-    def test_debug_prompt_includes_context_when_provided(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_debug_prompt_includes_context_when_provided(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["debug"]
-        messages = fn(error="KeyError: 'foo'", context="Inside parse_config()")  # type: ignore[operator]
+        messages = await fn(error="KeyError: 'foo'", context="Inside parse_config()")  # type: ignore[operator]
         content = messages[0]["content"]
         assert "parse_config" in content
 
-    def test_debug_prompt_no_context_by_default(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_debug_prompt_no_context_by_default(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["debug"]
-        messages = fn(error="SomeError")  # type: ignore[operator]
+        messages = await fn(error="SomeError")  # type: ignore[operator]
         # Should not raise and should still include task
         assert "root cause" in messages[0]["content"].lower()
 
@@ -285,72 +288,83 @@ class TestPromptRegistry:
     # review prompt
     # ------------------------------------------------------------------
 
-    def test_review_prompt_contains_diff(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_review_prompt_contains_diff(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["review"]
-        messages = fn(diff="+    x = 1")  # type: ignore[operator]
+        messages = await fn(diff="+    x = 1")  # type: ignore[operator]
         assert "x = 1" in messages[0]["content"]
 
-    def test_review_prompt_includes_checklist_items(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_review_prompt_includes_checklist_items(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["review"]
-        messages = fn(diff="-    pass")  # type: ignore[operator]
+        messages = await fn(diff="-    pass")  # type: ignore[operator]
         content = messages[0]["content"]
         assert "Correctness" in content
         assert "Security" in content
         assert "BLOCKING" in content
 
-    def test_review_prompt_includes_context_when_provided(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_review_prompt_includes_context_when_provided(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["review"]
-        messages = fn(diff="+ foo()", context="Fixes issue #42")  # type: ignore[operator]
+        messages = await fn(diff="+ foo()", context="Fixes issue #42")  # type: ignore[operator]
         assert "issue #42" in messages[0]["content"]
 
     # ------------------------------------------------------------------
     # explain prompt
     # ------------------------------------------------------------------
 
-    def test_explain_prompt_contains_code(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_explain_prompt_contains_code(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["explain"]
-        messages = fn(code="def add(a, b): return a + b")  # type: ignore[operator]
+        messages = await fn(code="def add(a, b): return a + b")  # type: ignore[operator]
         assert "add(a, b)" in messages[0]["content"]
 
-    def test_explain_prompt_language_in_fence(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_explain_prompt_language_in_fence(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["explain"]
-        messages = fn(code="fn main() {}", language="rust")  # type: ignore[operator]
+        messages = await fn(code="fn main() {}", language="rust")  # type: ignore[operator]
         assert "```rust" in messages[0]["content"]
 
-    def test_explain_prompt_default_language_python(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_explain_prompt_default_language_python(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["explain"]
-        messages = fn(code="x = 1")  # type: ignore[operator]
+        messages = await fn(code="x = 1")  # type: ignore[operator]
         assert "```python" in messages[0]["content"]
 
     # ------------------------------------------------------------------
     # tdd_step prompt
     # ------------------------------------------------------------------
 
-    def test_tdd_step_test_writing_phase(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_tdd_step_test_writing_phase(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["tdd_step"]
-        messages = fn(current_step="Test Writing")  # type: ignore[operator]
+        messages = await fn(current_step="Test Writing")  # type: ignore[operator]
         assert "Test Writing" in messages[0]["content"]
         assert "failing tests" in messages[0]["content"].lower()
 
-    def test_tdd_step_implementation_phase(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_tdd_step_implementation_phase(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["tdd_step"]
-        messages = fn(current_step="Implementation")  # type: ignore[operator]
+        messages = await fn(current_step="Implementation")  # type: ignore[operator]
         assert "Implementation" in messages[0]["content"]
         assert "minimal code" in messages[0]["content"].lower()
 
-    def test_tdd_step_review_phase(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_tdd_step_review_phase(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["tdd_step"]
-        messages = fn(current_step="Code Review")  # type: ignore[operator]
+        messages = await fn(current_step="Code Review")  # type: ignore[operator]
         assert "Review" in messages[0]["content"]
 
-    def test_tdd_step_unknown_step_generic_guidance(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_tdd_step_unknown_step_generic_guidance(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["tdd_step"]
-        messages = fn(current_step="Deploy")  # type: ignore[operator]
+        messages = await fn(current_step="Deploy")  # type: ignore[operator]
         assert "Deploy" in messages[0]["content"]
 
-    def test_tdd_step_includes_failing_tests(self, app: MockFastMCPApp) -> None:
+    @pytest.mark.asyncio
+    async def test_tdd_step_includes_failing_tests(self, app: MockFastMCPApp) -> None:
         fn = app._prompts["tdd_step"]
-        messages = fn(current_step="Test Writing", failing_tests="FAILED test_foo")  # type: ignore[operator]
+        messages = await fn(current_step="Test Writing", failing_tests="FAILED test_foo")  # type: ignore[operator]
         assert "FAILED test_foo" in messages[0]["content"]
 
 

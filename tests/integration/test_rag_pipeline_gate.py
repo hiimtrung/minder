@@ -303,7 +303,7 @@ async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: 
     skills_payload = json.loads(await app._resources["minder://skills"]())  # type: ignore[index,operator]
     repos_payload = json.loads(await app._resources["minder://repos"]())  # type: ignore[index,operator]
     stats_payload = json.loads(await app._resources["minder://stats"]())  # type: ignore[index,operator]
-    tdd_prompt = app._prompts["tdd_step"]("Test Writing")  # type: ignore[index,operator]
+    tdd_prompt = await app._prompts["tdd_step"]("Test Writing")  # type: ignore[index,operator]
 
     assert any(item["title"] == "Billing Retry" for item in skills_payload)
     assert any(item["name"] == "orders" for item in repos_payload)

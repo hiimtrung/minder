@@ -147,7 +147,7 @@ async def test_phase4_1_gate(
     client_id = uuid.UUID(body["client"]["id"])
     client_api_key = body["client_api_key"]
 
-    sse_transport = SSETransport(config=config, auth_service=auth)
+    sse_transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
     async def inspect_principal(*, principal):  # noqa: ANN001, ANN202
         return {
@@ -163,7 +163,7 @@ async def test_phase4_1_gate(
 
     # 6. Direct raw client key works over stdio bootstrap env.
     monkeypatch.setenv("MINDER_CLIENT_API_KEY", client_api_key)
-    stdio_transport = StdioTransport(config=config, auth_service=auth)
+    stdio_transport = StdioTransport(config=config, auth_service=auth, cache_provider=cache)
     stdio_transport.register_tool("inspect_principal", inspect_principal, require_auth=True)
     stdio_result = await stdio_transport.call_tool("inspect_principal")
     assert stdio_result["principal_type"] == "client"

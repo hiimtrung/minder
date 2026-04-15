@@ -57,7 +57,9 @@ class VectorStoreConfig(BaseModel):
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "mongodb"  # "mongodb" is the only supported runtime backend
+    provider: str = "mongodb"  # "mongodb" | "sqlite" | "postgresql"
+    db_path: str = "minder.db"  # used by sqlite
+    uri: str = "postgresql+asyncpg://localhost/minder"  # used by postgresql
 
 
 class MongoDBConfig(BaseModel):

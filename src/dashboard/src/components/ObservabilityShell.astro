@@ -8,6 +8,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   navTitle="Minder Dashboard"
   navDescription="Live metrics, auth events, and a full audit trail for every admin and client action."
   sessionControls={true}
+  showPageIntro={false}
 >
   <!-- Page header -->
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
@@ -247,9 +248,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         </thead>
         <tbody id="audit-log-body">
           <tr>
-            <td
-              colspan="5"
-              class="px-4 py-6 text-center text-sm text-stone-400"
+            <td colspan="5" class="px-4 py-6 text-center text-sm text-stone-400"
               >Loading audit log...</td
             >
           </tr>

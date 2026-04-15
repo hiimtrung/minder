@@ -6,6 +6,7 @@ interface Props {
   description?: string;
   navTitle?: string;
   navDescription?: string;
+  showPageIntro?: boolean;
   navLinks?: Array<{
     href: string;
     label: string;
@@ -20,12 +21,14 @@ const {
   description = "Minder dashboard shell",
   navTitle = "Minder Dashboard",
   navDescription = "Admin setup, login, client management, and onboarding on one port.",
+  showPageIntro = true,
   navLinks = [],
   sessionControls = false,
 } = Astro.props;
 
 const DEFAULT_NAV = [
   { href: "/dashboard", label: "Home" },
+  { href: "/dashboard/repositories", label: "Repositories" },
   { href: "/dashboard/clients", label: "Clients" },
   { href: "/dashboard/workflows", label: "Workflows" },
   { href: "/dashboard/users", label: "Users" },
@@ -37,8 +40,8 @@ const currentPath = Astro.url.pathname;
 
 const isLinkActive = (href: string, currentDetail?: boolean) => {
   if (currentDetail) return true;
-  
-  // Normalize path by stripping backend-injected prefixes (e.g. /v1/admin) 
+
+  // Normalize path by stripping backend-injected prefixes (e.g. /v1/admin)
   // to ensure active state detection works both in dev and prod/backend mounts.
   const normalizedPath = currentPath.replace(/^\/v[0-9]+\/admin/, "") || "/";
   const path = normalizedPath.replace(/\/$/, "") || "/";
@@ -63,85 +66,106 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
   <body>
     <div class="min-h-screen">
       <header class="mx-auto max-w-6xl px-6 py-8">
-        <div class="flex flex-wrap items-center justify-between gap-6">
-          <!-- Branding -->
-          <div class="flex items-center gap-4">
-            <a href="/dashboard" class="group flex items-center gap-3">
-              <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-800 text-white shadow-lg transition-transform group-hover:scale-105">
-                <span class="text-xl font-bold">M</span>
-              </div>
-              <div class="flex flex-col">
-                <span class="text-lg font-bold tracking-tight text-stone-900">{navTitle}</span>
-                <span class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase">Control Plane</span>
-              </div>
-            </a>
-          </div>
-
-          <!-- Main Navigation -->
-          <nav class="hidden items-center gap-1 md:flex">
-            {
-              effectiveNav.map((link: any) => (
-                <a
-                  href={link.href}
-                  class="nav-link"
-                  data-active={isLinkActive(link.href, link.currentDetail) ? "true" : "false"}
+        <div class="shell-card px-5 py-5 md:px-6">
+          <div class="flex flex-wrap items-start justify-between gap-6">
+            <div class="flex min-w-0 items-center gap-4">
+              <a href="/dashboard" class="group flex items-center gap-3">
+                <div
+                  class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-800 text-white shadow-lg transition-transform group-hover:scale-105"
                 >
-                  {link.label}
-                </a>
-              ))
-            }
-          </nav>
-
-          <!-- User Actions -->
-          <div class="flex items-center gap-3">
-            {
-              sessionControls && (
-                <div class="flex items-center gap-3">
+                  <span class="text-xl font-bold">M</span>
+                </div>
+                <div class="flex min-w-0 flex-col">
+                  <span class="text-lg font-bold tracking-tight text-stone-900"
+                    >{navTitle}</span
+                  >
                   <span
-                    id="dashboard-session-badge"
-                    class="session-badge"
+                    class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase"
+                    >Control Plane</span
                   >
-                    Checking...
-                  </span>
-                  <div class="h-4 w-px bg-stone-300"></div>
-                  <button
-                    id="dashboard-logout-button"
-                    type="button"
-                    class="action-pill px-3 py-1.5 text-xs!"
-                  >
-                    Logout
-                  </button>
                 </div>
-              )
-            }
-            { !sessionControls && navLinks.length > 0 && (
-                <div class="md:hidden">
-                   <!-- Placeholder for mobile menu if needed -->
-                </div>
-            )}
-          </div>
-        </div>
-        
-        <!-- Mobile Navigation (Visible only on small screens) -->
-        <nav class="mt-6 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4 md:hidden">
-            {
-              effectiveNav.map((link: any) => (
-                <a
-                  href={link.href}
-                  class={isLinkActive(link.href, link.currentDetail) ? "primary-pill" : "action-pill"}
+              </a>
+            </div>
+
+            <div class="flex min-w-0 flex-1 flex-col gap-4 md:items-end">
+              {
+                effectiveNav.length > 0 && (
+                  <nav class="hidden flex-wrap items-center gap-1 md:flex">
+                    {effectiveNav.map((link: any) => (
+                      <a
+                        href={link.href}
+                        class="nav-link"
+                        data-active={
+                          isLinkActive(link.href, link.currentDetail)
+                            ? "true"
+                            : "false"
+                        }
+                      >
+                        {link.label}
+                      </a>
+                    ))}
+                  </nav>
+                )
+              }
+
+              <div class="flex flex-wrap items-center gap-3 md:justify-end">
+                <p
+                  class="max-w-2xl text-sm leading-6 text-stone-600 md:text-right"
                 >
-                  {link.label}
-                </a>
-              ))
-            }
-        </nav>
+                  {navDescription}
+                </p>
+                {
+                  sessionControls && (
+                    <div class="flex items-center gap-3">
+                      <span id="dashboard-session-badge" class="session-badge">
+                        Checking...
+                      </span>
+                      <button
+                        id="dashboard-logout-button"
+                        type="button"
+                        class="action-pill px-3 py-1.5 text-xs!"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+          </div>
+
+          {
+            effectiveNav.length > 0 && (
+              <nav class="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4 md:hidden">
+                {effectiveNav.map((link: any) => (
+                  <a
+                    href={link.href}
+                    class={
+                      isLinkActive(link.href, link.currentDetail)
+                        ? "primary-pill"
+                        : "action-pill"
+                    }
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+            )
+          }
+        </div>
       </header>
 
       <main class="mx-auto max-w-6xl px-6 pb-20">
-        <div class="mb-8 flex flex-col gap-2">
-            <h1 class="text-3xl font-bold tracking-tight text-stone-950">{title}</h1>
-            <p class="text-sm text-stone-600">{navDescription}</p>
-        </div>
+        {
+          showPageIntro && (
+            <div class="mb-8 flex flex-col gap-2">
+              <h1 class="text-3xl font-bold tracking-tight text-stone-950">
+                {title}
+              </h1>
+              <p class="text-sm text-stone-600">{navDescription}</p>
+            </div>
+          )
+        }
         <slot />
       </main>
       <div

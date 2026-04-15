@@ -62,6 +62,13 @@ class RelationalStoreConfig(BaseModel):
     uri: str = "postgresql+asyncpg://localhost/minder"  # used by postgresql
 
 
+class GraphStoreConfig(BaseModel):
+    enabled: bool = True
+    provider: str = "auto"  # "auto" | "sqlite" | "postgresql"
+    db_path: str = "~/.minder/data/graph.db"  # used by sqlite
+    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # used by postgresql
+
+
 class MongoDBConfig(BaseModel):
     uri: str = "mongodb://localhost:27017"
     database: str = "minder"
@@ -128,6 +135,7 @@ class Settings(BaseSettings):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
+    graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
     mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)

@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 import uuid
-from pathlib import Path
+from urllib.parse import urlsplit
 
 from pydantic import ValidationError
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
 
-from minder.application.admin.dto import GraphSyncRequest
+from minder.application.admin.dto import ClientRepositoryResolveRequest, GraphSyncRequest
 from minder.auth.principal import ClientPrincipal
 from minder.observability.metrics import (
     get_metrics_summary,
@@ -21,23 +21,62 @@ from .context import ADMIN_COOKIE_NAME, AdminRouteContext
 logger = logging.getLogger(__name__)
 
 
+def _normalize_repository_remote(repo_url: str | None) -> str | None:
+    if repo_url is None:
+        return None
+    raw_url = str(repo_url).strip()
+    if not raw_url:
+        return None
+    if raw_url.startswith("git@"):
+        host_and_path = raw_url[4:]
+        host, separator, path = host_and_path.partition(":")
+        if separator and host and path:
+            normalized_path = path.strip().lstrip("/").removesuffix(".git")
+            if normalized_path:
+                return f"git@{host}:{normalized_path}.git"
+        return raw_url
+    if raw_url.startswith("ssh://") or raw_url.startswith("http://") or raw_url.startswith("https://"):
+        parts = urlsplit(raw_url)
+        host = parts.hostname or ""
+        path = parts.path.strip().lstrip("/").removesuffix(".git")
+        user = parts.username or "git"
+        if host and path:
+            return f"{user}@{host}:{path}.git"
+    return raw_url.rstrip("/")
+
+
+def _principal_can_access_candidates(
+    principal: ClientPrincipal,
+    candidates: list[str],
+) -> bool:
+    scopes = [scope.strip() for scope in principal.repo_scope if scope and scope.strip()]
+    if not scopes:
+        return False
+    if "*" in scopes:
+        return True
+    normalized_candidates = [candidate.rstrip("/") for candidate in candidates if candidate]
+    for scope in scopes:
+        normalized_scope = scope.rstrip("/")
+        for candidate in normalized_candidates:
+            if candidate == normalized_scope:
+                return True
+            if candidate.startswith(f"{normalized_scope}/"):
+                return True
+    return False
+
+
 def _repository_scope_candidates(repository: object, payload: GraphSyncRequest) -> list[str]:
     candidates: list[str] = []
     repo_name = getattr(repository, "repo_name", None)
     if repo_name:
         candidates.append(str(repo_name))
     repo_url = getattr(repository, "repo_url", None)
-    if repo_url:
-        candidates.append(str(repo_url))
-    repo_path = payload.repo_path
-    if repo_path:
-        candidates.append(repo_path)
-    state_path = str(getattr(repository, "state_path", "") or "")
-    if state_path:
-        candidates.append(state_path)
-        state_root = Path(state_path)
-        if state_root.name == ".minder":
-            candidates.append(str(state_root.parent))
+    normalized_repo_url = _normalize_repository_remote(repo_url)
+    if normalized_repo_url:
+        candidates.append(normalized_repo_url)
+    payload_remote = _normalize_repository_remote(payload.sync_metadata.get("repo_remote") if isinstance(payload.sync_metadata, dict) else None)
+    if payload_remote:
+        candidates.append(payload_remote)
     return [candidate for candidate in candidates if candidate]
 
 
@@ -46,21 +85,10 @@ def _principal_can_access_repository(
     repository: object,
     payload: GraphSyncRequest,
 ) -> bool:
-    scopes = [scope.strip() for scope in principal.repo_scope if scope and scope.strip()]
-    if not scopes:
-        return False
-    if "*" in scopes:
-        return True
-    candidates = _repository_scope_candidates(repository, payload)
-    for scope in scopes:
-        normalized_scope = scope.rstrip("/")
-        for candidate in candidates:
-            normalized_candidate = candidate.rstrip("/")
-            if normalized_candidate == normalized_scope:
-                return True
-            if normalized_candidate.startswith(f"{normalized_scope}/"):
-                return True
-    return False
+    return _principal_can_access_candidates(
+        principal,
+        _repository_scope_candidates(repository, payload),
+    )
 
 
 def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
@@ -561,6 +589,86 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
         return JSONResponse(await context.use_cases.list_repositories())
 
+    async def repository_graph_summary(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        try:
+            return JSONResponse(await context.use_cases.get_repository_graph_summary(repo_id=repo_id))
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+
+    async def repository_graph_search(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        query = (request.query_params.get("query") or "").strip()
+        if not query:
+            return JSONResponse({"error": "Query is required"}, status_code=400)
+        node_types = [value.strip() for value in request.query_params.getlist("node_type") if value.strip()]
+        try:
+            limit = max(1, min(int(request.query_params.get("limit", "10")), 50))
+        except ValueError:
+            return JSONResponse({"error": "Invalid limit"}, status_code=400)
+
+        try:
+            return JSONResponse(
+                await context.use_cases.search_repository_graph(
+                    repo_id=repo_id,
+                    query=query,
+                    node_types=node_types or None,
+                    limit=limit,
+                )
+            )
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+
+    async def repository_graph_impact(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        target = (request.query_params.get("target") or "").strip()
+        if not target:
+            return JSONResponse({"error": "Target is required"}, status_code=400)
+        try:
+            depth = max(1, min(int(request.query_params.get("depth", "2")), 6))
+            limit = max(1, min(int(request.query_params.get("limit", "25")), 100))
+        except ValueError:
+            return JSONResponse({"error": "Invalid depth or limit"}, status_code=400)
+
+        try:
+            return JSONResponse(
+                await context.use_cases.get_repository_graph_impact(
+                    repo_id=repo_id,
+                    target=target,
+                    depth=depth,
+                    limit=limit,
+                )
+            )
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+
     async def repository_graph_sync(request):
         try:
             user = await context.admin_user_from_request(request)
@@ -678,6 +786,66 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
         return JSONResponse(result, status_code=202)
 
+    async def client_repository_resolve(request):
+        try:
+            principal = await context.client_principal_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Client principal required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        try:
+            payload = ClientRepositoryResolveRequest.model_validate(await request.json())
+        except ValidationError as exc:
+            return JSONResponse(
+                {"error": "Invalid repository resolve payload", "details": exc.errors()},
+                status_code=400,
+            )
+
+        candidates = [payload.repo_name, payload.repo_path]
+        normalized_remote = _normalize_repository_remote(payload.repo_url)
+        if normalized_remote:
+            candidates.append(normalized_remote)
+
+        if not _principal_can_access_candidates(principal, candidates):
+            return JSONResponse(
+                {"error": "Client is not allowed to resolve this repository"},
+                status_code=403,
+            )
+
+        try:
+            result = await context.use_cases.resolve_repository_for_client(
+                repo_name=payload.repo_name,
+                repo_path=payload.repo_path,
+                repo_url=payload.repo_url,
+                default_branch=payload.default_branch,
+            )
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+        repository_id = result["repository"]["id"]
+        try:
+            await context.store.create_audit_log(
+                actor_type="client",
+                actor_id=str(principal.client_id),
+                event_type="repository.resolve",
+                resource_type="repository",
+                resource_id=repository_id,
+                outcome="success",
+                audit_metadata={
+                    "client_slug": principal.client_slug,
+                    "created": result["created"],
+                    "path": result["repository"]["path"],
+                    "name": result["repository"]["name"],
+                },
+            )
+        except Exception:
+            logger.exception("Failed to record client repository resolve audit log")
+
+        return JSONResponse(result, status_code=201 if result["created"] else 200)
+
     return [
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
@@ -701,7 +869,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/workflows/{workflow_id:uuid}", workflow_detail, methods=["GET", "PATCH", "DELETE"]),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/graph-summary", repository_graph_summary, methods=["GET"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/graph-search", repository_graph_search, methods=["GET"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/graph-impact", repository_graph_impact, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-sync", repository_graph_sync, methods=["POST"]),
+        Route("/v1/client/repositories/resolve", client_repository_resolve, methods=["POST"]),
         Route("/v1/client/repositories/{repo_id:uuid}/graph-sync", client_repository_graph_sync, methods=["POST"]),
         # Observability
         Route("/v1/admin/metrics-summary", admin_metrics_summary, methods=["GET"]),

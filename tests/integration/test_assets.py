@@ -189,11 +189,14 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     assert ci_workflow.exists()
     assert "make test" in ci_workflow.read_text(encoding="utf-8")
     assert release_workflow.exists()
-    assert "docker/Dockerfile.api" in release_workflow.read_text(encoding="utf-8")
-    assert "docker/Dockerfile.dashboard" in release_workflow.read_text(encoding="utf-8")
-    assert "install-minder-${{ github.ref_name }}.sh" in release_workflow.read_text(encoding="utf-8")
-    assert "dist/release/docker-compose.yml" in release_workflow.read_text(encoding="utf-8")
-    assert "dist/release/Caddyfile" in release_workflow.read_text(encoding="utf-8")
-    assert "body_path: dist/release/release-notes.md" in release_workflow.read_text(encoding="utf-8")
+    release_workflow_text = release_workflow.read_text(encoding="utf-8")
+    assert "docker/Dockerfile.api" in release_workflow_text
+    assert "docker/Dockerfile.dashboard" in release_workflow_text
+    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh" in release_workflow_text
+    assert "dist/release/docker-compose.yml" in release_workflow_text
+    assert "dist/release/Caddyfile" in release_workflow_text
+    assert "body_path: dist/release/release-notes.md" in release_workflow_text
+    assert "cache-from: type=gha,scope=minder-api" in release_workflow_text
+    assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow_text
     assert download_script.exists()
     assert "curl -L" in download_script.read_text(encoding="utf-8")

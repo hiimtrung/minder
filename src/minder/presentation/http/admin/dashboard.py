@@ -52,7 +52,7 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 return RedirectResponse(url=f"{context.config.dashboard.base_path}/setup", status_code=303)
             if has_admin_users and asset_path == "setup":
                 target = (
-                    f"{context.config.dashboard.base_path}/clients"
+                    f"{context.config.dashboard.base_path}/repositories"
                     if has_admin_session
                     else f"{context.config.dashboard.base_path}/login"
                 )
@@ -60,7 +60,7 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if has_admin_users and not has_admin_session and asset_path not in {"login"}:
                 return RedirectResponse(url=f"{context.config.dashboard.base_path}/login", status_code=303)
             if has_admin_users and has_admin_session and asset_path in {"", "login"}:
-                return RedirectResponse(url=f"{context.config.dashboard.base_path}/clients", status_code=303)
+                return RedirectResponse(url=f"{context.config.dashboard.base_path}/repositories", status_code=303)
 
         if not static_dir.exists():
             return PlainTextResponse("Dashboard build not found", status_code=404)

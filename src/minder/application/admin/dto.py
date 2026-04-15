@@ -183,6 +183,7 @@ class RepositoryPayload(TypedDict):
     id: str
     name: str
     path: str
+    remote_url: str | None
     workflow_name: str | None
     workflow_state: str | None
     current_step: str | None
@@ -191,6 +192,18 @@ class RepositoryPayload(TypedDict):
 
 class RepositoryListPayload(TypedDict):
     repositories: list[RepositoryPayload]
+
+
+class ClientRepositoryResolveRequest(BaseModel):
+    repo_name: str
+    repo_path: str
+    repo_url: str | None = None
+    default_branch: str | None = None
+
+
+class ClientRepositoryResolvePayload(TypedDict):
+    repository: RepositoryPayload
+    created: bool
 
 
 class GraphSyncNodeRefRequest(BaseModel):
@@ -233,3 +246,38 @@ class GraphSyncResultPayload(TypedDict):
     nodes_upserted: int
     edges_upserted: int
     accepted_at: str
+
+
+class RepositoryGraphNodePayload(TypedDict):
+    id: str
+    node_type: str
+    name: str
+    metadata: dict[str, Any]
+
+
+class RepositoryGraphSummaryPayload(TypedDict):
+    repository: RepositoryPayload
+    graph_available: bool
+    last_sync: dict[str, Any] | None
+    node_count: int
+    counts_by_type: dict[str, int]
+    routes: list[RepositoryGraphNodePayload]
+    todos: list[RepositoryGraphNodePayload]
+    external_services: list[RepositoryGraphNodePayload]
+    dependencies: list[dict[str, Any]]
+
+
+class RepositoryGraphSearchPayload(TypedDict):
+    repository: RepositoryPayload
+    query: str
+    filters: dict[str, Any]
+    count: int
+    results: list[RepositoryGraphNodePayload]
+
+
+class RepositoryGraphImpactPayload(TypedDict):
+    repository: RepositoryPayload
+    target: str
+    matches: list[RepositoryGraphNodePayload]
+    impacted: list[dict[str, Any]]
+    summary: dict[str, Any]

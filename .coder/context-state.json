@@ -1,135 +1,139 @@
 {
-  "updated_at": "2026-04-15T14:59:36.511301+07:00",
+  "updated_at": "2026-04-15T16:32:35.389575+07:00",
   "skills": {
-    "task": "phase 3 mcp resources impact analysis semantic search",
+    "task": "github remote repository identity and dashboard graph canvas visualization",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-15T14:59:36.164016+07:00",
-    "keep": [
-      "context-manager",
-      "exa-search",
-      "alpha-vantage"
+    "resolved_at": "2026-04-15T16:32:34.960042+07:00",
+    "keep": [],
+    "add": [
+      "issues",
+      "github-automation",
+      "x-twitter-scraper"
     ],
-    "add": [],
-    "drop": null,
+    "drop": [
+      "amazon-alexa",
+      "claude-monitor",
+      "whatsapp-cloud-api"
+    ],
     "skills": [
       {
-        "name": "context-manager",
-        "category": "backend",
+        "name": "issues",
+        "category": "general",
         "score": 0.016393442,
-        "chunk_count": 3,
-        "reason": "kept active: still relevant after re-resolve"
-      },
-      {
-        "name": "exa-search",
-        "category": "backend",
-        "score": 0.016129032,
         "chunk_count": 1,
-        "reason": "kept active: still relevant after re-resolve"
+        "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "alpha-vantage",
-        "category": "backend",
+        "name": "github-automation",
+        "category": "general",
+        "score": 0.016129032,
+        "chunk_count": 5,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "x-twitter-scraper",
+        "category": "data",
         "score": 0.015873017,
         "chunk_count": 1,
-        "reason": "kept active: still relevant after re-resolve"
+        "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "phase 3 mcp resources impact analysis semantic search",
+    "query": "github remote repository identity dashboard graph visualization",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-15T14:59:36.510192+07:00",
+    "searched_at": "2026-04-15T16:32:35.387485+07:00",
     "results": [
       {
-        "id": "310f32b9-9427-452c-9bd3-878006488295",
-        "title": "Extended Minder Phase 2.x with retrieval substrate and orchestration adapter",
+        "id": "9165aef9-2a0a-4159-bbb7-6a336f756328",
+        "title": "Repository graph explorer flow",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:extended-minder-phase-2-x-with-retrieval-substrate-and-orchestration-adapter",
+        "canonical_key": "document:repository-graph-explorer-flow",
         "score": 0.086393446,
         "tags": [
           "minder",
-          "phase-2x",
-          "retrieval",
-          "executor",
-          "langgraph",
-          "tests"
+          "dashboard",
+          "graph",
+          "admin-api",
+          "astro"
         ],
         "conflict_detected": false,
-        "content": "Continued Phase 2.x by adding a semantic retrieval baseline (embedding providers, document store, vector store, RetrieverNode vector-first fallback-to-lexical behavior, and shared search substrate for minder_search_code) plus optional orchestration adapter layering (InternalGraphExecutor, LangGraphExecutorAdapter, orchestration runtime metadata, and runtime detection tests). Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (76 passed)."
+        "content": "Added admin repository graph read APIs and Astro dashboard explorer for synced repo graphs. Backend: src/minder/application/admin/use_cases.py adds summary/search/impact methods backed by GraphTools; src/minder/presentation/http/admin/api.py exposes /v1/admin/repositories/{repo_id}/graph-summary, graph-search, and graph-impact. Frontend: src/dashboard/src/lib/api/admin.ts adds typed graph client calls; src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/pages/repositories/index.astro, and src/dashboard/src/scripts/repositories-page.ts add the repository explorer UI. Validation: uv run pytest tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy ..., cd src/dashboard \u0026\u0026 bun run check."
       },
       {
-        "id": "0633f679-9b83-4236-8820-c593ce83fe2a",
-        "title": "Minder project architecture plan",
+        "id": "029e620e-6353-4085-8816-8581517a1379",
+        "title": "Design docs: skill catalog and metadata-first graph",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-project-architecture-plan",
+        "canonical_key": "document:design-docs-skill-catalog-and-metadata-first-graph",
         "score": 0.086129025,
         "tags": [
           "minder",
+          "docs",
           "architecture",
-          "rag",
-          "mcp",
-          "langgraph",
-          "plan"
+          "skills",
+          "graph"
         ],
         "conflict_detected": false,
-        "content": "Minder is a Full Agentic RAG MCP Server built with Python + LangGraph + Milvus + NV-Embed-v2 + Nemotron-3 Nano-4B GGUF. Architecture: MCP Transport Layer → LangGraph Orchestrator (Planning, Retriever, Reranker, Reasoning, LLM, Guard, Verification, Evaluator nodes) → Multi-tier Data Layer (Vector/Milvus, Relational/SQLite, Document/JSONL, Graph, Cache). 8 memory stores: Skill, History, Error, Session, Metadata, Document, Rule, Feedback. 5 implementation phases: Foundation → Agentic Pipeline → Advanced Retrieval + Knowledge Graph → Scale + Production → Self-Improvement. Plan stored at docs/PLAN.md."
+        "content": "Added requirements/design docs for Dashboard skill CRUD and provider-agnostic Git import, and updated canonical architecture/planning docs to make GraphNode metadata-first with optional bounded reusable excerpts only. Files: docs/requirements/skill_management_and_graph_metadata.md, docs/design/skill_management_and_graph_metadata.md, docs/system-design.md, docs/plan/01-product-scope.md, docs/plan/02-architecture.md, docs/plan/03-data-model-and-tools.md, docs/plan/05-implementation-phases.md, docs/TASK_BREAKDOWN.md, docs/PROJECT_PROGRESS.md"
       },
       {
-        "id": "15fdfe86-26a0-40c0-a71a-2ff72d68e968",
-        "title": "Wired repo ingestion into Minder retrieval",
+        "id": "781c099b-6ac6-4368-9a87-6e2198d082c4",
+        "title": "Client-key graph sync and richer Python extractor",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:wired-repo-ingestion-into-minder-retrieval",
+        "canonical_key": "document:client-key-graph-sync-and-richer-python-extractor",
         "score": 0.08587302,
         "tags": [
           "minder",
-          "phase-2.2",
-          "ingest",
-          "retrieval",
+          "transition",
+          "client-auth",
+          "cli",
+          "extractor",
           "tests"
         ],
         "conflict_detected": false,
-        "content": "Continued Phase 2.2 by adding a lightweight repo ingestion pipeline: DocumentStore upsert/get/delete helpers, IngestTools for file and directory ingestion, and automatic repo sync before minder_query/minder_search_code so vector-backed retrieval has real corpus data from the workspace. Added ingest tests and updated phase2x integration coverage. Verified with UV_CACHE_DIR=.uv-cache uv run ruff check ., uv run mypy src, and uv run pytest (82 passed)."
+        "content": "Extended the CLI-edge transition with a client-authenticated graph sync route using X-Minder-Client-Key and repo-scope enforcement, a minimal minder login command that stores client credentials locally, and richer Python RepoScanner extraction for functions, classes, interfaces, abstract classes, controllers, routes, TODOs, external service calls, and MQ topics. Updated transition progress docs and validated with focused pytest, ruff, and mypy runs."
       },
       {
-        "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
-        "title": "Minder switched to Qwen plan split",
+        "id": "c6ecb913-4708-477c-9204-a8d612bea6f9",
+        "title": "Delete-aware CLI graph sync tombstones",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-switched-to-qwen-plan-split",
+        "canonical_key": "document:delete-aware-cli-graph-sync-tombstones",
         "score": 0.08562499,
         "tags": [
           "minder",
-          "plan",
-          "qwen",
-          "docs",
-          "split"
+          "python",
+          "cli",
+          "graph-sync",
+          "delete-sync"
         ],
         "conflict_detected": false,
-        "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
+        "content": "Extended graph sync to carry deleted_files through src/minder/cli.py, src/minder/tools/repo_scanner.py, and src/minder/application/admin/dto.py. AdminConsoleUseCases.sync_repository_graph now prunes repo-scoped graph nodes whose metadata.path matches deleted files using IGraphRepository.list_nodes and KnowledgeGraphStore.list_nodes. Added integration coverage in tests/integration/test_http_admin_expansion.py and updated progress docs."
       },
       {
-        "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
-        "title": "Docs refactor: split progress trackers by phase",
+        "id": "69fa0d55-9bed-473d-a02d-b7cb6f2d3812",
+        "title": "Phase 3 MCP graph resources and impact tool",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
+        "canonical_key": "document:phase-3-mcp-graph-resources-and-impact-tool",
         "score": 0.08538462,
         "tags": [
           "minder",
-          "docs",
-          "progress",
-          "tracking",
-          "architecture"
+          "python",
+          "mcp",
+          "graph",
+          "transport",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
+        "content": "Advanced the CLI-edge transition by wiring a dedicated graph store into the runtime server and transport, adding graph-backed MCP resources minder://repos/{repo_name}/structure and minder://repos/{repo_name}/todos, and exposing a scoped minder_find_impact tool for repo-local impact traversal. Updated transition docs and validated with focused pytest, ruff, and mypy."
       }
     ]
   }

@@ -110,7 +110,7 @@ async def test_phase4_1_gate(
 
         dashboard = await client.get("/dashboard")
         assert dashboard.status_code == 303
-        assert dashboard.headers["location"] == "/dashboard/clients"
+        assert dashboard.headers["location"] == "/dashboard/repositories"
 
     # 4. Recovery script rotates the admin API key and invalidates the old one.
     recovery_module = _load_module(Path("scripts/reset_admin_api_key.py"), "phase41_reset_admin_api_key")

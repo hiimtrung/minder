@@ -1,12 +1,18 @@
 import { getDashboardBootstrapState, loginAdmin } from "../lib/api/admin";
 
 const loginForm = document.querySelector("#login-form");
-const usernameInput = document.querySelector("#login-username") as HTMLInputElement | null;
-const passwordInput = document.querySelector("#login-password") as HTMLInputElement | null;
+const usernameInput = document.querySelector(
+  "#login-username",
+) as HTMLInputElement | null;
+const passwordInput = document.querySelector(
+  "#login-password",
+) as HTMLInputElement | null;
 const loginStatus = document.querySelector("#login-status");
 
 const apiKeyForm = document.querySelector("#apikey-form");
-const apiKeyInput = document.querySelector("#api-key") as HTMLInputElement | null;
+const apiKeyInput = document.querySelector(
+  "#api-key",
+) as HTMLInputElement | null;
 const apiKeyStatus = document.querySelector("#apikey-status");
 
 const setupHint = document.querySelector("#setup-hint");
@@ -31,7 +37,7 @@ void (async () => {
 // ---------------------------------------------------------------------------
 
 const redirectToDashboard = () => {
-  window.location.href = "/dashboard/clients";
+  window.location.href = "/dashboard/repositories";
 };
 
 // ---------------------------------------------------------------------------
@@ -44,7 +50,8 @@ loginForm?.addEventListener("submit", async (event) => {
   const password = passwordInput?.value ?? "";
 
   if (!username || !password) {
-    if (loginStatus) loginStatus.textContent = "Username and password are required.";
+    if (loginStatus)
+      loginStatus.textContent = "Username and password are required.";
     return;
   }
 

@@ -1,14 +1,5 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-
-interface Props {
-  workflowId?: string;
-}
-
-const { workflowId = "" } = Astro.props;
-const detailHref = workflowId
-  ? `/dashboard/workflows/${encodeURIComponent(workflowId)}`
-  : "/dashboard/workflows";
 ---
 
 <DashboardLayout
@@ -17,6 +8,7 @@ const detailHref = workflowId
   navTitle="Minder Dashboard"
   navDescription="Operate one workflow definition with full step editor and enforcement controls."
   sessionControls={true}
+  showPageIntro={false}
 >
   <section class="mb-8 space-y-6">
     <nav
@@ -43,8 +35,8 @@ const detailHref = workflowId
         </h1>
         <p class="max-w-3xl text-lg leading-8 text-stone-700">
           Edit the step sequence, gate conditions, and enforcement level for
-          this workflow. Changes take effect immediately for any repository
-          that has this workflow assigned.
+          this workflow. Changes take effect immediately for any repository that
+          has this workflow assigned.
         </p>
       </div>
       <div class="flex flex-wrap gap-2">
@@ -94,8 +86,10 @@ const detailHref = workflowId
             </select>
           </label>
 
-          <p id="edit-workflow-status" class="min-h-6 text-sm text-stone-600"></p>
-          <button type="submit" class="primary-pill w-full">Save changes</button>
+          <p id="edit-workflow-status" class="min-h-6 text-sm text-stone-600">
+          </p>
+          <button type="submit" class="primary-pill w-full">Save changes</button
+          >
         </form>
       </section>
 
@@ -116,7 +110,11 @@ const detailHref = workflowId
         >
           Delete this workflow
         </button>
-        <p id="delete-workflow-status" class="mt-3 min-h-6 text-sm text-red-600"></p>
+        <p
+          id="delete-workflow-status"
+          class="mt-3 min-h-6 text-sm text-red-600"
+        >
+        </p>
       </section>
     </aside>
 
@@ -126,7 +124,9 @@ const detailHref = workflowId
         <div class="flex items-center justify-between gap-4">
           <div>
             <p class="eyebrow">Steps</p>
-            <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+            <h2
+              class="mt-3 text-2xl font-semibold tracking-tight text-stone-950"
+            >
               Step sequence editor
             </h2>
           </div>

@@ -84,7 +84,8 @@ def _make_repo_fixture(root: Path) -> tuple[Path, Path, Path]:
     (root / "README.md").write_text(
         "# Monorepo\n\n"
         "The orders service depends on the billing client.\n"
-        "Checkout flows call charge_customer in billing/client.py.\n",
+        "Checkout flows call charge_customer in billing/client.py.\n"
+        "- [ ] review billing fallback\n",
         encoding="utf-8",
     )
     return root, orders, billing
@@ -297,18 +298,22 @@ async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: 
         embedding=[0.2] * 16,
     )
     app = MockFastMCPApp()
-    ResourceRegistry.register(app, store)  # type: ignore[arg-type]
+    ResourceRegistry.register(app, store, graph_store=graph_store)  # type: ignore[arg-type]
     PromptRegistry.register(app)  # type: ignore[arg-type]
 
     skills_payload = json.loads(await app._resources["minder://skills"]())  # type: ignore[index,operator]
     repos_payload = json.loads(await app._resources["minder://repos"]())  # type: ignore[index,operator]
     stats_payload = json.loads(await app._resources["minder://stats"]())  # type: ignore[index,operator]
+    structure_payload = json.loads(await app._resources["minder://repos/{repo_name}/structure"](repo_name=repo_root.name))  # type: ignore[index,operator]
+    todos_payload = json.loads(await app._resources["minder://repos/{repo_name}/todos"](repo_name=repo_root.name))  # type: ignore[index,operator]
     tdd_prompt = await app._prompts["tdd_step"]("Test Writing")  # type: ignore[index,operator]
 
     assert any(item["title"] == "Billing Retry" for item in skills_payload)
     assert any(item["name"] == "orders" for item in repos_payload)
     assert stats_payload["skill_count"] >= 1
     assert stats_payload["repo_count"] >= 1
+    assert structure_payload["counts"].get("service", 0) >= 2
+    assert any(item["metadata"]["text"] == "review billing fallback" for item in todos_payload["items"])
     assert "Test Writing" in tdd_prompt[0]["content"]
 
     # 6. Workflow guidance includes dependency-aware context.

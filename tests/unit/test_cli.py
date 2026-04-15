@@ -268,6 +268,123 @@ def test_sync_prints_upgrade_notice_when_newer_pypi_version_exists(
     assert "A newer minder CLI is available (0.1.0 -> 0.2.0)" in output
 
 
+def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
+    monkeypatch.setattr(cli, "_git_remote_url", lambda repo: "git@github.com:example/minder.git")
+    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
+
+    captured: list[dict[str, object]] = []
+
+    class _FakeResponse:
+        def __init__(self, payload: dict[str, object]) -> None:
+            self._payload = payload
+
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict[str, object]:
+            return self._payload
+
+    def _fake_post(url: str, *, headers: dict[str, str], json: dict[str, object], timeout: int) -> _FakeResponse:
+        captured.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+        if url.endswith("/v1/client/repositories/resolve"):
+            return _FakeResponse(
+                {
+                    "created": False,
+                    "repository": {
+                        "id": "22222222-2222-2222-2222-222222222222",
+                        "name": "repo",
+                        "path": str(repo_root / ".minder"),
+                        "workflow_name": None,
+                        "workflow_state": None,
+                        "current_step": None,
+                        "created_at": None,
+                    },
+                }
+            )
+        return _FakeResponse({"repo_id": "22222222-2222-2222-2222-222222222222", "nodes_upserted": 1})
+
+    monkeypatch.setattr(cli.httpx, "post", _fake_post)
+
+    exit_code = main(
+        [
+            "sync",
+            "--repo-path",
+            str(repo_root),
+            "--config-path",
+            str(config_path),
+        ]
+    )
+
+    assert exit_code == 0
+    assert captured[0]["url"] == "http://localhost:8801/v1/client/repositories/resolve"
+    assert captured[1]["url"] == "http://localhost:8801/v1/client/repositories/22222222-2222-2222-2222-222222222222/graph-sync"
+    assert captured[0]["timeout"] == 15
+    assert captured[1]["timeout"] == 30
+    assert captured[0]["json"] == {
+        "repo_name": "minder",
+        "repo_path": str(repo_root),
+        "repo_url": "git@github.com:example/minder.git",
+        "default_branch": "develop",
+    }
+
+    output = json.loads(capsys.readouterr().out)
+    assert output["repo_id"] == "22222222-2222-2222-2222-222222222222"
+
+
+def test_sync_requires_remote_origin_when_repo_id_omitted(tmp_path, monkeypatch) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
+    monkeypatch.setattr(cli, "_git_remote_url", lambda repo: None)
+    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
+
+    try:
+        main(
+            [
+                "sync",
+                "--repo-path",
+                str(repo_root),
+                "--config-path",
+                str(config_path),
+            ]
+        )
+    except ValueError as exc:
+        assert str(exc) == "Repository remote origin SSH URL is required when --repo-id is omitted"
+    else:
+        raise AssertionError("sync should require a remote origin when repo_id is omitted")
+
+
 def test_sync_can_skip_upgrade_notice(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()

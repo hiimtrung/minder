@@ -197,6 +197,89 @@ async def test_user_endpoints_require_auth(app: Any) -> None:
     assert resp.status_code in (401, 403)
 
 
+@pytest.mark.asyncio
+async def test_client_can_resolve_and_create_repository(
+    app: Any,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="resolve-admin@example.com",
+        username="resolve_admin",
+        display_name="Resolve Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_key = await auth.register_client(
+        name="Resolve Client",
+        slug="resolve-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["*"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.post(
+        "/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": "minder",
+            "repo_path": "/workspace/minder",
+            "repo_url": "git@github.com:example/minder.git",
+            "default_branch": "develop",
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] is True
+    assert data["repository"]["name"] == "minder"
+    assert data["repository"]["path"] == "/workspace/minder/.minder"
+    assert data["repository"]["remote_url"] == "git@github.com:example/minder.git"
+
+    repositories = await store.list_repositories()
+    assert len(repositories) == 1
+    assert repositories[0].repo_name == "minder"
+    assert repositories[0].default_branch == "develop"
+    assert repositories[0].repo_url == "git@github.com:example/minder.git"
+
+
+@pytest.mark.asyncio
+async def test_client_repository_resolve_enforces_repo_scope(
+    app: Any,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="scoped-admin@example.com",
+        username="scoped_admin",
+        display_name="Scoped Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_key = await auth.register_client(
+        name="Scoped Client",
+        slug="scoped-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["git@github.com:example/allowed.git"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.post(
+        "/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": "minder",
+            "repo_path": "/workspace/blocked/minder",
+            "repo_url": "git@github.com:example/minder.git",
+            "default_branch": "develop",
+        },
+    )
+
+    assert resp.status_code == 403
+
+
 # ---------------------------------------------------------------------------
 # Workflow management
 # ---------------------------------------------------------------------------
@@ -426,7 +509,7 @@ async def test_client_can_sync_repository_graph_with_client_key(
         name="Sync Client",
         slug="sync-client",
         created_by_user_id=admin.id,
-        repo_scopes=["/workspace/client-sync-target"],
+        repo_scopes=["git@example.com:client-sync-target.git"],
     )
 
     client = TestClient(app, raise_server_exceptions=True)
@@ -436,6 +519,7 @@ async def test_client_can_sync_repository_graph_with_client_key(
         json={
             "payload_version": "2026-04-15",
             "repo_path": "/workspace/client-sync-target",
+            "sync_metadata": {"repo_remote": "git@example.com:client-sync-target.git"},
             "nodes": [
                 {
                     "node_type": "controller",
@@ -495,7 +579,7 @@ async def test_client_graph_sync_rejects_repository_outside_scope(
         name="Scoped Sync Client",
         slug="scoped-sync-client",
         created_by_user_id=admin.id,
-        repo_scopes=["/workspace/other-repo"],
+        repo_scopes=["git@example.com:other-repo.git"],
     )
 
     client = TestClient(app, raise_server_exceptions=True)
@@ -505,6 +589,7 @@ async def test_client_graph_sync_rejects_repository_outside_scope(
         json={
             "payload_version": "2026-04-15",
             "repo_path": "/workspace/forbidden-sync-target",
+            "sync_metadata": {"repo_remote": "git@example.com:forbidden-sync-target.git"},
             "nodes": [],
             "edges": [],
         },
@@ -660,3 +745,111 @@ async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
     assert refresh_response.json()["deleted_nodes"] == 2
     assert await graph_store.get_node_by_name("function", "src/app.py::old_handler") is None
     assert await graph_store.get_node_by_name("function", "src/app.py::new_handler") is not None
+
+
+@pytest.mark.asyncio
+async def test_admin_can_read_repository_graph_explorer_endpoints(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="graph-read-target",
+        repo_url="https://example.com/graph-read-target",
+        default_branch="main",
+        state_path="/workspace/graph-read-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    sync_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/graph-read-target",
+            "branch": "main",
+            "sync_metadata": {"changed_files": ["src/service.py"]},
+            "nodes": [
+                {
+                    "node_type": "service",
+                    "name": "src/service.py::BillingService",
+                    "metadata": {"path": "src/service.py"},
+                },
+                {
+                    "node_type": "route",
+                    "name": "GET /billing/health",
+                    "metadata": {"path": "src/http.py", "route_path": "/billing/health"},
+                },
+                {
+                    "node_type": "todo",
+                    "name": "TODO: add retry policy",
+                    "metadata": {"path": "src/service.py", "text": "add retry policy"},
+                },
+                {
+                    "node_type": "external_service_api",
+                    "name": "Stripe API",
+                    "metadata": {"path": "src/service.py"},
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/service.py::charge_customer",
+                    "metadata": {"path": "src/service.py", "symbol": "charge_customer"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {
+                        "node_type": "service",
+                        "name": "src/service.py::BillingService",
+                    },
+                    "target": {
+                        "node_type": "external_service_api",
+                        "name": "Stripe API",
+                    },
+                    "relation": "depends_on",
+                },
+                {
+                    "source": {
+                        "node_type": "function",
+                        "name": "src/service.py::charge_customer",
+                    },
+                    "target": {
+                        "node_type": "service",
+                        "name": "src/service.py::BillingService",
+                    },
+                    "relation": "calls",
+                },
+            ],
+        },
+    )
+
+    assert sync_response.status_code == 202
+
+    summary_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-summary"
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["repository"]["id"] == str(repository.id)
+    assert summary["graph_available"] is True
+    assert summary["node_count"] >= 5
+    assert summary["counts_by_type"]["service"] >= 1
+    assert summary["routes"][0]["name"] == "GET /billing/health"
+    assert summary["dependencies"][0]["service"] == "src/service.py::BillingService"
+
+    search_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-search?query=charge_customer&node_type=function"
+    )
+    assert search_response.status_code == 200
+    search = search_response.json()
+    assert search["count"] == 1
+    assert search["results"][0]["name"] == "src/service.py::charge_customer"
+
+    impact_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-impact?target=charge_customer&depth=2&limit=10"
+    )
+    assert impact_response.status_code == 200
+    impact = impact_response.json()
+    assert impact["matches"][0]["name"] == "src/service.py::charge_customer"
+    impacted_names = {item["name"] for item in impact["impacted"]}
+    assert "src/service.py::BillingService" in impacted_names

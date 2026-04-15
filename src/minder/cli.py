@@ -121,6 +121,51 @@ def _git_branch(repo_root: Path) -> str | None:
     return branch or None
 
 
+def _git_remote_url(repo_root: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "config", "--get", "remote.origin.url"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    remote_url = result.stdout.strip()
+    return remote_url or None
+
+
+def _normalize_repo_remote(remote_url: str | None) -> str | None:
+    if remote_url is None:
+        return None
+    raw_url = remote_url.strip()
+    if not raw_url:
+        return None
+    if raw_url.startswith("git@"):
+        host_and_path = raw_url[4:]
+        host, separator, path = host_and_path.partition(":")
+        if separator and host and path:
+            normalized_path = path.strip().lstrip("/").removesuffix(".git")
+            if normalized_path:
+                return f"git@{host}:{normalized_path}.git"
+        return raw_url
+    if raw_url.startswith("ssh://") or raw_url.startswith("http://") or raw_url.startswith("https://"):
+        parts = urlsplit(raw_url)
+        host = parts.hostname or ""
+        path = parts.path.strip().lstrip("/").removesuffix(".git")
+        user = parts.username or "git"
+        if host and path:
+            return f"{user}@{host}:{path}.git"
+    return raw_url.rstrip("/")
+
+
+def _repo_name_from_remote(remote_url: str | None) -> str | None:
+    normalized_remote = _normalize_repo_remote(remote_url)
+    if not normalized_remote:
+        return None
+    _, _, path = normalized_remote.partition(":")
+    repo_name = path.rsplit("/", 1)[-1].removesuffix(".git").strip()
+    return repo_name or None
+
+
 def _git_file_delta(repo_root: Path, diff_base: str | None = None) -> tuple[list[str], list[str]]:
     diff_command = ["git", "diff", "--name-only", "--diff-filter=ACMRD"]
     if diff_base:
@@ -367,16 +412,49 @@ def _uninstall_mcp(args: argparse.Namespace) -> int:
     return 0
 
 
+def _resolve_repo_id(
+    *,
+    base_url: str,
+    client_key: str,
+    repo_root: Path,
+    default_branch: str | None,
+) -> str:
+    remote_url = _normalize_repo_remote(_git_remote_url(repo_root))
+    if remote_url is None:
+        raise ValueError(
+            "Repository remote origin SSH URL is required when --repo-id is omitted"
+        )
+    response = httpx.post(
+        f"{base_url}/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": _repo_name_from_remote(remote_url) or repo_root.name,
+            "repo_path": str(repo_root),
+            "repo_url": remote_url,
+            "default_branch": default_branch,
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    repository = payload.get("repository") if isinstance(payload, dict) else None
+    repo_id = repository.get("id") if isinstance(repository, dict) else None
+    if not isinstance(repo_id, str) or not repo_id.strip():
+        raise ValueError("Repository resolve response did not include a repository id")
+    return repo_id.strip()
+
+
 def _sync(args: argparse.Namespace) -> int:
     config_path = Path(args.config_path).expanduser()
     settings = _require_client_settings(config_path)
     if not args.skip_upgrade_check:
         _maybe_print_upgrade_notice()
     repo_root = _repo_root(args.repo_path)
+    branch = _git_branch(repo_root)
     changed_files, deleted_files = _git_file_delta(repo_root, args.diff_base)
     payload = RepoScanner.build_sync_payload(
         str(repo_root),
-        branch=_git_branch(repo_root),
+        branch=branch,
         diff_base=args.diff_base,
         changed_files=changed_files,
         deleted_files=deleted_files,
@@ -387,8 +465,14 @@ def _sync(args: argparse.Namespace) -> int:
         return 0
 
     base_url = _base_http_url(str(settings["server_url"]))
-    sync_url = f"{base_url}/v1/client/repositories/{args.repo_id}/graph-sync"
     headers = {"X-Minder-Client-Key": str(settings["client_api_key"])}
+    repo_id = args.repo_id or _resolve_repo_id(
+        base_url=base_url,
+        client_key=headers["X-Minder-Client-Key"],
+        repo_root=repo_root,
+        default_branch=branch,
+    )
+    sync_url = f"{base_url}/v1/client/repositories/{repo_id}/graph-sync"
     response = httpx.post(sync_url, headers=headers, json=payload, timeout=30)
     response.raise_for_status()
     print(json.dumps(response.json(), indent=2))
@@ -472,8 +556,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync.add_argument(
         "--repo-id",
-        required=True,
-        help="Repository UUID registered on the Minder server.",
+        required=False,
+        help="Repository UUID registered on the Minder server. If omitted, the CLI resolves it from the current repo.",
     )
     sync.add_argument(
         "--repo-path",

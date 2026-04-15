@@ -89,6 +89,8 @@ jobs:
           context: .
           file: docker/Dockerfile.api
           platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=minder-api
+          cache-to: type=gha,mode=max,scope=minder-api
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/minder-api:${{ github.ref_name }}
 
@@ -98,6 +100,8 @@ jobs:
           context: .
           file: docker/Dockerfile.dashboard
           platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=minder-dashboard
+          cache-to: type=gha,mode=max,scope=minder-dashboard
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}
 

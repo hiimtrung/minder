@@ -55,6 +55,14 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_query",
         description="Run a full Minder repository query with retrieval, reasoning, and verification.",
     ),
+    ToolMeta(
+        name="minder_find_impact",
+        description="Traverse the repository graph to show upstream and downstream impact for a file, symbol, route, or dependency.",
+    ),
+    ToolMeta(
+        name="minder_search_graph",
+        description="Search the repository graph for matching files, symbols, routes, todos, or dependencies within a repo scope.",
+    ),
     # ── Workflow ──────────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_workflow_get",

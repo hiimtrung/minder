@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import uuid
+from collections import Counter
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlsplit
 
-from minder.tools.registry import SCOPEABLE_TOOLS
 from minder.application.admin.dto import (
     ActivityEventPayload,
     AdminLoginPayload,
@@ -15,12 +17,17 @@ from minder.application.admin.dto import (
     ClientDetailPayload,
     ClientKeyPayload,
     ClientListPayload,
+    ClientRepositoryResolvePayload,
     ClientPayload,
     CreateClientPayload,
     CreateUserPayload,
     GraphSyncRequest,
     GraphSyncResultPayload,
     OnboardingPayload,
+    RepositoryGraphImpactPayload,
+    RepositoryGraphNodePayload,
+    RepositoryGraphSearchPayload,
+    RepositoryGraphSummaryPayload,
     RepositoryListPayload,
     RepositoryPayload,
     RevokeKeysPayload,
@@ -36,6 +43,8 @@ from minder.application.admin.dto import (
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.store.interfaces import IGraphRepository, IOperationalStore
+from minder.tools.graph import GraphTools
+from minder.tools.registry import SCOPEABLE_TOOLS
 
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
@@ -74,6 +83,7 @@ class AdminConsoleUseCases:
         self._auth_service = auth_service
         self._config = config
         self._graph_store = graph_store
+        self._graph_tools = GraphTools(graph_store)
 
     async def has_admin_users(self) -> bool:
         return await self._auth_service.has_admin_users()
@@ -566,12 +576,67 @@ class AdminConsoleUseCases:
             result.append(self.serialize_repository(repo, state))
         return {"repositories": result}
 
+    async def resolve_repository_for_client(
+        self,
+        *,
+        repo_name: str,
+        repo_path: str,
+        repo_url: str | None = None,
+        default_branch: str | None = None,
+    ) -> ClientRepositoryResolvePayload:
+        normalized_url = _normalize_repository_remote(repo_url)
+        if normalized_url is None:
+            raise ValueError("Repository remote SSH URL is required for repository resolution")
+
+        normalized_name = _repo_name_from_remote(normalized_url) or repo_name.strip()
+        normalized_path = repo_path.strip().rstrip("/")
+        normalized_branch = (default_branch or "").strip() or "main"
+
+        if not normalized_name:
+            raise ValueError("Repository name is required")
+        if not normalized_path:
+            raise ValueError("Repository path is required")
+
+        repository = await self._find_repository_for_client_sync(
+            repo_name=normalized_name,
+            repo_path=normalized_path,
+            repo_url=normalized_url,
+        )
+        state_path = str(Path(normalized_path) / self._config.workflow.repo_state_dir)
+        created = False
+
+        if repository is None:
+            repository = await self._store.create_repository(
+                repo_name=normalized_name,
+                repo_url=normalized_url,
+                default_branch=normalized_branch,
+                state_path=state_path,
+            )
+            created = True
+        else:
+            updates: dict[str, Any] = {}
+            existing_remote = _normalize_repository_remote(getattr(repository, "repo_url", None))
+            if existing_remote != normalized_url:
+                updates["repo_url"] = normalized_url
+            if str(getattr(repository, "state_path", "") or "") != state_path:
+                updates["state_path"] = state_path
+            if normalized_branch and str(getattr(repository, "default_branch", "") or "") != normalized_branch:
+                updates["default_branch"] = normalized_branch
+            if updates:
+                repository = await self._store.update_repository(repository.id, **updates) or repository
+
+        return {
+            "repository": self.serialize_repository(repository),
+            "created": created,
+        }
+
     @staticmethod
     def serialize_repository(repo: Any, state: Any = None) -> RepositoryPayload:
         return {
             "id": str(repo.id),
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
             "path": getattr(repo, "state_path", getattr(repo, "path", "")),
+            "remote_url": _normalize_repository_remote(getattr(repo, "repo_url", None)),
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
@@ -592,6 +657,7 @@ class AdminConsoleUseCases:
             raise LookupError("Repository not found")
 
         repo_name = getattr(repository, "repo_name", getattr(repository, "name", str(repo_id)))
+        repo_remote = _normalize_repository_remote(getattr(repository, "repo_url", None))
         branch = payload.branch or getattr(repository, "default_branch", None)
         accepted_at = datetime.now(UTC).isoformat()
         node_ids: dict[tuple[str, str], uuid.UUID] = {}
@@ -628,6 +694,7 @@ class AdminConsoleUseCases:
                 metadata={
                     "repo_id": str(repo_id),
                     "repository_name": repo_name,
+                    "repository_remote": repo_remote,
                     "source": payload.source,
                     "payload_version": payload.payload_version,
                     "branch": branch,
@@ -651,6 +718,7 @@ class AdminConsoleUseCases:
                     metadata={
                         "repo_id": str(repo_id),
                         "repository_name": repo_name,
+                        "repository_remote": repo_remote,
                         "source": payload.source,
                         "payload_version": payload.payload_version,
                         "branch": branch,
@@ -667,6 +735,7 @@ class AdminConsoleUseCases:
                     metadata={
                         "repo_id": str(repo_id),
                         "repository_name": repo_name,
+                        "repository_remote": repo_remote,
                         "source": payload.source,
                         "payload_version": payload.payload_version,
                         "branch": branch,
@@ -690,6 +759,7 @@ class AdminConsoleUseCases:
             "source": payload.source,
             "branch": branch,
             "repo_path": payload.repo_path,
+            "repo_remote": repo_remote,
             "diff_base": payload.diff_base,
             "deleted_files": payload.deleted_files,
             "deleted_nodes": deleted_nodes,
@@ -710,3 +780,232 @@ class AdminConsoleUseCases:
             "edges_upserted": edges_upserted,
             "accepted_at": accepted_at,
         }
+
+    async def get_repository_graph_summary(
+        self,
+        *,
+        repo_id: uuid.UUID,
+    ) -> RepositoryGraphSummaryPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        repository_payload = self.serialize_repository(repository)
+        if self._graph_store is None:
+            return {
+                "repository": repository_payload,
+                "graph_available": False,
+                "last_sync": self._repository_last_sync(repository),
+                "node_count": 0,
+                "counts_by_type": {},
+                "routes": [],
+                "todos": [],
+                "external_services": [],
+                "dependencies": [],
+            }
+
+        repo_nodes = await self._repository_graph_nodes(repository)
+        counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
+        repo_node_ids = {str(getattr(node, "id")) for node in repo_nodes}
+        services = [node for node in repo_nodes if str(getattr(node, "node_type", "")) == "service"]
+        dependencies: list[dict[str, Any]] = []
+        for service in services:
+            neighbors = await self._graph_store.get_neighbors(
+                getattr(service, "id"),
+                direction="out",
+                relation="depends_on",
+            )
+            targets = [
+                {
+                    "id": str(getattr(neighbor, "id")),
+                    "name": str(getattr(neighbor, "name", "")),
+                    "node_type": str(getattr(neighbor, "node_type", "")),
+                }
+                for neighbor in neighbors
+                if str(getattr(neighbor, "id")) in repo_node_ids
+            ]
+            if targets:
+                dependencies.append(
+                    {
+                        "service": str(getattr(service, "name", "")),
+                        "depends_on": sorted(targets, key=lambda item: item["name"]),
+                    }
+                )
+
+        return {
+            "repository": repository_payload,
+            "graph_available": True,
+            "last_sync": self._repository_last_sync(repository),
+            "node_count": len(repo_nodes),
+            "counts_by_type": dict(counts),
+            "routes": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"route"}, limit=12),
+            "todos": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"todo"}, limit=12),
+            "external_services": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"external_service_api"}, limit=12),
+            "dependencies": dependencies,
+        }
+
+    async def search_repository_graph(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        query: str,
+        node_types: list[str] | None = None,
+        limit: int = 10,
+    ) -> RepositoryGraphSearchPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+        if self._graph_store is None:
+            raise RuntimeError("Graph sync store is not configured")
+
+        result = await self._graph_tools.minder_search_graph(
+            query,
+            repo_id=str(repo_id),
+            repo_name=getattr(repository, "repo_name", None),
+            repo_path=self._repository_root_path(repository),
+            node_types=node_types,
+            limit=limit,
+        )
+        return {
+            "repository": self.serialize_repository(repository),
+            "query": query,
+            "filters": result["filters"],
+            "count": result["count"],
+            "results": result["results"],
+        }
+
+    async def get_repository_graph_impact(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        target: str,
+        depth: int = 2,
+        limit: int = 25,
+    ) -> RepositoryGraphImpactPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+        if self._graph_store is None:
+            raise RuntimeError("Graph sync store is not configured")
+
+        result = await self._graph_tools.minder_find_impact(
+            target,
+            repo_id=str(repo_id),
+            repo_name=getattr(repository, "repo_name", None),
+            repo_path=self._repository_root_path(repository),
+            depth=depth,
+            limit=limit,
+        )
+        return {
+            "repository": self.serialize_repository(repository),
+            "target": target,
+            "matches": result["matches"],
+            "impacted": result["impacted"],
+            "summary": result["summary"],
+        }
+
+    @staticmethod
+    def _repository_last_sync(repository: Any) -> dict[str, Any] | None:
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        graph_sync = relationships.get("graph_sync")
+        return graph_sync if isinstance(graph_sync, dict) else None
+
+    async def _find_repository_for_client_sync(
+        self,
+        *,
+        repo_name: str,
+        repo_path: str,
+        repo_url: str | None,
+    ) -> Any | None:
+        normalized_name = repo_name.strip()
+        normalized_url = _normalize_repository_remote(repo_url)
+
+        repositories = await self._store.list_repositories()
+        for repository in repositories:
+            repository_name = str(getattr(repository, "repo_name", "") or "").strip()
+            repository_url = _normalize_repository_remote(getattr(repository, "repo_url", None))
+            if normalized_url and repository_url and repository_url == normalized_url:
+                return repository
+            if repository_name and repository_name == normalized_name and not repository_url:
+                return repository
+        return None
+
+    @staticmethod
+    def _repository_root_path(repository: Any) -> str | None:
+        state_path = str(getattr(repository, "state_path", "") or "")
+        if not state_path:
+            return None
+        state_root = Path(state_path)
+        if state_root.name == ".minder":
+            return str(state_root.parent)
+        return str(state_root)
+
+    async def _repository_graph_nodes(self, repository: Any) -> list[Any]:
+        _, repo_nodes = await self._graph_tools.list_repo_nodes(
+            repo_id=str(getattr(repository, "id")),
+            repo_name=str(getattr(repository, "repo_name", "") or ""),
+            repo_path=self._repository_root_path(repository),
+        )
+        return repo_nodes
+
+    @staticmethod
+    def _serialize_graph_node(node: Any) -> RepositoryGraphNodePayload:
+        metadata = dict(getattr(node, "node_metadata", {}) or {})
+        return {
+            "id": str(getattr(node, "id")),
+            "node_type": str(getattr(node, "node_type", "")),
+            "name": str(getattr(node, "name", "")),
+            "metadata": metadata,
+        }
+
+    def _serialize_repo_graph_nodes(
+        self,
+        nodes: list[Any],
+        *,
+        allowed_types: set[str],
+        limit: int,
+    ) -> list[RepositoryGraphNodePayload]:
+        filtered = [
+            node for node in nodes if str(getattr(node, "node_type", "")) in allowed_types
+        ]
+        filtered.sort(
+            key=lambda node: (
+                str(getattr(node, "node_type", "")),
+                str(dict(getattr(node, "node_metadata", {}) or {}).get("path", "")),
+                str(getattr(node, "name", "")),
+            )
+        )
+        return [self._serialize_graph_node(node) for node in filtered[:limit]]
+
+
+def _normalize_repository_remote(repo_url: str | None) -> str | None:
+    if repo_url is None:
+        return None
+    raw_url = str(repo_url).strip()
+    if not raw_url:
+        return None
+    if raw_url.startswith("git@"):
+        host_and_path = raw_url[4:]
+        host, separator, path = host_and_path.partition(":")
+        if separator and host and path:
+            normalized_path = path.strip().lstrip("/").removesuffix(".git")
+            if normalized_path:
+                return f"git@{host}:{normalized_path}.git"
+        return raw_url
+    if raw_url.startswith("ssh://") or raw_url.startswith("http://") or raw_url.startswith("https://"):
+        parts = urlsplit(raw_url)
+        host = parts.hostname or ""
+        path = parts.path.strip().lstrip("/").removesuffix(".git")
+        user = parts.username or "git"
+        if host and path:
+            return f"{user}@{host}:{path}.git"
+    return raw_url.rstrip("/")
+
+
+def _repo_name_from_remote(repo_url: str | None) -> str | None:
+    normalized_url = _normalize_repository_remote(repo_url)
+    if not normalized_url:
+        return None
+    _, _, path = normalized_url.partition(":")
+    repo_name = path.rsplit("/", 1)[-1].removesuffix(".git").strip()
+    return repo_name or None

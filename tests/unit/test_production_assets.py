@@ -9,8 +9,12 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     caddyfile = Path("docker/Caddyfile").read_text()
     install_script = Path("scripts/release/install-minder-release.sh").read_text()
     full_compose = Path("docker/docker-compose.full.yml").read_text()
+    dockerignore = Path(".dockerignore").read_text()
 
-    assert "PYTHONPATH=/app/src" in api_dockerfile
+    assert "FROM python:3.14-slim AS api-builder" in api_dockerfile
+    assert "UV_PROJECT_ENVIRONMENT=/app/.venv" in api_dockerfile
+    assert "uv sync --frozen --extra server --no-dev --no-install-project" in api_dockerfile
+    assert "COPY --from=api-builder /app/.venv /app/.venv" in api_dockerfile
     assert 'CMD ["uv", "run", "python", "-m", "minder.server"]' in api_dockerfile
 
     assert "FROM oven/bun:1.2.21 AS dashboard-builder" in dashboard_dockerfile
@@ -29,6 +33,9 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     assert 'dockerfile: docker/Dockerfile.api' in full_compose
     assert 'dockerfile: docker/Dockerfile.dashboard' in full_compose
     assert '${MINDER_MODELS_DIR:-${HOME}/.minder/models}' in full_compose
+    assert ".venv" in dockerignore
+    assert "dist" in dockerignore
+    assert "tests" in dockerignore
 
 
 def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -> None:
@@ -41,3 +48,12 @@ def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -
     assert 'ghcr.io/hiimtrung/minder-dashboard:latest' in compose
     assert '${MINDER_PORT:-8800}:8800' in compose
     assert 'MINDER_SERVER__PORT: 8801' in compose
+
+
+def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
+    release_workflow = Path(".github/workflows/release.yml").read_text()
+
+    assert "cache-from: type=gha,scope=minder-api" in release_workflow
+    assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow
+    assert "cache-from: type=gha,scope=minder-dashboard" in release_workflow
+    assert "cache-to: type=gha,mode=max,scope=minder-dashboard" in release_workflow

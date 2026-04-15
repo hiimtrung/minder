@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import Any
 
 from minder.auth.principal import ClientPrincipal, Principal
@@ -11,9 +12,10 @@ from minder.config import MinderConfig
 from minder.presentation.http.admin.routes import build_http_routes
 from minder.prompts import PromptRegistry
 from minder.resources import ResourceRegistry
-from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
+from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore, IVectorStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
+from minder.tools.graph import GraphTools
 from minder.tools.memory import MemoryTools
 from minder.tools.query import QueryTools
 from minder.tools.registry import TOOL_DESCRIPTIONS
@@ -28,6 +30,7 @@ def build_transport(
     config: MinderConfig,
     store: IOperationalStore,
     vector_store: IVectorStore,
+    graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
 ) -> SSETransport | StdioTransport:
     auth_service = AuthService(store, config, cache=cache)
@@ -39,6 +42,7 @@ def build_transport(
     memory_tools = MemoryTools(store, config)
     search_tools = SearchTools(store, config)
     query_tools = QueryTools(store, config, vector_store=vector_store)
+    graph_tools = GraphTools(graph_store)
 
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
@@ -53,9 +57,36 @@ def build_transport(
             config=config,
             store=store,
             auth_service=auth_service,
-            extra_routes=build_http_routes(config=config, store=store, cache=cache),
+            extra_routes=build_http_routes(
+                config=config,
+                store=store,
+                graph_store=graph_store,
+                cache=cache,
+            ),
             cache_provider=cache_provider,
         )
+
+    def ensure_client_repo_access(
+        principal: Principal | None,
+        *,
+        repo_path: str,
+    ) -> None:
+        if not isinstance(principal, ClientPrincipal):
+            return
+        scopes = [scope.strip().rstrip("/") for scope in principal.repo_scope if scope and scope.strip()]
+        repo_root = Path(repo_path).resolve()
+        candidates = {repo_path.rstrip("/"), str(repo_root).rstrip("/"), repo_root.name}
+        if not scopes or (
+            "*" not in scopes
+            and not any(
+                any(
+                    candidate == scope or candidate.startswith(f"{scope}/")
+                    for candidate in candidates
+                )
+                for scope in scopes
+            )
+        ):
+            raise AuthError("AUTH_FORBIDDEN", "Client is not allowed to inspect this repository")
 
     def require_authenticated_user(user: Any | None) -> Any:
         if user is None:
@@ -268,12 +299,16 @@ def build_transport(
     async def minder_query(
         *,
         user=None,
+        principal: Principal | None = None,
         query: str,
         repo_path: str,
         session_id: str | None = None,
         repo_id: str | None = None,
         workflow_name: str | None = None,
     ) -> dict[str, Any]:  # noqa: ANN001
+        if user is None and principal is None:
+            raise AuthError("AUTH_MISSING_TOKEN", "Authenticated principal required")
+        ensure_client_repo_access(principal, repo_path=repo_path)
         return await query_tools.minder_query(
             query,
             repo_path=repo_path,
@@ -283,13 +318,61 @@ def build_transport(
             workflow_name=workflow_name,
         )
 
-    async def minder_search_code(*, user=None, query: str, repo_path: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
-        del user
+    async def minder_search_code(
+        *,
+        user=None,
+        principal: Principal | None = None,
+        query: str,
+        repo_path: str,
+        limit: int = 5,
+    ) -> list[dict[str, Any]]:  # noqa: ANN001
+        if user is None and principal is None:
+            raise AuthError("AUTH_MISSING_TOKEN", "Authenticated principal required")
+        ensure_client_repo_access(principal, repo_path=repo_path)
         return await query_tools.minder_search_code(query, repo_path=repo_path, limit=limit)
 
     async def minder_search_errors(*, user=None, query: str, limit: int = 5) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
         return await query_tools.minder_search_errors(query, limit=limit)
+
+    async def minder_search_graph(
+        *,
+        user=None,
+        principal: Principal | None = None,
+        query: str,
+        repo_path: str,
+        node_types: list[str] | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        if user is None and principal is None:
+            raise AuthError("AUTH_MISSING_TOKEN", "Authenticated principal required")
+        ensure_client_repo_access(principal, repo_path=repo_path)
+        return await graph_tools.minder_search_graph(
+            query,
+            repo_path=repo_path,
+            node_types=node_types,
+            limit=limit,
+        )
+
+    async def minder_find_impact(
+        *,
+        user=None,
+        principal: Principal | None = None,
+        target: str,
+        repo_path: str,
+        depth: int = 2,
+        limit: int = 25,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        if user is None and principal is None:
+            raise AuthError("AUTH_MISSING_TOKEN", "Authenticated principal required")
+        ensure_client_repo_access(principal, repo_path=repo_path)
+
+        return await graph_tools.minder_find_impact(
+            target,
+            repo_path=repo_path,
+            depth=depth,
+            limit=limit,
+        )
 
     async def minder_auth_ping(message: str, *, user=None) -> str:  # noqa: ANN001
         del user
@@ -334,7 +417,9 @@ def build_transport(
     transport.register_tool("minder_query", minder_query, require_auth=True, description=TOOL_DESCRIPTIONS["minder_query"])
     transport.register_tool("minder_search_code", minder_search_code, require_auth=True, description=TOOL_DESCRIPTIONS["minder_search_code"])
     transport.register_tool("minder_search_errors", minder_search_errors, require_auth=True, description=TOOL_DESCRIPTIONS["minder_search_errors"])
+    transport.register_tool("minder_search_graph", minder_search_graph, require_auth=True, description=TOOL_DESCRIPTIONS["minder_search_graph"])
+    transport.register_tool("minder_find_impact", minder_find_impact, require_auth=True, description=TOOL_DESCRIPTIONS["minder_find_impact"])
 
-    ResourceRegistry.register(transport.app, store)
+    ResourceRegistry.register(transport.app, store, graph_store=graph_store)
     PromptRegistry.register(transport.app, store=store)
     return transport

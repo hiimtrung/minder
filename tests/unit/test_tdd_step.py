@@ -68,6 +68,21 @@ def _make_repo(name: str, url: str = "https://example.com/repo") -> MagicMock:
     return r
 
 
+def _make_graph_node(
+    node_type: str,
+    name: str,
+    *,
+    project: str,
+    metadata: dict[str, object] | None = None,
+) -> MagicMock:
+    node = MagicMock()
+    node.id = uuid.uuid4()
+    node.node_type = node_type
+    node.name = name
+    node.node_metadata = {"project": project, **(metadata or {})}
+    return node
+
+
 def _make_workflow_state(current_step: str = "Test Writing") -> MagicMock:
     ws = MagicMock()
     ws.current_step = current_step
@@ -232,6 +247,88 @@ class TestResourceRegistry:
         assert "minder://skills" in app._resources
         assert "minder://repos" in app._resources
         assert "minder://stats" in app._resources
+
+    @pytest.mark.asyncio
+    async def test_repo_structure_resource_groups_graph_nodes(self, app: MockFastMCPApp) -> None:
+        store = _make_store()
+        graph_store = MagicMock()
+        graph_store.list_nodes = AsyncMock(
+            return_value=[
+                _make_graph_node("file", "app.py", project="orders", metadata={"path": "app.py"}),
+                _make_graph_node("function", "app.py::checkout", project="orders", metadata={"path": "app.py", "symbol": "checkout"}),
+                _make_graph_node("todo", "app.py::TODO:10", project="orders", metadata={"path": "app.py", "line": 10, "text": "wire retries"}),
+                _make_graph_node("file", "other.py", project="billing", metadata={"path": "other.py"}),
+            ]
+        )
+        ResourceRegistry.register(app, store, graph_store=graph_store)  # type: ignore[arg-type]
+
+        handler = app._resources["minder://repos/{repo_name}/structure"]
+        result = await handler(repo_name="orders")  # type: ignore[operator]
+        data = json.loads(result)
+
+        assert data["repo_name"] == "orders"
+        assert data["counts"]["file"] == 1
+        assert data["counts"]["function"] == 1
+        assert data["counts"]["todo"] == 1
+
+    @pytest.mark.asyncio
+    async def test_repo_todos_resource_filters_to_repo(self, app: MockFastMCPApp) -> None:
+        store = _make_store()
+        graph_store = MagicMock()
+        graph_store.list_nodes = AsyncMock(
+            return_value=[
+                _make_graph_node("todo", "orders/app.py::TODO:7", project="orders", metadata={"path": "orders/app.py", "line": 7, "text": "add metrics"}),
+                _make_graph_node("todo", "billing/app.py::TODO:3", project="billing", metadata={"path": "billing/app.py", "line": 3, "text": "handle retries"}),
+            ]
+        )
+        ResourceRegistry.register(app, store, graph_store=graph_store)  # type: ignore[arg-type]
+
+        handler = app._resources["minder://repos/{repo_name}/todos"]
+        result = await handler(repo_name="orders")  # type: ignore[operator]
+        data = json.loads(result)
+
+        assert data["count"] == 1
+        assert data["items"][0]["metadata"]["text"] == "add metrics"
+
+    @pytest.mark.asyncio
+    async def test_repo_routes_resource_lists_graph_routes(self, app: MockFastMCPApp) -> None:
+        store = _make_store()
+        graph_store = MagicMock()
+        graph_store.list_nodes = AsyncMock(
+            return_value=[
+                _make_graph_node("route", "GET /health", project="orders", metadata={"path": "api.py", "method": "GET", "route_path": "/health"}),
+                _make_graph_node("route", "POST /checkout", project="orders", metadata={"path": "api.py", "method": "POST", "route_path": "/checkout"}),
+                _make_graph_node("route", "GET /billing", project="billing", metadata={"path": "billing.py", "method": "GET", "route_path": "/billing"}),
+            ]
+        )
+        ResourceRegistry.register(app, store, graph_store=graph_store)  # type: ignore[arg-type]
+
+        handler = app._resources["minder://repos/{repo_name}/routes"]
+        result = await handler(repo_name="orders")  # type: ignore[operator]
+        data = json.loads(result)
+
+        assert data["count"] == 2
+        assert [item["name"] for item in data["items"]] == ["GET /health", "POST /checkout"]
+
+    @pytest.mark.asyncio
+    async def test_repo_symbols_resource_lists_symbol_nodes(self, app: MockFastMCPApp) -> None:
+        store = _make_store()
+        graph_store = MagicMock()
+        graph_store.list_nodes = AsyncMock(
+            return_value=[
+                _make_graph_node("function", "api.py::checkout", project="orders", metadata={"path": "api.py", "symbol": "checkout"}),
+                _make_graph_node("controller", "api.py::OrderController", project="orders", metadata={"path": "api.py", "symbol": "OrderController"}),
+                _make_graph_node("route", "POST /checkout", project="orders", metadata={"path": "api.py", "route_path": "/checkout"}),
+            ]
+        )
+        ResourceRegistry.register(app, store, graph_store=graph_store)  # type: ignore[arg-type]
+
+        handler = app._resources["minder://repos/{repo_name}/symbols"]
+        result = await handler(repo_name="orders")  # type: ignore[operator]
+        data = json.loads(result)
+
+        assert data["count"] == 2
+        assert [item["node_type"] for item in data["items"]] == ["controller", "function"]
 
 
 # ===========================================================================

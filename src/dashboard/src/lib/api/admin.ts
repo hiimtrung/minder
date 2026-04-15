@@ -467,6 +467,7 @@ export type RepositoryPayload = {
   id: string;
   name: string;
   path: string;
+  remote_url: string | null;
   workflow_name: string | null;
   workflow_state: string | null;
   current_step: string | null;
@@ -477,6 +478,93 @@ export type RepositoryListPayload = { repositories: RepositoryPayload[] };
 
 export async function listRepositories(): Promise<RepositoryListPayload> {
   return requestJson<RepositoryListPayload>("/v1/admin/repositories");
+}
+
+export type RepositoryGraphNodePayload = {
+  id: string;
+  node_type: string;
+  name: string;
+  metadata: Record<string, unknown>;
+};
+
+export type RepositoryGraphDependencyPayload = {
+  service: string;
+  depends_on: Array<{
+    id: string;
+    name: string;
+    node_type: string;
+  }>;
+};
+
+export type RepositoryGraphSummaryPayload = {
+  repository: RepositoryPayload;
+  graph_available: boolean;
+  last_sync: Record<string, unknown> | null;
+  node_count: number;
+  counts_by_type: Record<string, number>;
+  routes: RepositoryGraphNodePayload[];
+  todos: RepositoryGraphNodePayload[];
+  external_services: RepositoryGraphNodePayload[];
+  dependencies: RepositoryGraphDependencyPayload[];
+};
+
+export type RepositoryGraphSearchPayload = {
+  repository: RepositoryPayload;
+  query: string;
+  filters: { node_types?: string[] };
+  count: number;
+  results: Array<RepositoryGraphNodePayload & { score?: number }>;
+};
+
+export type RepositoryGraphImpactPayload = {
+  repository: RepositoryPayload;
+  target: string;
+  matches: RepositoryGraphNodePayload[];
+  impacted: Array<
+    RepositoryGraphNodePayload & { direction?: string; distance?: number }
+  >;
+  summary: Record<string, number | Record<string, number>>;
+};
+
+export async function getRepositoryGraphSummary(
+  repoId: string,
+): Promise<RepositoryGraphSummaryPayload> {
+  return requestJson<RepositoryGraphSummaryPayload>(
+    `/v1/admin/repositories/${repoId}/graph-summary`,
+  );
+}
+
+export async function searchRepositoryGraph(
+  repoId: string,
+  query: string,
+  nodeTypes: string[] = [],
+  limit = 10,
+): Promise<RepositoryGraphSearchPayload> {
+  const params = new URLSearchParams();
+  params.set("query", query);
+  params.set("limit", String(limit));
+  for (const nodeType of nodeTypes) {
+    params.append("node_type", nodeType);
+  }
+  return requestJson<RepositoryGraphSearchPayload>(
+    `/v1/admin/repositories/${repoId}/graph-search?${params.toString()}`,
+  );
+}
+
+export async function getRepositoryGraphImpact(
+  repoId: string,
+  target: string,
+  depth = 2,
+  limit = 25,
+): Promise<RepositoryGraphImpactPayload> {
+  const params = new URLSearchParams({
+    target,
+    depth: String(depth),
+    limit: String(limit),
+  });
+  return requestJson<RepositoryGraphImpactPayload>(
+    `/v1/admin/repositories/${repoId}/graph-impact?${params.toString()}`,
+  );
 }
 
 // ---------------------------------------------------------------------------

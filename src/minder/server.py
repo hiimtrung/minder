@@ -4,7 +4,7 @@ import asyncio
 import sys
 from pathlib import Path
 
-from minder.bootstrap.providers import build_cache, build_store, build_vector_store
+from minder.bootstrap.providers import build_cache, build_graph_store, build_store, build_vector_store
 from minder.bootstrap.transport import build_transport
 from minder.config import Settings
 from minder.embedding.local import LocalEmbeddingProvider
@@ -15,6 +15,7 @@ from minder.presentation.http.admin.routes import build_http_app, build_http_rou
 
 __all__ = [
     "build_cache",
+    "build_graph_store",
     "build_http_app",
     "build_http_routes",
     "build_store",
@@ -63,6 +64,10 @@ async def _async_run() -> None:
     store = build_store(config)
     await store.init_db()
 
+    graph_store = build_graph_store(config)
+    if graph_store is not None and hasattr(graph_store, "init_db"):
+        await graph_store.init_db()
+
     vector_store = build_vector_store(config, store)
     if hasattr(vector_store, "setup"):
         await vector_store.setup()
@@ -71,7 +76,13 @@ async def _async_run() -> None:
     admin = await store.get_user_by_username("admin")
     print(f"MINDER ADMIN EXISTS: {admin is not None}", file=sys.stderr, flush=True)
 
-    transport = build_transport(config=config, store=store, vector_store=vector_store, cache=cache)
+    transport = build_transport(
+        config=config,
+        store=store,
+        vector_store=vector_store,
+        graph_store=graph_store,
+        cache=cache,
+    )
     print(
         f"Minder store={config.relational_store.provider} cache={config.cache.provider} "
         f"transport={transport.transport_name} host={config.server.host}:{config.server.port}",
@@ -91,6 +102,8 @@ async def _async_run() -> None:
                 await transport.app.run_sse_async()
     finally:
         await store.dispose()
+        if graph_store is not None and hasattr(graph_store, "dispose"):
+            await graph_store.dispose()
         await cache.close()
 
 

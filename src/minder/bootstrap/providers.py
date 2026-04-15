@@ -1,9 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from minder.cache.providers import RedisCacheProvider
 from minder.config import MinderConfig
-from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
+from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore, IVectorStore
 from minder.store.vector import VectorStore
+
+
+def _sqlite_db_url(raw_path: str) -> str:
+    db_path = Path(raw_path).expanduser()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite+aiosqlite:///{db_path}"
 
 
 def build_store(config: MinderConfig) -> IOperationalStore:
@@ -25,7 +33,7 @@ def build_store(config: MinderConfig) -> IOperationalStore:
         from minder.store.relational import RelationalStore
 
         if provider == "sqlite":
-            db_url = f"sqlite+aiosqlite:///{config.relational_store.db_path}"
+            db_url = _sqlite_db_url(config.relational_store.db_path)
         else:
             db_url = config.relational_store.uri
 
@@ -67,3 +75,35 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
         )
 
     return VectorStore(store, store)
+
+
+def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
+    if not config.graph_store.enabled:
+        return None
+
+    provider = config.graph_store.provider
+    if provider == "auto":
+        provider = config.relational_store.provider
+        if provider == "mongodb":
+            provider = "sqlite"
+
+    if provider in ("sqlite", "postgresql"):
+        from minder.store.graph import KnowledgeGraphStore
+
+        if provider == "sqlite":
+            if config.graph_store.provider == "auto" and config.relational_store.provider == "sqlite":
+                db_url = _sqlite_db_url(config.relational_store.db_path)
+            else:
+                db_url = _sqlite_db_url(config.graph_store.db_path)
+        else:
+            if config.graph_store.provider == "auto" and config.relational_store.provider == "postgresql":
+                db_url = config.relational_store.uri
+            else:
+                db_url = config.graph_store.uri
+
+        return KnowledgeGraphStore(db_url)
+
+    raise ValueError(
+        f"Unsupported graph_store.provider '{provider}'. "
+        "Supported: 'auto', 'sqlite', 'postgresql'."
+    )

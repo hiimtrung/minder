@@ -19,8 +19,12 @@ classifiers = [
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-    "aiosqlite>=0.21.0",
     "httpx>=0.27.0",
+]
+
+[project.optional-dependencies]
+server = [
+    "aiosqlite>=0.21.0",
     "langgraph>=1.1.4",
     "litellm>=1.83.1",
     "llama-cpp-python>=0.3.20",

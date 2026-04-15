@@ -8,9 +8,10 @@ import re
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from minder.store.graph import KnowledgeGraphStore
+if TYPE_CHECKING:
+    from minder.store.graph import KnowledgeGraphStore
 
 _SOURCE_SUFFIXES = {
     ".py",
@@ -80,7 +81,7 @@ class _EdgeSpec:
 class RepoScanner:
     def __init__(
         self,
-        graph_store: KnowledgeGraphStore,
+        graph_store: "KnowledgeGraphStore",
         repo_root: str,
         *,
         project: str | None = None,

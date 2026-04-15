@@ -184,6 +184,7 @@ class RepositoryPayload(TypedDict):
     name: str
     path: str
     remote_url: str | None
+    default_branch: str | None
     workflow_name: str | None
     workflow_state: str | None
     current_step: str | None
@@ -192,6 +193,21 @@ class RepositoryPayload(TypedDict):
 
 class RepositoryListPayload(TypedDict):
     repositories: list[RepositoryPayload]
+
+
+class RepositoryDetailPayload(TypedDict):
+    repository: RepositoryPayload
+
+
+class UpdateRepositoryPayload(TypedDict, total=False):
+    name: str
+    remote_url: str | None
+    default_branch: str | None
+    path: str
+
+
+class DeleteRepositoryPayload(TypedDict):
+    deleted: bool
 
 
 class ClientRepositoryResolveRequest(BaseModel):
@@ -255,6 +271,14 @@ class RepositoryGraphNodePayload(TypedDict):
     metadata: dict[str, Any]
 
 
+class RepositoryGraphEdgePayload(TypedDict):
+    id: str
+    source_id: str
+    target_id: str
+    relation: str
+    weight: float
+
+
 class RepositoryGraphSummaryPayload(TypedDict):
     repository: RepositoryPayload
     graph_available: bool
@@ -280,4 +304,12 @@ class RepositoryGraphImpactPayload(TypedDict):
     target: str
     matches: list[RepositoryGraphNodePayload]
     impacted: list[dict[str, Any]]
+    summary: dict[str, Any]
+
+
+class RepositoryGraphMapPayload(TypedDict):
+    repository: RepositoryPayload
+    graph_available: bool
+    nodes: list[RepositoryGraphNodePayload]
+    edges: list[RepositoryGraphEdgePayload]
     summary: dict[str, Any]

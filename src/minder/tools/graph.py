@@ -38,6 +38,31 @@ class GraphTools:
         ]
         return effective_repo_name, repo_nodes
 
+    async def list_repo_graph(
+        self,
+        *,
+        repo_id: str | None = None,
+        repo_name: str | None = None,
+        repo_path: str | None = None,
+    ) -> tuple[str, list[Any], list[Any]]:
+        if self._graph_store is None:
+            raise RuntimeError("Graph store is not configured")
+
+        effective_repo_name, repo_nodes = await self.list_repo_nodes(
+            repo_id=repo_id,
+            repo_name=repo_name,
+            repo_path=repo_path,
+        )
+        repo_node_ids = {getattr(node, "id") for node in repo_nodes}
+        all_edges = await self._graph_store.list_edges()
+        repo_edges = [
+            edge
+            for edge in all_edges
+            if getattr(edge, "source_id", None) in repo_node_ids
+            and getattr(edge, "target_id", None) in repo_node_ids
+        ]
+        return effective_repo_name, repo_nodes, repo_edges
+
     async def minder_search_graph(
         self,
         query: str,
@@ -46,6 +71,8 @@ class GraphTools:
         repo_id: str | None = None,
         repo_name: str | None = None,
         node_types: list[str] | None = None,
+        languages: list[str] | None = None,
+        last_states: list[str] | None = None,
         limit: int = 10,
     ) -> dict[str, Any]:
         if self._graph_store is None:
@@ -57,11 +84,20 @@ class GraphTools:
             repo_path=repo_path,
         )
         allowed_types = {node_type.strip() for node_type in (node_types or []) if node_type.strip()}
+        allowed_languages = {language.strip().lower() for language in (languages or []) if language.strip()}
+        allowed_states = {state.strip().lower() for state in (last_states or []) if state.strip()}
 
         matches: list[dict[str, Any]] = []
         for node in repo_nodes:
             node_type = str(getattr(node, "node_type", ""))
             if allowed_types and node_type not in allowed_types:
+                continue
+            metadata = _metadata(node)
+            language = str(metadata.get("language", "") or "").lower()
+            last_state = str(metadata.get("last_state", "") or "").lower()
+            if allowed_languages and language not in allowed_languages:
+                continue
+            if allowed_states and last_state not in allowed_states:
                 continue
             score = _match_score(node, query)
             if score <= 0:
@@ -75,7 +111,11 @@ class GraphTools:
         return {
             "query": query,
             "repo_name": effective_repo_name,
-            "filters": {"node_types": sorted(allowed_types)},
+            "filters": {
+                "node_types": sorted(allowed_types),
+                "languages": sorted(allowed_languages),
+                "last_states": sorted(allowed_states),
+            },
             "count": len(limited),
             "results": limited,
         }
@@ -239,6 +279,10 @@ def _match_score(node: Any, query: str) -> int:
         str(metadata.get("route_path", "") or ""),
         str(metadata.get("text", "") or ""),
         str(metadata.get("method", "") or ""),
+        str(metadata.get("language", "") or ""),
+        str(metadata.get("last_state", "") or ""),
+        str(metadata.get("last_commit_summary", "") or ""),
+        str(metadata.get("history_summary", "") or ""),
     }
     lowered = [candidate.lower() for candidate in candidates if candidate]
     if any(candidate == normalized_query for candidate in lowered):

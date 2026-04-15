@@ -468,6 +468,7 @@ export type RepositoryPayload = {
   name: string;
   path: string;
   remote_url: string | null;
+  default_branch: string | null;
   workflow_name: string | null;
   workflow_state: string | null;
   current_step: string | null;
@@ -475,9 +476,48 @@ export type RepositoryPayload = {
 };
 
 export type RepositoryListPayload = { repositories: RepositoryPayload[] };
+export type RepositoryDetailPayload = { repository: RepositoryPayload };
+export type DeleteRepositoryPayload = { deleted: boolean };
 
 export async function listRepositories(): Promise<RepositoryListPayload> {
   return requestJson<RepositoryListPayload>("/v1/admin/repositories");
+}
+
+export async function getRepositoryDetail(
+  repoId: string,
+): Promise<RepositoryDetailPayload> {
+  return requestJson<RepositoryDetailPayload>(
+    `/v1/admin/repositories/${repoId}`,
+  );
+}
+
+export async function updateRepository(
+  repoId: string,
+  payload: {
+    name?: string;
+    remote_url?: string | null;
+    default_branch?: string | null;
+    path?: string;
+  },
+): Promise<RepositoryDetailPayload> {
+  return requestJson<RepositoryDetailPayload>(
+    `/v1/admin/repositories/${repoId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteRepository(
+  repoId: string,
+): Promise<DeleteRepositoryPayload> {
+  return requestJson<DeleteRepositoryPayload>(
+    `/v1/admin/repositories/${repoId}`,
+    {
+      method: "DELETE",
+    },
+  );
 }
 
 export type RepositoryGraphNodePayload = {
@@ -485,6 +525,14 @@ export type RepositoryGraphNodePayload = {
   node_type: string;
   name: string;
   metadata: Record<string, unknown>;
+};
+
+export type RepositoryGraphEdgePayload = {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation: string;
+  weight: number;
 };
 
 export type RepositoryGraphDependencyPayload = {
@@ -511,7 +559,11 @@ export type RepositoryGraphSummaryPayload = {
 export type RepositoryGraphSearchPayload = {
   repository: RepositoryPayload;
   query: string;
-  filters: { node_types?: string[] };
+  filters: {
+    node_types?: string[];
+    languages?: string[];
+    last_states?: string[];
+  };
   count: number;
   results: Array<RepositoryGraphNodePayload & { score?: number }>;
 };
@@ -526,6 +578,27 @@ export type RepositoryGraphImpactPayload = {
   summary: Record<string, number | Record<string, number>>;
 };
 
+export type RepositoryGraphMapPayload = {
+  repository: RepositoryPayload;
+  graph_available: boolean;
+  nodes: RepositoryGraphNodePayload[];
+  edges: RepositoryGraphEdgePayload[];
+  summary: {
+    node_count: number;
+    edge_count: number;
+    counts_by_type: Record<string, number>;
+    counts_by_relation: Record<string, number>;
+  };
+};
+
+export async function getRepositoryGraphMap(
+  repoId: string,
+): Promise<RepositoryGraphMapPayload> {
+  return requestJson<RepositoryGraphMapPayload>(
+    `/v1/admin/repositories/${repoId}/graph-map`,
+  );
+}
+
 export async function getRepositoryGraphSummary(
   repoId: string,
 ): Promise<RepositoryGraphSummaryPayload> {
@@ -536,15 +609,25 @@ export async function getRepositoryGraphSummary(
 
 export async function searchRepositoryGraph(
   repoId: string,
-  query: string,
-  nodeTypes: string[] = [],
-  limit = 10,
+  options: {
+    query: string;
+    nodeTypes?: string[];
+    languages?: string[];
+    lastStates?: string[];
+    limit?: number;
+  },
 ): Promise<RepositoryGraphSearchPayload> {
   const params = new URLSearchParams();
-  params.set("query", query);
-  params.set("limit", String(limit));
-  for (const nodeType of nodeTypes) {
+  params.set("query", options.query);
+  params.set("limit", String(options.limit ?? 10));
+  for (const nodeType of options.nodeTypes ?? []) {
     params.append("node_type", nodeType);
+  }
+  for (const language of options.languages ?? []) {
+    params.append("language", language);
+  }
+  for (const lastState of options.lastStates ?? []) {
+    params.append("last_state", lastState);
   }
   return requestJson<RepositoryGraphSearchPayload>(
     `/v1/admin/repositories/${repoId}/graph-search?${params.toString()}`,

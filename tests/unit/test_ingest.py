@@ -575,14 +575,40 @@ class TestRepoScanner:
         assert ts_topic is not None
 
     def test_build_sync_payload_uses_changed_files_only(self, fixture_repo: Path) -> None:
-        payload = RepoScanner.build_sync_payload(
-            str(fixture_repo),
-            project="test",
-            branch="feature/delta",
-            diff_base="origin/main",
-            changed_files=["README.md", "frontend/src/api.ts"],
-            deleted_files=["src/service_a/main.py"],
-        )
+        with patch.object(
+            RepoScanner,
+            "_git_file_change_metadata",
+            side_effect=lambda rel_path: {
+                "last_state": "modified",
+                "last_commit_sha": f"sha-{rel_path}",
+                "last_commit_at": "2026-04-15T09:00:00+00:00",
+                "last_commit_summary": f"update {rel_path}",
+                "history_summary": f"Recent changes: update {rel_path}",
+                "recent_commits": [
+                    {
+                        "sha": f"sha-{rel_path}",
+                        "committed_at": "2026-04-15T09:00:00+00:00",
+                        "summary": f"update {rel_path}",
+                    }
+                ],
+            },
+        ), patch.object(
+            RepoScanner,
+            "_git_line_commit",
+            side_effect=lambda rel_path, line_number: {
+                "sha": f"line-{line_number}",
+                "committed_at": "2026-04-14T08:30:00+00:00",
+                "summary": f"touch {rel_path}:{line_number}",
+            },
+        ):
+            payload = RepoScanner.build_sync_payload(
+                str(fixture_repo),
+                project="test",
+                branch="feature/delta",
+                diff_base="origin/main",
+                changed_files=["README.md", "frontend/src/api.ts"],
+                deleted_files=["src/service_a/main.py"],
+            )
 
         changed_files = payload["sync_metadata"]["changed_files"]
         assert changed_files == ["README.md", "frontend/src/api.ts"]
@@ -593,6 +619,20 @@ class TestRepoScanner:
         assert all(node["name"] != "config.json" for node in payload["nodes"] if node["node_type"] == "file")
         assert any(node["node_type"] == "todo" and node["name"] == "README.md::TODO:3" for node in payload["nodes"])
         assert any(node["node_type"] == "route" and node["name"] == "GET /frontend-health" for node in payload["nodes"])
+        readme_file = next(
+            node for node in payload["nodes"] if node["node_type"] == "file" and node["name"] == "README.md"
+        )
+        route_node = next(
+            node for node in payload["nodes"] if node["node_type"] == "route" and node["name"] == "GET /frontend-health"
+        )
+        assert readme_file["metadata"]["language"] == "markdown"
+        assert readme_file["metadata"]["last_state"] == "modified"
+        assert readme_file["metadata"]["history_summary"] == "Recent changes: update README.md"
+        assert route_node["metadata"]["language"] == "typescript"
+        assert route_node["metadata"]["history_scope"] == "symbol"
+        assert route_node["metadata"]["last_touch_line"] == 14
+        assert route_node["metadata"]["last_commit_summary"] == "touch frontend/src/api.ts:14"
+        assert route_node["metadata"]["file_last_commit_summary"] == "update frontend/src/api.ts"
 
     @pytest.mark.asyncio
     async def test_strip_html_helper(self) -> None:

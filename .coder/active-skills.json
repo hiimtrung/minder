@@ -1,37 +1,37 @@
 {
-  "task": "github remote repository identity and dashboard graph canvas visualization",
+  "task": "debug missing admin graph-map route 404",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-15T16:32:34.960042+07:00",
+  "resolved_at": "2026-04-15T17:51:28.810634+07:00",
   "keep": [],
   "add": [
-    "issues",
-    "github-automation",
-    "x-twitter-scraper"
+    "azure-maps-search-dotnet",
+    "api-fuzzing-bug-bounty",
+    "shopify-development"
   ],
   "drop": [
-    "amazon-alexa",
-    "claude-monitor",
-    "whatsapp-cloud-api"
+    "readme",
+    "bun-development",
+    "flutter-expert"
   ],
   "skills": [
     {
-      "name": "issues",
+      "name": "azure-maps-search-dotnet",
       "category": "general",
       "score": 0.016393442,
+      "chunk_count": 2,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "api-fuzzing-bug-bounty",
+      "category": "general",
+      "score": 0.016129032,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "github-automation",
+      "name": "shopify-development",
       "category": "general",
-      "score": 0.016129032,
-      "chunk_count": 5,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "x-twitter-scraper",
-      "category": "data",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

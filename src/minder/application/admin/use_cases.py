@@ -24,7 +24,11 @@ from minder.application.admin.dto import (
     GraphSyncRequest,
     GraphSyncResultPayload,
     OnboardingPayload,
+    DeleteRepositoryPayload,
+    RepositoryDetailPayload,
+    RepositoryGraphEdgePayload,
     RepositoryGraphImpactPayload,
+    RepositoryGraphMapPayload,
     RepositoryGraphNodePayload,
     RepositoryGraphSearchPayload,
     RepositoryGraphSummaryPayload,
@@ -576,6 +580,65 @@ class AdminConsoleUseCases:
             result.append(self.serialize_repository(repo, state))
         return {"repositories": result}
 
+    async def get_repository_detail(self, repo_id: uuid.UUID) -> RepositoryDetailPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        state = None
+        try:
+            state = await self._store.get_workflow_state_by_repo(repo_id)
+        except Exception:
+            state = None
+        return {"repository": self.serialize_repository(repository, state)}
+
+    async def update_repository(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        name: str | None = None,
+        remote_url: str | None = None,
+        default_branch: str | None = None,
+        path: str | None = None,
+    ) -> RepositoryDetailPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        updates: dict[str, Any] = {}
+        if name is not None:
+            normalized_name = str(name).strip()
+            if not normalized_name:
+                raise ValueError("Repository name is required")
+            updates["repo_name"] = normalized_name
+        if remote_url is not None:
+            normalized_remote = _normalize_repository_remote(remote_url)
+            if normalized_remote is None:
+                raise ValueError("Repository remote URL is required")
+            updates["repo_url"] = normalized_remote
+        if default_branch is not None:
+            normalized_branch = str(default_branch).strip()
+            if not normalized_branch:
+                raise ValueError("Default branch is required")
+            updates["default_branch"] = normalized_branch
+        if path is not None:
+            normalized_path = str(path).strip()
+            if not normalized_path:
+                raise ValueError("Repository path is required")
+            updates["state_path"] = normalized_path
+
+        updated = await self._store.update_repository(repo_id, **updates)
+        if updated is None:
+            raise LookupError("Repository not found")
+        return await self.get_repository_detail(repo_id)
+
+    async def delete_repository(self, repo_id: uuid.UUID) -> DeleteRepositoryPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+        await self._store.delete_repository(repo_id)
+        return {"deleted": True}
+
     async def resolve_repository_for_client(
         self,
         *,
@@ -637,6 +700,7 @@ class AdminConsoleUseCases:
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
             "path": getattr(repo, "state_path", getattr(repo, "path", "")),
             "remote_url": _normalize_repository_remote(getattr(repo, "repo_url", None)),
+            "default_branch": getattr(repo, "default_branch", None),
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
@@ -844,12 +908,58 @@ class AdminConsoleUseCases:
             "dependencies": dependencies,
         }
 
+    async def get_repository_graph_map(
+        self,
+        *,
+        repo_id: uuid.UUID,
+    ) -> RepositoryGraphMapPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        repository_payload = self.serialize_repository(repository)
+        if self._graph_store is None:
+            return {
+                "repository": repository_payload,
+                "graph_available": False,
+                "nodes": [],
+                "edges": [],
+                "summary": {
+                    "node_count": 0,
+                    "edge_count": 0,
+                    "counts_by_type": {},
+                    "counts_by_relation": {},
+                },
+            }
+
+        _, repo_nodes, repo_edges = await self._graph_tools.list_repo_graph(
+            repo_id=str(repo_id),
+            repo_name=getattr(repository, "repo_name", None),
+            repo_path=self._repository_root_path(repository),
+        )
+        node_counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
+        relation_counts = Counter(str(getattr(edge, "relation", "")) for edge in repo_edges)
+        return {
+            "repository": repository_payload,
+            "graph_available": bool(repo_nodes),
+            "nodes": [self._serialize_graph_node(node) for node in repo_nodes],
+            "edges": [self._serialize_graph_edge(edge) for edge in repo_edges],
+            "summary": {
+                "node_count": len(repo_nodes),
+                "edge_count": len(repo_edges),
+                "counts_by_type": dict(node_counts),
+                "counts_by_relation": dict(relation_counts),
+            },
+        }
+
     async def search_repository_graph(
         self,
         *,
         repo_id: uuid.UUID,
         query: str,
         node_types: list[str] | None = None,
+        languages: list[str] | None = None,
+        last_states: list[str] | None = None,
         limit: int = 10,
     ) -> RepositoryGraphSearchPayload:
         repository = await self._store.get_repository_by_id(repo_id)
@@ -864,6 +974,8 @@ class AdminConsoleUseCases:
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
             node_types=node_types,
+            languages=languages,
+            last_states=last_states,
             limit=limit,
         )
         return {
@@ -956,6 +1068,16 @@ class AdminConsoleUseCases:
             "node_type": str(getattr(node, "node_type", "")),
             "name": str(getattr(node, "name", "")),
             "metadata": metadata,
+        }
+
+    @staticmethod
+    def _serialize_graph_edge(edge: Any) -> RepositoryGraphEdgePayload:
+        return {
+            "id": str(getattr(edge, "id")),
+            "source_id": str(getattr(edge, "source_id")),
+            "target_id": str(getattr(edge, "target_id")),
+            "relation": str(getattr(edge, "relation", "")),
+            "weight": float(getattr(edge, "weight", 1.0) or 1.0),
         }
 
     def _serialize_repo_graph_nodes(

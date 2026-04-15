@@ -15,7 +15,7 @@ const redirectToTarget = async () => {
     const next = !state.has_admin_users
       ? "/dashboard/setup"
       : state.has_admin_session
-        ? "/dashboard/repositories"
+        ? "/dashboard/clients"
         : "/dashboard/login";
     window.location.replace(next);
   } catch {

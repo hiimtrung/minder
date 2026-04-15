@@ -589,6 +589,65 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
         return JSONResponse(await context.use_cases.list_repositories())
 
+    async def repository_detail(request):
+        try:
+            user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        if request.method == "GET":
+            try:
+                return JSONResponse(await context.use_cases.get_repository_detail(repo_id))
+            except LookupError:
+                return JSONResponse({"error": "Repository not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            payload = await request.json()
+            try:
+                result = await context.use_cases.update_repository(
+                    repo_id=repo_id,
+                    name=payload.get("name"),
+                    remote_url=payload.get("remote_url"),
+                    default_branch=payload.get("default_branch"),
+                    path=payload.get("path"),
+                )
+            except LookupError:
+                await record_admin_operation("repository_update", "error", actor_id=str(user.id), store=context.store)
+                return JSONResponse({"error": "Repository not found"}, status_code=404)
+            except ValueError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+            await record_admin_operation("repository_update", "success", actor_id=str(user.id), store=context.store)
+            return JSONResponse(result)
+
+        try:
+            result = await context.use_cases.delete_repository(repo_id)
+        except LookupError:
+            await record_admin_operation("repository_delete", "error", actor_id=str(user.id), store=context.store)
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+
+        await record_admin_operation("repository_delete", "success", actor_id=str(user.id), store=context.store)
+        return JSONResponse(result)
+
+    async def repository_graph_map(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        try:
+            return JSONResponse(await context.use_cases.get_repository_graph_map(repo_id=repo_id))
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+
     async def repository_graph_summary(request):
         try:
             await context.admin_user_from_request(request)
@@ -618,6 +677,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         if not query:
             return JSONResponse({"error": "Query is required"}, status_code=400)
         node_types = [value.strip() for value in request.query_params.getlist("node_type") if value.strip()]
+        languages = [value.strip() for value in request.query_params.getlist("language") if value.strip()]
+        last_states = [value.strip() for value in request.query_params.getlist("last_state") if value.strip()]
         try:
             limit = max(1, min(int(request.query_params.get("limit", "10")), 50))
         except ValueError:
@@ -629,6 +690,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                     repo_id=repo_id,
                     query=query,
                     node_types=node_types or None,
+                    languages=languages or None,
+                    last_states=last_states or None,
                     limit=limit,
                 )
             )
@@ -869,6 +932,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/workflows/{workflow_id:uuid}", workflow_detail, methods=["GET", "PATCH", "DELETE"]),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}", repository_detail, methods=["GET", "PATCH", "DELETE"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/graph-map", repository_graph_map, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-summary", repository_graph_summary, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-search", repository_graph_search, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-impact", repository_graph_impact, methods=["GET"]),

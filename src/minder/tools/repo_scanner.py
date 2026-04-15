@@ -5,6 +5,7 @@ from __future__ import annotations
 import ast
 import json
 import re
+import subprocess
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -89,6 +90,9 @@ class RepoScanner:
         self._store = graph_store
         self._root = Path(repo_root).resolve()
         self._project = project or self._root.name
+        self._git_metadata_cache: dict[str, dict[str, Any]] = {}
+        self._git_line_commit_cache: dict[tuple[str, int], dict[str, str] | None] = {}
+        self._git_commit_detail_cache: dict[str, dict[str, str]] = {}
 
     async def scan(self) -> dict[str, Any]:
         service_dirs = self._discover_service_boundaries()
@@ -110,11 +114,17 @@ class RepoScanner:
         for file_path in source_files:
             rel_path = str(file_path.relative_to(self._root))
             file_metadata, extracted_nodes, extracted_edges = self._extract_file_metadata(file_path, rel_path)
+            change_metadata = self._git_file_change_metadata(rel_path)
+            common_metadata = self._build_file_scoped_metadata(
+                rel_path=rel_path,
+                language=str(file_metadata.get("language", "text") or "text"),
+                change_metadata=change_metadata,
+            )
 
             file_node = await self._store.upsert_node(
                 node_type="file",
                 name=rel_path,
-                metadata={"project": self._project, **file_metadata},
+                metadata={"project": self._project, **common_metadata, **file_metadata},
             )
             nodes_upserted += 1
             known_node_ids: dict[tuple[str, str], Any] = {("file", rel_path): file_node.id}
@@ -156,10 +166,15 @@ class RepoScanner:
                             edges_upserted += 1
 
             for node_spec in extracted_nodes:
+                node_common_metadata = self._build_node_scoped_metadata(
+                    rel_path=rel_path,
+                    base_metadata=common_metadata,
+                    node_metadata=node_spec.metadata,
+                )
                 persisted = await self._store.upsert_node(
                     node_type=node_spec.node_type,
                     name=node_spec.name,
-                    metadata={"project": self._project, **node_spec.metadata},
+                    metadata={"project": self._project, **node_common_metadata, **node_spec.metadata},
                 )
                 known_node_ids[(node_spec.node_type, node_spec.name)] = persisted.id
                 nodes_upserted += 1
@@ -200,6 +215,9 @@ class RepoScanner:
         builder = cls.__new__(cls)
         builder._root = Path(repo_root).resolve()
         builder._project = project or builder._root.name
+        builder._git_metadata_cache = {}
+        builder._git_line_commit_cache = {}
+        builder._git_commit_detail_cache = {}
 
         service_dirs = builder._discover_service_boundaries()
         source_files = builder._resolve_source_files(changed_files)
@@ -241,7 +259,13 @@ class RepoScanner:
         for file_path in source_files:
             rel_path = str(file_path.relative_to(builder._root))
             file_metadata, extracted_nodes, extracted_edges = builder._extract_file_metadata(file_path, rel_path)
-            add_node("file", rel_path, {"project": builder._project, **file_metadata})
+            change_metadata = builder._git_file_change_metadata(rel_path)
+            common_metadata = builder._build_file_scoped_metadata(
+                rel_path=rel_path,
+                language=str(file_metadata.get("language", "text") or "text"),
+                change_metadata=change_metadata,
+            )
+            add_node("file", rel_path, {"project": builder._project, **common_metadata, **file_metadata})
 
             owning_svc = builder._find_owning_service(file_path, service_dirs)
             if owning_svc is not None:
@@ -254,7 +278,16 @@ class RepoScanner:
                 add_edge(_EdgeSpec("file", rel_path, "module", module_name, "imports"))
 
             for node_spec in extracted_nodes:
-                add_node(node_spec.node_type, node_spec.name, {"project": builder._project, **node_spec.metadata})
+                node_common_metadata = builder._build_node_scoped_metadata(
+                    rel_path=rel_path,
+                    base_metadata=common_metadata,
+                    node_metadata=node_spec.metadata,
+                )
+                add_node(
+                    node_spec.node_type,
+                    node_spec.name,
+                    {"project": builder._project, **node_common_metadata, **node_spec.metadata},
+                )
             for edge_spec in extracted_edges:
                 add_edge(edge_spec)
 
@@ -352,6 +385,326 @@ class RepoScanner:
 
         nodes.extend(self._extract_todo_nodes(source, rel_path))
         return file_metadata, self._dedupe_node_specs(nodes), self._dedupe_edge_specs(edges)
+
+    def _build_file_scoped_metadata(
+        self,
+        *,
+        rel_path: str,
+        language: str,
+        change_metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "path": rel_path,
+            "language": language,
+            "history_scope": "file",
+            **change_metadata,
+        }
+
+    def _build_node_scoped_metadata(
+        self,
+        *,
+        rel_path: str,
+        base_metadata: dict[str, Any],
+        node_metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        scoped_metadata = dict(base_metadata)
+        scoped_metadata.update(
+            self._git_node_change_metadata(
+                rel_path=rel_path,
+                node_metadata=node_metadata,
+                file_change_metadata=base_metadata,
+            )
+        )
+        return scoped_metadata
+
+    def _git_file_change_metadata(self, rel_path: str) -> dict[str, Any]:
+        cached = self._git_metadata_cache.get(rel_path)
+        if cached is not None:
+            return cached
+
+        recent_commits = self._git_recent_commits(rel_path)
+        status = self._git_status(rel_path, tracked=bool(recent_commits))
+        latest_commit = recent_commits[0] if recent_commits else {}
+        metadata = {
+            "last_state": status,
+            "last_commit_sha": latest_commit.get("sha"),
+            "last_commit_at": latest_commit.get("committed_at"),
+            "last_commit_summary": latest_commit.get("summary"),
+            "history_summary": self._build_history_summary(recent_commits, status),
+            "recent_commits": recent_commits,
+        }
+        self._git_metadata_cache[rel_path] = metadata
+        return metadata
+
+    def _git_node_change_metadata(
+        self,
+        *,
+        rel_path: str,
+        node_metadata: dict[str, Any],
+        file_change_metadata: dict[str, Any],
+    ) -> dict[str, Any]:
+        line_number = self._node_line_number(node_metadata)
+        if line_number is None:
+            return {}
+
+        line_commit = self._git_line_commit(rel_path, line_number)
+        if line_commit is None:
+            return {
+                "history_scope": "line",
+                "last_touch_line": line_number,
+                "file_last_commit_sha": file_change_metadata.get("last_commit_sha"),
+                "file_last_commit_at": file_change_metadata.get("last_commit_at"),
+                "file_last_commit_summary": file_change_metadata.get("last_commit_summary"),
+                "file_history_summary": file_change_metadata.get("history_summary"),
+            }
+
+        subject = self._history_subject(node_metadata)
+        recent_commits = self._build_symbol_recent_commits(
+            subject=subject,
+            line_commit=line_commit,
+            file_recent_commits=file_change_metadata.get("recent_commits"),
+        )
+        return {
+            "history_scope": "symbol" if subject else "line",
+            "last_touch_line": line_number,
+            "last_commit_sha": line_commit.get("sha"),
+            "last_commit_at": line_commit.get("committed_at"),
+            "last_commit_summary": line_commit.get("summary"),
+            "history_summary": self._build_symbol_history_summary(
+                subject=subject,
+                status=str(file_change_metadata.get("last_state", "") or ""),
+                line_commit=line_commit,
+                recent_commits=recent_commits,
+            ),
+            "recent_commits": recent_commits,
+            "file_last_commit_sha": file_change_metadata.get("last_commit_sha"),
+            "file_last_commit_at": file_change_metadata.get("last_commit_at"),
+            "file_last_commit_summary": file_change_metadata.get("last_commit_summary"),
+            "file_history_summary": file_change_metadata.get("history_summary"),
+        }
+
+    def _git_recent_commits(self, rel_path: str, limit: int = 5) -> list[dict[str, str]]:
+        result = subprocess.run(
+            [
+                "git",
+                "log",
+                "--follow",
+                "--format=%H%x1f%cI%x1f%s",
+                "-n",
+                str(limit),
+                "--",
+                rel_path,
+            ],
+            cwd=self._root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+        commits: list[dict[str, str]] = []
+        for line in result.stdout.splitlines():
+            sha, _, rest = line.partition("\x1f")
+            committed_at, _, summary = rest.partition("\x1f")
+            if not sha or not summary:
+                continue
+            commits.append(
+                {
+                    "sha": sha.strip(),
+                    "committed_at": committed_at.strip(),
+                    "summary": summary.strip(),
+                }
+            )
+        return commits
+
+    def _git_line_commit(self, rel_path: str, line_number: int) -> dict[str, str] | None:
+        cache_key = (rel_path, line_number)
+        if cache_key in self._git_line_commit_cache:
+            return self._git_line_commit_cache[cache_key]
+
+        result = subprocess.run(
+            [
+                "git",
+                "blame",
+                "--line-porcelain",
+                "-L",
+                f"{line_number},{line_number}",
+                "--",
+                rel_path,
+            ],
+            cwd=self._root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            self._git_line_commit_cache[cache_key] = None
+            return None
+
+        first_line = next((line for line in result.stdout.splitlines() if line.strip()), "")
+        sha = first_line.split(" ", 1)[0].strip()
+        if not sha or set(sha) == {"0"}:
+            self._git_line_commit_cache[cache_key] = None
+            return None
+
+        details = self._git_commit_details(sha)
+        self._git_line_commit_cache[cache_key] = details
+        return details
+
+    def _git_commit_details(self, sha: str) -> dict[str, str]:
+        cached = self._git_commit_detail_cache.get(sha)
+        if cached is not None:
+            return cached
+
+        result = subprocess.run(
+            ["git", "show", "-s", "--format=%H%x1f%cI%x1f%s", sha],
+            cwd=self._root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            details = {"sha": sha, "committed_at": "", "summary": ""}
+            self._git_commit_detail_cache[sha] = details
+            return details
+
+        raw = result.stdout.strip().splitlines()
+        if not raw:
+            details = {"sha": sha, "committed_at": "", "summary": ""}
+            self._git_commit_detail_cache[sha] = details
+            return details
+
+        commit_sha, _, rest = raw[0].partition("\x1f")
+        committed_at, _, summary = rest.partition("\x1f")
+        details = {
+            "sha": commit_sha.strip() or sha,
+            "committed_at": committed_at.strip(),
+            "summary": summary.strip(),
+        }
+        self._git_commit_detail_cache[sha] = details
+        return details
+
+    def _git_status(self, rel_path: str, *, tracked: bool) -> str:
+        result = subprocess.run(
+            ["git", "status", "--short", "--", rel_path],
+            cwd=self._root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode != 0:
+            return "tracked" if tracked else "untracked"
+        raw_status = result.stdout.strip()
+        if not raw_status:
+            return "clean" if tracked else "untracked"
+        status_code = raw_status[:2]
+        if status_code == "??":
+            return "untracked"
+        if "R" in status_code:
+            return "renamed"
+        if "D" in status_code:
+            return "deleted"
+        if "A" in status_code:
+            return "added"
+        if "M" in status_code:
+            return "modified"
+        return "changed"
+
+    @staticmethod
+    def _node_line_number(node_metadata: dict[str, Any]) -> int | None:
+        raw_line = node_metadata.get("line")
+        if isinstance(raw_line, int):
+            return raw_line
+        if isinstance(raw_line, str) and raw_line.isdigit():
+            return int(raw_line)
+        return None
+
+    @staticmethod
+    def _history_subject(node_metadata: dict[str, Any]) -> str:
+        for key in ("symbol", "route_path", "handler", "text"):
+            value = node_metadata.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
+
+    @staticmethod
+    def _build_symbol_recent_commits(
+        *,
+        subject: str,
+        line_commit: dict[str, str],
+        file_recent_commits: Any,
+    ) -> list[dict[str, str]]:
+        commits: list[dict[str, str]] = []
+        seen: set[str] = set()
+
+        def add(commit: dict[str, str]) -> None:
+            sha = str(commit.get("sha", "") or "")
+            if not sha or sha in seen:
+                return
+            seen.add(sha)
+            commits.append(commit)
+
+        add(line_commit)
+        normalized_subject = subject.lower().strip()
+        if isinstance(file_recent_commits, list):
+            for commit in file_recent_commits:
+                if not isinstance(commit, dict):
+                    continue
+                summary = str(commit.get("summary", "") or "")
+                if normalized_subject and normalized_subject in summary.lower():
+                    add(
+                        {
+                            "sha": str(commit.get("sha", "") or ""),
+                            "committed_at": str(commit.get("committed_at", "") or ""),
+                            "summary": summary,
+                        }
+                    )
+            for commit in file_recent_commits:
+                if not isinstance(commit, dict) or len(commits) >= 3:
+                    continue
+                add(
+                    {
+                        "sha": str(commit.get("sha", "") or ""),
+                        "committed_at": str(commit.get("committed_at", "") or ""),
+                        "summary": str(commit.get("summary", "") or ""),
+                    }
+                )
+
+        return commits[:5]
+
+    @staticmethod
+    def _build_symbol_history_summary(
+        *,
+        subject: str,
+        status: str,
+        line_commit: dict[str, str],
+        recent_commits: list[dict[str, str]],
+    ) -> str:
+        subject_label = subject or "this node"
+        prefix = f"Current state: {status}. " if status and status != "clean" else ""
+        summary = line_commit.get("summary", "").strip()
+        if not summary:
+            return f"{prefix}No symbol-level git history available yet.".strip()
+
+        trailing = [
+            commit.get("summary", "").strip()
+            for commit in recent_commits[1:3]
+            if commit.get("summary")
+        ]
+        if trailing:
+            return f"{prefix}Last touch for {subject_label}: {summary}. Related changes: {'; '.join(trailing)}".strip()
+        return f"{prefix}Last touch for {subject_label}: {summary}.".strip()
+
+    @staticmethod
+    def _build_history_summary(recent_commits: list[dict[str, str]], status: str) -> str:
+        if not recent_commits:
+            if status == "untracked":
+                return "New file not committed yet."
+            return "No git history available for this node yet."
+        summaries = [commit.get("summary", "").strip() for commit in recent_commits if commit.get("summary")]
+        compact = "; ".join(summaries[:3])
+        prefix = f"Current state: {status}. " if status and status != "clean" else ""
+        return f"{prefix}Recent changes: {compact}".strip()
 
     @staticmethod
     def _extract_imports(file_path: Path) -> list[str]:

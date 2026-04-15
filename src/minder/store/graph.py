@@ -133,6 +133,11 @@ class KnowledgeGraphStore:
             result = await sess.execute(select(GraphNode))
             return list(result.scalars().all())
 
+    async def list_edges(self) -> list[GraphEdge]:
+        async with self._session() as sess:
+            result = await sess.execute(select(GraphEdge))
+            return list(result.scalars().all())
+
     async def query_by_type(self, node_type: str) -> list[GraphNode]:
         async with self._session() as sess:
             result = await sess.execute(

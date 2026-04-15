@@ -400,6 +400,107 @@ async def test_repositories_endpoint_requires_auth(app: Any) -> None:
 
 
 @pytest.mark.asyncio
+async def test_admin_can_update_repository(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="old-name",
+        repo_url="https://example.com/old-name",
+        default_branch="main",
+        state_path="/workspace/old-name/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    response = admin_client.patch(
+        f"/v1/admin/repositories/{repository.id}",
+        json={
+            "name": "new-name",
+            "remote_url": "git@github.com:acme/new-name.git",
+            "default_branch": "develop",
+            "path": "/workspace/new-name/.minder",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["repository"]
+    assert payload["name"] == "new-name"
+    assert payload["remote_url"] == "git@github.com:acme/new-name.git"
+    assert payload["default_branch"] == "develop"
+    assert payload["path"] == "/workspace/new-name/.minder"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_repository(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="delete-me",
+        repo_url="https://example.com/delete-me",
+        default_branch="main",
+        state_path="/workspace/delete-me/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    response = admin_client.delete(f"/v1/admin/repositories/{repository.id}")
+
+    assert response.status_code == 200
+    assert response.json()["deleted"] is True
+    assert await store.get_repository_by_id(repository.id) is None
+
+
+@pytest.mark.asyncio
+async def test_admin_can_get_repository_graph_map(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="graph-map-repo",
+        repo_url="https://example.com/graph-map-repo",
+        default_branch="main",
+        state_path="/workspace/graph-map-repo/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    file_node = await graph_store.upsert_node(
+        "file",
+        "src/app.py",
+        metadata={"repo_id": str(repository.id), "repository_name": "graph-map-repo", "path": "src/app.py"},
+    )
+    function_node = await graph_store.upsert_node(
+        "function",
+        "src/app.py::build_app",
+        metadata={"repo_id": str(repository.id), "repository_name": "graph-map-repo", "path": "src/app.py", "language": "python"},
+    )
+    edge = await graph_store.upsert_edge(file_node.id, function_node.id, "contains", weight=1.0)
+
+    response = admin_client.get(f"/v1/admin/repositories/{repository.id}/graph-map")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["graph_available"] is True
+    assert payload["summary"]["node_count"] == 2
+    assert payload["summary"]["edge_count"] == 1
+    assert {node["name"] for node in payload["nodes"]} == {"src/app.py", "src/app.py::build_app"}
+    assert payload["edges"] == [
+        {
+            "id": str(edge.id),
+            "source_id": str(file_node.id),
+            "target_id": str(function_node.id),
+            "relation": "contains",
+            "weight": 1.0,
+        }
+    ]
+
+
+@pytest.mark.asyncio
 async def test_admin_can_sync_repository_graph(
     admin_client: TestClient,
     store: RelationalStore,
@@ -773,27 +874,41 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
                 {
                     "node_type": "service",
                     "name": "src/service.py::BillingService",
-                    "metadata": {"path": "src/service.py"},
+                    "metadata": {"path": "src/service.py", "language": "python", "last_state": "clean"},
                 },
                 {
                     "node_type": "route",
                     "name": "GET /billing/health",
-                    "metadata": {"path": "src/http.py", "route_path": "/billing/health"},
+                    "metadata": {"path": "src/http.py", "route_path": "/billing/health", "language": "python", "last_state": "clean"},
                 },
                 {
                     "node_type": "todo",
                     "name": "TODO: add retry policy",
-                    "metadata": {"path": "src/service.py", "text": "add retry policy"},
+                    "metadata": {"path": "src/service.py", "text": "add retry policy", "language": "python", "last_state": "modified"},
                 },
                 {
                     "node_type": "external_service_api",
                     "name": "Stripe API",
-                    "metadata": {"path": "src/service.py"},
+                    "metadata": {"path": "src/service.py", "language": "python", "last_state": "modified"},
                 },
                 {
                     "node_type": "function",
                     "name": "src/service.py::charge_customer",
-                    "metadata": {"path": "src/service.py", "symbol": "charge_customer"},
+                    "metadata": {
+                        "path": "src/service.py",
+                        "symbol": "charge_customer",
+                        "language": "python",
+                        "last_state": "modified",
+                        "last_commit_summary": "tighten charge_customer retry behavior",
+                        "history_summary": "Current state: modified. Last touch for charge_customer: add retry policy and backoff.",
+                        "recent_commits": [
+                            {
+                                "sha": "abc12345",
+                                "committed_at": "2026-04-14T08:30:00+00:00",
+                                "summary": "tighten charge_customer retry behavior",
+                            }
+                        ],
+                    },
                 },
             ],
             "edges": [
@@ -838,12 +953,14 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
     assert summary["dependencies"][0]["service"] == "src/service.py::BillingService"
 
     search_response = admin_client.get(
-        f"/v1/admin/repositories/{repository.id}/graph-search?query=charge_customer&node_type=function"
+        f"/v1/admin/repositories/{repository.id}/graph-search?query=retry&node_type=function&language=python&last_state=modified"
     )
     assert search_response.status_code == 200
     search = search_response.json()
     assert search["count"] == 1
     assert search["results"][0]["name"] == "src/service.py::charge_customer"
+    assert search["filters"]["languages"] == ["python"]
+    assert search["filters"]["last_states"] == ["modified"]
 
     impact_response = admin_client.get(
         f"/v1/admin/repositories/{repository.id}/graph-impact?target=charge_customer&depth=2&limit=10"

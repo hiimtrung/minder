@@ -198,6 +198,23 @@ class RelationalStore:
             result = await sess.execute(select(Session).where(Session.client_id == client_id))
             return list(result.scalars().all())
 
+    async def find_session_by_name(
+        self,
+        name: str,
+        *,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> Optional[Session]:
+        async with self._session() as sess:
+            query = select(Session).where(Session.name == name)
+            if client_id is not None:
+                query = query.where(Session.client_id == client_id)
+            elif user_id is not None:
+                query = query.where(Session.user_id == user_id)
+            query = query.order_by(Session.last_active.desc()).limit(1)
+            result = await sess.execute(query)
+            return result.scalar_one_or_none()
+
     async def update_session(self, session_id: uuid.UUID, **kwargs) -> Optional[Session]:
         async with self._session() as sess:
             await sess.execute(

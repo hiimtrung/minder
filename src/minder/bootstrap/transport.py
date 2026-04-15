@@ -127,20 +127,40 @@ def build_transport(
         *,
         user=None,  # noqa: ANN001
         principal: Principal | None = None,
+        name: str | None = None,
         repo_id: str | None = None,
         project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         if isinstance(principal, ClientPrincipal):
             return await session_tools.minder_session_create(
                 client_id=principal.client_id,
+                name=name,
                 repo_id=uuid.UUID(repo_id) if repo_id else None,
                 project_context=project_context,
             )
         authenticated_user = require_authenticated_user(user)
         return await session_tools.minder_session_create(
             user_id=authenticated_user.id,
+            name=name,
             repo_id=uuid.UUID(repo_id) if repo_id else None,
             project_context=project_context,
+        )
+
+    async def minder_session_find(
+        *,
+        user=None,  # noqa: ANN001
+        principal: Principal | None = None,
+        name: str,
+    ) -> dict[str, Any]:
+        if isinstance(principal, ClientPrincipal):
+            return await session_tools.minder_session_find(
+                name=name,
+                client_id=principal.client_id,
+            )
+        authenticated_user = require_authenticated_user(user)
+        return await session_tools.minder_session_find(
+            name=name,
+            user_id=authenticated_user.id,
         )
 
     async def minder_session_list(
@@ -295,6 +315,7 @@ def build_transport(
         description=TOOL_DESCRIPTIONS["minder_auth_create_client"],
     )
     transport.register_tool("minder_session_create", minder_session_create, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_create"])
+    transport.register_tool("minder_session_find", minder_session_find, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_find"])
     transport.register_tool("minder_session_list", minder_session_list, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_list"])
     transport.register_tool("minder_session_save", minder_session_save, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_save"])
     transport.register_tool("minder_session_restore", minder_session_restore, require_auth=True, description=TOOL_DESCRIPTIONS["minder_session_restore"])

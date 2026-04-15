@@ -2,30 +2,30 @@
 
 ## Technology Stack
 
-| Component          | Technology                                          | Reason                                         |
-| ------------------ | --------------------------------------------------- | ---------------------------------------------- |
-| Language           | Python 3.14+                                        | Native fit for LangGraph and ML tooling        |
-| MCP SDK            | Official Python `mcp` SDK                           | MCP protocol support                           |
-| Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine            |
-| Vector DB          | Milvus Lite to Milvus Standalone                    | Lightweight start with scale path              |
-| Relational DB      | SQLite to PostgreSQL                                | Metadata, users, sessions, and audit           |
-| Embedding          | `ggml-org/embeddinggemma-300M-GGUF` GGUF, mandatory | Offline-first, optimized for `llama.cpp`       |
-| Embedding runtime  | `llama.cpp` via `llama-cpp-python`                  | Shared local inference runtime                 |
-| Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback                        |
-| LLM                | `ggml-org/gemma-4-E2B-it-GGUF` GGUF, mandatory      | Offline-first, CPU-friendly                    |
-| LLM runtime        | `llama.cpp` via `llama-cpp-python`                  | Native GGUF runtime                            |
-| LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                         |
-| Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                     |
-| Chunking           | LangChain text splitters plus custom code chunking  | Proven chunking patterns                       |
-| Reranking          | sentence-transformers cross-encoder                 | Better precision                               |
-| Verification       | Docker sandbox plus pytest                          | Safe execution and testing                     |
-| Config             | Pydantic Settings                                   | Strongly typed configuration                   |
-| Package manager    | uv                                                  | Fast and reliable Python dependency management |
-| CI/CD              | GitHub Actions                                      | Standardized automation                        |
-| Registry           | GitHub Packages and ghcr.io                         | Package and image publishing                   |
-| Containerization   | Docker and Docker Compose                           | Dev and prod deployment                        |
-| Dashboard backend  | FastAPI or Starlette                                | API for workflow and admin UI                  |
-| Dashboard frontend | Next.js or React                                    | Workflow and admin UI                          |
+| Component          | Technology                                          | Reason                                             |
+| ------------------ | --------------------------------------------------- | -------------------------------------------------- |
+| Language           | Python 3.14+                                        | Native fit for LangGraph and ML tooling            |
+| MCP SDK            | Official Python `mcp` SDK                           | MCP protocol support                               |
+| Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine                |
+| Vector DB          | Milvus Lite to Milvus Standalone                    | Lightweight start with scale path                  |
+| Relational DB      | SQLite to PostgreSQL                                | Metadata, users, sessions, and audit               |
+| Embedding          | `ggml-org/embeddinggemma-300M-GGUF` GGUF, mandatory | Offline-first, optimized for `llama.cpp`           |
+| Embedding runtime  | `llama.cpp` via `llama-cpp-python`                  | Shared local inference runtime                     |
+| Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback                            |
+| LLM                | `ggml-org/gemma-4-E2B-it-GGUF` GGUF, mandatory      | Offline-first, CPU-friendly                        |
+| LLM runtime        | `llama.cpp` via `llama-cpp-python`                  | Native GGUF runtime                                |
+| LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                             |
+| Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                         |
+| Chunking           | LangChain text splitters plus custom code chunking  | Proven chunking patterns                           |
+| Reranking          | sentence-transformers cross-encoder                 | Better precision                                   |
+| Verification       | Docker sandbox plus pytest                          | Safe execution and testing                         |
+| Config             | Pydantic Settings                                   | Strongly typed configuration                       |
+| Package manager    | uv                                                  | Fast and reliable Python dependency management     |
+| CI/CD              | GitHub Actions                                      | Standardized automation                            |
+| Registry           | GitHub Packages and ghcr.io                         | Package and image publishing                       |
+| Containerization   | Docker and Docker Compose                           | Dev and prod deployment                            |
+| Dashboard backend  | FastAPI or Starlette                                | API for workflow and admin UI                      |
+| Dashboard frontend | Astro with Tailwind CSS                             | Workflow and admin UI with static-first deployment |
 
 ## Phase 1: Foundation - MCP Server, Auth, Search, CI/CD
 
@@ -62,7 +62,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 9. Add repository-local `.minder/` state management.
 10. Implement workflow tools for current-step and next-step guidance.
 11. Implement basic semantic search and memory tools.
-12. Add skill seeding from external GitHub source.
+12. Add skill seeding from external Git source.
 13. Add Docker-based local development stack.
 14. Add GitHub Actions CI and release automation.
 15. Add baseline tests for auth, search, workflow state, and repo state.
@@ -102,6 +102,8 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 **Goal**: Improve retrieval quality and add relationship-aware repository intelligence.
 
+Direction note: the delivered Phase 3 baseline remains valid, but future performance work should prefer repo-local metadata extraction through `minder-cli` and delta sync instead of broad server-side graph refresh.
+
 ### Tasks
 
 1. Add reranking, BM25 hybrid retrieval, and multi-hop retrieval.
@@ -109,9 +111,10 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 3. Implement document, rule, and feedback stores.
 4. Add AST-aware code chunking.
 5. Track repository relationships such as modules, services, ownership, and dependencies.
-6. Add richer workflow intelligence based on repo relationships and artifact lineage.
-7. Add ingestion tools for repository scanning and artifact extraction.
-8. Add MCP resources and prompts for workflow-aware operation.
+6. Keep graph construction metadata-first so repository intelligence stores structure, not full source dumps.
+7. Add richer workflow intelligence based on repo relationships and artifact lineage.
+8. Add ingestion tools for repository scanning and artifact extraction.
+9. Add MCP resources and prompts for workflow-aware operation.
 
 ### Validation
 
@@ -130,7 +133,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 4. Add per-user rate limiting and quotas.
 5. Add tracing, metrics, structured logs, and audit trails.
 6. Add production Docker Compose stack.
-7. Build the dashboard for workflow config, repo policies, user management, and observability.
+7. Build the dashboard for workflow config, repo policies, user management, observability, and skill catalog management.
 8. Add CI/CD status integration in the dashboard.
 9. Add load testing and multi-user performance testing.
 10. Run a security review for auth, isolation, and sandboxing.
@@ -145,6 +148,8 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 **Goal**: Let Minder learn from successful workflows, failures, and feedback.
 
+Direction note: Phase 5 graph work continues to follow the metadata-first policy and now has a dedicated transition roadmap for CLI edge extraction and fast graph sync.
+
 ### Tasks
 
 1. Extract reusable patterns from workflow histories.
@@ -152,4 +157,6 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 3. Learn from error resolutions.
 4. Optimize retrieval parameters from feedback.
 5. Add reflection capabilities for post-run evaluation.
-6. Add experimentation support for workflow and retrieval strategy variants.
+6. Add Dashboard-backed skill CRUD and remote import from GitHub, GitLab, and generic Git repositories.
+7. Keep GraphNode storage limited to metadata and long-lived reusable excerpts.
+8. Add experimentation support for workflow and retrieval strategy variants.

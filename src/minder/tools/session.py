@@ -1,3 +1,30 @@
+"""Session Tools — MCP surface for per-client LLM context persistence.
+
+Design rationale
+----------------
+A session is the server-side checkpoint for a single LLM work context.  It is
+keyed by a **server-assigned UUID** but is *also* addressable by a human-readable
+**name** so the same LLM can resume the exact session from any machine using the
+same client API key:
+
+  Machine A:  minder_session_create(name="omi-channel-phase5")
+              → {session_id: "a1b2..."}
+  Machine B:  minder_session_find(name="omi-channel-phase5")
+              → {session_id: "a1b2...", state: {...}, ...}
+
+The `session_id` UUID is returned in every response so the LLM can cache it in
+its context for faster subsequent calls while the session is active.  After a
+``/compact`` or machine switch the LLM calls ``minder_session_find`` with the
+project name and immediately regains full context.
+
+Access control
+--------------
+Sessions are owned by the creating principal (user or client).  The ``session_id``
+UUID acts as a bearer token for ``save``/``restore``/``context`` operations — the
+server validates existence but does not re-check ownership on every call.
+``minder_session_find`` enforces ownership by filtering on the caller's
+principal_id automatically.
+"""
 from __future__ import annotations
 
 import uuid
@@ -11,27 +38,85 @@ class SessionTools:
     def __init__(self, store: IOperationalStore) -> None:
         self._store = store
 
+    # ------------------------------------------------------------------
+    # Create
+    # ------------------------------------------------------------------
+
     async def minder_session_create(
         self,
         *,
         user_id: uuid.UUID | None = None,
         client_id: uuid.UUID | None = None,
+        name: str | None = None,
         repo_id: uuid.UUID | None = None,
         project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        """Create a new persisted session for the calling principal.
+
+        One of ``user_id`` (human admin) or ``client_id`` (MCP client) must be
+        provided.  ``name`` is an optional project slug — use a stable, memorable
+        name so the session can be found again from any machine with the same
+        client API key.  Example: ``"omi-channel-phase5-dev"``.
+        """
         if user_id is None and client_id is None:
             raise ValueError("Either user_id or client_id must be provided")
         session = await self._store.create_session(
             id=uuid.uuid4(),
             user_id=user_id,
             client_id=client_id,
+            name=name,
             repo_id=repo_id,
             project_context=project_context or {},
             active_skills={},
             state={},
-            ttl=3600,
+            ttl=86400,  # 24 h — long enough for multi-day work continuity
         )
-        return {"session_id": str(session.id)}
+        return {
+            "session_id": str(session.id),
+            "name": session.name,
+        }
+
+    # ------------------------------------------------------------------
+    # Find / list
+    # ------------------------------------------------------------------
+
+    async def minder_session_find(
+        self,
+        *,
+        name: str,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, Any]:
+        """Find a session by name for the calling principal.
+
+        This is the primary **cross-environment recovery** entry point.  The LLM
+        calls this on any machine using the same client API key and immediately
+        recovers full session state without needing to remember the UUID.
+
+        Returns the full session payload (same shape as ``minder_session_restore``)
+        or raises ``ValueError`` if no matching session is found.
+        """
+        if client_id is not None:
+            sessions = await self._store.get_sessions_by_client(client_id)
+        elif user_id is not None:
+            sessions = await self._store.get_sessions_by_user(user_id)
+        else:
+            raise ValueError("Either user_id or client_id must be provided")
+
+        for s in sessions:
+            if s.name == name:
+                return {
+                    "session_id": str(s.id),
+                    "name": s.name,
+                    "state": s.state,
+                    "active_skills": s.active_skills,
+                    "project_context": s.project_context,
+                    "last_active": s.last_active.isoformat(),
+                }
+        raise ValueError(
+            f"No session named '{name}' found for the current principal. "
+            "Use minder_session_list to see all sessions or minder_session_create to start one."
+        )
 
     async def minder_session_list(
         self,
@@ -39,7 +124,11 @@ class SessionTools:
         user_id: uuid.UUID | None = None,
         client_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
-        """Return active sessions for the calling principal, newest first."""
+        """Return all sessions for the calling principal, newest-first.
+
+        Use this when you need to browse sessions or when you do not remember the
+        session name.  Prefer ``minder_session_find`` when you know the name.
+        """
         if client_id is not None:
             sessions = await self._store.get_sessions_by_client(client_id)
         elif user_id is not None:
@@ -50,6 +139,7 @@ class SessionTools:
             "sessions": [
                 {
                     "session_id": str(s.id),
+                    "name": s.name,
                     "repo_id": str(s.repo_id) if s.repo_id else None,
                     "project_context": s.project_context,
                     "last_active": s.last_active.isoformat(),
@@ -59,6 +149,10 @@ class SessionTools:
             ]
         }
 
+    # ------------------------------------------------------------------
+    # Save / restore / context
+    # ------------------------------------------------------------------
+
     async def minder_session_save(
         self,
         session_id: uuid.UUID,
@@ -66,6 +160,18 @@ class SessionTools:
         state: dict[str, Any] | None = None,
         active_skills: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        """Persist the LLM's current task state and active skill set.
+
+        Call this after every significant wave of work so the context survives
+        ``/compact``, machine switches, or unexpected session drops.  The ``state``
+        dict should capture:
+
+        - Current task description and phase
+        - Key decisions made
+        - Files modified / in progress
+        - Next planned steps
+        - Open questions / blockers
+        """
         session = await self._store.update_session(
             session_id,
             state=state or {},
@@ -76,16 +182,23 @@ class SessionTools:
             raise ValueError(f"Session not found: {session_id}")
         return {
             "session_id": str(session.id),
+            "name": session.name,
             "state": session.state,
             "active_skills": session.active_skills,
         }
 
     async def minder_session_restore(self, session_id: uuid.UUID) -> dict[str, Any]:
+        """Restore a session checkpoint by UUID.
+
+        Use ``minder_session_find`` instead when you know the session name —
+        it performs owner-scoped lookup and returns the same payload.
+        """
         session = await self._store.get_session_by_id(session_id)
         if session is None:
             raise ValueError(f"Session not found: {session_id}")
         return {
             "session_id": str(session.id),
+            "name": session.name,
             "state": session.state,
             "active_skills": session.active_skills,
             "project_context": session.project_context,
@@ -98,6 +211,11 @@ class SessionTools:
         branch: str,
         open_files: list[str],
     ) -> dict[str, Any]:
+        """Update the repository context for an existing session.
+
+        Call after a branch switch or when the set of actively edited files
+        changes so that future session restores include current context.
+        """
         session = await self._store.get_session_by_id(session_id)
         if session is None:
             raise ValueError(f"Session not found: {session_id}")
@@ -108,60 +226,7 @@ class SessionTools:
             raise ValueError(f"Session not found: {session_id}")
         return {
             "session_id": str(updated.id),
-            "branch": branch,
-            "open_files": open_files,
-        }
-
-
-    async def minder_session_save(
-        self,
-        session_id: uuid.UUID,
-        *,
-        state: dict[str, Any] | None = None,
-        active_skills: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        session = await self._store.update_session(
-            session_id,
-            state=state or {},
-            active_skills=active_skills or {},
-            last_active=datetime.now(UTC),
-        )
-        if session is None:
-            raise ValueError(f"Session not found: {session_id}")
-        return {
-            "session_id": str(session.id),
-            "state": session.state,
-            "active_skills": session.active_skills,
-        }
-
-    async def minder_session_restore(self, session_id: uuid.UUID) -> dict[str, Any]:
-        session = await self._store.get_session_by_id(session_id)
-        if session is None:
-            raise ValueError(f"Session not found: {session_id}")
-        return {
-            "session_id": str(session.id),
-            "state": session.state,
-            "active_skills": session.active_skills,
-            "project_context": session.project_context,
-        }
-
-    async def minder_session_context(
-        self,
-        session_id: uuid.UUID,
-        *,
-        branch: str,
-        open_files: list[str],
-    ) -> dict[str, Any]:
-        session = await self._store.get_session_by_id(session_id)
-        if session is None:
-            raise ValueError(f"Session not found: {session_id}")
-        project_context = dict(session.project_context)
-        project_context.update({"branch": branch, "open_files": open_files})
-        updated = await self._store.update_session(session_id, project_context=project_context)
-        if updated is None:
-            raise ValueError(f"Session not found: {session_id}")
-        return {
-            "session_id": str(updated.id),
+            "name": updated.name,
             "branch": branch,
             "open_files": open_files,
         }

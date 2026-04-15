@@ -1,98 +1,94 @@
 {
   "mode": "search",
-  "query": "qwen references local model rename docs",
+  "query": "fix lint errors",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-10T17:56:15.456538+07:00",
+  "searched_at": "2026-04-15T11:21:38.008881+07:00",
   "results": [
     {
-      "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
-      "title": "Minder switched to Qwen plan split",
+      "id": "5dfdee8d-345f-4c5b-9f63-aeb19e7b8796",
+      "title": "Fixed Json-related type errors in channels module",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:minder-switched-to-qwen-plan-split",
+      "canonical_key": "document:fixed-json-related-type-errors-in-channels-module",
+      "score": 0.10009207,
+      "tags": [
+        "omi-channel-be",
+        "typescript",
+        "types",
+        "encryption",
+        "channels"
+      ],
+      "conflict_detected": false,
+      "content": "Identified type incompatibility where Record\u003cstring, unknown\u003e was being passed to EncryptionService.encrypt, which expects JsonObject (where values are JsonValue). Created shared JSON types in @shared/types/json.types.ts, updated EncryptionService, ConnectedAppService, and CreateConnectedAppUseCase to use these types. Also fixed Date stringification lint errors in channel-access-token-refresh.service.ts."
+    },
+    {
+      "id": "fc7d00a2-97b4-4241-8f72-8f366acff0ba",
+      "title": "fixed lint regression after subscription consumer updates",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:fixed-lint-regression-after-subscription-consumer-updates",
       "score": 0.086393446,
       "tags": [
-        "minder",
-        "plan",
-        "qwen",
-        "docs",
-        "split"
+        "omi-channel-be",
+        "lint",
+        "subscription-guard"
       ],
       "conflict_detected": false,
-      "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
+      "content": "Resolved project lint failure by removing unused AuthUserResponseDto import in src/auth/guards/subscription.guard.ts. Verified with yarn lint and yarn build both passing."
     },
     {
-      "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
-      "title": "Compose runtime activation uses auto runtimes with safe fallback",
+      "id": "1ab20ac3-cff7-4ee0-b687-bc7506e1df54",
+      "title": "Fixed Lint Warnings in Inbox and Conversation Providers",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+      "canonical_key": "document:fixed-lint-warnings-in-inbox-and-conversation-providers",
       "score": 0.086129025,
       "tags": [
-        "minder",
-        "phase1",
-        "phase2",
-        "compose",
-        "runtime",
-        "llama-cpp",
-        "langgraph",
-        "litellm"
+        "findtourgoUI",
+        "inbox",
+        "conversation",
+        "lint",
+        "react-hooks",
+        "optimization"
       ],
       "conflict_detected": false,
-      "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
+      "content": "Resolved critical lint warnings in InboxListProvider.tsx and ConversationProvider.tsx. The fixes included:\n1. Moving ref-accessing logic (realtimeLastMessageAtRef) from useMemo into useEffect to avoid accessing refs during the render phase (react-hooks/refs).\n2. Wrapping synchronous state updates in useEffect hooks with queueMicrotask() to prevent cascading renders and satisfy strict project linting rules (react-hooks/set-state-in-effect). This ensures that updates are asynchronous and decoupled from the main effect execution while maintaining reactive UI behavior.\nFiles modified:\n- src/app/[locale]/(company)/company/[companyId]/inboxes/providers/InboxListProvider.tsx\n- src/app/[locale]/(company)/company/[companyId]/inboxes/providers/ConversationProvider.tsx"
     },
     {
-      "id": "07298612-d3cc-440c-b871-06aafc1715c0",
-      "title": "Switch default local models to EmbeddingGemma and Gemma 4",
+      "id": "b45f4478-4880-4934-ab69-a2c9d0d7486b",
+      "title": "Fix stale-prop flash in InformationTextField",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:switch-default-local-models-to-embeddinggemma-and-gemma-4",
+      "canonical_key": "document:fix-stale-prop-flash-in-informationtextfield",
       "score": 0.08587302,
       "tags": [
-        "minder",
-        "python",
-        "models",
-        "gguf",
-        "config"
+        "findtourgo",
+        "react",
+        "inline-edit",
+        "optimistic-ui",
+        "bugfix"
       ],
       "conflict_detected": false,
-      "content": "Updated config defaults, compose envs, download script, docs, and runtime metadata from Qwen GGUFs to ggml-org/embeddinggemma-300M-GGUF and ggml-org/gemma-4-E2B-it-GGUF. Also changed default embedding dimension from 1024 to 768 and aligned Milvus collection defaults plus config tests."
+      "content": "Root cause: InlineEditTextField synced local state from stale prop right after Enter (mutation success before query data refresh), causing old value flash. Fix: add pendingSyncRef with expected+stale values; ignore stale prop while not editing/saving; clear pending when prop diverges from stale; optimistic local commit on Enter; disable input during save; rollback local state on API error. File: src/app/[locale]/(company)/company/[companyId]/inboxes/ui/panels/right/components/InlineEditField.tsx"
     },
     {
-      "id": "a7f10bd1-0d61-4212-8912-6521b3a84638",
-      "title": "Inquiry and Live Chat edit-mode guidance copy",
+      "id": "92944916-f844-4971-9bfb-9909eea36fc7",
+      "title": "WhatsApp normalizer enum parity fix",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:inquiry-and-live-chat-edit-mode-guidance-copy",
+      "canonical_key": "document:whatsapp-normalizer-enum-parity-fix",
       "score": 0.08562499,
       "tags": [
-        "findtourgo",
-        "inquiry",
-        "live-chat",
-        "edit-mode",
-        "i18n",
-        "ux"
+        "omi-channel-be",
+        "whatsapp",
+        "webhook",
+        "normalizer",
+        "typescript"
       ],
       "conflict_detected": false,
-      "content": "Updated InquiryConnect and LiveChatConnect to use edit-mode-specific heading copy instead of reusing create-mode text. Both flows now switch wizard title/subtitle, create-step section title, and create-step guidance title/description/empty-description based on mode=edit. Added matching i18n keys in en, vi, id, ja, zh, while keeping the rest of the install/embed flow shared."
-    },
-    {
-      "id": "b7499b43-96a1-4d94-b887-02e2a7d49b9f",
-      "title": "Zalo locale step title renumber to 5-step flow",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:zalo-locale-step-title-renumber-to-5-step-flow",
-      "score": 0.08538462,
-      "tags": [
-        "findtourgoUI",
-        "zalo",
-        "i18n",
-        "step-flow"
-      ],
-      "conflict_detected": false,
-      "content": "Renumbered Zalo locale step titles to match the 5-step flow: domain verification title changed from step 5 to step 4, and webhook configuration title changed from step 6 to step 5 across en/vi/ja/zh/id. Guide panel titles remained unchanged because they already matched the shorter flow."
+      "content": "Fixed webhook normalizer lint and mapping by adding missing STICKER to internal MessageType enum used by WhatsAppMessageNormalizer typeMap. This resolved @typescript-eslint/no-unsafe-assignment and keeps enum/mapping parity for sticker messages. Files: src/modules/webhooks/application/dtos/whatsapp-webhook.dto.ts and src/modules/webhooks/adapters/whatsapp-message.normalizer.ts."
     }
   ]
 }

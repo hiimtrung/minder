@@ -386,10 +386,11 @@ class MongoOperationalStore:
         for uuid_field in ("user_id", "client_id", "repo_id"):
             if uuid_field in kwargs and isinstance(kwargs[uuid_field], uuid.UUID):
                 kwargs[uuid_field] = _uuid_to_str(kwargs[uuid_field])
+        kwargs.setdefault("name", None)
         kwargs.setdefault("project_context", {})
         kwargs.setdefault("active_skills", {})
         kwargs.setdefault("state", {})
-        kwargs.setdefault("ttl", 3600)
+        kwargs.setdefault("ttl", 86400)
         kwargs.setdefault("created_at", _now())
         kwargs.setdefault("last_active", _now())
         kwargs["_id"] = kwargs.pop("id")
@@ -401,12 +402,27 @@ class MongoOperationalStore:
         return _to_doc(doc) if doc else None
 
     async def get_sessions_by_user(self, user_id: uuid.UUID) -> list[_MongoDoc]:
-        cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)})
+        cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)}).sort("last_active", -1)
         return [_to_doc(doc) async for doc in cursor]
 
     async def get_sessions_by_client(self, client_id: uuid.UUID) -> list[_MongoDoc]:
-        cursor = self._db.sessions.find({"client_id": _uuid_to_str(client_id)})
+        cursor = self._db.sessions.find({"client_id": _uuid_to_str(client_id)}).sort("last_active", -1)
         return [_to_doc(doc) async for doc in cursor]
+
+    async def find_session_by_name(
+        self,
+        name: str,
+        *,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> _MongoDoc | None:
+        query: dict[str, Any] = {"name": name}
+        if client_id is not None:
+            query["client_id"] = _uuid_to_str(client_id)
+        elif user_id is not None:
+            query["user_id"] = _uuid_to_str(user_id)
+        doc = await self._db.sessions.find_one(query, sort=[("last_active", -1)])
+        return _to_doc(doc) if doc else None
 
     async def update_session(self, session_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
         if not kwargs:

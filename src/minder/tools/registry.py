@@ -75,22 +75,41 @@ ALL_TOOLS: list[ToolMeta] = [
     # ── Session ───────────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_session_create",
-        description="Create a persisted Minder session for an authenticated principal (human or client).",
+        description=(
+            "Create a named, persisted Minder session for the calling principal. "
+            "Pass a stable project slug as 'name' (e.g. 'omi-channel-phase5') so the "
+            "session can be recovered from any machine using the same client API key."
+        ),
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_session_find",
+        description=(
+            "Find a session by name for the calling principal — the primary cross-environment "
+            "recovery tool. Returns full state and context so the LLM can resume after a "
+            "/compact or machine switch without needing to remember the session UUID."
+        ),
         always_available=True,
     ),
     ToolMeta(
         name="minder_session_list",
-        description="List active Minder sessions for the calling principal.",
+        description=(
+            "List all sessions owned by the calling principal, newest-first. "
+            "Use minder_session_find when you know the session name."
+        ),
         always_available=True,
     ),
     ToolMeta(
         name="minder_session_save",
-        description="Persist state and active skill context for an existing Minder session.",
+        description=(
+            "Persist task state and active skill context for an existing session. "
+            "Call after each significant wave of work so context survives /compact."
+        ),
         always_available=True,
     ),
     ToolMeta(
         name="minder_session_restore",
-        description="Load the saved state and context for an existing Minder session.",
+        description="Load saved state and context for an existing session by UUID.",
         always_available=True,
     ),
     ToolMeta(

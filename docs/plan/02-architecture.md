@@ -15,6 +15,17 @@ Runtime topology, dashboard serving, storage topology, and clean architecture bo
 
 This file keeps the planning-level node and orchestration notes that matter for implementation sequencing.
 
+## Knowledge Graph Ingestion Policy
+
+Repository intelligence must treat `GraphNode` as a structural metadata object, not a source-code dump.
+
+Required policy:
+
+- persist files, functions, controllers, routes, queue topics, producers, consumers, and dependency edges as metadata-rich nodes and edges
+- store signatures, paths, route patterns, broker/topic names, ownership, and relationship attributes in node metadata
+- do not send full file contents into Gemma 4 for graph construction by default
+- if source text is retained, keep only a bounded reusable excerpt with explicit long-term value
+
 ## LangGraph Nodes
 
 ### Workflow Planner Node
@@ -43,8 +54,9 @@ This file keeps the planning-level node and orchestration notes that matter for 
 - Responsibilities:
   1. Generate the query embedding
   2. Search Milvus collections
-  3. Optionally merge keyword search and BM25
-  4. De-duplicate and filter by score threshold
+  3. Search graph metadata and relationship stores when the query is structural
+  4. Optionally merge keyword search and BM25
+  5. De-duplicate and filter by score threshold
 - Output: Ranked retrieval candidates
 
 ### Reranker Node
@@ -65,6 +77,16 @@ This file keeps the planning-level node and orchestration notes that matter for 
   3. Enforce the current process stage
   4. Loop if more information is required
 - Output: Draft answer plus structured reasoning metadata
+
+### Repository Scanner / Graph Builder
+
+- Input: Repository path, configured scan policy, and language/framework hints
+- Responsibilities:
+  1. Extract metadata for files, functions, controllers, routes, and queue flow
+  2. Build `GraphNode` and `GraphEdge` records without persisting full source by default
+  3. Emit reusable excerpts only when a fragment captures a durable contract or pattern
+  4. Feed structural context to retrieval and workflow intelligence layers
+- Output: Metadata-only graph updates plus optional reusable excerpts
 
 ### LLM Node
 

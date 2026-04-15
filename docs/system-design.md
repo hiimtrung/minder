@@ -15,7 +15,9 @@ Use it for:
 
 Minder is an MCP-first engineering assistant platform with:
 
+- a PyPI-distributed `minder-cli` edge extractor for fast metadata sync
 - an Astro admin console
+- a provider-aware skill catalog with Dashboard-driven curation
 - an MCP gateway over `SSE` and `stdio`
 - admin APIs for onboarding and client management
 - repository-aware retrieval, workflow, memory, and session tools
@@ -28,27 +30,36 @@ Minder is an MCP-first engineering assistant platform with:
 
 ```mermaid
 flowchart TB
+  Dev["Developer"] --> CLI["minder-cli<br/>Tree-sitter + git diff"]
+  CLI --> Sync["Secure Sync API"]
+
   Browser["Browser Admin :8800"] --> Gateway["Gateway Proxy"]
-    MCP["Codex / Copilot / Claude / stdio Clients"] --> Gateway["MCP Gateway<br/>SSE / stdio"]
+  MCP["Codex / Copilot / Claude / stdio Clients"] --> Gateway["MCP Gateway<br/>SSE / stdio"]
 
   Gateway --> Dashboard["Astro Dashboard Service<br/>/dashboard/*"]
   Gateway --> AdminHTTP["Admin HTTP Presentation<br/>/v1/admin/*"]
   Gateway --> TokenHTTP["Token Exchange / Gateway Test<br/>/v1/auth/* /v1/gateway/*"]
-    Gateway --> ToolSurface["MCP Tool Surface"]
+  Gateway --> ToolSurface["MCP Tool Surface"]
+  Sync --> UseCases["Application Use Cases"]
+  AdminHTTP --> UseCases
+  TokenHTTP --> UseCases
+  ToolSurface --> UseCases
 
-    AdminHTTP --> UseCases["Application Use Cases"]
-    TokenHTTP --> UseCases
-    ToolSurface --> UseCases
+  UseCases --> Auth["Auth / RBAC / Rate Limits"]
+  UseCases --> Workflow["Workflow / Memory / Session / Query Services"]
 
-    UseCases --> Auth["Auth / RBAC / Rate Limits"]
-    UseCases --> Workflow["Workflow / Memory / Session / Query Services"]
-
-    Workflow --> Mongo["MongoDB"]
-    Workflow --> Redis["Redis"]
-    Workflow --> Milvus["Milvus Standalone"]
-    Workflow --> LLM["Gemma GGUF via llama.cpp"]
-    Models["~/.minder/models"] --> LLM
+  Workflow --> Mongo["MongoDB\nStructural Graph + Env Mapping"]
+  Workflow --> Redis["Redis"]
+  Workflow --> Milvus["Milvus Standalone\nSemantic Index"]
+  Workflow --> Embedder["Embedding Model"]
+  Workflow --> Orchestrator["LangGraph"]
+  Orchestrator --> LLM["Gemma 4 via llama.cpp"]
+  Models["~/.minder/models"] --> LLM
 ```
+
+### Review Note
+
+Gemma 4 remains the reasoning model for orchestration and synthesis. The semantic index should continue to use a dedicated embedding model instead of treating Gemma 4 as the primary vector generator.
 
 ## 3. Dashboard Runtime Modes
 
@@ -181,6 +192,29 @@ Used for:
 - semantic retrieval
 - vector-backed repository/document search
 
+### Knowledge Graph Store
+
+Used for:
+
+- repository structure and dependency topology
+- metadata for files, functions, controllers, routes, and message-queue flow
+- durable graph edges such as `imports`, `calls`, `depends_on`, `publishes`, and `consumes`
+
+Policy:
+
+- graph storage is metadata-first
+- full source code is not stored in `GraphNode` payloads by default
+- optional code excerpts are allowed only for durable, reusable snippets with long-term value
+
+### Edge Extraction Direction
+
+The next optimization path moves structural extraction closer to the repository:
+
+- a standalone `minder-cli` uses Tree-sitter parsers to extract metadata from changed files
+- `git diff` drives delta-based refresh so the system avoids broad reprocessing when only a small set of files changed
+- the CLI pushes structural JSON to the server through a secure sync API
+- the server remains the source of truth for graph persistence, semantic indexing, orchestration, and dashboard delivery
+
 ## 6. Admin and Client Auth Flow
 
 ```mermaid
@@ -255,6 +289,39 @@ flowchart LR
   - highlight unresolved blockers, decisions, and assumptions
   - suggest next valid actions aligned with workflow state
 
+### Workflow Instruction Compiler (Strict Mode)
+
+When a repository has an active workflow, Minder must compile and enforce a deterministic instruction envelope before any primary LLM generation.
+
+Compiled instruction envelope:
+
+- `workflow_id`, `workflow_version`
+- `current_step`, `next_step`, `blocked_by`
+- `required_artifacts` and completion criteria
+- `forbidden_actions` (step-skip, invalid artifact mutation, out-of-scope operations)
+- `allowed_tools` for current step
+- `output_contract` expected from the primary LLM
+
+Enforcement policy:
+
+- the primary LLM prompt must always include this envelope
+- conflicting free-form suggestions are treated as invalid
+- guardrails reject outputs that violate step constraints
+- workflow instruction has higher priority than conversational context
+
+### Workflow-Linked Context Retrieval
+
+Memory, session, and skill retrieval must be workflow-step aware.
+
+Required behavior:
+
+- `minder_memory_recall` filters/ranks by `current_step` compatibility first, then semantic similarity
+- `minder_session_restore` returns both raw state and step-specific continuity brief
+- skill retrieval (new `minder_skill_*` surface) prioritizes skills tagged for the active step/artifact type
+- Gemma 4 local synthesizes a step-scoped brief for the primary LLM, not a generic summary
+
+This ensures the primary LLM remains aligned with implementation phase and does not drift across large contexts.
+
 ### Continuity Packet Contract
 
 The continuity payload injected into primary LLM prompts should include:
@@ -268,7 +335,42 @@ The continuity payload injected into primary LLM prompts should include:
 
 This packet is regenerated per major step transition and on explicit restore calls.
 
-## 9. Frontend Structure
+## 9. Skill Registry and Graph Metadata Policy
+
+Skill management is an operator-facing product capability, not only a bootstrap script path.
+
+Required architecture direction:
+
+- the Dashboard exposes skill list, create, update, delete, and remote import flows
+- remote import supports GitHub, GitLab, and generic Git repositories through a provider-agnostic contract
+- imported skills retain provenance metadata such as provider, repo URL, ref, and source path
+- skill retrieval remains workflow-step aware
+
+Graph intelligence follows a metadata-first contract:
+
+- `GraphNode` persists structural metadata for files, functions, controllers, routes, message topics, producers, and consumers
+- repository scanning should extract signatures, paths, route patterns, topic names, and dependency relationships without storing full source bodies
+- when a code fragment is truly worth keeping, store only a bounded reusable excerpt rather than the whole source file
+
+Planned performance direction for graph refresh:
+
+- replace slow server-centric graph refresh with a repo-local CLI extractor and secure sync API
+- parse only changed files by default through `git diff`
+- preserve full reindex as an explicit fallback operation, not the normal path
+
+```mermaid
+flowchart LR
+  Dashboard["Dashboard Skill Catalog"] --> AdminApi["Admin HTTP API"]
+  AdminApi --> SkillUC["Skill Catalog Use Cases"]
+  AdminApi --> GraphUC["Graph Metadata Use Cases"]
+  SkillUC --> GitSources["GitHub / GitLab / Generic Git"]
+  SkillUC --> SkillStore["Skill Store + Provenance"]
+  GraphUC --> RepoScanner["Repository Scanner"]
+  RepoScanner --> GraphStore["Metadata-Only Graph Store"]
+  SkillUC --> Milvus["Milvus Embeddings"]
+```
+
+## 10. Frontend Structure
 
 ```mermaid
 flowchart TB
@@ -302,7 +404,7 @@ Key paths:
 - [`src/dashboard/src/scripts/clients-page.ts`](../src/dashboard/src/scripts/clients-page.ts)
 - [`src/dashboard/src/lib/api/admin.ts`](../src/dashboard/src/lib/api/admin.ts)
 
-## 10. Deployment Shape
+## 11. Deployment Shape
 
 ### Local / Dev
 
@@ -321,11 +423,13 @@ Key paths:
   - `dashboard` on internal `8808`
   - `minder-api` on internal `8801`
 
-## 11. Related Design Documents
+## 12. Related Design Documents
 
 Feature-specific design docs still exist and remain useful, but this file is the system-level source of truth.
 
 - [Gateway Auth and Dashboard Design](../docs/design/mcp-gateway-auth-dashboard.md)
 - [Phase 4.3 Console Clean Architecture and UI Modernization](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
 - [Production Dashboard Reverse Proxy Split](../docs/design/production_dashboard_reverse_proxy_split.md)
+- [Skill Catalog Dashboard and Metadata-Only Graph Intelligence](../docs/design/skill_management_and_graph_metadata.md)
+- [CLI Edge Extractor and Graph Sync Architecture](../docs/design/cli_edge_extractor_and_graph_sync_architecture.md)
 - [Plan 02: Architecture](../docs/plan/02-architecture.md)

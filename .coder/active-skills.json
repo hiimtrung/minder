@@ -1,39 +1,39 @@
 {
-  "task": "local model rename qwen references",
+  "task": "fix lint errors",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T17:56:12.480101+07:00",
+  "resolved_at": "2026-04-15T11:21:38.008899+07:00",
   "keep": [],
   "add": [
-    "fastapi-router-py",
-    "binary-analysis-patterns",
-    "pydantic-models-py"
+    "lint-and-validate",
+    "git-hooks-automation",
+    "appdeploy"
   ],
   "drop": [
-    "grafana-dashboards",
-    "datadog-automation",
-    "zendesk-automation"
+    "projection-patterns",
+    "context-management-context-save",
+    "bash-pro"
   ],
   "skills": [
     {
-      "name": "fastapi-router-py",
-      "category": "backend",
-      "score": 0.016393442,
-      "chunk_count": 1,
+      "name": "lint-and-validate",
+      "category": "general",
+      "score": 0.032266457,
+      "chunk_count": 4,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "binary-analysis-patterns",
+      "name": "git-hooks-automation",
       "category": "general",
+      "score": 0.021649096,
+      "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "appdeploy",
+      "category": "backend",
       "score": 0.016129032,
       "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "pydantic-models-py",
-      "category": "backend",
-      "score": 0.015873017,
-      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

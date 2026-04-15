@@ -58,6 +58,25 @@ curl -fsSL https://github.com/<owner>/<repo>/releases/download/<tag>/install-min
 
 That script creates a deployment directory, downloads `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, writes a local `.env` with the release image tags, and starts the full stack.
 
+If you also want the repo-local sync CLI on operator or developer machines, install it separately from PyPI:
+
+```bash
+uv tool install minder
+```
+
+Or:
+
+```bash
+pipx install minder
+```
+
+After a client key is provisioned, the same machine can run:
+
+```bash
+minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+minder sync --repo-id <repository-uuid>
+```
+
 ## 2. Manual Compose Install
 
 Run:
@@ -167,6 +186,12 @@ export MINDER_DASHBOARD_IMAGE=ghcr.io/<owner>/minder-dashboard:<tag>
 export MINDER_MODELS_DIR=~/.minder/models
 docker compose -f docker/docker-compose.yml pull
 docker compose -f docker/docker-compose.yml up -d
+```
+
+Upgrade the CLI independently with:
+
+```bash
+uv tool upgrade minder
 ```
 
 ## Health Checks

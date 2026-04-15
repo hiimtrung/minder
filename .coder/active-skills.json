@@ -1,38 +1,38 @@
 {
-  "task": "fix lint errors",
+  "task": "architecture transition packaging distribution documentation completion",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-15T11:21:38.008899+07:00",
+  "resolved_at": "2026-04-15T14:29:09.074198+07:00",
   "keep": [],
   "add": [
-    "lint-and-validate",
-    "git-hooks-automation",
-    "appdeploy"
+    "deployment-pipeline-design",
+    "c4-architecture-c4-architecture",
+    "architect-review"
   ],
   "drop": [
-    "projection-patterns",
-    "context-management-context-save",
-    "bash-pro"
+    "copilot-sdk",
+    "mcp-builder-ms",
+    "mcp-builder"
   ],
   "skills": [
     {
-      "name": "lint-and-validate",
-      "category": "general",
-      "score": 0.032266457,
-      "chunk_count": 4,
+      "name": "deployment-pipeline-design",
+      "category": "frontend",
+      "score": 0.016393442,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "git-hooks-automation",
+      "name": "c4-architecture-c4-architecture",
       "category": "general",
-      "score": 0.021649096,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "appdeploy",
-      "category": "backend",
       "score": 0.016129032,
+      "chunk_count": 6,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "architect-review",
+      "category": "backend",
+      "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

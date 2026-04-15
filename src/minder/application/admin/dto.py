@@ -1,6 +1,38 @@
 from __future__ import annotations
 
-from typing import TypedDict
+from typing import Any, Literal, TypedDict
+
+from pydantic import BaseModel, Field
+
+GraphSyncNodeType = Literal[
+    "repository",
+    "service",
+    "module",
+    "file",
+    "function",
+    "class",
+    "interface",
+    "abstract_class",
+    "controller",
+    "route",
+    "todo",
+    "external_service_api",
+    "mq_topic",
+]
+
+GraphSyncRelationType = Literal[
+    "contains",
+    "imports",
+    "depends_on",
+    "calls",
+    "implements",
+    "extends",
+    "exposes_route",
+    "uses_external_service",
+    "publishes",
+    "consumes",
+    "tracks",
+]
 
 
 class ClientPayload(TypedDict):
@@ -159,3 +191,45 @@ class RepositoryPayload(TypedDict):
 
 class RepositoryListPayload(TypedDict):
     repositories: list[RepositoryPayload]
+
+
+class GraphSyncNodeRefRequest(BaseModel):
+    node_type: GraphSyncNodeType
+    name: str
+
+
+class GraphSyncNodeRequest(BaseModel):
+    node_type: GraphSyncNodeType
+    name: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class GraphSyncEdgeRequest(BaseModel):
+    source: GraphSyncNodeRefRequest
+    target: GraphSyncNodeRefRequest
+    relation: GraphSyncRelationType
+    weight: float = 1.0
+
+
+class GraphSyncRequest(BaseModel):
+    payload_version: str
+    source: str = "minder-cli"
+    repo_path: str | None = None
+    branch: str | None = None
+    diff_base: str | None = None
+    deleted_files: list[str] = Field(default_factory=list)
+    sync_metadata: dict[str, Any] = Field(default_factory=dict)
+    nodes: list[GraphSyncNodeRequest] = Field(default_factory=list)
+    edges: list[GraphSyncEdgeRequest] = Field(default_factory=list)
+
+
+class GraphSyncResultPayload(TypedDict):
+    repo_id: str
+    repository_name: str
+    payload_version: str
+    source: str
+    branch: str | None
+    deleted_nodes: int
+    nodes_upserted: int
+    edges_upserted: int
+    accepted_at: str

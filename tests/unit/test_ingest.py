@@ -283,18 +283,62 @@ class TestIngestGit:
 
 FIXTURE_REPO = {
     "pyproject.toml": "[project]\nname = 'service_a'",
+        "README.md": "# Service A\n\n- [ ] document sync flow\n",
+        "config.json": '{"service":"service_a","queue":"topic.health.updated"}',
+        "frontend/src/api.ts": textwrap.dedent(
+                """\
+                export interface UserApi {
+                    list(): Promise<void>;
+                }
+
+                export abstract class BaseController {}
+
+                export class HealthController extends BaseController {}
+
+                export async function fetchHealth() {
+                    await fetch("https://api.example.com/health");
+                    bus.publish("topic.frontend.events");
+                }
+
+                router.get("/frontend-health", fetchHealth);
+                """
+        ),
     "src/service_a/__init__.py": "",
     "src/service_a/main.py": textwrap.dedent(
         """\
         import os
+        import httpx
         from pathlib import Path
+        from abc import ABC, abstractmethod
+        from typing import Protocol
         from service_b import client
+
+        # TODO: add health checks
+
+        class IUserGateway(Protocol):
+            def fetch(self) -> dict: ...
+
+        class BaseController(ABC):
+            @abstractmethod
+            def load(self) -> str:
+                raise NotImplementedError
+
+        class HealthController(BaseController):
+            @router.get("/health")
+            async def health(self) -> dict:
+                await httpx.get("https://status.example.com/health")
+                bus.publish("topic.health.updated")
+                return {"ok": True}
         """
     ),
     "src/service_a/utils.py": textwrap.dedent(
         """\
         import json
         from service_a.models import User
+
+        def load_user() -> User:
+            consumer.subscribe("topic.user.events")
+            return User()
         """
     ),
     "service_b/pyproject.toml": "[project]\nname = 'service_b'",
@@ -446,6 +490,109 @@ class TestRepoScanner:
         assert result["files_scanned"] == 0
         assert result["nodes_upserted"] == 0
         assert result["edges_upserted"] == 0
+
+    @pytest.mark.asyncio
+    async def test_symbol_and_controller_nodes_created(
+        self, graph_store: KnowledgeGraphStore, fixture_repo: Path
+    ) -> None:
+        scanner = RepoScanner(graph_store, str(fixture_repo), project="test")
+        await scanner.scan()
+
+        function_node = await graph_store.get_node_by_name(
+            "function", "src/service_a/main.py::HealthController.health"
+        )
+        controller_node = await graph_store.get_node_by_name(
+            "controller", "src/service_a/main.py::HealthController"
+        )
+        interface_node = await graph_store.get_node_by_name(
+            "interface", "src/service_a/main.py::IUserGateway"
+        )
+        abstract_node = await graph_store.get_node_by_name(
+            "abstract_class", "src/service_a/main.py::BaseController"
+        )
+
+        assert function_node is not None
+        assert controller_node is not None
+        assert interface_node is not None
+        assert abstract_node is not None
+
+    @pytest.mark.asyncio
+    async def test_route_external_service_todo_and_queue_nodes_created(
+        self, graph_store: KnowledgeGraphStore, fixture_repo: Path
+    ) -> None:
+        scanner = RepoScanner(graph_store, str(fixture_repo), project="test")
+        await scanner.scan()
+
+        route_node = await graph_store.get_node_by_name("route", "GET /health")
+        todo_nodes = await graph_store.query_by_type("todo")
+        external_node = await graph_store.get_node_by_name(
+            "external_service_api", "https://status.example.com/health"
+        )
+        topic_node = await graph_store.get_node_by_name("mq_topic", "topic.health.updated")
+        consumer_topic = await graph_store.get_node_by_name("mq_topic", "topic.user.events")
+
+        assert route_node is not None
+        assert external_node is not None
+        assert topic_node is not None
+        assert consumer_topic is not None
+        assert any(node.node_metadata.get("text") == "add health checks" for node in todo_nodes)
+
+        controller_node = await graph_store.get_node_by_name(
+            "controller", "src/service_a/main.py::HealthController"
+        )
+        assert controller_node is not None
+
+        route_neighbors = await graph_store.get_neighbors(
+            controller_node.id,
+            direction="out",
+            relation="exposes_route",
+        )
+        assert "GET /health" in {node.name for node in route_neighbors}
+
+    @pytest.mark.asyncio
+    async def test_multilanguage_and_document_metadata_created(
+        self, graph_store: KnowledgeGraphStore, fixture_repo: Path
+    ) -> None:
+        scanner = RepoScanner(graph_store, str(fixture_repo), project="test")
+        await scanner.scan()
+
+        markdown_file = await graph_store.get_node_by_name("file", "README.md")
+        json_file = await graph_store.get_node_by_name("file", "config.json")
+        ts_function = await graph_store.get_node_by_name("function", "frontend/src/api.ts::fetchHealth")
+        ts_controller = await graph_store.get_node_by_name("controller", "frontend/src/api.ts::HealthController")
+        ts_route = await graph_store.get_node_by_name("route", "GET /frontend-health")
+        ts_external = await graph_store.get_node_by_name("external_service_api", "https://api.example.com/health")
+        ts_topic = await graph_store.get_node_by_name("mq_topic", "topic.frontend.events")
+
+        assert markdown_file is not None
+        assert markdown_file.node_metadata["heading_count"] == 1
+        assert json_file is not None
+        assert json_file.node_metadata["top_level_key_count"] == 2
+        assert ts_function is not None
+        assert ts_controller is not None
+        assert ts_route is not None
+        assert ts_external is not None
+        assert ts_topic is not None
+
+    def test_build_sync_payload_uses_changed_files_only(self, fixture_repo: Path) -> None:
+        payload = RepoScanner.build_sync_payload(
+            str(fixture_repo),
+            project="test",
+            branch="feature/delta",
+            diff_base="origin/main",
+            changed_files=["README.md", "frontend/src/api.ts"],
+            deleted_files=["src/service_a/main.py"],
+        )
+
+        changed_files = payload["sync_metadata"]["changed_files"]
+        assert changed_files == ["README.md", "frontend/src/api.ts"]
+        assert payload["branch"] == "feature/delta"
+        assert payload["diff_base"] == "origin/main"
+        assert payload["deleted_files"] == ["src/service_a/main.py"]
+        assert payload["sync_metadata"]["deleted_file_count"] == 1
+        assert all(node["name"] != "config.json" for node in payload["nodes"] if node["node_type"] == "file")
+        assert any(node["node_type"] == "todo" and node["name"] == "README.md::TODO:3" for node in payload["nodes"])
+        assert any(node["node_type"] == "route" and node["name"] == "GET /frontend-health" for node in payload["nodes"])
 
     @pytest.mark.asyncio
     async def test_strip_html_helper(self) -> None:

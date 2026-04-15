@@ -31,7 +31,7 @@
 | [phase-4-3-console-clean-architecture.md](phase-4-3-console-clean-architecture.md)                       | Phase 4.3 clean architecture and Astro console migration             | Closed                             |
 | [phase-4-4-context-continuity.md](phase-4-4-context-continuity.md)                                       | Phase 4.4 context continuity and anti-drift backlog                  | Backlog                            |
 | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 learning, skill catalog, metadata-first graph backlog        | Backlog                            |
-| [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync   | Proposed                           |
+| [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync   | In progress                        |
 
 ---
 

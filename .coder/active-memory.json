@@ -1,94 +1,93 @@
 {
   "mode": "search",
-  "query": "fix lint errors",
+  "query": "architecture transition packaging distribution documentation completion",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-15T11:21:38.008881+07:00",
+  "searched_at": "2026-04-15T14:29:09.39206+07:00",
   "results": [
     {
-      "id": "5dfdee8d-345f-4c5b-9f63-aeb19e7b8796",
-      "title": "Fixed Json-related type errors in channels module",
+      "id": "36db7c9c-d0b4-47a8-aa79-d7aebec81f1c",
+      "title": "OMS API architecture docs scaffold",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:fixed-json-related-type-errors-in-channels-module",
-      "score": 0.10009207,
-      "tags": [
-        "omi-channel-be",
-        "typescript",
-        "types",
-        "encryption",
-        "channels"
-      ],
-      "conflict_detected": false,
-      "content": "Identified type incompatibility where Record\u003cstring, unknown\u003e was being passed to EncryptionService.encrypt, which expects JsonObject (where values are JsonValue). Created shared JSON types in @shared/types/json.types.ts, updated EncryptionService, ConnectedAppService, and CreateConnectedAppUseCase to use these types. Also fixed Date stringification lint errors in channel-access-token-refresh.service.ts."
-    },
-    {
-      "id": "fc7d00a2-97b4-4241-8f72-8f366acff0ba",
-      "title": "fixed lint regression after subscription consumer updates",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:fixed-lint-regression-after-subscription-consumer-updates",
+      "canonical_key": "document:oms-api-architecture-docs-scaffold",
       "score": 0.086393446,
       "tags": [
-        "omi-channel-be",
-        "lint",
-        "subscription-guard"
+        "oms-api",
+        "documentation",
+        "architecture",
+        "nestjs"
       ],
       "conflict_detected": false,
-      "content": "Resolved project lint failure by removing unused AuthUserResponseDto import in src/auth/guards/subscription.guard.ts. Verified with yarn lint and yarn build both passing."
+      "content": "Created documentation set under docs/: README index, ARCHITECTURE.md, API_REFERENCE.md, DATABASE_AND_MIGRATIONS.md and linked all from root README. Docs describe clean architecture layers, module structure, runtime wiring, endpoint inventory, and migration conventions for users/roles/permissions/organizations."
     },
     {
-      "id": "1ab20ac3-cff7-4ee0-b687-bc7506e1df54",
-      "title": "Fixed Lint Warnings in Inbox and Conversation Providers",
+      "id": "029e620e-6353-4085-8816-8581517a1379",
+      "title": "Design docs: skill catalog and metadata-first graph",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:fixed-lint-warnings-in-inbox-and-conversation-providers",
+      "canonical_key": "document:design-docs-skill-catalog-and-metadata-first-graph",
       "score": 0.086129025,
       "tags": [
-        "findtourgoUI",
-        "inbox",
-        "conversation",
-        "lint",
-        "react-hooks",
-        "optimization"
+        "minder",
+        "docs",
+        "architecture",
+        "skills",
+        "graph"
       ],
       "conflict_detected": false,
-      "content": "Resolved critical lint warnings in InboxListProvider.tsx and ConversationProvider.tsx. The fixes included:\n1. Moving ref-accessing logic (realtimeLastMessageAtRef) from useMemo into useEffect to avoid accessing refs during the render phase (react-hooks/refs).\n2. Wrapping synchronous state updates in useEffect hooks with queueMicrotask() to prevent cascading renders and satisfy strict project linting rules (react-hooks/set-state-in-effect). This ensures that updates are asynchronous and decoupled from the main effect execution while maintaining reactive UI behavior.\nFiles modified:\n- src/app/[locale]/(company)/company/[companyId]/inboxes/providers/InboxListProvider.tsx\n- src/app/[locale]/(company)/company/[companyId]/inboxes/providers/ConversationProvider.tsx"
+      "content": "Added requirements/design docs for Dashboard skill CRUD and provider-agnostic Git import, and updated canonical architecture/planning docs to make GraphNode metadata-first with optional bounded reusable excerpts only. Files: docs/requirements/skill_management_and_graph_metadata.md, docs/design/skill_management_and_graph_metadata.md, docs/system-design.md, docs/plan/01-product-scope.md, docs/plan/02-architecture.md, docs/plan/03-data-model-and-tools.md, docs/plan/05-implementation-phases.md, docs/TASK_BREAKDOWN.md, docs/PROJECT_PROGRESS.md"
     },
     {
-      "id": "b45f4478-4880-4934-ab69-a2c9d0d7486b",
-      "title": "Fix stale-prop flash in InformationTextField",
+      "id": "e73124b7-9c08-4ec5-810a-cefd22bdcdd4",
+      "title": "Docs architecture source of truth cleanup",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:fix-stale-prop-flash-in-informationtextfield",
+      "canonical_key": "document:docs-architecture-source-of-truth-cleanup",
       "score": 0.08587302,
       "tags": [
-        "findtourgo",
-        "react",
-        "inline-edit",
-        "optimistic-ui",
-        "bugfix"
+        "docs",
+        "architecture",
+        "cleanup"
       ],
       "conflict_detected": false,
-      "content": "Root cause: InlineEditTextField synced local state from stale prop right after Enter (mutation success before query data refresh), causing old value flash. Fix: add pendingSyncRef with expected+stale values; ignore stale prop while not editing/saving; clear pending when prop diverges from stale; optimistic local commit on Enter; disable input during save; rollback local state on API error. File: src/app/[locale]/(company)/company/[companyId]/inboxes/ui/panels/right/components/InlineEditField.tsx"
+      "content": "Consolidated Minder documentation so docs/system-design.md is the canonical architecture reference. Updated docs/PLAN.md, docs/plan/02-architecture.md, and the Phase 4 design docs to point back to system-design instead of duplicating full runtime topology. This keeps plan docs focused on sequencing and feature docs focused on their slice."
     },
     {
-      "id": "92944916-f844-4971-9bfb-9909eea36fc7",
-      "title": "WhatsApp normalizer enum parity fix",
+      "id": "dafb59c8-8d0e-42cf-a5db-5ff90eeaa963",
+      "title": "Minder plan translated and expanded",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:whatsapp-normalizer-enum-parity-fix",
+      "canonical_key": "document:minder-plan-translated-and-expanded",
       "score": 0.08562499,
       "tags": [
-        "omi-channel-be",
-        "whatsapp",
-        "webhook",
-        "normalizer",
-        "typescript"
+        "minder",
+        "plan",
+        "workflow",
+        "tdd",
+        "mcp",
+        "repo-state"
       ],
       "conflict_detected": false,
-      "content": "Fixed webhook normalizer lint and mapping by adding missing STICKER to internal MessageType enum used by WhatsAppMessageNormalizer typeMap. This resolved @typescript-eslint/no-unsafe-assignment and keeps enum/mapping parity for sticker messages. Files: src/modules/webhooks/application/dtos/whatsapp-webhook.dto.ts and src/modules/webhooks/adapters/whatsapp-message.normalizer.ts."
+      "content": "Translated docs/PLAN.md fully to English and expanded the architecture to include workflow governance, dashboard-configured process enforcement, repository-local state under .minder/, workflow planner node, workflow tools, repository context stores, and MCP-guided next-step orchestration for TDD-style delivery. Document version updated to 3.0 and marked ready for implementation review."
+    },
+    {
+      "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
+      "title": "Docs refactor: split progress trackers by phase",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
+      "score": 0.08538462,
+      "tags": [
+        "minder",
+        "docs",
+        "progress",
+        "tracking",
+        "architecture"
+      ],
+      "conflict_detected": false,
+      "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
     }
   ]
 }

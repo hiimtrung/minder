@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
 from typing import Any
 
 from minder.tools.registry import SCOPEABLE_TOOLS
@@ -17,6 +18,8 @@ from minder.application.admin.dto import (
     ClientPayload,
     CreateClientPayload,
     CreateUserPayload,
+    GraphSyncRequest,
+    GraphSyncResultPayload,
     OnboardingPayload,
     RepositoryListPayload,
     RepositoryPayload,
@@ -32,7 +35,7 @@ from minder.application.admin.dto import (
 )
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
-from minder.store.interfaces import IOperationalStore
+from minder.store.interfaces import IGraphRepository, IOperationalStore
 
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
@@ -65,10 +68,12 @@ class AdminConsoleUseCases:
         store: IOperationalStore,
         auth_service: AuthService,
         config: MinderConfig,
+        graph_store: IGraphRepository | None = None,
     ) -> None:
         self._store = store
         self._auth_service = auth_service
         self._config = config
+        self._graph_store = graph_store
 
     async def has_admin_users(self) -> bool:
         return await self._auth_service.has_admin_users()
@@ -565,10 +570,143 @@ class AdminConsoleUseCases:
     def serialize_repository(repo: Any, state: Any = None) -> RepositoryPayload:
         return {
             "id": str(repo.id),
-            "name": repo.name,
-            "path": getattr(repo, "path", ""),
+            "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
+            "path": getattr(repo, "state_path", getattr(repo, "path", "")),
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
             "created_at": repo.created_at.isoformat() if getattr(repo, "created_at", None) else None,
+        }
+
+    async def sync_repository_graph(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        payload: GraphSyncRequest,
+    ) -> GraphSyncResultPayload:
+        if self._graph_store is None:
+            raise RuntimeError("Graph sync store is not configured")
+
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        repo_name = getattr(repository, "repo_name", getattr(repository, "name", str(repo_id)))
+        branch = payload.branch or getattr(repository, "default_branch", None)
+        accepted_at = datetime.now(UTC).isoformat()
+        node_ids: dict[tuple[str, str], uuid.UUID] = {}
+        deleted_nodes = 0
+        nodes_upserted = 0
+        edges_upserted = 0
+
+        changed_files = payload.sync_metadata.get("changed_files", [])
+        paths_to_prune = set(payload.deleted_files)
+        if isinstance(changed_files, list):
+            paths_to_prune.update(str(path) for path in changed_files if isinstance(path, str) and path.strip())
+        paths_to_prune.update(
+            str(node.metadata.get("path"))
+            for node in payload.nodes
+            if isinstance(node.metadata.get("path"), str) and str(node.metadata.get("path")).strip()
+        )
+
+        if paths_to_prune:
+            for graph_node in await self._graph_store.list_nodes():
+                metadata = dict(getattr(graph_node, "node_metadata", {}) or {})
+                if metadata.get("repo_id") != str(repo_id):
+                    continue
+                if branch is not None and metadata.get("branch") not in {None, branch}:
+                    continue
+                if str(metadata.get("path", "") or "") not in paths_to_prune:
+                    continue
+                await self._graph_store.delete_node(graph_node.id)
+                deleted_nodes += 1
+
+        for node in payload.nodes:
+            persisted = await self._graph_store.upsert_node(
+                node.node_type,
+                node.name,
+                metadata={
+                    "repo_id": str(repo_id),
+                    "repository_name": repo_name,
+                    "source": payload.source,
+                    "payload_version": payload.payload_version,
+                    "branch": branch,
+                    "repo_path": payload.repo_path,
+                    "diff_base": payload.diff_base,
+                    **payload.sync_metadata,
+                    **node.metadata,
+                },
+            )
+            node_ids[(node.node_type, node.name)] = persisted.id
+            nodes_upserted += 1
+
+        for edge in payload.edges:
+            source_key = (edge.source.node_type, edge.source.name)
+            target_key = (edge.target.node_type, edge.target.name)
+
+            if source_key not in node_ids:
+                source_node = await self._graph_store.upsert_node(
+                    edge.source.node_type,
+                    edge.source.name,
+                    metadata={
+                        "repo_id": str(repo_id),
+                        "repository_name": repo_name,
+                        "source": payload.source,
+                        "payload_version": payload.payload_version,
+                        "branch": branch,
+                        "repo_path": payload.repo_path,
+                    },
+                )
+                node_ids[source_key] = source_node.id
+                nodes_upserted += 1
+
+            if target_key not in node_ids:
+                target_node = await self._graph_store.upsert_node(
+                    edge.target.node_type,
+                    edge.target.name,
+                    metadata={
+                        "repo_id": str(repo_id),
+                        "repository_name": repo_name,
+                        "source": payload.source,
+                        "payload_version": payload.payload_version,
+                        "branch": branch,
+                        "repo_path": payload.repo_path,
+                    },
+                )
+                node_ids[target_key] = target_node.id
+                nodes_upserted += 1
+
+            await self._graph_store.upsert_edge(
+                source_id=node_ids[source_key],
+                target_id=node_ids[target_key],
+                relation=edge.relation,
+                weight=edge.weight,
+            )
+            edges_upserted += 1
+
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        relationships["graph_sync"] = {
+            "payload_version": payload.payload_version,
+            "source": payload.source,
+            "branch": branch,
+            "repo_path": payload.repo_path,
+            "diff_base": payload.diff_base,
+            "deleted_files": payload.deleted_files,
+            "deleted_nodes": deleted_nodes,
+            "nodes_upserted": nodes_upserted,
+            "edges_upserted": edges_upserted,
+            "accepted_at": accepted_at,
+        }
+        await self._store.update_repository(repo_id, relationships=relationships)
+
+        return {
+            "repo_id": str(repo_id),
+            "repository_name": repo_name,
+            "payload_version": payload.payload_version,
+            "source": payload.source,
+            "branch": branch,
+            "deleted_nodes": deleted_nodes,
+            "nodes_upserted": nodes_upserted,
+            "edges_upserted": edges_upserted,
+            "accepted_at": accepted_at,
         }

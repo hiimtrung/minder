@@ -12,7 +12,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.observability.logging import AccessLogMiddleware, CorrelationIdMiddleware
 from minder.observability.metrics import metrics_endpoint
-from minder.store.interfaces import ICacheProvider, IOperationalStore
+from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore
 
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
@@ -40,9 +40,15 @@ def build_http_routes(
     *,
     config: MinderConfig,
     store: IOperationalStore,
+    graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
 ) -> list[BaseRoute]:
-    context = AdminRouteContext.build(config=config, store=store, cache=cache)
+    context = AdminRouteContext.build(
+        config=config,
+        store=store,
+        graph_store=graph_store,
+        cache=cache,
+    )
 
     async def health(_request) -> PlainTextResponse:
         return PlainTextResponse("ok", status_code=200)
@@ -70,6 +76,7 @@ def build_http_app(
     *,
     config: MinderConfig,
     store: IOperationalStore,
+    graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
 ) -> Starlette:
     middleware: list[Middleware] = []
@@ -90,6 +97,11 @@ def build_http_app(
             )
         )
     return Starlette(
-        routes=build_http_routes(config=config, store=store, cache=cache),
+        routes=build_http_routes(
+            config=config,
+            store=store,
+            graph_store=graph_store,
+            cache=cache,
+        ),
         middleware=middleware,
     )

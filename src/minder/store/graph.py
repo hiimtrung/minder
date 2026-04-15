@@ -128,6 +128,11 @@ class KnowledgeGraphStore:
             )
             return result.scalar_one_or_none()
 
+    async def list_nodes(self) -> list[GraphNode]:
+        async with self._session() as sess:
+            result = await sess.execute(select(GraphNode))
+            return list(result.scalars().all())
+
     async def query_by_type(self, node_type: str) -> list[GraphNode]:
         async with self._session() as sess:
             result = await sess.execute(

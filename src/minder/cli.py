@@ -1,0 +1,524 @@
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import platform
+import subprocess
+from getpass import getpass
+from importlib.metadata import PackageNotFoundError, version as package_version
+from pathlib import Path
+from typing import Any
+from urllib.parse import urlsplit, urlunsplit
+
+import httpx
+
+from minder.tools.repo_scanner import RepoScanner
+
+_DEFAULT_SERVER_URL = "http://localhost:8801/sse"
+_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code")
+_PYPI_JSON_URL = "https://pypi.org/pypi/minder/json"
+
+
+def _client_config_path() -> Path:
+    return Path.home() / ".minder" / "client.json"
+
+
+def _write_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+
+
+def _load_json(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {}
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _prompt_client_key() -> str:
+    client_key = getpass("Minder client key (mkc_...): ").strip()
+    if not client_key:
+        raise ValueError("Client key is required")
+    return client_key
+
+
+def _require_client_settings(config_path: Path) -> dict[str, Any]:
+    payload = _load_json(config_path)
+    client_key = str(payload.get("client_api_key", "")).strip()
+    server_url = str(payload.get("server_url", "")).strip()
+    if not client_key:
+        raise ValueError(f"No client_api_key found in {config_path}")
+    if not server_url:
+        raise ValueError(f"No server_url found in {config_path}")
+    return payload
+
+
+def _parse_version(raw_version: str) -> tuple[int, ...]:
+    normalized = raw_version.strip().lstrip("v")
+    parts: list[int] = []
+    for piece in normalized.split("."):
+        digits = "".join(char for char in piece if char.isdigit())
+        if not digits:
+            break
+        parts.append(int(digits))
+    return tuple(parts)
+
+
+def _installed_package_version() -> str | None:
+    try:
+        return package_version("minder")
+    except PackageNotFoundError:
+        return None
+
+
+def _latest_pypi_version() -> str | None:
+    try:
+        response = httpx.get(_PYPI_JSON_URL, timeout=3)
+        response.raise_for_status()
+    except Exception:
+        return None
+    payload = response.json()
+    info = payload.get("info", {}) if isinstance(payload, dict) else {}
+    version_value = info.get("version")
+    if not isinstance(version_value, str) or not version_value.strip():
+        return None
+    return version_value.strip()
+
+
+def _maybe_print_upgrade_notice() -> None:
+    installed = _installed_package_version()
+    latest = _latest_pypi_version()
+    if installed is None or latest is None:
+        return
+    if _parse_version(latest) <= _parse_version(installed):
+        return
+    print(
+        f"A newer minder CLI is available ({installed} -> {latest}). "
+        "Run 'uv tool upgrade minder' or 'pipx upgrade minder'."
+    )
+
+
+def _repo_root(path: str) -> Path:
+    result = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=path,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    return Path(result.stdout.strip()).resolve()
+
+
+def _git_branch(repo_root: Path) -> str | None:
+    result = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    branch = result.stdout.strip()
+    return branch or None
+
+
+def _git_file_delta(repo_root: Path, diff_base: str | None = None) -> tuple[list[str], list[str]]:
+    diff_command = ["git", "diff", "--name-only", "--diff-filter=ACMRD"]
+    if diff_base:
+        diff_command.append(f"{diff_base}...HEAD")
+    else:
+        diff_command.append("HEAD")
+    diff_result = subprocess.run(
+        diff_command,
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    changed = {
+        line.strip()
+        for line in diff_result.stdout.splitlines()
+        if line.strip()
+    }
+
+    deleted_result = subprocess.run(
+        ["git", "diff", "--name-only", "--diff-filter=D", *( [f"{diff_base}...HEAD"] if diff_base else ["HEAD"] )],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    deleted = {
+        line.strip()
+        for line in deleted_result.stdout.splitlines()
+        if line.strip()
+    }
+    changed.difference_update(deleted)
+
+    untracked_result = subprocess.run(
+        ["git", "ls-files", "--others", "--exclude-standard"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    changed.update(
+        line.strip()
+        for line in untracked_result.stdout.splitlines()
+        if line.strip()
+    )
+    return sorted(changed), sorted(deleted)
+
+
+def _base_http_url(server_url: str) -> str:
+    parts = urlsplit(server_url)
+    path = parts.path.rstrip("/")
+    if path.endswith("/sse"):
+        path = path[:-4]
+    elif path.endswith("/mcp"):
+        path = path[:-4]
+    return urlunsplit((parts.scheme, parts.netloc, path, "", "")).rstrip("/")
+
+
+def _sse_url(server_url: str) -> str:
+    base_url = _base_http_url(server_url)
+    return f"{base_url}/sse"
+
+
+def _mcp_url(server_url: str) -> str:
+    base_url = _base_http_url(server_url)
+    return f"{base_url}/mcp"
+
+
+def _appdata_dir() -> Path:
+    appdata = os.getenv("APPDATA", "").strip()
+    if appdata:
+        return Path(appdata)
+    return Path.home() / "AppData" / "Roaming"
+
+
+def _global_target_path(target: str) -> Path:
+    system = platform.system().lower()
+    home = Path.home()
+    if target == "vscode":
+        if system == "darwin":
+            return home / "Library" / "Application Support" / "Code" / "User" / "mcp.json"
+        if system == "windows":
+            return _appdata_dir() / "Code" / "User" / "mcp.json"
+        return home / ".config" / "Code" / "User" / "mcp.json"
+    if target == "cursor":
+        if system == "darwin":
+            return home / "Library" / "Application Support" / "Cursor" / "User" / "mcp.json"
+        if system == "windows":
+            return _appdata_dir() / "Cursor" / "User" / "mcp.json"
+        return home / ".config" / "Cursor" / "User" / "mcp.json"
+    if target == "claude-code":
+        if system == "windows":
+            return home / ".claude" / "mcp.json"
+        return home / ".claude" / "mcp.json"
+    raise ValueError(f"Unsupported MCP target: {target}")
+
+
+def _local_target_path(target: str, cwd: Path) -> Path:
+    if target == "vscode":
+        return cwd / ".vscode" / "mcp.json"
+    if target == "cursor":
+        return cwd / ".cursor" / "mcp.json"
+    if target == "claude-code":
+        return cwd / ".claude" / "mcp.json"
+    raise ValueError(f"Unsupported MCP target: {target}")
+
+
+def _target_root_key(target: str) -> str:
+    if target == "vscode":
+        return "servers"
+    return "mcpServers"
+
+
+def _target_entry(target: str, server_url: str, client_key: str) -> dict[str, Any]:
+    sse_url = _sse_url(server_url)
+    mcp_url = _mcp_url(server_url)
+    if target == "vscode":
+        return {
+            "type": "sse",
+            "url": sse_url,
+            "headers": {"X-Minder-Client-Key": client_key},
+        }
+    if target == "cursor":
+        return {
+            "url": mcp_url,
+            "headers": {"X-Minder-Client-Key": client_key},
+        }
+    if target == "claude-code":
+        return {
+            "type": "sse",
+            "url": sse_url,
+            "headers": {"X-Minder-Client-Key": client_key},
+        }
+    raise ValueError(f"Unsupported MCP target: {target}")
+
+
+def _install_target(path: Path, target: str, server_url: str, client_key: str) -> None:
+    payload = _load_json(path)
+    root_key = _target_root_key(target)
+    payload.setdefault(root_key, {})
+    payload[root_key]["minder"] = _target_entry(target, server_url, client_key)
+    if target == "vscode":
+        payload.setdefault("inputs", [])
+    _write_json(path, payload)
+
+
+def _uninstall_target(path: Path, target: str) -> bool:
+    if not path.is_file():
+        return False
+    payload = _load_json(path)
+    root_key = _target_root_key(target)
+    servers = payload.get(root_key)
+    if not isinstance(servers, dict) or "minder" not in servers:
+        return False
+    del servers["minder"]
+    if not servers:
+        payload.pop(root_key, None)
+    if target == "vscode" and payload.get("inputs") == [] and len(payload) == 1:
+        payload.pop("inputs", None)
+    if not payload:
+        path.unlink(missing_ok=True)
+        return True
+    _write_json(path, payload)
+    return True
+
+
+def _parse_targets(raw_targets: list[str] | None) -> list[str]:
+    if not raw_targets:
+        return list(_LOCAL_MCP_TARGETS)
+    parsed: list[str] = []
+    for raw_target in raw_targets:
+        value = raw_target.strip().lower()
+        if not value:
+            continue
+        if value == "all":
+            parsed.extend(_LOCAL_MCP_TARGETS)
+        else:
+            parsed.append(value)
+    ordered: list[str] = []
+    for target in parsed:
+        if target not in _LOCAL_MCP_TARGETS:
+            raise ValueError(f"Unsupported MCP target: {target}")
+        if target not in ordered:
+            ordered.append(target)
+    return ordered
+
+
+def _login(args: argparse.Namespace) -> int:
+    client_key = (args.client_key or "").strip() or _prompt_client_key()
+    if not client_key.startswith("mkc_"):
+        raise ValueError("Client key must start with 'mkc_'")
+
+    config_path = Path(args.config_path).expanduser()
+    existing = _load_json(config_path)
+    payload = {
+        **existing,
+        "server_url": args.server_url,
+        "client_api_key": client_key,
+        "default_headers": {
+            "X-Minder-Client-Key": client_key,
+        },
+    }
+    _write_json(config_path, payload)
+    print(f"Stored client credentials in {config_path}")
+    print(f"export MINDER_CLIENT_API_KEY={client_key}")
+    return 0
+
+
+def _install_mcp(args: argparse.Namespace) -> int:
+    config_path = Path(args.config_path).expanduser()
+    settings = _require_client_settings(config_path)
+    targets = _parse_targets(args.target)
+    install_root = Path(args.cwd).resolve()
+    installed_paths: list[Path] = []
+
+    for target in targets:
+        path = _global_target_path(target) if args.global_install else _local_target_path(target, install_root)
+        _install_target(
+            path,
+            target,
+            str(settings["server_url"]),
+            str(settings["client_api_key"]),
+        )
+        installed_paths.append(path)
+
+    for path in installed_paths:
+        print(f"Installed Minder MCP config: {path}")
+    return 0
+
+
+def _uninstall_mcp(args: argparse.Namespace) -> int:
+    targets = _parse_targets(args.target)
+    install_root = Path(args.cwd).resolve()
+    removed_count = 0
+
+    for target in targets:
+        path = _global_target_path(target) if args.global_install else _local_target_path(target, install_root)
+        if _uninstall_target(path, target):
+            removed_count += 1
+            print(f"Removed Minder MCP config: {path}")
+
+    if removed_count == 0:
+        print("No Minder MCP entries were found to remove")
+    return 0
+
+
+def _sync(args: argparse.Namespace) -> int:
+    config_path = Path(args.config_path).expanduser()
+    settings = _require_client_settings(config_path)
+    if not args.skip_upgrade_check:
+        _maybe_print_upgrade_notice()
+    repo_root = _repo_root(args.repo_path)
+    changed_files, deleted_files = _git_file_delta(repo_root, args.diff_base)
+    payload = RepoScanner.build_sync_payload(
+        str(repo_root),
+        branch=_git_branch(repo_root),
+        diff_base=args.diff_base,
+        changed_files=changed_files,
+        deleted_files=deleted_files,
+    )
+
+    if args.dry_run:
+        print(json.dumps(payload, indent=2))
+        return 0
+
+    base_url = _base_http_url(str(settings["server_url"]))
+    sync_url = f"{base_url}/v1/client/repositories/{args.repo_id}/graph-sync"
+    headers = {"X-Minder-Client-Key": str(settings["client_api_key"])}
+    response = httpx.post(sync_url, headers=headers, json=payload, timeout=30)
+    response.raise_for_status()
+    print(json.dumps(response.json(), indent=2))
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Minder CLI")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    login = subparsers.add_parser(
+        "login",
+        help="Store a Minder client API key for CLI-authenticated commands.",
+    )
+    login.add_argument(
+        "--client-key",
+        default=None,
+        help="Client API key in mkc_... format. If omitted, prompt securely.",
+    )
+    login.add_argument(
+        "--server-url",
+        default=_DEFAULT_SERVER_URL,
+        help="Default Minder server URL to pair with the stored client key.",
+    )
+    login.add_argument(
+        "--config-path",
+        default=str(_client_config_path()),
+        help="Path to the persisted CLI client config file.",
+    )
+
+    install_mcp = subparsers.add_parser(
+        "install-mcp",
+        help="Install Minder MCP config for the current directory or globally.",
+    )
+    install_mcp.add_argument(
+        "--config-path",
+        default=str(_client_config_path()),
+        help="Path to the persisted CLI client config file.",
+    )
+    install_mcp.add_argument(
+        "--target",
+        action="append",
+        help="MCP target to install: vscode, cursor, claude-code, or all. Repeatable.",
+    )
+    install_mcp.add_argument(
+        "--global",
+        dest="global_install",
+        action="store_true",
+        help="Install into user-level config paths instead of the current workspace.",
+    )
+    install_mcp.add_argument(
+        "--cwd",
+        default=".",
+        help="Workspace directory to install local MCP config into.",
+    )
+
+    uninstall_mcp = subparsers.add_parser(
+        "uninstall-mcp",
+        help="Remove Minder MCP config from the current directory or global config.",
+    )
+    uninstall_mcp.add_argument(
+        "--target",
+        action="append",
+        help="MCP target to uninstall: vscode, cursor, claude-code, or all. Repeatable.",
+    )
+    uninstall_mcp.add_argument(
+        "--global",
+        dest="global_install",
+        action="store_true",
+        help="Remove from user-level config paths instead of the current workspace.",
+    )
+    uninstall_mcp.add_argument(
+        "--cwd",
+        default=".",
+        help="Workspace directory to remove local MCP config from.",
+    )
+
+    sync = subparsers.add_parser(
+        "sync",
+        help="Build a delta payload from git diff and sync graph metadata using the stored client key.",
+    )
+    sync.add_argument(
+        "--repo-id",
+        required=True,
+        help="Repository UUID registered on the Minder server.",
+    )
+    sync.add_argument(
+        "--repo-path",
+        default=".",
+        help="Path inside the git repository to sync. Defaults to the current directory.",
+    )
+    sync.add_argument(
+        "--diff-base",
+        default=None,
+        help="Optional git base ref for delta calculation, e.g. origin/main.",
+    )
+    sync.add_argument(
+        "--config-path",
+        default=str(_client_config_path()),
+        help="Path to the persisted CLI client config file.",
+    )
+    sync.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the built payload instead of sending it to the server.",
+    )
+    sync.add_argument(
+        "--skip-upgrade-check",
+        action="store_true",
+        help="Skip checking PyPI for a newer CLI version before syncing.",
+    )
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "login":
+        return _login(args)
+    if args.command == "install-mcp":
+        return _install_mcp(args)
+    if args.command == "uninstall-mcp":
+        return _uninstall_mcp(args)
+    if args.command == "sync":
+        return _sync(args)
+
+    parser.error(f"Unknown command: {args.command}")
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

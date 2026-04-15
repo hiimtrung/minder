@@ -11,6 +11,7 @@
 - [Architecture](#architecture)
 - [Prerequisites](#prerequisites)
 - [Quick Start](#quick-start)
+- [CLI Distribution](#cli-distribution)
 - [Operator Flows](#operator-flows)
 - [Configuration](#configuration)
 - [Testing](#testing)
@@ -148,6 +149,28 @@ Enter username, email, and display name. Minder returns the bootstrap admin API 
 
 Open [`http://localhost:8800/dashboard/login`](http://localhost:8800/dashboard/login) and authenticate with the `mk_…` key. A session cookie is set on success.
 
+## CLI Distribution
+
+Install the repo-local sync CLI from PyPI:
+
+```bash
+uv tool install minder
+```
+
+Or:
+
+```bash
+pipx install minder
+```
+
+Basic flow:
+
+```bash
+minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+minder install-mcp
+minder sync --repo-id <repository-uuid>
+```
+
 ---
 
 ## Operator Flows
@@ -240,6 +263,7 @@ Infrastructure-dependent tests (Milvus, MongoDB, Redis) require Docker services 
 | [Project Progress](docs/PROJECT_PROGRESS.md)                        | Per-task status tracker                      |
 | [Task Breakdown](docs/TASK_BREAKDOWN.md)                            | Full task catalog with requirements          |
 | [Local Setup Guide](docs/guides/local-setup.md)                     | Step-by-step local environment setup         |
+| [Minder CLI Guide](docs/guides/minder-cli.md)                       | PyPI install, login, MCP config, and sync    |
 | [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md) | Admin setup and client provisioning          |
 | [Production Deployment](docs/guides/production-deployment.md)       | Production compose and gateway configuration |
 | [Gateway Auth Design](docs/design/mcp-gateway-auth-dashboard.md)    | Phase 4.0 gateway auth design                |

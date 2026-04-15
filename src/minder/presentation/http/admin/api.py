@@ -2,10 +2,14 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
+from pydantic import ValidationError
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
 
+from minder.application.admin.dto import GraphSyncRequest
+from minder.auth.principal import ClientPrincipal
 from minder.observability.metrics import (
     get_metrics_summary,
     record_admin_operation,
@@ -15,6 +19,48 @@ from minder.observability.metrics import (
 from .context import ADMIN_COOKIE_NAME, AdminRouteContext
 
 logger = logging.getLogger(__name__)
+
+
+def _repository_scope_candidates(repository: object, payload: GraphSyncRequest) -> list[str]:
+    candidates: list[str] = []
+    repo_name = getattr(repository, "repo_name", None)
+    if repo_name:
+        candidates.append(str(repo_name))
+    repo_url = getattr(repository, "repo_url", None)
+    if repo_url:
+        candidates.append(str(repo_url))
+    repo_path = payload.repo_path
+    if repo_path:
+        candidates.append(repo_path)
+    state_path = str(getattr(repository, "state_path", "") or "")
+    if state_path:
+        candidates.append(state_path)
+        state_root = Path(state_path)
+        if state_root.name == ".minder":
+            candidates.append(str(state_root.parent))
+    return [candidate for candidate in candidates if candidate]
+
+
+def _principal_can_access_repository(
+    principal: ClientPrincipal,
+    repository: object,
+    payload: GraphSyncRequest,
+) -> bool:
+    scopes = [scope.strip() for scope in principal.repo_scope if scope and scope.strip()]
+    if not scopes:
+        return False
+    if "*" in scopes:
+        return True
+    candidates = _repository_scope_candidates(repository, payload)
+    for scope in scopes:
+        normalized_scope = scope.rstrip("/")
+        for candidate in candidates:
+            normalized_candidate = candidate.rstrip("/")
+            if normalized_candidate == normalized_scope:
+                return True
+            if normalized_candidate.startswith(f"{normalized_scope}/"):
+                return True
+    return False
 
 
 def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
@@ -515,6 +561,123 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
         return JSONResponse(await context.use_cases.list_repositories())
 
+    async def repository_graph_sync(request):
+        try:
+            user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if context.graph_store is None:
+            return JSONResponse(
+                {"error": "Graph sync store is not configured"},
+                status_code=503,
+            )
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        try:
+            payload = GraphSyncRequest.model_validate(await request.json())
+        except ValidationError as exc:
+            return JSONResponse(
+                {"error": "Invalid graph sync payload", "details": exc.errors()},
+                status_code=400,
+            )
+
+        try:
+            result = await context.use_cases.sync_repository_graph(
+                repo_id=repo_id,
+                payload=payload,
+            )
+        except LookupError:
+            await record_admin_operation(
+                "repository_graph_sync",
+                "error",
+                actor_id=str(user.id),
+                store=context.store,
+            )
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+        except Exception as exc:
+            await record_admin_operation(
+                "repository_graph_sync",
+                "error",
+                actor_id=str(user.id),
+                store=context.store,
+            )
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+        await record_admin_operation(
+            "repository_graph_sync",
+            "success",
+            actor_id=str(user.id),
+            store=context.store,
+        )
+        return JSONResponse(result, status_code=202)
+
+    async def client_repository_graph_sync(request):
+        try:
+            principal = await context.client_principal_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Client principal required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if context.graph_store is None:
+            return JSONResponse(
+                {"error": "Graph sync store is not configured"},
+                status_code=503,
+            )
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        repository = await context.store.get_repository_by_id(repo_id)
+        if repository is None:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+
+        try:
+            payload = GraphSyncRequest.model_validate(await request.json())
+        except ValidationError as exc:
+            return JSONResponse(
+                {"error": "Invalid graph sync payload", "details": exc.errors()},
+                status_code=400,
+            )
+
+        if not _principal_can_access_repository(principal, repository, payload):
+            return JSONResponse(
+                {"error": "Client is not allowed to sync this repository"},
+                status_code=403,
+            )
+
+        try:
+            result = await context.use_cases.sync_repository_graph(
+                repo_id=repo_id,
+                payload=payload,
+            )
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+        try:
+            await context.store.create_audit_log(
+                actor_type="client",
+                actor_id=str(principal.client_id),
+                event_type="repository.graph_sync",
+                resource_type="repository",
+                resource_id=str(repo_id),
+                outcome="success",
+                audit_metadata={
+                    "client_slug": principal.client_slug,
+                    "payload_version": payload.payload_version,
+                    "source": payload.source,
+                    "nodes_upserted": result["nodes_upserted"],
+                    "edges_upserted": result["edges_upserted"],
+                },
+            )
+        except Exception:
+            logger.exception("Failed to record client graph sync audit log")
+
+        return JSONResponse(result, status_code=202)
+
     return [
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
@@ -538,6 +701,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/v1/admin/workflows/{workflow_id:uuid}", workflow_detail, methods=["GET", "PATCH", "DELETE"]),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/graph-sync", repository_graph_sync, methods=["POST"]),
+        Route("/v1/client/repositories/{repo_id:uuid}/graph-sync", client_repository_graph_sync, methods=["POST"]),
         # Observability
         Route("/v1/admin/metrics-summary", admin_metrics_summary, methods=["GET"]),
     ]

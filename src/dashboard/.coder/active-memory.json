@@ -1,118 +1,94 @@
 {
-  "mode": "recall",
-  "query": "current session dashboard observability user management",
-  "trigger": "execution",
-  "budget": 5,
-  "limit": 15,
+  "mode": "search",
+  "query": "repository graph d3 sigma visualization",
+  "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-14T09:28:04.942379Z",
-  "keep": [
-    "document:phase-4-1-requirements-refined-for-setup-and-direct-auth"
-  ],
-  "add": [
-    "document:astro-dashboard-header-session-and-toast-feedback",
-    "document:findtourgo-auth-cross-tab-readiness-fix",
-    "document:findtourgo-auth-refactor-bootstrap-recovery",
-    "document:dashboard-integration-flow-guarded-by-server-state"
-  ],
-  "drop": [
-    "document:phase-4-1-docs-refreshed",
-    "document:phase-4-3-completed-with-console-serving-seam",
-    "document:astro-dashboard-ux-refinement",
-    "document:minder-mcp-onboarding-snippets-aligned-to-client-native-formats"
-  ],
-  "coverage": "weak",
+  "searched_at": "2026-04-16T08:25:07.450319+07:00",
   "results": [
     {
-      "id": "5a88eb3b-b7f5-4e8a-b7d3-4b82cd5b1adb",
-      "title": "Astro dashboard header session and toast feedback",
+      "id": "2c598507-5f77-42e5-a88e-8ba6dbe4df4f",
+      "title": "GitNexus-style structural graph canvas",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:astro-dashboard-header-session-and-toast-feedback",
+      "canonical_key": "document:gitnexus-style-structural-graph-canvas",
       "score": 0.086393446,
       "tags": [
+        "minder",
         "dashboard",
-        "astro",
-        "ux",
-        "session",
-        "toast"
+        "graph-ui",
+        "gitnexus"
       ],
       "conflict_detected": false,
-      "reason": "added: recalled for the current task",
-      "content": "Added a clients-page session badge and logout button in the shared Astro layout, backed by a session-header script that loads the admin session and calls the logout API. Added a shared dashboard toast region and used it for client creation, key rotation/revocation, connection tests, and snippet copy actions while keeping inline status text for context-sensitive detail feedback."
+      "content": "Refactored dashboard graph canvases to feel closer to GitNexus by adding repository/folder/file context nodes, hierarchy-aware placement, GitNexus-inspired node size/color mapping, relation-styled edges, and larger structural graph canvases for both search and impact views. Files: src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, docs/progress/architecture-transition-cli-edge-sync.md"
     },
     {
-      "id": "36080d8b-3d19-4a55-a826-738c742cc733",
-      "title": "FindTourGo auth cross-tab readiness fix",
+      "id": "183d2ae1-59c5-4298-a338-440c251926cd",
+      "title": "Graph explorer filters and symbol history heuristics",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:findtourgo-auth-cross-tab-readiness-fix",
+      "canonical_key": "document:graph-explorer-filters-and-symbol-history-heuristics",
       "score": 0.086129025,
       "tags": [
-        "findtourgo",
-        "auth",
-        "cross-tab",
-        "session",
-        "refactor"
-      ],
-      "conflict_detected": false,
-      "reason": "added: recalled for the current task",
-      "content": "Follow-up fix after auth refactor review: useSession storage-event handling now recalculates sessionMeta (isRecovering/isReady) from the latest session snapshot before updating local state, preventing tabs from getting stuck in not-ready state after cross-tab login/logout. AuthProvider refresh success now also emits notifySessionChange so sibling tabs update immediately when cookies are refreshed in another tab."
-    },
-    {
-      "id": "5dc10f57-d73b-49d0-8148-66efe1821374",
-      "title": "FindTourGo auth refactor bootstrap recovery",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:findtourgo-auth-refactor-bootstrap-recovery",
-      "score": 0.08587302,
-      "tags": [
-        "findtourgo",
-        "auth",
-        "refactor",
-        "refresh-token",
-        "jwt",
-        "session"
-      ],
-      "conflict_detected": false,
-      "reason": "added: recalled for the current task",
-      "content": "Refactored FindTourGo auth flow around a single session snapshot in AuthService. Added getSessionSnapshot/hasValidSession/isSessionRecoverable so UI can distinguish authenticated vs recoverable session. useSession now exposes isRecovering and isReady, preventing private layouts/pages from redirecting while the app is still trying to restore a session from a valid refresh token. AuthProvider now performs immediate refresh on bootstrap when access token is gone but refresh token remains, dedupes concurrent refreshes, and restarts the timer using JWT iat decoded from the token instead of client time. changeAuth now preserves or accepts deviceSessionId explicitly, and fast-access supports passing device_session_id. Also corrected 401 logout handling and enabled auth error handling on authenticated HTTP clients."
-    },
-    {
-      "id": "77f1c132-ec3e-4d5e-b0c0-cd64c10e7651",
-      "title": "Dashboard integration flow guarded by server state",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:dashboard-integration-flow-guarded-by-server-state",
-      "score": 0.08562499,
-      "tags": [
-        "dashboard",
-        "auth",
-        "flow",
-        "astro"
-      ],
-      "conflict_detected": false,
-      "reason": "added: recalled for the current task",
-      "content": "The Astro dashboard cannot be treated as a blind static site for admin flows. The correct integration is stateful at the Python layer: /dashboard redirects to /dashboard/setup when no admin exists, to /dashboard/login when admins exist but there is no valid session, and to /dashboard/clients when an admin session is present. Static asset requests under /dashboard must bypass those auth redirects. Frontend JSON admin calls should also redirect 401 responses back to login/setup so the browser flow stays coherent."
-    },
-    {
-      "id": "401fc8bf-dbe8-4ff3-a140-f5f056534c1b",
-      "title": "Phase 4.1 requirements refined for setup and direct auth",
-      "type": "document",
-      "status": "active",
-      "canonical_key": "document:phase-4-1-requirements-refined-for-setup-and-direct-auth",
-      "score": 0.08538462,
-      "tags": [
-        "requirements",
-        "phase4",
-        "auth",
-        "onboarding",
+        "minder",
+        "graph",
+        "git-history",
+        "filters",
         "dashboard"
       ],
       "conflict_detected": false,
-      "reason": "kept active: still relevant to the current task",
-      "content": "Reviewed and rewrote docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to align with Minder's actual auth model. Key correction: admin auth remains API-key based, so the requirements now target first-run /setup, admin API-key recovery via CLI, and direct client_api_key parity across transports instead of inventing password auth. The doc now distinguishes current baseline capabilities already present in code (/dashboard/login browser flow, SSE X-Minder-Client-Key, token exchange, onboarding routes) from the remaining gaps to implement. It also preserves token exchange as a supported compatibility path and records open questions around stdio bootstrap shape, session invalidation on recovery, and whether first-admin setup needs an extra deployment secret."
+      "content": "Added graph search filters for language and last_state, made graph query scoring match git history metadata, added canvas cues for node state/history freshness, and enriched RepoScanner nodes with symbol/line-level git last-touch heuristics from blame while preserving file-level history context. Files: src/minder/tools/repo_scanner.py, src/minder/tools/graph.py, src/minder/application/admin/use_cases.py, src/minder/presentation/http/admin/api.py, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/lib/api/admin.ts, tests/unit/test_ingest.py, tests/integration/test_http_admin_expansion.py, docs/progress/architecture-transition-cli-edge-sync.md"
+    },
+    {
+      "id": "c6ecb913-4708-477c-9204-a8d612bea6f9",
+      "title": "Delete-aware CLI graph sync tombstones",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:delete-aware-cli-graph-sync-tombstones",
+      "score": 0.08587302,
+      "tags": [
+        "minder",
+        "python",
+        "cli",
+        "graph-sync",
+        "delete-sync"
+      ],
+      "conflict_detected": false,
+      "content": "Extended graph sync to carry deleted_files through src/minder/cli.py, src/minder/tools/repo_scanner.py, and src/minder/application/admin/dto.py. AdminConsoleUseCases.sync_repository_graph now prunes repo-scoped graph nodes whose metadata.path matches deleted files using IGraphRepository.list_nodes and KnowledgeGraphStore.list_nodes. Added integration coverage in tests/integration/test_http_admin_expansion.py and updated progress docs."
+    },
+    {
+      "id": "7e19507e-6439-43a8-b7ad-5fd4fd2a0d41",
+      "title": "Graph node git state metadata",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:graph-node-git-state-metadata",
+      "score": 0.08562499,
+      "tags": [
+        "minder",
+        "graph",
+        "git-history",
+        "dashboard"
+      ],
+      "conflict_detected": false,
+      "content": "Enriched RepoScanner file-scoped node metadata with language, last_state, last_commit summary/timestamp, history_summary, and recent_commits; dashboard node details now render these fields without changing graph storage schema. Files: src/minder/tools/repo_scanner.py, tests/unit/test_ingest.py, src/dashboard/src/scripts/repositories-page.ts, docs/progress/architecture-transition-cli-edge-sync.md"
+    },
+    {
+      "id": "f75c9be7-7fe4-4ade-b925-947d8ccc5555",
+      "title": "MCP graph search and symbol inventory",
+      "type": "document",
+      "status": "active",
+      "canonical_key": "document:mcp-graph-search-and-symbol-inventory",
+      "score": 0.08538462,
+      "tags": [
+        "minder",
+        "python",
+        "mcp",
+        "graph",
+        "search",
+        "docs"
+      ],
+      "conflict_detected": false,
+      "content": "Continued the Phase 3 transition by adding a repo-scoped minder_search_graph MCP tool backed by graph node metadata matching, plus the minder://repos/{repo_name}/symbols resource. The transport enforces repo_scope for this tool the same way it does for other repo-path MCP tools. Updated transition docs and validated with focused pytest, ruff, and mypy."
     }
   ]
 }

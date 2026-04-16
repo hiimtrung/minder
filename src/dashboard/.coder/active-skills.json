@@ -1,39 +1,39 @@
 {
-  "task": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
+  "task": "frontend d3 graph visualization",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T09:31:52.600055+07:00",
+  "resolved_at": "2026-04-16T08:25:07.323877+07:00",
   "keep": [],
   "add": [
+    "claude-d3js-skill",
+    "plotly",
+    "networkx"
+  ],
+  "drop": [
     "dx-optimizer",
     "bash-pro",
     "shadcn"
   ],
-  "drop": [
-    "copilot-sdk",
-    "skill-creator",
-    "wiki-onboarding"
-  ],
   "skills": [
     {
-      "name": "dx-optimizer",
+      "name": "claude-d3js-skill",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 2,
+      "chunk_count": 24,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "bash-pro",
+      "name": "plotly",
       "category": "general",
-      "score": 0.016129032,
-      "chunk_count": 1,
+      "score": 0.015151516,
+      "chunk_count": 4,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "shadcn",
-      "category": "frontend",
-      "score": 0.015873017,
-      "chunk_count": 2,
+      "name": "networkx",
+      "category": "general",
+      "score": 0.014285714,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

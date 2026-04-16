@@ -641,8 +641,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
 
         repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        branch = (request.query_params.get("branch") or "").strip() or None
         try:
-            return JSONResponse(await context.use_cases.get_repository_graph_map(repo_id=repo_id))
+            return JSONResponse(
+                await context.use_cases.get_repository_graph_map(repo_id=repo_id, branch=branch)
+            )
         except LookupError:
             return JSONResponse({"error": "Repository not found"}, status_code=404)
         except RuntimeError as exc:
@@ -657,8 +660,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
 
         repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        branch = (request.query_params.get("branch") or "").strip() or None
         try:
-            return JSONResponse(await context.use_cases.get_repository_graph_summary(repo_id=repo_id))
+            return JSONResponse(
+                await context.use_cases.get_repository_graph_summary(repo_id=repo_id, branch=branch)
+            )
         except LookupError:
             return JSONResponse({"error": "Repository not found"}, status_code=404)
         except RuntimeError as exc:
@@ -676,6 +682,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         query = (request.query_params.get("query") or "").strip()
         if not query:
             return JSONResponse({"error": "Query is required"}, status_code=400)
+        branch = (request.query_params.get("branch") or "").strip() or None
         node_types = [value.strip() for value in request.query_params.getlist("node_type") if value.strip()]
         languages = [value.strip() for value in request.query_params.getlist("language") if value.strip()]
         last_states = [value.strip() for value in request.query_params.getlist("last_state") if value.strip()]
@@ -689,6 +696,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 await context.use_cases.search_repository_graph(
                     repo_id=repo_id,
                     query=query,
+                    branch=branch,
                     node_types=node_types or None,
                     languages=languages or None,
                     last_states=last_states or None,
@@ -712,6 +720,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         target = (request.query_params.get("target") or "").strip()
         if not target:
             return JSONResponse({"error": "Target is required"}, status_code=400)
+        branch = (request.query_params.get("branch") or "").strip() or None
         try:
             depth = max(1, min(int(request.query_params.get("depth", "2")), 6))
             limit = max(1, min(int(request.query_params.get("limit", "25")), 100))
@@ -723,6 +732,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 await context.use_cases.get_repository_graph_impact(
                     repo_id=repo_id,
                     target=target,
+                    branch=branch,
                     depth=depth,
                     limit=limit,
                 )
@@ -731,6 +741,66 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": "Repository not found"}, status_code=404)
         except RuntimeError as exc:
             return JSONResponse({"error": str(exc)}, status_code=503)
+
+    # ------------------------------------------------------------------
+    # Branch management
+    # ------------------------------------------------------------------
+
+    async def repository_branches(request):
+        try:
+            user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+
+        if request.method == "GET":
+            try:
+                return JSONResponse(await context.use_cases.list_repository_branches(repo_id=repo_id))
+            except LookupError:
+                return JSONResponse({"error": "Repository not found"}, status_code=404)
+
+        if request.method == "POST":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            branch = str(payload.get("branch", "")).strip()
+            if not branch:
+                return JSONResponse({"error": "branch is required"}, status_code=400)
+            try:
+                result = await context.use_cases.add_repository_branch(repo_id=repo_id, branch=branch)
+                await record_admin_operation("repository_branch_add", "success", actor_id=str(user.id), store=context.store)
+                return JSONResponse(result, status_code=201)
+            except LookupError:
+                return JSONResponse({"error": "Repository not found"}, status_code=404)
+            except ValueError as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    async def repository_branch_delete(request):
+        try:
+            user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        branch = str(request.path_params.get("branch", "")).strip()
+        if not branch:
+            return JSONResponse({"error": "branch is required"}, status_code=400)
+        try:
+            result = await context.use_cases.remove_repository_branch(repo_id=repo_id, branch=branch)
+            await record_admin_operation("repository_branch_remove", "success", actor_id=str(user.id), store=context.store)
+            return JSONResponse(result)
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except ValueError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
 
     async def repository_graph_sync(request):
         try:
@@ -933,6 +1003,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}", repository_detail, methods=["GET", "PATCH", "DELETE"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/branches", repository_branches, methods=["GET", "POST"]),
+        Route("/v1/admin/repositories/{repo_id:uuid}/branches/{branch:str}", repository_branch_delete, methods=["DELETE"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-map", repository_graph_map, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-summary", repository_graph_summary, methods=["GET"]),
         Route("/v1/admin/repositories/{repo_id:uuid}/graph-search", repository_graph_search, methods=["GET"]),

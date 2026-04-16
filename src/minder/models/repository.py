@@ -12,6 +12,7 @@ class RepositorySchema(BaseModelMeta):
     repo_name: str
     repo_url: str
     default_branch: str
+    tracked_branches: List[str] = Field(default_factory=list)
     workflow_id: Optional[uuid.UUID] = None
     state_path: str = ".minder"
     context_snapshot: Dict[str, Any] = Field(default_factory=dict)
@@ -27,6 +28,8 @@ class Repository(Base):
     repo_name: Mapped[str] = mapped_column(String, index=True)
     repo_url: Mapped[str] = mapped_column(String)
     default_branch: Mapped[str] = mapped_column(String)
+    # v2: list of branches that have been synced/tracked (stored as JSON array)
+    tracked_branches: Mapped[List[str]] = mapped_column(JSON, default=list, nullable=True)
     workflow_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True)
     state_path: Mapped[str] = mapped_column(String, default=".minder")
     context_snapshot: Mapped[Dict[str, Any]] = mapped_column(JSON, default=dict)

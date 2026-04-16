@@ -695,12 +695,15 @@ class AdminConsoleUseCases:
 
     @staticmethod
     def serialize_repository(repo: Any, state: Any = None) -> RepositoryPayload:
+        raw_branches = getattr(repo, "tracked_branches", None)
+        tracked: list[str] = list(raw_branches) if isinstance(raw_branches, list) else []
         return {
             "id": str(repo.id),
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
             "path": getattr(repo, "state_path", getattr(repo, "path", "")),
             "remote_url": _normalize_repository_remote(getattr(repo, "repo_url", None)),
             "default_branch": getattr(repo, "default_branch", None),
+            "tracked_branches": tracked,
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
@@ -729,10 +732,11 @@ class AdminConsoleUseCases:
         nodes_upserted = 0
         edges_upserted = 0
 
+        # --- Scoped deletion: prune stale nodes for changed/deleted files ---
         changed_files = payload.sync_metadata.get("changed_files", [])
-        paths_to_prune = set(payload.deleted_files)
+        paths_to_prune: set[str] = set(payload.deleted_files)
         if isinstance(changed_files, list):
-            paths_to_prune.update(str(path) for path in changed_files if isinstance(path, str) and path.strip())
+            paths_to_prune.update(str(p) for p in changed_files if isinstance(p, str) and p.strip())
         paths_to_prune.update(
             str(node.metadata.get("path"))
             for node in payload.nodes
@@ -740,36 +744,60 @@ class AdminConsoleUseCases:
         )
 
         if paths_to_prune:
-            for graph_node in await self._graph_store.list_nodes():
-                metadata = dict(getattr(graph_node, "node_metadata", {}) or {})
-                if metadata.get("repo_id") != str(repo_id):
-                    continue
-                if branch is not None and metadata.get("branch") not in {None, branch}:
-                    continue
-                if str(metadata.get("path", "") or "") not in paths_to_prune:
-                    continue
-                await self._graph_store.delete_node(graph_node.id)
-                deleted_nodes += 1
+            # Use efficient scoped deletion (v2) or fallback to full scan
+            if hasattr(self._graph_store, "delete_nodes_by_scope"):
+                deleted_nodes = await self._graph_store.delete_nodes_by_scope(
+                    repo_id=str(repo_id),
+                    branch=branch,
+                    paths=paths_to_prune,
+                )
+            else:
+                for graph_node in await self._graph_store.list_nodes():
+                    metadata = dict(getattr(graph_node, "node_metadata", {}) or {})
+                    if metadata.get("repo_id") != str(repo_id):
+                        continue
+                    if branch is not None and metadata.get("branch") not in {None, branch}:
+                        continue
+                    if str(metadata.get("path", "") or "") not in paths_to_prune:
+                        continue
+                    await self._graph_store.delete_node(graph_node.id)
+                    deleted_nodes += 1
+
+        # --- Upsert nodes with proper repo/branch scope (v2) ---
+        _branch = branch or ""
+        _repo_id_str = str(repo_id)
+        _common_meta = {
+            "repo_id": _repo_id_str,
+            "repository_name": repo_name,
+            "repository_remote": repo_remote,
+            "source": payload.source,
+            "payload_version": payload.payload_version,
+            "branch": _branch,
+            "repo_path": payload.repo_path,
+            "diff_base": payload.diff_base,
+            **payload.sync_metadata,
+        }
 
         for node in payload.nodes:
             persisted = await self._graph_store.upsert_node(
                 node.node_type,
                 node.name,
-                metadata={
-                    "repo_id": str(repo_id),
-                    "repository_name": repo_name,
-                    "repository_remote": repo_remote,
-                    "source": payload.source,
-                    "payload_version": payload.payload_version,
-                    "branch": branch,
-                    "repo_path": payload.repo_path,
-                    "diff_base": payload.diff_base,
-                    **payload.sync_metadata,
-                    **node.metadata,
-                },
+                metadata={**_common_meta, **node.metadata},
+                repo_id=_repo_id_str,
+                branch=_branch,
             )
             node_ids[(node.node_type, node.name)] = persisted.id
             nodes_upserted += 1
+
+        _edge_common_meta = {
+            "repo_id": _repo_id_str,
+            "repository_name": repo_name,
+            "repository_remote": repo_remote,
+            "source": payload.source,
+            "payload_version": payload.payload_version,
+            "branch": _branch,
+            "repo_path": payload.repo_path,
+        }
 
         for edge in payload.edges:
             source_key = (edge.source.node_type, edge.source.name)
@@ -779,15 +807,9 @@ class AdminConsoleUseCases:
                 source_node = await self._graph_store.upsert_node(
                     edge.source.node_type,
                     edge.source.name,
-                    metadata={
-                        "repo_id": str(repo_id),
-                        "repository_name": repo_name,
-                        "repository_remote": repo_remote,
-                        "source": payload.source,
-                        "payload_version": payload.payload_version,
-                        "branch": branch,
-                        "repo_path": payload.repo_path,
-                    },
+                    metadata=_edge_common_meta,
+                    repo_id=_repo_id_str,
+                    branch=_branch,
                 )
                 node_ids[source_key] = source_node.id
                 nodes_upserted += 1
@@ -796,15 +818,9 @@ class AdminConsoleUseCases:
                 target_node = await self._graph_store.upsert_node(
                     edge.target.node_type,
                     edge.target.name,
-                    metadata={
-                        "repo_id": str(repo_id),
-                        "repository_name": repo_name,
-                        "repository_remote": repo_remote,
-                        "source": payload.source,
-                        "payload_version": payload.payload_version,
-                        "branch": branch,
-                        "repo_path": payload.repo_path,
-                    },
+                    metadata=_edge_common_meta,
+                    repo_id=_repo_id_str,
+                    branch=_branch,
                 )
                 node_ids[target_key] = target_node.id
                 nodes_upserted += 1
@@ -814,9 +830,11 @@ class AdminConsoleUseCases:
                 target_id=node_ids[target_key],
                 relation=edge.relation,
                 weight=edge.weight,
+                repo_id=_repo_id_str,
             )
             edges_upserted += 1
 
+        # --- Update repository: tracked_branches + graph_sync metadata ---
         relationships = dict(getattr(repository, "relationships", {}) or {})
         relationships["graph_sync"] = {
             "payload_version": payload.payload_version,
@@ -831,7 +849,19 @@ class AdminConsoleUseCases:
             "edges_upserted": edges_upserted,
             "accepted_at": accepted_at,
         }
-        await self._store.update_repository(repo_id, relationships=relationships)
+
+        # Auto-register branch in tracked_branches on first sync
+        if branch:
+            raw_branches = list(getattr(repository, "tracked_branches", None) or [])
+            if branch not in raw_branches:
+                raw_branches.append(branch)
+            await self._store.update_repository(
+                repo_id,
+                relationships=relationships,
+                tracked_branches=raw_branches,
+            )
+        else:
+            await self._store.update_repository(repo_id, relationships=relationships)
 
         return {
             "repo_id": str(repo_id),
@@ -849,6 +879,7 @@ class AdminConsoleUseCases:
         self,
         *,
         repo_id: uuid.UUID,
+        branch: str | None = None,
     ) -> RepositoryGraphSummaryPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
@@ -868,7 +899,7 @@ class AdminConsoleUseCases:
                 "dependencies": [],
             }
 
-        repo_nodes = await self._repository_graph_nodes(repository)
+        repo_nodes = await self._repository_graph_nodes(repository, branch=branch)
         counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
         repo_node_ids = {str(getattr(node, "id")) for node in repo_nodes}
         services = [node for node in repo_nodes if str(getattr(node, "node_type", "")) == "service"]
@@ -912,16 +943,21 @@ class AdminConsoleUseCases:
         self,
         *,
         repo_id: uuid.UUID,
+        branch: str | None = None,
     ) -> RepositoryGraphMapPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
             raise LookupError("Repository not found")
+
+        # Default to the repo's default_branch when no branch is specified
+        effective_branch = branch or getattr(repository, "default_branch", None) or None
 
         repository_payload = self.serialize_repository(repository)
         if self._graph_store is None:
             return {
                 "repository": repository_payload,
                 "graph_available": False,
+                "branch": effective_branch,
                 "nodes": [],
                 "edges": [],
                 "summary": {
@@ -936,12 +972,14 @@ class AdminConsoleUseCases:
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
+            branch=effective_branch,
         )
         node_counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
         relation_counts = Counter(str(getattr(edge, "relation", "")) for edge in repo_edges)
         return {
             "repository": repository_payload,
             "graph_available": bool(repo_nodes),
+            "branch": effective_branch,
             "nodes": [self._serialize_graph_node(node) for node in repo_nodes],
             "edges": [self._serialize_graph_edge(edge) for edge in repo_edges],
             "summary": {
@@ -957,6 +995,7 @@ class AdminConsoleUseCases:
         *,
         repo_id: uuid.UUID,
         query: str,
+        branch: str | None = None,
         node_types: list[str] | None = None,
         languages: list[str] | None = None,
         last_states: list[str] | None = None,
@@ -973,6 +1012,7 @@ class AdminConsoleUseCases:
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
+            branch=branch,
             node_types=node_types,
             languages=languages,
             last_states=last_states,
@@ -991,6 +1031,7 @@ class AdminConsoleUseCases:
         *,
         repo_id: uuid.UUID,
         target: str,
+        branch: str | None = None,
         depth: int = 2,
         limit: int = 25,
     ) -> RepositoryGraphImpactPayload:
@@ -1005,6 +1046,7 @@ class AdminConsoleUseCases:
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
+            branch=branch,
             depth=depth,
             limit=limit,
         )
@@ -1015,6 +1057,86 @@ class AdminConsoleUseCases:
             "impacted": result["impacted"],
             "summary": result["summary"],
         }
+
+    # ------------------------------------------------------------------
+    # Branch management
+    # ------------------------------------------------------------------
+
+    async def list_repository_branches(
+        self,
+        *,
+        repo_id: uuid.UUID,
+    ) -> "RepositoryBranchListPayload":
+        from minder.application.admin.dto import RepositoryBranchListPayload  # local import avoids circular
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        default_branch = getattr(repository, "default_branch", None)
+        raw_branches = list(getattr(repository, "tracked_branches", None) or [])
+        # Ensure default branch is always in the list
+        if default_branch and default_branch not in raw_branches:
+            raw_branches.insert(0, default_branch)
+
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        graph_sync = relationships.get("graph_sync", {}) or {}
+        last_sync_branch = str(graph_sync.get("branch", "") or "")
+        last_sync_at = str(graph_sync.get("accepted_at", "") or "")
+
+        branch_payloads = []
+        for b in raw_branches:
+            branch_payloads.append({
+                "branch": b,
+                "is_default": b == default_branch,
+                "last_synced": last_sync_at if b == last_sync_branch else None,
+            })
+
+        return {
+            "repo_id": str(repo_id),
+            "default_branch": default_branch,
+            "tracked_branches": branch_payloads,
+        }
+
+    async def add_repository_branch(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        branch: str,
+    ) -> "RepositoryBranchListPayload":
+        branch = branch.strip()
+        if not branch:
+            raise ValueError("Branch name is required")
+
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        raw_branches = list(getattr(repository, "tracked_branches", None) or [])
+        if branch not in raw_branches:
+            raw_branches.append(branch)
+            await self._store.update_repository(repo_id, tracked_branches=raw_branches)
+            repository = await self._store.get_repository_by_id(repo_id) or repository
+
+        return await self.list_repository_branches(repo_id=repo_id)
+
+    async def remove_repository_branch(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        branch: str,
+    ) -> "RepositoryBranchListPayload":
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        default_branch = getattr(repository, "default_branch", None)
+        if branch == default_branch:
+            raise ValueError("Cannot remove the default branch")
+
+        raw_branches = list(getattr(repository, "tracked_branches", None) or [])
+        raw_branches = [b for b in raw_branches if b != branch]
+        await self._store.update_repository(repo_id, tracked_branches=raw_branches)
+        return await self.list_repository_branches(repo_id=repo_id)
 
     @staticmethod
     def _repository_last_sync(repository: Any) -> dict[str, Any] | None:
@@ -1052,11 +1174,14 @@ class AdminConsoleUseCases:
             return str(state_root.parent)
         return str(state_root)
 
-    async def _repository_graph_nodes(self, repository: Any) -> list[Any]:
+    async def _repository_graph_nodes(
+        self, repository: Any, *, branch: str | None = None
+    ) -> list[Any]:
         _, repo_nodes = await self._graph_tools.list_repo_nodes(
             repo_id=str(getattr(repository, "id")),
             repo_name=str(getattr(repository, "repo_name", "") or ""),
             repo_path=self._repository_root_path(repository),
+            branch=branch,
         )
         return repo_nodes
 

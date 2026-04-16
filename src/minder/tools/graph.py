@@ -17,6 +17,7 @@ class GraphTools:
         repo_id: str | None = None,
         repo_name: str | None = None,
         repo_path: str | None = None,
+        branch: str | None = None,
     ) -> tuple[str, list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -25,6 +26,15 @@ class GraphTools:
             repo_name=repo_name,
             repo_path=repo_path,
         )
+
+        # Fast path: if repo_id is known use the scoped query
+        if repo_id and hasattr(self._graph_store, "list_nodes_by_scope"):
+            repo_nodes = await self._graph_store.list_nodes_by_scope(
+                repo_id=repo_id, branch=branch
+            )
+            return effective_repo_name, repo_nodes
+
+        # Fallback: load all nodes and filter in Python (legacy / no-scope stores)
         all_nodes = await self._graph_store.list_nodes()
         repo_nodes = [
             node
@@ -34,6 +44,7 @@ class GraphTools:
                 repo_id=repo_id,
                 repo_name=effective_repo_name,
                 repo_root=repo_root,
+                branch=branch,
             )
         ]
         return effective_repo_name, repo_nodes
@@ -44,6 +55,7 @@ class GraphTools:
         repo_id: str | None = None,
         repo_name: str | None = None,
         repo_path: str | None = None,
+        branch: str | None = None,
     ) -> tuple[str, list[Any], list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -52,9 +64,16 @@ class GraphTools:
             repo_id=repo_id,
             repo_name=repo_name,
             repo_path=repo_path,
+            branch=branch,
         )
         repo_node_ids = {getattr(node, "id") for node in repo_nodes}
-        all_edges = await self._graph_store.list_edges()
+
+        # Fast path: repo-scoped edge query
+        if repo_id and hasattr(self._graph_store, "list_edges_by_scope"):
+            all_edges = await self._graph_store.list_edges_by_scope(repo_id=repo_id)
+        else:
+            all_edges = await self._graph_store.list_edges()
+
         repo_edges = [
             edge
             for edge in all_edges
@@ -70,6 +89,7 @@ class GraphTools:
         repo_path: str | None = None,
         repo_id: str | None = None,
         repo_name: str | None = None,
+        branch: str | None = None,
         node_types: list[str] | None = None,
         languages: list[str] | None = None,
         last_states: list[str] | None = None,
@@ -82,6 +102,7 @@ class GraphTools:
             repo_id=repo_id,
             repo_name=repo_name,
             repo_path=repo_path,
+            branch=branch,
         )
         allowed_types = {node_type.strip() for node_type in (node_types or []) if node_type.strip()}
         allowed_languages = {language.strip().lower() for language in (languages or []) if language.strip()}
@@ -127,6 +148,7 @@ class GraphTools:
         repo_path: str | None = None,
         repo_id: str | None = None,
         repo_name: str | None = None,
+        branch: str | None = None,
         depth: int = 2,
         limit: int = 25,
     ) -> dict[str, Any]:
@@ -137,6 +159,7 @@ class GraphTools:
             repo_id=repo_id,
             repo_name=repo_name,
             repo_path=repo_path,
+            branch=branch,
         )
         matches = _resolve_matches(repo_nodes, target)
         seed_nodes = matches[: min(5, max(1, limit))]
@@ -228,11 +251,34 @@ def _node_belongs_to_repo(
     repo_id: str | None,
     repo_name: str,
     repo_root: Path | None,
+    branch: str | None = None,
 ) -> bool:
     metadata = _metadata(node)
-    if repo_id and str(metadata.get("repo_id", "") or "") == repo_id:
+
+    # v2: check the actual repo_id column first
+    node_repo_id = str(getattr(node, "repo_id", "") or "")
+    if repo_id and node_repo_id:
+        if node_repo_id != repo_id:
+            return False
+        # Branch filter
+        if branch is not None:
+            node_branch = str(getattr(node, "branch", "") or "")
+            if node_branch and node_branch != branch:
+                return False
         return True
 
+    # Legacy fallback: repo_id stored inside metadata JSON
+    meta_repo_id = str(metadata.get("repo_id", "") or "")
+    if repo_id and meta_repo_id:
+        if meta_repo_id != repo_id:
+            return False
+        if branch is not None:
+            meta_branch = str(metadata.get("branch", "") or "")
+            if meta_branch and meta_branch != branch:
+                return False
+        return True
+
+    # Further legacy: match by project/repo name
     project = str(metadata.get("project", "") or "")
     if project == repo_name:
         return True

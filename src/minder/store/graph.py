@@ -5,20 +5,27 @@ relationships.
 Nodes represent named entities (module, file, service, owner).
 Edges represent directed relationships (depends_on, imports, calls, owns).
 
+v2 adds repo_id + branch columns so nodes from different repos/branches
+never collide.  KnowledgeGraphStore.init_db() runs _migrate_graph_v2()
+automatically on first boot when the columns are absent.
+
 Backed by SQLite (dev) or PostgreSQL (prod) via the shared async engine.
 """
 
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from minder.models import Base, GraphEdge, GraphNode
+
+logger = logging.getLogger(__name__)
 
 
 class KnowledgeGraphStore:
@@ -37,9 +44,10 @@ class KnowledgeGraphStore:
     # ------------------------------------------------------------------
 
     async def init_db(self) -> None:
-        """Create graph tables (idempotent)."""
+        """Create graph tables (idempotent) then run v2 migration if needed."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+        await self._migrate_graph_v2()
 
     async def dispose(self) -> None:
         await self._engine.dispose()
@@ -55,6 +63,178 @@ class KnowledgeGraphStore:
                 raise
 
     # ------------------------------------------------------------------
+    # v2 schema migration
+    # ------------------------------------------------------------------
+
+    async def _migrate_graph_v2(self) -> None:
+        """Add repo_id + branch columns and update unique constraints if missing."""
+        async with self._engine.begin() as conn:
+            dialect = conn.dialect.name  # type: ignore[attr-defined]
+
+            if dialect == "sqlite":
+                await self._migrate_graph_v2_sqlite(conn)
+            elif dialect == "postgresql":
+                await self._migrate_graph_v2_postgresql(conn)
+            # Other dialects: no-op (create_all already built the new schema)
+
+    async def _migrate_graph_v2_sqlite(self, conn: Any) -> None:
+        """SQLite migration: recreate graph_nodes/graph_edges with new schema."""
+        result = await conn.execute(text("PRAGMA table_info(graph_nodes)"))
+        existing_cols = {row[1] for row in result.fetchall()}
+
+        if "repo_id" not in existing_cols:
+            logger.info("Migrating graph_nodes to v2 schema (SQLite)...")
+            # Recreate graph_nodes with new columns + new unique constraint
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS graph_nodes_v2 (
+                    id TEXT NOT NULL,
+                    repo_id TEXT NOT NULL DEFAULT '',
+                    branch TEXT NOT NULL DEFAULT '',
+                    node_type TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    metadata JSON,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE (repo_id, branch, node_type, name)
+                )
+            """))
+            # Migrate existing data: extract repo_id/branch from JSON metadata
+            await conn.execute(text("""
+                INSERT OR IGNORE INTO graph_nodes_v2
+                    (id, repo_id, branch, node_type, name, metadata, created_at)
+                SELECT
+                    id,
+                    COALESCE(json_extract(metadata, '$.repo_id'), ''),
+                    COALESCE(json_extract(metadata, '$.branch'), ''),
+                    node_type,
+                    name,
+                    metadata,
+                    created_at
+                FROM graph_nodes
+            """))
+            await conn.execute(text("DROP TABLE graph_nodes"))
+            await conn.execute(text("ALTER TABLE graph_nodes_v2 RENAME TO graph_nodes"))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_nodes_repo_id ON graph_nodes (repo_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_nodes_branch ON graph_nodes (branch)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_nodes_node_type ON graph_nodes (node_type)"
+            ))
+            logger.info("graph_nodes v2 migration complete.")
+
+        # --- graph_edges ---
+        result = await conn.execute(text("PRAGMA table_info(graph_edges)"))
+        existing_edge_cols = {row[1] for row in result.fetchall()}
+
+        if "repo_id" not in existing_edge_cols:
+            logger.info("Migrating graph_edges to v2 schema (SQLite)...")
+            await conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS graph_edges_v2 (
+                    id TEXT NOT NULL,
+                    repo_id TEXT NOT NULL DEFAULT '',
+                    source_id TEXT NOT NULL,
+                    target_id TEXT NOT NULL,
+                    relation TEXT NOT NULL,
+                    weight REAL DEFAULT 1.0,
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE (repo_id, source_id, target_id, relation)
+                )
+            """))
+            await conn.execute(text("""
+                INSERT OR IGNORE INTO graph_edges_v2
+                    (id, repo_id, source_id, target_id, relation, weight, created_at)
+                SELECT id, '', source_id, target_id, relation, weight, created_at
+                FROM graph_edges
+            """))
+            await conn.execute(text("DROP TABLE graph_edges"))
+            await conn.execute(text("ALTER TABLE graph_edges_v2 RENAME TO graph_edges"))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_edges_repo_id ON graph_edges (repo_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_edges_source_id ON graph_edges (source_id)"
+            ))
+            await conn.execute(text(
+                "CREATE INDEX IF NOT EXISTS ix_graph_edges_target_id ON graph_edges (target_id)"
+            ))
+            logger.info("graph_edges v2 migration complete.")
+
+        # Migrate tracked_branches column on repositories table if missing
+        result = await conn.execute(text("PRAGMA table_info(repositories)"))
+        repo_cols = {row[1] for row in result.fetchall()}
+        if "tracked_branches" not in repo_cols:
+            await conn.execute(text(
+                "ALTER TABLE repositories ADD COLUMN tracked_branches JSON DEFAULT '[]'"
+            ))
+            logger.info("repositories.tracked_branches column added.")
+
+    async def _migrate_graph_v2_postgresql(self, conn: Any) -> None:
+        """PostgreSQL migration: ADD COLUMN IF NOT EXISTS + constraint update."""
+        # Check if repo_id column exists
+        result = await conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'graph_nodes' AND column_name = 'repo_id'
+        """))
+        if not result.fetchone():
+            logger.info("Migrating graph_nodes to v2 schema (PostgreSQL)...")
+            await conn.execute(text(
+                "ALTER TABLE graph_nodes ADD COLUMN IF NOT EXISTS repo_id VARCHAR NOT NULL DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE graph_nodes ADD COLUMN IF NOT EXISTS branch VARCHAR NOT NULL DEFAULT ''"
+            ))
+            # Populate from existing JSON metadata
+            await conn.execute(text("""
+                UPDATE graph_nodes
+                SET repo_id = COALESCE(metadata->>'repo_id', ''),
+                    branch  = COALESCE(metadata->>'branch', '')
+                WHERE repo_id = '' OR repo_id IS NULL
+            """))
+            # Drop old constraint, add new
+            await conn.execute(text(
+                "ALTER TABLE graph_nodes DROP CONSTRAINT IF EXISTS uq_graph_node_type_name"
+            ))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_graph_node_repo_branch_type_name
+                ON graph_nodes (repo_id, branch, node_type, name)
+            """))
+            logger.info("graph_nodes v2 migration complete.")
+
+        # --- graph_edges ---
+        result = await conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'graph_edges' AND column_name = 'repo_id'
+        """))
+        if not result.fetchone():
+            logger.info("Migrating graph_edges to v2 schema (PostgreSQL)...")
+            await conn.execute(text(
+                "ALTER TABLE graph_edges ADD COLUMN IF NOT EXISTS repo_id VARCHAR NOT NULL DEFAULT ''"
+            ))
+            await conn.execute(text(
+                "ALTER TABLE graph_edges DROP CONSTRAINT IF EXISTS uq_graph_edge_src_tgt_rel"
+            ))
+            await conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_graph_edge_repo_src_tgt_rel
+                ON graph_edges (repo_id, source_id, target_id, relation)
+            """))
+            logger.info("graph_edges v2 migration complete.")
+
+        # tracked_branches on repositories
+        result = await conn.execute(text("""
+            SELECT column_name FROM information_schema.columns
+            WHERE table_name = 'repositories' AND column_name = 'tracked_branches'
+        """))
+        if not result.fetchone():
+            await conn.execute(text(
+                "ALTER TABLE repositories ADD COLUMN IF NOT EXISTS tracked_branches JSON DEFAULT '[]'"
+            ))
+            logger.info("repositories.tracked_branches column added.")
+
+    # ------------------------------------------------------------------
     # Node operations
     # ------------------------------------------------------------------
 
@@ -64,11 +244,16 @@ class KnowledgeGraphStore:
         name: str,
         metadata: dict[str, Any] | None = None,
         node_id: uuid.UUID | None = None,
+        *,
+        repo_id: str = "",
+        branch: str = "",
     ) -> GraphNode:
-        """Insert a node. Raises on duplicate (type, name)."""
+        """Insert a node. Raises on duplicate (repo_id, branch, type, name)."""
         async with self._session() as sess:
             node = GraphNode(
                 id=node_id or uuid.uuid4(),
+                repo_id=repo_id,
+                branch=branch,
                 node_type=node_type,
                 name=name,
                 node_metadata=metadata or {},
@@ -83,12 +268,18 @@ class KnowledgeGraphStore:
         node_type: str,
         name: str,
         metadata: dict[str, Any] | None = None,
+        *,
+        repo_id: str = "",
+        branch: str = "",
     ) -> GraphNode:
-        """Insert or update a node by (type, name). Returns the persisted node."""
+        """Insert or update a node by (repo_id, branch, type, name)."""
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphNode).where(
-                    GraphNode.node_type == node_type, GraphNode.name == name
+                    GraphNode.repo_id == repo_id,
+                    GraphNode.branch == branch,
+                    GraphNode.node_type == node_type,
+                    GraphNode.name == name,
                 )
             )
             existing = result.scalar_one_or_none()
@@ -103,6 +294,8 @@ class KnowledgeGraphStore:
                 return existing
             node = GraphNode(
                 id=uuid.uuid4(),
+                repo_id=repo_id,
+                branch=branch,
                 node_type=node_type,
                 name=name,
                 node_metadata=metadata or {},
@@ -119,30 +312,65 @@ class KnowledgeGraphStore:
             )
             return result.scalar_one_or_none()
 
-    async def get_node_by_name(self, node_type: str, name: str) -> GraphNode | None:
+    async def get_node_by_name(
+        self,
+        node_type: str,
+        name: str,
+        *,
+        repo_id: str = "",
+        branch: str = "",
+    ) -> GraphNode | None:
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphNode).where(
-                    GraphNode.node_type == node_type, GraphNode.name == name
+                    GraphNode.repo_id == repo_id,
+                    GraphNode.branch == branch,
+                    GraphNode.node_type == node_type,
+                    GraphNode.name == name,
                 )
             )
             return result.scalar_one_or_none()
 
     async def list_nodes(self) -> list[GraphNode]:
+        """Return ALL nodes across all repos/branches (use sparingly)."""
         async with self._session() as sess:
             result = await sess.execute(select(GraphNode))
             return list(result.scalars().all())
 
+    async def list_nodes_by_scope(
+        self,
+        *,
+        repo_id: str,
+        branch: str | None = None,
+    ) -> list[GraphNode]:
+        """Return nodes scoped to a specific repo_id, optionally filtered by branch."""
+        async with self._session() as sess:
+            stmt = select(GraphNode).where(GraphNode.repo_id == repo_id)
+            if branch is not None:
+                stmt = stmt.where(GraphNode.branch == branch)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_edges(self) -> list[GraphEdge]:
+        """Return ALL edges across all repos (use sparingly)."""
         async with self._session() as sess:
             result = await sess.execute(select(GraphEdge))
             return list(result.scalars().all())
 
-    async def query_by_type(self, node_type: str) -> list[GraphNode]:
+    async def list_edges_by_scope(self, *, repo_id: str) -> list[GraphEdge]:
+        """Return edges scoped to a specific repo_id."""
         async with self._session() as sess:
             result = await sess.execute(
-                select(GraphNode).where(GraphNode.node_type == node_type)
+                select(GraphEdge).where(GraphEdge.repo_id == repo_id)
             )
+            return list(result.scalars().all())
+
+    async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[GraphNode]:
+        async with self._session() as sess:
+            stmt = select(GraphNode).where(GraphNode.node_type == node_type)
+            if repo_id:
+                stmt = stmt.where(GraphNode.repo_id == repo_id)
+            result = await sess.execute(stmt)
             return list(result.scalars().all())
 
     async def delete_node(self, node_id: uuid.UUID) -> None:
@@ -155,6 +383,30 @@ class KnowledgeGraphStore:
                 )
             )
 
+    async def delete_nodes_by_scope(
+        self,
+        *,
+        repo_id: str,
+        branch: str | None = None,
+        paths: set[str] | None = None,
+    ) -> int:
+        """Delete nodes for a given repo/branch scope.
+
+        If *paths* is provided only nodes whose metadata.path matches are removed.
+        Returns the number of nodes deleted.
+        """
+        nodes = await self.list_nodes_by_scope(repo_id=repo_id, branch=branch)
+        deleted = 0
+        for node in nodes:
+            meta = dict(getattr(node, "node_metadata", {}) or {})
+            if paths is not None:
+                node_path = str(meta.get("path", "") or "")
+                if node_path not in paths:
+                    continue
+            await self.delete_node(node.id)
+            deleted += 1
+        return deleted
+
     # ------------------------------------------------------------------
     # Edge operations
     # ------------------------------------------------------------------
@@ -166,11 +418,14 @@ class KnowledgeGraphStore:
         relation: str,
         weight: float = 1.0,
         edge_id: uuid.UUID | None = None,
+        *,
+        repo_id: str = "",
     ) -> GraphEdge:
-        """Insert a directed edge. Raises on duplicate (source, target, relation)."""
+        """Insert a directed edge. Raises on duplicate (repo_id, source, target, relation)."""
         async with self._session() as sess:
             edge = GraphEdge(
                 id=edge_id or uuid.uuid4(),
+                repo_id=repo_id,
                 source_id=source_id,
                 target_id=target_id,
                 relation=relation,
@@ -187,11 +442,14 @@ class KnowledgeGraphStore:
         target_id: uuid.UUID,
         relation: str,
         weight: float = 1.0,
+        *,
+        repo_id: str = "",
     ) -> GraphEdge:
-        """Insert or update edge by (source, target, relation)."""
+        """Insert or update edge by (repo_id, source, target, relation)."""
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphEdge).where(
+                    GraphEdge.repo_id == repo_id,
                     GraphEdge.source_id == source_id,
                     GraphEdge.target_id == target_id,
                     GraphEdge.relation == relation,
@@ -208,6 +466,7 @@ class KnowledgeGraphStore:
                 return existing
             edge = GraphEdge(
                 id=uuid.uuid4(),
+                repo_id=repo_id,
                 source_id=source_id,
                 target_id=target_id,
                 relation=relation,

@@ -469,6 +469,7 @@ export type RepositoryPayload = {
   path: string;
   remote_url: string | null;
   default_branch: string | null;
+  tracked_branches: string[];
   workflow_name: string | null;
   workflow_state: string | null;
   current_step: string | null;
@@ -581,6 +582,7 @@ export type RepositoryGraphImpactPayload = {
 export type RepositoryGraphMapPayload = {
   repository: RepositoryPayload;
   graph_available: boolean;
+  branch: string | null;
   nodes: RepositoryGraphNodePayload[];
   edges: RepositoryGraphEdgePayload[];
   summary: {
@@ -591,19 +593,67 @@ export type RepositoryGraphMapPayload = {
   };
 };
 
+export type RepositoryBranchPayload = {
+  branch: string;
+  is_default: boolean;
+  last_synced: string | null;
+};
+
+export type RepositoryBranchListPayload = {
+  repo_id: string;
+  default_branch: string | null;
+  tracked_branches: RepositoryBranchPayload[];
+};
+
+export async function getRepositoryBranches(
+  repoId: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches`,
+  );
+}
+
+export async function addRepositoryBranch(
+  repoId: string,
+  branch: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches`,
+    { method: "POST", body: JSON.stringify({ branch }) },
+  );
+}
+
+export async function removeRepositoryBranch(
+  repoId: string,
+  branch: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches/${encodeURIComponent(branch)}`,
+    { method: "DELETE" },
+  );
+}
+
 export async function getRepositoryGraphMap(
   repoId: string,
+  branch?: string,
 ): Promise<RepositoryGraphMapPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
   return requestJson<RepositoryGraphMapPayload>(
-    `/v1/admin/repositories/${repoId}/graph-map`,
+    `/v1/admin/repositories/${repoId}/graph-map${qs ? `?${qs}` : ""}`,
   );
 }
 
 export async function getRepositoryGraphSummary(
   repoId: string,
+  branch?: string,
 ): Promise<RepositoryGraphSummaryPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
   return requestJson<RepositoryGraphSummaryPayload>(
-    `/v1/admin/repositories/${repoId}/graph-summary`,
+    `/v1/admin/repositories/${repoId}/graph-summary${qs ? `?${qs}` : ""}`,
   );
 }
 
@@ -611,6 +661,7 @@ export async function searchRepositoryGraph(
   repoId: string,
   options: {
     query: string;
+    branch?: string;
     nodeTypes?: string[];
     languages?: string[];
     lastStates?: string[];
@@ -620,6 +671,7 @@ export async function searchRepositoryGraph(
   const params = new URLSearchParams();
   params.set("query", options.query);
   params.set("limit", String(options.limit ?? 10));
+  if (options.branch) params.set("branch", options.branch);
   for (const nodeType of options.nodeTypes ?? []) {
     params.append("node_type", nodeType);
   }
@@ -639,12 +691,14 @@ export async function getRepositoryGraphImpact(
   target: string,
   depth = 2,
   limit = 25,
+  branch?: string,
 ): Promise<RepositoryGraphImpactPayload> {
   const params = new URLSearchParams({
     target,
     depth: String(depth),
     limit: String(limit),
   });
+  if (branch) params.set("branch", branch);
   return requestJson<RepositoryGraphImpactPayload>(
     `/v1/admin/repositories/${repoId}/graph-impact?${params.toString()}`,
   );

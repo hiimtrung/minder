@@ -1,12 +1,16 @@
 import * as d3 from "d3";
 import {
+  addRepositoryBranch,
   deleteRepository,
+  getRepositoryBranches,
   getRepositoryGraphImpact,
   getRepositoryGraphMap,
   getRepositoryGraphSummary,
   listRepositories,
+  removeRepositoryBranch,
   searchRepositoryGraph,
   updateRepository,
+  type RepositoryBranchListPayload,
   type RepositoryGraphEdgePayload,
   type RepositoryGraphNodePayload,
   type RepositoryGraphSummaryPayload,
@@ -51,9 +55,16 @@ const NODE_COLORS: Record<string, string> = {
   service: "#e879f9",
   controller: "#22d3ee",
   class: "#fbbf24",
+  abstract_class: "#f59e0b",
   function: "#34d399",
   interface: "#fb7185",
   route: "#f87171",
+  // v2 — new node types
+  api_endpoint: "#fbbf24",      // amber — HTTP endpoints
+  websocket_endpoint: "#22d3ee", // cyan — WebSocket channels
+  mq_topic: "#a78bfa",          // violet — message topics
+  mq_producer: "#f97316",       // orange — message producers
+  mq_consumer: "#4ade80",       // green — message consumers
   todo: "#ef4444",
   external_service_api: "#e879f9",
   query: "#fb923c",
@@ -68,9 +79,16 @@ const NODE_RADII: Record<string, number> = {
   service: 16,
   controller: 11,
   class: 9,
+  abstract_class: 9,
   function: 7,
   interface: 8,
   route: 7,
+  // v2 — new node types
+  api_endpoint: 10,
+  websocket_endpoint: 10,
+  mq_topic: 12,
+  mq_producer: 8,
+  mq_consumer: 8,
   todo: 6,
   external_service_api: 8,
   query: 12,
@@ -688,6 +706,8 @@ function switchTab(tabId: string): void {
     setGraphFullWidth(false);
     if (tabId === "search" && searchRenderer) setTimeout(() => searchRenderer?.fitToScreen(), 50);
     if (tabId === "impact" && impactRenderer) setTimeout(() => impactRenderer?.fitToScreen(), 50);
+    // Settings tab: load tracked branches from API
+    if (tabId === "settings") void loadTrackedBranches();
   }
 }
 
@@ -961,6 +981,7 @@ function renderGraphSummaryStats(nodeCount: number, edgeCount: number, typeCount
 let repositories: RepositoryPayload[] = [];
 let activeRepositoryId: string | null = null;
 let activeRepository: RepositoryPayload | null = null;
+let activeBranch: string | null = null; // currently selected branch for graph view
 
 function renderRepositories(): void {
   const list = getEl("repositories-list");
@@ -1060,25 +1081,62 @@ async function loadRepositories(): Promise<void> {
   }
 }
 
+// ============================================================
+// Branch selector
+// ============================================================
+
+function renderBranchSelector(repo: RepositoryPayload | null): void {
+  const wrap = getEl("repo-branch-selector-wrap");
+  const sel = getEl<HTMLSelectElement>("repo-branch-selector");
+  if (!wrap || !sel) return;
+
+  if (!repo) { wrap.classList.add("hidden"); return; }
+
+  const branches = repo.tracked_branches ?? [];
+  const def = repo.default_branch ?? "";
+
+  // Ensure default branch is always in list
+  const all = def && !branches.includes(def) ? [def, ...branches] : branches;
+
+  if (!all.length) { wrap.classList.add("hidden"); return; }
+
+  wrap.classList.remove("hidden");
+  sel.innerHTML = all.map((b) =>
+    `<option value="${escapeHtml(b)}" ${b === (activeBranch ?? def) ? "selected" : ""}>${escapeHtml(b)}${b === def ? " (default)" : ""}</option>`
+  ).join("");
+
+  // Set activeBranch to current selection
+  activeBranch = sel.value || def || null;
+}
+
 async function selectRepository(repoId: string): Promise<void> {
   activeRepositoryId = repoId;
   activeRepository = repositories.find((r) => r.id === repoId) ?? null;
+  // When switching repos reset branch to default
+  activeBranch = activeRepository?.default_branch ?? null;
   renderRepositories();
   populateSettings(activeRepository);
+  renderBranchSelector(activeRepository);
   setText(getEl("repo-settings-status"), "");
   setText(getEl("graph-search-status"), "");
   setText(getEl("graph-impact-status"), "");
   setText(getEl("repo-graph-status"), "Loading graph…");
 
+  await loadRepoGraph(repoId, activeBranch);
+}
+
+async function loadRepoGraph(repoId: string, branch: string | null): Promise<void> {
+  setText(getEl("repo-graph-status"), "Loading graph…");
   try {
     const [summary, graphMap] = await Promise.all([
-      getRepositoryGraphSummary(repoId),
-      getRepositoryGraphMap(repoId),
+      getRepositoryGraphSummary(repoId, branch ?? undefined),
+      getRepositoryGraphMap(repoId, branch ?? undefined),
     ]);
     activeRepository = summary.repository;
     repositories = repositories.map((r) => r.id === summary.repository.id ? summary.repository : r);
     renderRepositories();
     populateSettings(summary.repository);
+    renderBranchSelector(summary.repository);
     renderSummary(summary);
 
     const { nodes, edges } = buildGraphData(
@@ -1101,10 +1159,11 @@ async function selectRepository(repoId: string): Promise<void> {
       renderLegendOverlay("repo-graph-legend", nodes);
     }
 
+    const branchLabel = graphMap.branch ? ` · ${graphMap.branch}` : "";
     setText(
       getEl("repo-graph-status"),
       graphMap.graph_available
-        ? `${graphMap.summary.node_count} nodes · ${graphMap.summary.edge_count} edges`
+        ? `${graphMap.summary.node_count} nodes · ${graphMap.summary.edge_count} edges${branchLabel}`
         : "No graph snapshot for this repository yet.",
     );
   } catch (err) {
@@ -1115,7 +1174,7 @@ async function selectRepository(repoId: string): Promise<void> {
 }
 
 async function refreshActiveGraph(): Promise<void> {
-  if (activeRepositoryId) await selectRepository(activeRepositoryId);
+  if (activeRepositoryId) await loadRepoGraph(activeRepositoryId, activeBranch);
 }
 
 // ============================================================
@@ -1131,6 +1190,7 @@ async function handleSearchSubmit(e: SubmitEvent): Promise<void> {
   try {
     const res = await searchRepositoryGraph(activeRepositoryId, {
       query: q,
+      branch: activeBranch ?? undefined,
       nodeTypes: splitCsv(getEl<HTMLInputElement>("graph-search-types")?.value),
       languages: splitCsv(getEl<HTMLInputElement>("graph-search-languages")?.value),
       lastStates: splitCsv(getEl<HTMLInputElement>("graph-search-states")?.value),
@@ -1162,7 +1222,7 @@ async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
   setText(getEl("graph-impact-status"), "Analyzing impact…");
 
   try {
-    const res = await getRepositoryGraphImpact(activeRepositoryId, target, depth, limit);
+    const res = await getRepositoryGraphImpact(activeRepositoryId, target, depth, limit, activeBranch ?? undefined);
     const matchNodes: ExtendedNodePayload[] = res.matches.map((n) => ({ ...n, emphasis: "seed" as const }));
     const impactNodes: ExtendedNodePayload[] = res.impacted.map((n) => ({ ...n, emphasis: "result" as const }));
 
@@ -1251,6 +1311,129 @@ async function handleRepositoryDelete(): Promise<void> {
 }
 
 // ============================================================
+// Branch management (Settings tab)
+// ============================================================
+
+/** Render the tracked-branches list in the Settings tab */
+function renderTrackedBranchesList(data: RepositoryBranchListPayload | null): void {
+  const container = getEl("repo-branches-list");
+  if (!container) return;
+
+  if (!data) {
+    container.innerHTML = `<p class="text-sm text-stone-400 italic">No repository selected.</p>`;
+    return;
+  }
+
+  const { default_branch, tracked_branches } = data;
+  // Always show default_branch even if tracked_branches is empty
+  const all = default_branch && !tracked_branches.includes(default_branch)
+    ? [default_branch, ...tracked_branches]
+    : tracked_branches;
+
+  if (!all.length) {
+    container.innerHTML = `<p class="text-sm text-stone-400 italic">No branches tracked yet.</p>`;
+    return;
+  }
+
+  container.innerHTML = all.map((b) => {
+    const isDefault = b === default_branch;
+    return `
+      <div class="flex items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-2.5">
+        <div class="flex items-center gap-2 min-w-0">
+          <svg class="h-3.5 w-3.5 shrink-0 text-stone-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 01-9 9"/>
+          </svg>
+          <span class="truncate text-sm font-medium text-stone-800">${escapeHtml(b)}</span>
+          ${isDefault ? `<span class="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-700">default</span>` : ""}
+        </div>
+        ${isDefault ? "" : `
+          <button
+            data-remove-branch="${escapeHtml(b)}"
+            class="shrink-0 rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50"
+          >
+            Remove
+          </button>
+        `}
+      </div>`;
+  }).join("");
+}
+
+/** Load branches from API and render */
+async function loadTrackedBranches(): Promise<void> {
+  if (!activeRepositoryId) return;
+  const statusEl = getEl("repo-branches-status");
+  try {
+    const data = await getRepositoryBranches(activeRepositoryId);
+    renderTrackedBranchesList(data);
+    setText(statusEl, "");
+  } catch (err) {
+    setText(statusEl, `Failed to load branches: ${String(err)}`);
+  }
+}
+
+/** Handle adding a new tracked branch */
+async function handleAddBranch(): Promise<void> {
+  if (!activeRepositoryId) return;
+  const input = getEl<HTMLInputElement>("repo-branch-add-input");
+  const btn = getEl<HTMLButtonElement>("repo-branch-add-btn");
+  const statusEl = getEl("repo-branches-status");
+  if (!input) return;
+
+  const branch = input.value.trim();
+  if (!branch) {
+    setText(statusEl, "Please enter a branch name.");
+    return;
+  }
+
+  if (btn) btn.disabled = true;
+  setText(statusEl, "Adding branch…");
+
+  try {
+    await addRepositoryBranch(activeRepositoryId, branch);
+    input.value = "";
+    setText(statusEl, `Branch "${branch}" added.`);
+    await loadTrackedBranches();
+    // Also refresh the branch selector in Graph tab
+    if (activeRepository) {
+      activeRepository = { ...activeRepository, tracked_branches: [...(activeRepository.tracked_branches ?? []), branch] };
+      renderBranchSelector(activeRepository);
+    }
+  } catch (err) {
+    setText(statusEl, `Error: ${String(err)}`);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+/** Handle removing a tracked branch */
+async function handleRemoveBranch(branch: string): Promise<void> {
+  if (!activeRepositoryId) return;
+  const statusEl = getEl("repo-branches-status");
+  setText(statusEl, `Removing "${branch}"…`);
+
+  try {
+    await removeRepositoryBranch(activeRepositoryId, branch);
+    setText(statusEl, `Branch "${branch}" removed.`);
+    await loadTrackedBranches();
+    // Also refresh branch selector
+    if (activeRepository) {
+      activeRepository = {
+        ...activeRepository,
+        tracked_branches: (activeRepository.tracked_branches ?? []).filter((b) => b !== branch),
+      };
+      renderBranchSelector(activeRepository);
+      // If removed branch was active, reset to default
+      if (activeBranch === branch) {
+        activeBranch = activeRepository.default_branch ?? null;
+        if (activeRepositoryId) void loadRepoGraph(activeRepositoryId, activeBranch);
+      }
+    }
+  } catch (err) {
+    setText(statusEl, `Error: ${String(err)}`);
+  }
+}
+
+// ============================================================
 // Event bindings
 // ============================================================
 
@@ -1260,6 +1443,32 @@ getEl("graph-search-form")?.addEventListener("submit", (e) => { void handleSearc
 getEl("graph-impact-form")?.addEventListener("submit", (e) => { void handleImpactSubmit(e); });
 getEl("repo-settings-form")?.addEventListener("submit", (e) => { void handleSettingsSave(e); });
 getEl("repo-settings-delete")?.addEventListener("click", () => { void handleRepositoryDelete(); });
+
+// Branch selector: reload graph when branch changes
+getEl<HTMLSelectElement>("repo-branch-selector")?.addEventListener("change", (e) => {
+  const newBranch = (e.target as HTMLSelectElement).value;
+  if (newBranch && newBranch !== activeBranch && activeRepositoryId) {
+    activeBranch = newBranch;
+    void loadRepoGraph(activeRepositoryId, activeBranch);
+  }
+});
+
+// Branch management: add button
+getEl("repo-branch-add-btn")?.addEventListener("click", () => { void handleAddBranch(); });
+
+// Branch management: Enter key in input
+getEl<HTMLInputElement>("repo-branch-add-input")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") { e.preventDefault(); void handleAddBranch(); }
+});
+
+// Branch management: remove buttons (event delegation)
+getEl("repo-branches-list")?.addEventListener("click", (e) => {
+  const btn = (e.target as Element).closest<HTMLButtonElement>("[data-remove-branch]");
+  if (btn) {
+    const branch = btn.dataset["removeBranch"] ?? "";
+    if (branch) void handleRemoveBranch(branch);
+  }
+});
 
 // ============================================================
 // Init — default tab is "graph" (applied at page load)

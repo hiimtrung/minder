@@ -236,17 +236,48 @@ class IFeedbackRepository(Protocol):
 @runtime_checkable
 class IGraphRepository(Protocol):
     async def add_node(
-        self, node_type: str, name: str, metadata: dict[str, Any] | None = None, node_id: uuid.UUID | None = None
+        self,
+        node_type: str,
+        name: str,
+        metadata: dict[str, Any] | None = None,
+        node_id: uuid.UUID | None = None,
+        *,
+        repo_id: str = "",
+        branch: str = "",
     ) -> Any: ...
     async def upsert_node(
-        self, node_type: str, name: str, metadata: dict[str, Any] | None = None
+        self,
+        node_type: str,
+        name: str,
+        metadata: dict[str, Any] | None = None,
+        *,
+        repo_id: str = "",
+        branch: str = "",
     ) -> Any: ...
     async def get_node(self, node_id: uuid.UUID) -> Any | None: ...
-    async def get_node_by_name(self, node_type: str, name: str) -> Any | None: ...
+    async def get_node_by_name(
+        self,
+        node_type: str,
+        name: str,
+        *,
+        repo_id: str = "",
+        branch: str = "",
+    ) -> Any | None: ...
     async def list_nodes(self) -> list[Any]: ...
+    async def list_nodes_by_scope(
+        self, *, repo_id: str, branch: str | None = None
+    ) -> list[Any]: ...
     async def list_edges(self) -> list[Any]: ...
-    async def query_by_type(self, node_type: str) -> list[Any]: ...
+    async def list_edges_by_scope(self, *, repo_id: str) -> list[Any]: ...
+    async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[Any]: ...
     async def delete_node(self, node_id: uuid.UUID) -> None: ...
+    async def delete_nodes_by_scope(
+        self,
+        *,
+        repo_id: str,
+        branch: str | None = None,
+        paths: set[str] | None = None,
+    ) -> int: ...
     async def add_edge(
         self,
         source_id: uuid.UUID,
@@ -254,6 +285,8 @@ class IGraphRepository(Protocol):
         relation: str,
         weight: float = 1.0,
         edge_id: uuid.UUID | None = None,
+        *,
+        repo_id: str = "",
     ) -> Any: ...
     async def upsert_edge(
         self,
@@ -261,6 +294,8 @@ class IGraphRepository(Protocol):
         target_id: uuid.UUID,
         relation: str,
         weight: float = 1.0,
+        *,
+        repo_id: str = "",
     ) -> Any: ...
     async def delete_edge(self, edge_id: uuid.UUID) -> None: ...
     async def get_neighbors(

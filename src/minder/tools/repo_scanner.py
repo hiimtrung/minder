@@ -38,6 +38,45 @@ _SERVICE_MARKERS = {"pyproject.toml", "package.json", "go.mod", "Cargo.toml"}
 _HTTP_ROUTE_DECORATORS = {"get", "post", "put", "patch", "delete", "route"}
 _MQ_PUBLISH_CALLS = {"publish", "send", "produce", "emit"}
 _MQ_CONSUME_CALLS = {"consume", "subscribe", "listen"}
+
+# Spring Boot route annotation detection (Java)
+_SPRING_ROUTE_PATTERN = re.compile(
+    r'@(GetMapping|PostMapping|PutMapping|PatchMapping|DeleteMapping|RequestMapping)'
+    r'\s*\(\s*(?:value\s*=\s*)?["\']([^"\']+)["\']',
+    re.MULTILINE,
+)
+# NestJS decorator detection (TypeScript) — @Get/@Post etc. at class level prefix
+_NESTJS_CONTROLLER_PATTERN = re.compile(
+    r'@Controller\s*\(\s*["\']([^"\']*)["\']',
+    re.MULTILINE,
+)
+_NESTJS_ROUTE_PATTERN = re.compile(
+    r'@(Get|Post|Put|Patch|Delete|All)\s*\(\s*(?:["\']([^"\']*)["\'])?\s*\)',
+    re.MULTILINE,
+)
+# WebSocket endpoint detection
+_WS_GATEWAY_PATTERN = re.compile(
+    r'@WebSocketGateway\s*\(\s*(?:(?:path\s*=\s*)?["\']([^"\']*)["\'])?\s*\)',
+    re.MULTILINE,
+)
+_WS_SUBSCRIBE_PATTERN = re.compile(
+    r'@SubscribeMessage\s*\(\s*["\']([^"\']+)["\']',
+    re.MULTILINE,
+)
+_SPRING_WS_MAPPING_PATTERN = re.compile(
+    r'@MessageMapping\s*\(\s*["\']([^"\']+)["\']',
+    re.MULTILINE,
+)
+# Go/Gin/Fiber route patterns
+_GO_ROUTE_PATTERN = re.compile(
+    r'(?:r|router|app|engine)\.(GET|POST|PUT|PATCH|DELETE)\s*\(\s*"([^"]+)"',
+    re.MULTILINE,
+)
+# Rust/axum/actix-web route patterns
+_RUST_ROUTE_ATTR_PATTERN = re.compile(
+    r'#\[(?:get|post|put|patch|delete)\s*\(\s*"([^"]+)"\s*\)\]',
+    re.MULTILINE,
+)
 _TODO_PATTERN = re.compile(r"(?:#|//|/\*+|\*+)\s*TODO\s*:?\s*(.+)?", re.IGNORECASE)
 _MARKDOWN_TASK_PATTERN = re.compile(r"^\s*[-*]\s+\[\s\]\s+(.+)$")
 _URL_PATTERN = re.compile(r"https?://[^\s\"')]+")
@@ -898,27 +937,142 @@ class RepoScanner:
                 edges.append(_EdgeSpec("file", rel_path, "function", symbol_name, "contains"))
                 symbol_count += 1
 
-        for match in re.finditer(r"(?:router|app)\.(get|post|put|patch|delete)\(\s*['\"]([^'\"]+)['\"]|@(Get|Post|Put|Patch|Delete)\(\s*['\"]([^'\"]+)['\"]", source):
-            method = (match.group(1) or match.group(3) or "ROUTE").upper()
-            path = match.group(2) or match.group(4)
+        # --- HTTP route detection (Express/Fastify/Koa patterns) ---
+        for match in re.finditer(
+            r"(?:router|app|server)\.(get|post|put|patch|delete)\s*\(\s*['\"]([^'\"]+)['\"]",
+            source,
+        ):
+            method = match.group(1).upper()
+            path = match.group(2)
             route_name = f"{method} {path}"
-            nodes.append(_NodeSpec("route", route_name, {"path": rel_path, "line": _line_number(source, match.start()), "method": method, "route_path": path}))
+            nodes.append(_NodeSpec("route", route_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "method": method, "route_path": path, "framework": "express",
+            }))
             edges.append(_EdgeSpec("file", rel_path, "route", route_name, "exposes_route"))
             route_count += 1
 
+        # --- NestJS @Get/@Post etc. ---
+        # Detect controller prefix for full path reconstruction
+        controller_prefix = ""
+        ctrl_match = _NESTJS_CONTROLLER_PATTERN.search(source)
+        if ctrl_match:
+            controller_prefix = ctrl_match.group(1).rstrip("/")
+
+        for match in _NESTJS_ROUTE_PATTERN.finditer(source):
+            method = match.group(1).upper()
+            sub_path = (match.group(2) or "").strip("/")
+            full_path = f"/{controller_prefix}/{sub_path}".replace("//", "/").rstrip("/") or "/"
+            route_name = f"{method} {full_path}"
+            nodes.append(_NodeSpec("api_endpoint", route_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "method": method, "route_path": full_path, "framework": "nestjs",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "api_endpoint", route_name, "exposes_route"))
+            route_count += 1
+
+        # --- Spring Boot @GetMapping / @PostMapping etc. ---
+        for match in _SPRING_ROUTE_PATTERN.finditer(source):
+            annotation = match.group(1)
+            route_path = match.group(2)
+            method_map = {
+                "GetMapping": "GET", "PostMapping": "POST", "PutMapping": "PUT",
+                "PatchMapping": "PATCH", "DeleteMapping": "DELETE", "RequestMapping": "ANY",
+            }
+            method = method_map.get(annotation, "ANY")
+            route_name = f"{method} {route_path}"
+            nodes.append(_NodeSpec("api_endpoint", route_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "method": method, "route_path": route_path, "framework": "spring",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "api_endpoint", route_name, "exposes_route"))
+            route_count += 1
+
+        # --- Go Gin/Fiber/Chi route patterns ---
+        for match in _GO_ROUTE_PATTERN.finditer(source):
+            method = match.group(1).upper()
+            route_path = match.group(2)
+            route_name = f"{method} {route_path}"
+            nodes.append(_NodeSpec("api_endpoint", route_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "method": method, "route_path": route_path, "framework": "gin",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "api_endpoint", route_name, "exposes_route"))
+            route_count += 1
+
+        # --- Rust axum/actix-web route attributes ---
+        for match in _RUST_ROUTE_ATTR_PATTERN.finditer(source):
+            route_path = match.group(1)
+            # Infer method from attribute name (e.g. #[get("/")] → GET)
+            attr_line = source[max(0, match.start() - 5):match.start() + 30]
+            method = "GET"
+            for m in ("post", "put", "patch", "delete"):
+                if m in attr_line:
+                    method = m.upper()
+                    break
+            route_name = f"{method} {route_path}"
+            nodes.append(_NodeSpec("api_endpoint", route_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "method": method, "route_path": route_path, "framework": "axum",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "api_endpoint", route_name, "exposes_route"))
+            route_count += 1
+
+        # --- WebSocket: NestJS @WebSocketGateway + @SubscribeMessage ---
+        ws_gateway_path = ""
+        gw_match = _WS_GATEWAY_PATTERN.search(source)
+        if gw_match:
+            ws_gateway_path = gw_match.group(1) or ""
+            nodes.append(_NodeSpec("websocket_endpoint", f"WS {ws_gateway_path or '/'}", {
+                "path": rel_path, "line": _line_number(source, gw_match.start()),
+                "gateway_path": ws_gateway_path, "framework": "nestjs",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "websocket_endpoint", f"WS {ws_gateway_path or '/'}", "exposes_websocket"))
+
+        for match in _WS_SUBSCRIBE_PATTERN.finditer(source):
+            event_name = match.group(1)
+            ws_endpoint_name = f"WS:{event_name}"
+            nodes.append(_NodeSpec("websocket_endpoint", ws_endpoint_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "event": event_name, "framework": "nestjs",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "websocket_endpoint", ws_endpoint_name, "websocket"))
+
+        # --- Spring WebSocket @MessageMapping ---
+        for match in _SPRING_WS_MAPPING_PATTERN.finditer(source):
+            dest = match.group(1)
+            ws_endpoint_name = f"WS:{dest}"
+            nodes.append(_NodeSpec("websocket_endpoint", ws_endpoint_name, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+                "event": dest, "framework": "spring",
+            }))
+            edges.append(_EdgeSpec("file", rel_path, "websocket_endpoint", ws_endpoint_name, "websocket"))
+
+        # --- External service calls (URL literals) ---
         for match in _URL_PATTERN.finditer(source):
             url = match.group(0)
             external_services.add(url)
-            nodes.append(_NodeSpec("external_service_api", url, {"path": rel_path, "line": _line_number(source, match.start())}))
+            nodes.append(_NodeSpec("external_service_api", url, {
+                "path": rel_path, "line": _line_number(source, match.start()),
+            }))
             edges.append(_EdgeSpec("file", rel_path, "external_service_api", url, "uses_external_service"))
 
+        # --- Message queue: publish / consume calls ---
         for action in _MQ_PUBLISH_CALLS.union(_MQ_CONSUME_CALLS):
-            for match in re.finditer(rf"\.{action}\(\s*['\"]([^'\"]+)['\"]", source):
+            for match in re.finditer(rf"\.{action}\s*\(\s*['\"]([^'\"]+)['\"]", source):
                 topic_name = match.group(1)
                 relation = "publishes" if action in _MQ_PUBLISH_CALLS else "consumes"
+                node_type = "mq_producer" if action in _MQ_PUBLISH_CALLS else "mq_consumer"
                 mq_topics.add(topic_name)
-                nodes.append(_NodeSpec("mq_topic", topic_name, {"path": rel_path, "line": _line_number(source, match.start())}))
-                edges.append(_EdgeSpec("file", rel_path, "mq_topic", topic_name, relation))
+                nodes.append(_NodeSpec("mq_topic", topic_name, {
+                    "path": rel_path, "line": _line_number(source, match.start()),
+                }))
+                nodes.append(_NodeSpec(node_type, f"{node_type}:{topic_name}", {
+                    "path": rel_path, "line": _line_number(source, match.start()),
+                    "topic": topic_name,
+                }))
+                edges.append(_EdgeSpec("file", rel_path, node_type, f"{node_type}:{topic_name}", relation))
+                edges.append(_EdgeSpec(node_type, f"{node_type}:{topic_name}", "mq_topic", topic_name, relation))
 
         return {
             "symbol_count": symbol_count,

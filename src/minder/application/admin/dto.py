@@ -18,6 +18,11 @@ GraphSyncNodeType = Literal[
     "todo",
     "external_service_api",
     "mq_topic",
+    # v2 — new node types
+    "api_endpoint",
+    "websocket_endpoint",
+    "mq_producer",
+    "mq_consumer",
 ]
 
 GraphSyncRelationType = Literal[
@@ -32,6 +37,10 @@ GraphSyncRelationType = Literal[
     "publishes",
     "consumes",
     "tracks",
+    # v2 — new relation types
+    "websocket",
+    "cross_repo_calls",
+    "exposes_websocket",
 ]
 
 
@@ -185,10 +194,23 @@ class RepositoryPayload(TypedDict):
     path: str
     remote_url: str | None
     default_branch: str | None
+    tracked_branches: list[str]
     workflow_name: str | None
     workflow_state: str | None
     current_step: str | None
     created_at: str | None
+
+
+class RepositoryBranchPayload(TypedDict):
+    branch: str
+    is_default: bool
+    last_synced: str | None
+
+
+class RepositoryBranchListPayload(TypedDict):
+    repo_id: str
+    default_branch: str | None
+    tracked_branches: list[RepositoryBranchPayload]
 
 
 class RepositoryListPayload(TypedDict):
@@ -310,6 +332,7 @@ class RepositoryGraphImpactPayload(TypedDict):
 class RepositoryGraphMapPayload(TypedDict):
     repository: RepositoryPayload
     graph_available: bool
+    branch: str | None
     nodes: list[RepositoryGraphNodePayload]
     edges: list[RepositoryGraphEdgePayload]
     summary: dict[str, Any]

@@ -10,357 +10,406 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
+  <!-- ── Page header ── -->
   <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
-    <div class="space-y-3">
+    <div class="space-y-2">
       <p class="eyebrow">Repository Explorer</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+      <h1 class="text-4xl font-semibold tracking-tight text-stone-950">
         Browse the synced repository graph.
       </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Choose a repository and Minder renders the current node graph first.
-        Search and impact analysis stay available below, but the page now opens
-        on the repository canvas itself.
+      <p class="max-w-2xl text-base leading-7 text-stone-600">
+        Select a repository to explore its structure, search symbols, and trace
+        impact across the dependency graph.
       </p>
     </div>
   </section>
 
-  <section class="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
-    <aside class="shell-card p-7">
+  <!-- ── Two-column layout: sidebar | content ── -->
+  <div class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+
+    <!-- ════ LEFT SIDEBAR ════ -->
+    <aside class="shell-card p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="eyebrow">Repositories</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-            Select a synced repo
+          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
+            Select a repo
           </h2>
         </div>
-        <button
-          id="repositories-refresh"
-          type="button"
-          class="action-pill text-xs"
-        >
+        <button id="repositories-refresh" type="button" class="action-pill text-xs">
           Refresh
         </button>
       </div>
-      <p class="mt-3 text-sm leading-6 text-stone-600">
-        Each card opens the repository graph canvas and the editable repository
-        settings panel.
-      </p>
-      <div id="repositories-status" class="mt-4 min-h-6 text-sm text-stone-600">
-      </div>
-      <div id="repositories-list" class="mt-4 grid gap-3">
-        <article
-          class="rounded-3xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm text-stone-600"
-        >
-          Loading repositories...
+      <div id="repositories-status" class="mt-3 min-h-5 text-xs text-stone-500"></div>
+      <div id="repositories-list" class="mt-3 grid gap-2">
+        <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-500">
+          Loading repositories…
         </article>
       </div>
     </aside>
 
-    <div class="grid gap-6">
-      <section class="shell-card p-7">
-        <div class="flex flex-wrap items-start justify-between gap-4">
+    <!-- ════ RIGHT CONTENT ════ -->
+    <div class="min-w-0 space-y-4">
+
+      <!-- ── Tab bar ── -->
+      <div class="shell-card px-3 py-3">
+        <nav class="flex flex-wrap items-center gap-1" id="repo-tab-nav">
+          <button data-tab-btn="graph"    class="tab-btn tab-btn-active">Graph</button>
+          <button data-tab-btn="overview" class="tab-btn">Overview</button>
+          <button data-tab-btn="search"   class="tab-btn">Search</button>
+          <button data-tab-btn="impact"   class="tab-btn">Impact</button>
+          <button data-tab-btn="settings" class="tab-btn">Settings</button>
+        </nav>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: GRAPH
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="graph" class="space-y-4">
+
+        <!-- header row -->
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="eyebrow">Repository Overview</p>
-            <h2
-              id="repo-summary-title"
-              class="mt-3 text-3xl font-semibold tracking-tight text-stone-950"
-            >
+            <h2 id="repo-summary-title" class="text-2xl font-semibold tracking-tight text-stone-950">
               Select a repository
             </h2>
-            <p id="repo-summary-meta" class="mt-2 text-sm text-stone-600">
-              No repository selected.
-            </p>
+            <p id="repo-summary-meta" class="mt-1 text-sm text-stone-500">No repository selected.</p>
           </div>
           <div class="flex items-center gap-3">
-            <button
-              id="repo-graph-refresh"
-              type="button"
-              class="action-pill text-xs"
-            >
-              Reload Graph
-            </button>
-            <div
-              id="repo-summary-sync"
-              class="rounded-full border border-stone-200 bg-stone-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-stone-600"
-            >
+            <div id="repo-summary-sync"
+              class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-stone-500">
               Waiting
+            </div>
+            <button id="repo-graph-refresh" type="button" class="action-pill text-xs">
+              Reload graph
+            </button>
+          </div>
+        </div>
+
+        <!-- graph stats bar -->
+        <div id="repo-graph-summary" class="grid gap-3 sm:grid-cols-4"></div>
+
+        <!-- status line -->
+        <p id="repo-graph-status" class="min-h-5 text-sm text-stone-500"></p>
+
+        <!-- ── Dark canvas + controls ── -->
+        <div class="shell-card overflow-hidden rounded-3xl p-0">
+          <!-- canvas wrapper: relative, fixed height -->
+          <div
+            class="relative"
+            style="height: 620px; background: radial-gradient(ellipse at 50% 20%, #1a1235 0%, #0d0d14 55%, #090910 100%); border-radius: inherit;"
+          >
+            <!-- D3 SVG mount -->
+            <div
+              id="repo-graph-mount"
+              class="absolute inset-0"
+              style="border-radius: inherit; overflow: hidden;"
+            ></div>
+
+            <!-- Tooltip -->
+            <div
+              id="repo-graph-tooltip"
+              class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono font-medium backdrop-blur-sm transition-opacity duration-150"
+              style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"
+            ></div>
+
+            <!-- Legend overlay (top-left) -->
+            <div
+              id="repo-graph-legend-overlay"
+              class="absolute top-3 left-3 z-20 max-w-[180px] rounded-xl p-3"
+              style="background: rgba(9,9,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);"
+            >
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-widest"
+                 style="color: rgba(255,255,255,0.35);">Legend</p>
+              <div id="repo-graph-legend" class="space-y-1"></div>
+            </div>
+
+            <!-- Sim status indicator (bottom-left) -->
+            <div
+              id="repo-graph-sim-status"
+              class="absolute bottom-4 left-4 z-20 hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+              style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; backdrop-filter: blur(6px);"
+            >
+              <span class="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400"></span>
+              <span>Optimizing layout…</span>
+            </div>
+
+            <!-- Controls (bottom-right) -->
+            <div class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5">
+              <button id="repo-graph-zoom-in"  class="graph-ctrl-btn" title="Zoom in">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+              </button>
+              <button id="repo-graph-zoom-out" class="graph-ctrl-btn" title="Zoom out">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg>
+              </button>
+              <button id="repo-graph-fit"      class="graph-ctrl-btn" title="Fit to screen">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+              <div class="h-px" style="background: rgba(255,255,255,0.1);"></div>
+              <button id="repo-graph-toggle"   class="graph-ctrl-btn" title="Toggle layout">
+                <svg id="repo-graph-toggle-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                </svg>
+              </button>
             </div>
           </div>
         </div>
 
-        <div id="repo-summary-cards" class="mt-6 grid gap-4 md:grid-cols-4">
-          <article
-            class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-600"
-          >
+        <!-- Selected node details -->
+        <div id="repo-graph-node-details" class="hidden shell-card p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <p id="repo-graph-node-type" class="eyebrow">Type</p>
+              <h3 id="repo-graph-node-name" class="mt-1.5 text-xl font-semibold tracking-tight text-stone-950 truncate">Node</h3>
+              <p id="repo-graph-node-extra" class="mt-1 text-sm text-stone-500"></p>
+            </div>
+            <button id="repo-graph-node-close"
+              class="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-500 hover:bg-stone-100">
+              Close
+            </button>
+          </div>
+          <div id="repo-graph-node-metadata"
+            class="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 border-t border-stone-100 pt-4"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: OVERVIEW
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="overview" class="hidden space-y-5">
+        <div id="repo-summary-cards" class="grid gap-4 sm:grid-cols-4">
+          <article class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-500 col-span-4">
             Graph metrics will appear here after selection.
           </article>
         </div>
 
-        <div class="mt-6 grid gap-4 xl:grid-cols-2">
-          <article class="rounded-3xl border border-stone-200 bg-stone-50 p-5">
+        <div class="grid gap-4 xl:grid-cols-2">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">Routes</p>
-            <div
-              id="repo-routes"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
-            >
-            </div>
+            <div id="repo-routes" class="mt-4 grid gap-3 text-sm text-stone-700"></div>
           </article>
-          <article class="rounded-3xl border border-stone-200 bg-stone-50 p-5">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">TODOs</p>
-            <div id="repo-todos" class="mt-4 grid gap-3 text-sm text-stone-700">
-            </div>
+            <div id="repo-todos" class="mt-4 grid gap-3 text-sm text-stone-700"></div>
           </article>
-          <article class="rounded-3xl border border-stone-200 bg-stone-50 p-5">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">External Services</p>
-            <div
-              id="repo-services"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
-            >
-            </div>
+            <div id="repo-services" class="mt-4 grid gap-3 text-sm text-stone-700"></div>
           </article>
-          <article class="rounded-3xl border border-stone-200 bg-stone-50 p-5">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">Service Dependencies</p>
-            <div
-              id="repo-dependencies"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
-            >
-            </div>
+            <div id="repo-dependencies" class="mt-4 grid gap-3 text-sm text-stone-700"></div>
           </article>
         </div>
-      </section>
+      </div>
 
-      <section class="grid gap-6 xl:grid-cols-[minmax(0,1.5fr)_380px]">
-        <article class="shell-card p-7">
-          <div class="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p class="eyebrow">Repository Graph</p>
-              <h2
-                class="mt-3 text-2xl font-semibold tracking-tight text-stone-950"
-              >
-                Full graph canvas
-              </h2>
-              <p class="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
-                This is the primary view now: folders, files, and symbols render
-                immediately from the synced graph snapshot for the selected
-                repository.
-              </p>
-            </div>
-            <p id="repo-graph-status" class="min-h-6 text-sm text-stone-600">
-            </p>
-          </div>
-
-          <div id="repo-graph-summary" class="mt-5 grid gap-3 md:grid-cols-4">
-          </div>
-          <div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_280px]">
-            <div
-              class="overflow-hidden rounded-[2rem] border border-stone-200 bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.16),_transparent_40%),linear-gradient(180deg,_#fcfff9_0%,_#eef6f1_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-            >
-              <canvas
-                id="repo-graph-canvas"
-                class="block h-[520px] w-full rounded-[1.5rem]"></canvas>
-            </div>
-            <div class="grid gap-4">
-              <div
-                id="repo-graph-legend"
-                class="rounded-[2rem] border border-stone-200 bg-stone-50 p-4"
-              >
-              </div>
-              <div
-                id="repo-graph-details"
-                class="rounded-[2rem] border border-stone-200 bg-white p-4"
-              >
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="shell-card p-7">
-          <p class="eyebrow">Repository Settings</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-            Edit or delete this repo
+      <!-- ══════════════════════════════════════════
+           TAB: SEARCH
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="search" class="hidden space-y-5">
+        <div class="shell-card p-6">
+          <p class="eyebrow">Search Graph</p>
+          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
+            Find nodes by symbol, path, or language
           </h2>
-          <p class="mt-3 text-sm leading-6 text-stone-600">
-            Update the repository name, remote, default branch, or stored path.
-            Delete removes the repository record from the dashboard list.
+          <form id="graph-search-form" class="mt-5 grid gap-4">
+            <input
+              id="graph-search-query"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-amber-700 focus:outline-none"
+              placeholder="Search for route path, file, symbol, or text"
+            />
+            <div class="grid gap-3 sm:grid-cols-3">
+              <input id="graph-search-types"     class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm" placeholder="Node types (comma-sep)"/>
+              <input id="graph-search-languages" class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm" placeholder="Languages"/>
+              <input id="graph-search-states"    class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm" placeholder="States (modified, clean…)"/>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <p id="graph-search-status" class="min-h-5 text-sm text-stone-500"></p>
+              <button type="submit" class="primary-pill">Search</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Search graph canvas -->
+        <div class="shell-card overflow-hidden rounded-3xl p-0">
+          <div class="relative" style="height: 480px; background: radial-gradient(ellipse at 50% 20%, #18112e 0%, #0c0c13 60%, #080810 100%); border-radius: inherit;">
+            <div id="search-graph-mount" class="absolute inset-0" style="border-radius: inherit; overflow: hidden;"></div>
+            <div id="search-graph-tooltip"
+              class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono transition-opacity duration-150"
+              style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"></div>
+
+            <!-- Legend overlay -->
+            <div id="search-graph-legend-overlay"
+              class="absolute top-3 left-3 z-20 max-w-[180px] rounded-xl p-3"
+              style="background: rgba(8,8,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);">
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-widest" style="color: rgba(255,255,255,0.35);">Legend</p>
+              <div id="search-graph-legend" class="space-y-1"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5">
+              <button id="search-graph-zoom-in"  class="graph-ctrl-btn" title="Zoom in">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+              </button>
+              <button id="search-graph-zoom-out" class="graph-ctrl-btn" title="Zoom out">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg>
+              </button>
+              <button id="search-graph-fit"      class="graph-ctrl-btn" title="Fit to screen">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search node details -->
+        <div id="search-graph-node-details" class="hidden shell-card p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <p id="search-graph-node-type" class="eyebrow">Type</p>
+              <h3 id="search-graph-node-name" class="mt-1.5 text-xl font-semibold tracking-tight text-stone-950 truncate">Node</h3>
+              <p id="search-graph-node-extra" class="mt-1 text-sm text-stone-500"></p>
+            </div>
+            <button id="search-graph-node-close"
+              class="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-500 hover:bg-stone-100">
+              Close
+            </button>
+          </div>
+          <div id="search-graph-node-metadata" class="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 border-t border-stone-100 pt-4"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: IMPACT
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="impact" class="hidden space-y-5">
+        <div class="shell-card p-6">
+          <p class="eyebrow">Impact Scan</p>
+          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
+            Trace local blast radius
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-stone-600">
+            Enter a symbol name or route path to traverse upstream and downstream neighbors.
           </p>
-          <form id="repo-settings-form" class="mt-6 grid gap-4">
-            <label class="grid gap-2 text-sm text-stone-700">
-              <span>Name</span>
-              <input
-                id="repo-settings-name"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
+          <form id="graph-impact-form" class="mt-5 grid gap-4">
+            <input
+              id="graph-impact-target"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-amber-700 focus:outline-none"
+              placeholder="Target symbol or route path"
+            />
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="grid gap-1.5 text-xs text-stone-500">
+                Depth (1–6)
+                <input id="graph-impact-depth" type="number" min="1" max="6" value="2"
+                  class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900"/>
+              </label>
+              <label class="grid gap-1.5 text-xs text-stone-500">
+                Limit (1–100)
+                <input id="graph-impact-limit" type="number" min="1" max="100" value="25"
+                  class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900"/>
+              </label>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <p id="graph-impact-status" class="min-h-5 text-sm text-stone-500"></p>
+              <button type="submit" class="primary-pill">Analyze</button>
+            </div>
+          </form>
+          <div id="graph-impact-summary" class="mt-5 grid gap-3 sm:grid-cols-3"></div>
+        </div>
+
+        <!-- Impact graph canvas -->
+        <div class="shell-card overflow-hidden rounded-3xl p-0">
+          <div class="relative" style="height: 480px; background: radial-gradient(ellipse at 50% 20%, #1a0e2e 0%, #0c0c13 60%, #080810 100%); border-radius: inherit;">
+            <div id="impact-graph-mount" class="absolute inset-0" style="border-radius: inherit; overflow: hidden;"></div>
+            <div id="impact-graph-tooltip"
+              class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono transition-opacity duration-150"
+              style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"></div>
+
+            <!-- Legend overlay -->
+            <div id="impact-graph-legend-overlay"
+              class="absolute top-3 left-3 z-20 max-w-[180px] rounded-xl p-3"
+              style="background: rgba(8,8,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);">
+              <p class="mb-2 text-[10px] font-bold uppercase tracking-widest" style="color: rgba(255,255,255,0.35);">Legend</p>
+              <div id="impact-graph-legend" class="space-y-1"></div>
+            </div>
+
+            <!-- Controls -->
+            <div class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5">
+              <button id="impact-graph-zoom-in"  class="graph-ctrl-btn" title="Zoom in">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+              </button>
+              <button id="impact-graph-zoom-out" class="graph-ctrl-btn" title="Zoom out">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M8 11h6"/></svg>
+              </button>
+              <button id="impact-graph-fit"      class="graph-ctrl-btn" title="Fit to screen">
+                <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Impact node details -->
+        <div id="impact-graph-node-details" class="hidden shell-card p-5">
+          <div class="flex items-start justify-between gap-4">
+            <div class="min-w-0 flex-1">
+              <p id="impact-graph-node-type" class="eyebrow">Type</p>
+              <h3 id="impact-graph-node-name" class="mt-1.5 text-xl font-semibold tracking-tight text-stone-950 truncate">Node</h3>
+              <p id="impact-graph-node-extra" class="mt-1 text-sm text-stone-500"></p>
+            </div>
+            <button id="impact-graph-node-close"
+              class="shrink-0 rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs text-stone-500 hover:bg-stone-100">
+              Close
+            </button>
+          </div>
+          <div id="impact-graph-node-metadata" class="mt-4 grid gap-3 sm:grid-cols-2 md:grid-cols-3 border-t border-stone-100 pt-4"></div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: SETTINGS
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="settings" class="hidden">
+        <div class="shell-card p-7">
+          <p class="eyebrow">Repository Settings</p>
+          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
+            Edit or delete this repository
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-stone-600">
+            Update the repository name, remote URL, default branch, or local path.
+          </p>
+          <form id="repo-settings-form" class="mt-6 grid max-w-lg gap-4">
+            <label class="grid gap-1.5 text-sm text-stone-700">
+              Name
+              <input id="repo-settings-name" class="rounded-2xl border border-stone-300 bg-white px-4 py-3 focus:border-amber-700 focus:outline-none"/>
             </label>
-            <label class="grid gap-2 text-sm text-stone-700">
-              <span>Remote URL</span>
-              <input
-                id="repo-settings-remote"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
+            <label class="grid gap-1.5 text-sm text-stone-700">
+              Remote URL
+              <input id="repo-settings-remote" class="rounded-2xl border border-stone-300 bg-white px-4 py-3 focus:border-amber-700 focus:outline-none"/>
             </label>
-            <label class="grid gap-2 text-sm text-stone-700">
-              <span>Default Branch</span>
-              <input
-                id="repo-settings-branch"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
+            <label class="grid gap-1.5 text-sm text-stone-700">
+              Default Branch
+              <input id="repo-settings-branch" class="rounded-2xl border border-stone-300 bg-white px-4 py-3 focus:border-amber-700 focus:outline-none"/>
             </label>
-            <label class="grid gap-2 text-sm text-stone-700">
-              <span>State Path</span>
-              <input
-                id="repo-settings-path"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
+            <label class="grid gap-1.5 text-sm text-stone-700">
+              State Path
+              <input id="repo-settings-path" class="rounded-2xl border border-stone-300 bg-white px-4 py-3 focus:border-amber-700 focus:outline-none"/>
             </label>
-            <p id="repo-settings-status" class="min-h-6 text-sm text-stone-600">
-            </p>
+            <p id="repo-settings-status" class="min-h-5 text-sm text-stone-500"></p>
             <div class="flex flex-wrap gap-3">
               <button type="submit" class="primary-pill">Save Changes</button>
-              <button
-                id="repo-settings-delete"
-                type="button"
-                class="action-pill border-red-300 bg-red-50 text-red-700"
-              >
+              <button id="repo-settings-delete" type="button"
+                class="inline-flex items-center justify-center rounded-full border border-red-300 bg-red-50 px-4 py-2 text-sm text-red-700 transition hover:bg-red-100">
                 Delete Repository
               </button>
             </div>
           </form>
-        </article>
-      </section>
+        </div>
+      </div>
 
-      <section class="grid gap-6 xl:grid-cols-2">
-        <article class="shell-card p-7">
-          <p class="eyebrow">Search Graph</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-            Focus the current graph
-          </h2>
-          <p class="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
-            Search stays here as a secondary tool when you need to isolate a
-            route, file, symbol, language, or last git state.
-          </p>
-          <form id="graph-search-form" class="mt-6 grid gap-4">
-            <input
-              id="graph-search-query"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              placeholder="Search for route path, file, symbol, or text"
-            />
-            <div class="grid gap-4 lg:grid-cols-3">
-              <input
-                id="graph-search-types"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-                placeholder="Optional node types, comma-separated"
-              />
-              <input
-                id="graph-search-languages"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-                placeholder="Languages, comma-separated"
-              />
-              <input
-                id="graph-search-states"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-                placeholder="States, e.g. modified, clean"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <p
-                id="graph-search-status"
-                class="min-h-6 text-sm text-stone-600"
-              >
-              </p>
-              <button type="submit" class="primary-pill">Search</button>
-            </div>
-          </form>
-          <div class="mt-5 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_280px]">
-            <div
-              class="overflow-hidden rounded-[2rem] border border-stone-200 bg-[radial-gradient(circle_at_top,_rgba(245,158,11,0.18),_transparent_42%),linear-gradient(180deg,_#fffdf7_0%,_#f6f3ee_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-            >
-              <canvas
-                id="graph-search-canvas"
-                class="block h-[420px] w-full rounded-[1.5rem]"></canvas>
-            </div>
-            <div class="grid gap-4">
-              <div
-                id="graph-search-legend"
-                class="rounded-[2rem] border border-stone-200 bg-stone-50 p-4"
-              >
-              </div>
-              <div
-                id="graph-search-details"
-                class="rounded-[2rem] border border-stone-200 bg-white p-4"
-              >
-              </div>
-            </div>
-          </div>
-        </article>
-
-        <article class="shell-card p-7">
-          <p class="eyebrow">Impact Scan</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-            Trace local blast radius
-          </h2>
-          <p class="mt-3 max-w-2xl text-sm leading-6 text-stone-600">
-            Impact view remains available when you want to traverse upstream and
-            downstream neighbors from a symbol or route.
-          </p>
-          <form id="graph-impact-form" class="mt-6 grid gap-4">
-            <input
-              id="graph-impact-target"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              placeholder="Target symbol or route"
-            />
-            <div class="grid gap-4 sm:grid-cols-2">
-              <input
-                id="graph-impact-depth"
-                type="number"
-                min="1"
-                max="6"
-                value="2"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
-              <input
-                id="graph-impact-limit"
-                type="number"
-                min="1"
-                max="100"
-                value="25"
-                class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              />
-            </div>
-            <div class="flex items-center justify-between gap-3">
-              <p
-                id="graph-impact-status"
-                class="min-h-6 text-sm text-stone-600"
-              >
-              </p>
-              <button type="submit" class="primary-pill">Analyze</button>
-            </div>
-          </form>
-          <div id="graph-impact-summary" class="mt-5 grid gap-3"></div>
-          <div class="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_280px]">
-            <div
-              class="overflow-hidden rounded-[2rem] border border-stone-200 bg-[radial-gradient(circle_at_top,_rgba(14,165,233,0.18),_transparent_44%),linear-gradient(180deg,_#f8fdff_0%,_#eef4f7_100%)] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
-            >
-              <canvas
-                id="graph-impact-canvas"
-                class="block h-[420px] w-full rounded-[1.5rem]"></canvas>
-            </div>
-            <div class="grid gap-4">
-              <div
-                id="graph-impact-legend"
-                class="rounded-[2rem] border border-stone-200 bg-stone-50 p-4"
-              >
-              </div>
-              <div
-                id="graph-impact-details"
-                class="rounded-[2rem] border border-stone-200 bg-white p-4"
-              >
-              </div>
-            </div>
-          </div>
-        </article>
-      </section>
     </div>
-  </section>
+    <!-- end right content -->
+
+  </div>
+  <!-- end grid -->
 
   <script src="../scripts/repositories-page.ts"></script>
 </DashboardLayout>

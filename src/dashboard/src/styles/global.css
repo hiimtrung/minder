@@ -52,3 +52,35 @@ body {
 .snippet-pre {
   max-height: min(48vh, 32rem);
 }
+
+/* ── Repository Graph Explorer ── */
+
+.tab-btn {
+  @apply rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition hover:text-stone-900 hover:bg-stone-100 cursor-pointer;
+}
+
+.tab-btn-active {
+  @apply bg-amber-800 text-white hover:bg-amber-900 hover:text-white;
+}
+
+.graph-ctrl-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(9, 9, 16, 0.75);
+  color: rgba(226, 232, 240, 0.7);
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.graph-ctrl-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.2);
+}

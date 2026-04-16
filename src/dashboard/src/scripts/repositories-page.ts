@@ -1,3 +1,4 @@
+import * as d3 from "d3";
 import {
   deleteRepository,
   getRepositoryGraphImpact,
@@ -7,910 +8,1014 @@ import {
   searchRepositoryGraph,
   updateRepository,
   type RepositoryGraphEdgePayload,
-  type RepositoryGraphImpactPayload,
-  type RepositoryGraphMapPayload,
   type RepositoryGraphNodePayload,
   type RepositoryGraphSummaryPayload,
   type RepositoryPayload,
 } from "../lib/api/admin";
 
-type GraphCanvasNode = {
+// ============================================================
+// Types
+// ============================================================
+
+/** D3 simulation node — must extend SimulationNodeDatum so D3 can track x/y/vx/vy/fx/fy */
+interface SimNode extends d3.SimulationNodeDatum {
   id: string;
   label: string;
   type: string;
-  x: number;
-  y: number;
   radius: number;
+  color: string;
   metadata: Record<string, unknown>;
   emphasis?: "hub" | "seed" | "result";
   score?: number;
   direction?: string;
   distance?: number;
-};
+}
 
-type GraphCanvasEdge = {
+/** D3 simulation edge — extends SimulationLinkDatum so D3 resolves source/target to objects */
+interface SimEdge extends d3.SimulationLinkDatum<SimNode> {
   id: string;
-  from: string;
-  to: string;
   relation?: string;
   dashed?: boolean;
-  color?: string;
-};
+  edgeColor?: string;
+}
 
-type GraphCanvasState = {
-  emptyMessage: string;
-  nodes: GraphCanvasNode[];
-  edges: GraphCanvasEdge[];
-  selectedNodeId: string | null;
-};
+// ============================================================
+// Visual constants — GitNexus-inspired palette
+// ============================================================
 
-const repositoriesList = document.querySelector("#repositories-list");
-const repositoriesStatus = document.querySelector("#repositories-status");
-const refreshButton = document.querySelector("#repositories-refresh");
-const summaryTitle = document.querySelector("#repo-summary-title");
-const summaryMeta = document.querySelector("#repo-summary-meta");
-const summarySync = document.querySelector("#repo-summary-sync");
-const summaryCards = document.querySelector("#repo-summary-cards");
-const routesRegion = document.querySelector("#repo-routes");
-const todosRegion = document.querySelector("#repo-todos");
-const servicesRegion = document.querySelector("#repo-services");
-const dependenciesRegion = document.querySelector("#repo-dependencies");
-const repoGraphRefreshButton = document.querySelector("#repo-graph-refresh");
-const repoGraphStatus = document.querySelector("#repo-graph-status");
-const repoGraphSummary = document.querySelector("#repo-graph-summary");
-const repoGraphCanvas = document.querySelector(
-  "#repo-graph-canvas",
-) as HTMLCanvasElement | null;
-const repoGraphLegend = document.querySelector("#repo-graph-legend");
-const repoGraphDetails = document.querySelector("#repo-graph-details");
-const repoSettingsForm = document.querySelector(
-  "#repo-settings-form",
-) as HTMLFormElement | null;
-const repoSettingsName = document.querySelector(
-  "#repo-settings-name",
-) as HTMLInputElement | null;
-const repoSettingsRemote = document.querySelector(
-  "#repo-settings-remote",
-) as HTMLInputElement | null;
-const repoSettingsBranch = document.querySelector(
-  "#repo-settings-branch",
-) as HTMLInputElement | null;
-const repoSettingsPath = document.querySelector(
-  "#repo-settings-path",
-) as HTMLInputElement | null;
-const repoSettingsStatus = document.querySelector("#repo-settings-status");
-const repoSettingsDeleteButton = document.querySelector(
-  "#repo-settings-delete",
-) as HTMLButtonElement | null;
-const searchForm = document.querySelector(
-  "#graph-search-form",
-) as HTMLFormElement | null;
-const searchQueryInput = document.querySelector(
-  "#graph-search-query",
-) as HTMLInputElement | null;
-const searchTypesInput = document.querySelector(
-  "#graph-search-types",
-) as HTMLInputElement | null;
-const searchLanguagesInput = document.querySelector(
-  "#graph-search-languages",
-) as HTMLInputElement | null;
-const searchStatesInput = document.querySelector(
-  "#graph-search-states",
-) as HTMLInputElement | null;
-const searchStatus = document.querySelector("#graph-search-status");
-const searchCanvas = document.querySelector(
-  "#graph-search-canvas",
-) as HTMLCanvasElement | null;
-const searchLegend = document.querySelector("#graph-search-legend");
-const searchDetails = document.querySelector("#graph-search-details");
-const impactForm = document.querySelector(
-  "#graph-impact-form",
-) as HTMLFormElement | null;
-const impactTargetInput = document.querySelector(
-  "#graph-impact-target",
-) as HTMLInputElement | null;
-const impactDepthInput = document.querySelector(
-  "#graph-impact-depth",
-) as HTMLInputElement | null;
-const impactLimitInput = document.querySelector(
-  "#graph-impact-limit",
-) as HTMLInputElement | null;
-const impactStatus = document.querySelector("#graph-impact-status");
-const impactSummary = document.querySelector("#graph-impact-summary");
-const impactCanvas = document.querySelector(
-  "#graph-impact-canvas",
-) as HTMLCanvasElement | null;
-const impactLegend = document.querySelector("#graph-impact-legend");
-const impactDetails = document.querySelector("#graph-impact-details");
-
-const NODE_TYPE_COLORS: Record<string, string> = {
-  repository: "#0f766e",
-  folder: "#4f46e5",
-  file: "#2563eb",
-  module: "#7c3aed",
-  service: "#9333ea",
-  controller: "#0d9488",
-  class: "#d97706",
-  function: "#059669",
-  interface: "#db2777",
-  route: "#e11d48",
-  todo: "#dc2626",
-  external_service_api: "#a21caf",
-  query: "#f97316",
+const NODE_COLORS: Record<string, string> = {
+  repository: "#2dd4bf",
+  folder: "#818cf8",
+  file: "#60a5fa",
+  module: "#c084fc",
+  service: "#e879f9",
+  controller: "#22d3ee",
+  class: "#fbbf24",
+  function: "#34d399",
+  interface: "#fb7185",
+  route: "#f87171",
+  todo: "#ef4444",
+  external_service_api: "#e879f9",
+  query: "#fb923c",
   target: "#f43f5e",
 };
 
-const NODE_TYPE_SIZES: Record<string, number> = {
-  repository: 18,
-  folder: 11,
-  file: 8,
-  module: 12,
-  service: 14,
-  controller: 9,
-  class: 8,
-  function: 6,
-  interface: 7,
-  route: 6,
-  todo: 5,
-  external_service_api: 6,
-  query: 10,
-  target: 10,
+const NODE_RADII: Record<string, number> = {
+  repository: 20,
+  folder: 14,
+  file: 9,
+  module: 14,
+  service: 16,
+  controller: 11,
+  class: 9,
+  function: 7,
+  interface: 8,
+  route: 7,
+  todo: 6,
+  external_service_api: 8,
+  query: 12,
+  target: 12,
 };
 
-const EDGE_RELATION_STYLES: Record<
-  string,
-  { color: string; dashed?: boolean }
-> = {
-  contains: { color: "rgba(37,99,235,0.28)" },
-  imports: { color: "rgba(79,70,229,0.32)" },
-  calls: { color: "rgba(147,51,234,0.34)" },
-  defines: { color: "rgba(13,148,136,0.32)" },
-  depends_on: { color: "rgba(225,29,72,0.36)", dashed: true },
-  upstream: { color: "rgba(220,38,38,0.32)", dashed: true },
-  downstream: { color: "rgba(14,165,233,0.32)", dashed: true },
-  search_match: { color: "rgba(249,115,22,0.34)" },
+const EDGE_STYLES: Record<string, { color: string; opacity: number; dashed?: boolean }> = {
+  contains: { color: "#818cf8", opacity: 0.28 },
+  imports: { color: "#c084fc", opacity: 0.32 },
+  calls: { color: "#22d3ee", opacity: 0.32 },
+  defines: { color: "#2dd4bf", opacity: 0.32 },
+  depends_on: { color: "#f87171", opacity: 0.38, dashed: true },
+  upstream: { color: "#ef4444", opacity: 0.38, dashed: true },
+  downstream: { color: "#38bdf8", opacity: 0.38, dashed: true },
+  search_match: { color: "#fb923c", opacity: 0.38 },
 };
+
+function colorForType(t: string): string {
+  return NODE_COLORS[t] ?? "#a8a29e";
+}
+function radiusForType(t: string): number {
+  return NODE_RADII[t] ?? 7;
+}
+
+// ============================================================
+// D3 Graph Renderer
+// ============================================================
+
+class D3GraphRenderer {
+  private readonly container: HTMLElement;
+  private readonly tooltipEl: HTMLElement;
+  private svg!: d3.Selection<SVGSVGElement, unknown, null, undefined>;
+  private g!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private edgeGrp!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private nodeGrp!: d3.Selection<SVGGElement, unknown, null, undefined>;
+  private sim!: d3.Simulation<SimNode, SimEdge>;
+  private zoom!: d3.ZoomBehavior<SVGSVGElement, unknown>;
+  private nodes: SimNode[] = [];
+  private edges: SimEdge[] = [];
+  private selectedId: string | null = null;
+  private ro: ResizeObserver;
+  private onSelectCb: ((n: SimNode | null) => void) | null = null;
+  private onSimCb: ((running: boolean) => void) | null = null;
+  private simRunning = false;
+  private readonly uid: string;
+
+  constructor(container: HTMLElement, tooltipEl: HTMLElement) {
+    this.container = container;
+    this.tooltipEl = tooltipEl;
+    this.uid = container.id || `g${Math.random().toString(36).slice(2, 8)}`;
+    this.initSvg();
+    this.initSim();
+    this.ro = new ResizeObserver(() => this.onResize());
+    this.ro.observe(container);
+  }
+
+  private w(): number { return Math.max(this.container.clientWidth, 400); }
+  private h(): number { return Math.max(this.container.clientHeight, 300); }
+
+  private initSvg(): void {
+    this.svg = d3.select(this.container)
+      .append("svg")
+      .attr("width", "100%")
+      .attr("height", "100%")
+      .style("display", "block");
+
+    const defs = this.svg.append("defs");
+
+    // Glow filter for selected nodes
+    const f = defs.append("filter")
+      .attr("id", `glow-${this.uid}`)
+      .attr("x", "-60%").attr("y", "-60%")
+      .attr("width", "220%").attr("height", "220%");
+    f.append("feGaussianBlur").attr("stdDeviation", "5").attr("result", "b1");
+    f.append("feGaussianBlur").attr("stdDeviation", "2").attr("result", "b2");
+    const m = f.append("feMerge");
+    m.append("feMergeNode").attr("in", "b1");
+    m.append("feMergeNode").attr("in", "b2");
+    m.append("feMergeNode").attr("in", "SourceGraphic");
+
+    // Arrow marker
+    defs.append("marker")
+      .attr("id", `arrow-${this.uid}`)
+      .attr("viewBox", "0 -5 10 10")
+      .attr("refX", 20).attr("refY", 0)
+      .attr("markerWidth", 5).attr("markerHeight", 5)
+      .attr("orient", "auto")
+      .append("path")
+      .attr("d", "M0,-5L10,0L0,5")
+      .attr("fill", "rgba(148,163,184,0.35)");
+
+    // Zoomable root group
+    this.g = this.svg.append("g");
+    this.edgeGrp = this.g.append("g").attr("class", "edges");
+    this.nodeGrp = this.g.append("g").attr("class", "nodes");
+
+    // Zoom behavior
+    this.zoom = d3.zoom<SVGSVGElement, unknown>()
+      .scaleExtent([0.02, 12])
+      .on("zoom", (e: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
+        this.g.attr("transform", String(e.transform));
+      });
+    this.svg.call(this.zoom);
+
+    // Deselect on stage click
+    this.svg.on("click.deselect", (e: MouseEvent) => {
+      const tag = (e.target as Element).tagName;
+      if (tag === "svg" || tag === "rect") this.select(null);
+    });
+  }
+
+  private initSim(): void {
+    this.sim = d3.forceSimulation<SimNode>()
+      .force("charge", d3.forceManyBody<SimNode>().strength((d) => -(d.radius * 25)))
+      .force("collide", d3.forceCollide<SimNode>().radius((d) => d.radius + 10).strength(0.9))
+      .alphaDecay(0.025)
+      .velocityDecay(0.45)
+      .on("tick", () => this.tick())
+      .on("end", () => {
+        this.simRunning = false;
+        this.onSimCb?.(false);
+      });
+  }
+
+  private onResize(): void {
+    if (!this.nodes.length) return;
+    const w = this.w(), h = this.h();
+    this.sim
+      .force("center", d3.forceCenter<SimNode>(w / 2, h / 2).strength(0.08))
+      .alpha(0.1)
+      .restart();
+  }
+
+  private tick(): void {
+    if (!this.simRunning) {
+      this.simRunning = true;
+      this.onSimCb?.(true);
+    }
+    this.edgeGrp.selectAll<SVGLineElement, SimEdge>("line")
+      .attr("x1", (d) => (d.source as SimNode).x ?? 0)
+      .attr("y1", (d) => (d.source as SimNode).y ?? 0)
+      .attr("x2", (d) => (d.target as SimNode).x ?? 0)
+      .attr("y2", (d) => (d.target as SimNode).y ?? 0);
+
+    this.nodeGrp.selectAll<SVGGElement, SimNode>("g.node")
+      .attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+  }
+
+  onSelect(fn: (n: SimNode | null) => void): void { this.onSelectCb = fn; }
+  onSimStatus(fn: (running: boolean) => void): void { this.onSimCb = fn; }
+
+  private select(nodeId: string | null): void {
+    this.selectedId = nodeId;
+    this.applyHighlights();
+    const n = nodeId ? (this.nodes.find((d) => d.id === nodeId) ?? null) : null;
+    this.onSelectCb?.(n);
+  }
+
+  private neighborIds(nodeId: string): Set<string> {
+    const s = new Set<string>();
+    for (const e of this.edges) {
+      const src = typeof e.source === "object" ? (e.source as SimNode).id : String(e.source);
+      const tgt = typeof e.target === "object" ? (e.target as SimNode).id : String(e.target);
+      if (src === nodeId) s.add(tgt);
+      if (tgt === nodeId) s.add(src);
+    }
+    return s;
+  }
+
+  private applyHighlights(): void {
+    const sel = this.selectedId;
+    const nb = sel ? this.neighborIds(sel) : new Set<string>();
+    const glowId = `glow-${this.uid}`;
+
+    this.nodeGrp.selectAll<SVGGElement, SimNode>("g.node").each(function(d) {
+      const g = d3.select<SVGGElement, SimNode>(this);
+      const circle = g.select<SVGCircleElement>("circle");
+      const text = g.select<SVGTextElement>("text");
+
+      if (!sel) {
+        circle.attr("opacity", 0.87).attr("stroke", null).attr("filter", null);
+        text.attr("opacity", 0.78);
+      } else if (d.id === sel) {
+        circle.attr("opacity", 1).attr("stroke", d.color)
+              .attr("stroke-width", 2.5).attr("stroke-opacity", 0.9)
+              .attr("filter", `url(#${glowId})`);
+        text.attr("opacity", 1).attr("font-weight", "700");
+      } else if (nb.has(d.id)) {
+        circle.attr("opacity", 0.82).attr("stroke", null).attr("filter", null);
+        text.attr("opacity", 0.72);
+      } else {
+        circle.attr("opacity", 0.1).attr("stroke", null).attr("filter", null);
+        text.attr("opacity", 0.06);
+      }
+    });
+
+    this.edgeGrp.selectAll<SVGLineElement, SimEdge>("line").each(function(d) {
+      const src = typeof d.source === "object" ? (d.source as SimNode).id : String(d.source);
+      const tgt = typeof d.target === "object" ? (d.target as SimNode).id : String(d.target);
+
+      if (!sel) {
+        d3.select(this).attr("opacity", 1);
+      } else if (src === sel || tgt === sel) {
+        d3.select(this).attr("opacity", 0.9);
+      } else {
+        d3.select(this).attr("opacity", 0.04);
+      }
+    });
+  }
+
+  render(nodes: SimNode[], edges: SimEdge[]): void {
+    this.nodes = nodes;
+    this.edges = edges;
+    this.selectedId = null;
+
+    const w = this.w(), h = this.h();
+
+    // Scatter initial positions around centre
+    for (const n of nodes) {
+      if (n.x === undefined || n.y === undefined) {
+        const angle = Math.random() * Math.PI * 2;
+        const r = Math.random() * Math.min(w, h) * 0.3;
+        n.x = w / 2 + Math.cos(angle) * r;
+        n.y = h / 2 + Math.sin(angle) * r;
+      }
+    }
+
+    // ── Edges ──────────────────────────────────────
+    const eSel = this.edgeGrp
+      .selectAll<SVGLineElement, SimEdge>("line")
+      .data(edges, (d) => d.id);
+
+    eSel.exit().remove();
+
+    const eAll = eSel.enter().append("line").merge(eSel);
+
+    eAll
+      .attr("stroke", (d) => {
+        const s = EDGE_STYLES[d.relation ?? ""];
+        return d.edgeColor ?? s?.color ?? "rgba(148,163,184,0.22)";
+      })
+      .attr("stroke-width", 1.4)
+      .attr("stroke-opacity", (d) => EDGE_STYLES[d.relation ?? ""]?.opacity ?? 0.22)
+      .attr("stroke-dasharray", (d) => {
+        const s = EDGE_STYLES[d.relation ?? ""];
+        return (d.dashed ?? s?.dashed) ? "6,4" : null;
+      })
+      .attr("marker-end", `url(#arrow-${this.uid})`);
+
+    // ── Nodes ──────────────────────────────────────
+    const nSel = this.nodeGrp
+      .selectAll<SVGGElement, SimNode>("g.node")
+      .data(nodes, (d) => d.id);
+
+    nSel.exit().remove();
+
+    const self = this;
+    const drag = d3.drag<SVGGElement, SimNode>()
+      .on("start", function(e: d3.D3DragEvent<SVGGElement, SimNode, SimNode>, d: SimNode) {
+        if (!e.active) self.sim.alphaTarget(0.3).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+      })
+      .on("drag", function(e: d3.D3DragEvent<SVGGElement, SimNode, SimNode>, d: SimNode) {
+        d.fx = e.x;
+        d.fy = e.y;
+      })
+      .on("end", function(e: d3.D3DragEvent<SVGGElement, SimNode, SimNode>, d: SimNode) {
+        if (!e.active) self.sim.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+      });
+
+    const nEnter = nSel.enter()
+      .append("g")
+      .attr("class", "node")
+      .style("cursor", "pointer")
+      .call(drag);
+
+    // Entrance animation: circles grow from zero
+    nEnter.append("circle")
+      .attr("r", 0)
+      .transition().duration(350).ease(d3.easeCubicOut)
+      .attr("r", (d) => d.radius);
+
+    nEnter.append("text")
+      .attr("text-anchor", "middle")
+      .attr("fill", "#e2e8f0")
+      .attr("font-family", "ui-monospace, 'JetBrains Mono', monospace")
+      .attr("pointer-events", "none")
+      .attr("opacity", 0)
+      .transition().delay(200).duration(350)
+      .attr("opacity", 0.78);
+
+    const nAll = nEnter.merge(nSel);
+
+    // Apply current attributes
+    nAll.select<SVGCircleElement>("circle")
+      .attr("r", (d) => d.radius)
+      .attr("fill", (d) => d.color)
+      .attr("fill-opacity", 0.82);
+
+    nAll.select<SVGTextElement>("text")
+      .attr("font-size", (d) => d.type === "repository" ? 12 : d.type === "folder" ? 10 : 9)
+      .attr("dy", (d) => d.radius + 13)
+      .attr("opacity", 0.78)
+      .text((d) => {
+        const max = d.type === "repository" ? 22 : d.type === "folder" ? 18 : 14;
+        return d.label.length > max ? `${d.label.slice(0, max - 1)}…` : d.label;
+      });
+
+    // Events
+    nAll
+      .on("mouseenter.tooltip", (e: MouseEvent, d) => {
+        const rect = self.container.getBoundingClientRect();
+        self.tooltipEl.textContent = `${d.type}: ${d.label}`;
+        self.tooltipEl.style.opacity = "1";
+        self.tooltipEl.style.left = `${e.clientX - rect.left + 14}px`;
+        self.tooltipEl.style.top = `${e.clientY - rect.top - 10}px`;
+      })
+      .on("mousemove.tooltip", (e: MouseEvent) => {
+        const rect = self.container.getBoundingClientRect();
+        self.tooltipEl.style.left = `${e.clientX - rect.left + 14}px`;
+        self.tooltipEl.style.top = `${e.clientY - rect.top - 10}px`;
+      })
+      .on("mouseleave.tooltip", () => {
+        self.tooltipEl.style.opacity = "0";
+      })
+      .on("click.select", (e: MouseEvent, d) => {
+        e.stopPropagation();
+        self.select(self.selectedId === d.id ? null : d.id);
+      });
+
+    // Start force simulation
+    this.sim
+      .nodes(nodes)
+      .force(
+        "link",
+        d3.forceLink<SimNode, SimEdge>(edges)
+          .id((d) => d.id)
+          .distance((d) => {
+            const rel = (d as SimEdge).relation;
+            if (rel === "contains") return 60;
+            if (rel === "imports" || rel === "calls") return 100;
+            return 85;
+          })
+          .strength(0.4),
+      )
+      .force("center", d3.forceCenter<SimNode>(w / 2, h / 2).strength(0.08))
+      .alpha(0.9)
+      .restart();
+
+    this.simRunning = true;
+    this.onSimCb?.(true);
+
+    // Auto-fit after layout converges
+    setTimeout(() => this.fitToScreen(), 3200);
+  }
+
+  clearGraph(): void {
+    this.nodes = [];
+    this.edges = [];
+    this.selectedId = null;
+    this.sim.nodes([]);
+    this.edgeGrp.selectAll("*").remove();
+    this.nodeGrp.selectAll("*").remove();
+    this.onSelectCb?.(null);
+  }
+
+  zoomIn(): void {
+    this.svg.transition().duration(220).call(this.zoom.scaleBy, 1.5);
+  }
+
+  zoomOut(): void {
+    this.svg.transition().duration(220).call(this.zoom.scaleBy, 1 / 1.5);
+  }
+
+  fitToScreen(): void {
+    if (!this.nodes.length) return;
+    const w = this.w(), h = this.h(), pad = 64;
+    const xs = this.nodes.map((d) => d.x ?? 0);
+    const ys = this.nodes.map((d) => d.y ?? 0);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const gw = (x1 - x0) || 1, gh = (y1 - y0) || 1;
+    const scale = Math.min((w - pad * 2) / gw, (h - pad * 2) / gh, 3);
+    const tx = w / 2 - scale * (x0 + gw / 2);
+    const ty = h / 2 - scale * (y0 + gh / 2);
+    this.svg.transition().duration(600)
+      .call(this.zoom.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+  }
+
+  toggleLayout(): boolean {
+    if (this.simRunning) {
+      this.sim.stop();
+      this.simRunning = false;
+      this.onSimCb?.(false);
+      return false;
+    } else {
+      this.sim.alpha(0.5).restart();
+      return true;
+    }
+  }
+
+  destroy(): void {
+    this.ro.disconnect();
+    this.sim.stop();
+    this.svg.remove();
+  }
+}
+
+// ============================================================
+// Graph data builders
+// ============================================================
+
+function escapeHtml(v: string): string {
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
+function meta(m: Record<string, unknown>, key: string): string | null {
+  const v = m[key];
+  return typeof v === "string" && v.trim() ? v.trim() : null;
+}
+
+function folderAncestors(paths: string[]): string[] {
+  const s = new Set<string>();
+  for (const p of paths) {
+    const segs = p.split("/").filter(Boolean);
+    for (let i = 1; i < segs.length; i++) s.add(segs.slice(0, i).join("/"));
+  }
+  return [...s].sort((a, b) => a.localeCompare(b));
+}
+
+type ExtendedNodePayload = RepositoryGraphNodePayload & {
+  score?: number;
+  direction?: string;
+  distance?: number;
+  emphasis?: "seed" | "result";
+};
+
+interface BuildResult {
+  nodes: SimNode[];
+  edges: SimEdge[];
+}
+
+function buildGraphData(
+  repoName: string,
+  apiNodes: ExtendedNodePayload[],
+  apiEdges: Array<RepositoryGraphEdgePayload | { id: string; from: string; to: string; relation?: string; dashed?: boolean; color?: string }>,
+  _emptyMsg = "",
+): BuildResult {
+  const nodeMap = new Map<string, SimNode>();
+  const edgeMap = new Map<string, SimEdge>();
+
+  // Repository root
+  nodeMap.set("repository-root", {
+    id: "repository-root",
+    label: repoName,
+    type: "repository",
+    radius: radiusForType("repository"),
+    color: colorForType("repository"),
+    metadata: {},
+    emphasis: "hub",
+  });
+
+  const paths = apiNodes
+    .map((n) => meta(n.metadata, "path"))
+    .filter((v): v is string => Boolean(v));
+
+  // Folder hierarchy
+  for (const fp of folderAncestors(paths)) {
+    const segs = fp.split("/").filter(Boolean);
+    const fid = `folder:${fp}`;
+    const pid = segs.length > 1 ? `folder:${segs.slice(0, -1).join("/")}` : "repository-root";
+    nodeMap.set(fid, {
+      id: fid,
+      label: segs[segs.length - 1] ?? fp,
+      type: "folder",
+      radius: radiusForType("folder"),
+      color: colorForType("folder"),
+      metadata: { path: fp },
+    });
+    edgeMap.set(`contains:${pid}:${fid}`, { id: `contains:${pid}:${fid}`, source: pid, target: fid, relation: "contains" });
+  }
+
+  // File nodes from paths where no explicit file node exists
+  const fileNodesByPath = new Map<string, string>();
+  for (const n of apiNodes) {
+    const p = meta(n.metadata, "path");
+    if (n.node_type === "file" && p) fileNodesByPath.set(p, n.id);
+  }
+
+  for (const p of paths) {
+    if (fileNodesByPath.has(p)) continue;
+    const segs = p.split("/").filter(Boolean);
+    const fid = `file:${p}`;
+    const pid = segs.length > 1 ? `folder:${segs.slice(0, -1).join("/")}` : "repository-root";
+    nodeMap.set(fid, {
+      id: fid,
+      label: segs[segs.length - 1] ?? p,
+      type: "file",
+      radius: radiusForType("file"),
+      color: colorForType("file"),
+      metadata: { path: p },
+    });
+    edgeMap.set(`contains:${pid}:${fid}`, { id: `contains:${pid}:${fid}`, source: pid, target: fid, relation: "contains" });
+  }
+
+  // API nodes
+  for (const n of apiNodes) {
+    nodeMap.set(n.id, {
+      id: n.id,
+      label: n.name,
+      type: n.node_type,
+      radius: radiusForType(n.node_type),
+      color: colorForType(n.node_type),
+      metadata: n.metadata,
+      emphasis: n.emphasis,
+      score: n.score,
+      direction: n.direction,
+      distance: n.distance,
+    });
+
+    const p = meta(n.metadata, "path");
+    if (p) {
+      const parentId =
+        n.node_type === "file"
+          ? (p.includes("/") ? `folder:${p.split("/").slice(0, -1).join("/")}` : "repository-root")
+          : (fileNodesByPath.get(p) ?? `file:${p}`);
+      if (nodeMap.has(parentId)) {
+        edgeMap.set(`contains:${parentId}:${n.id}`, { id: `contains:${parentId}:${n.id}`, source: parentId, target: n.id, relation: "contains" });
+      }
+    }
+  }
+
+  // API edges
+  for (const e of apiEdges) {
+    let id: string, from: string, to: string, relation: string | undefined, dashed: boolean | undefined, edgeColor: string | undefined;
+
+    if ("source_id" in e) {
+      id = e.id; from = e.source_id; to = e.target_id; relation = e.relation;
+    } else {
+      id = e.id; from = e.from; to = e.to; relation = e.relation; dashed = e.dashed; edgeColor = e.color;
+    }
+
+    if (nodeMap.has(from) && nodeMap.has(to)) {
+      edgeMap.set(id, { id, source: from, target: to, relation, dashed, edgeColor });
+    }
+  }
+
+  return {
+    nodes: [...nodeMap.values()],
+    edges: [...edgeMap.values()],
+  };
+}
+
+// ============================================================
+// DOM helpers
+// ============================================================
+
+function setText(el: Element | null, text: string): void {
+  if (el) el.textContent = text;
+}
+
+function splitCsv(v: string | null | undefined): string[] {
+  return (v ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function lastSyncLabel(s: RepositoryGraphSummaryPayload): string {
+  const ls = s.last_sync;
+  if (!ls || typeof ls.accepted_at !== "string") return s.graph_available ? "Graph Ready" : "No Sync";
+  const d = new Date(ls.accepted_at);
+  return Number.isNaN(d.getTime()) ? "Graph Ready" : `Synced ${d.toLocaleString()}`;
+}
+
+// ============================================================
+// Tab management
+// ============================================================
+
+function switchTab(tabId: string): void {
+  document.querySelectorAll("[data-tab-btn]").forEach((b) => {
+    b.classList.remove("tab-btn-active");
+  });
+  document.querySelectorAll("[data-tab-panel]").forEach((p) => {
+    p.classList.add("hidden");
+  });
+  document.querySelector(`[data-tab-btn="${tabId}"]`)?.classList.add("tab-btn-active");
+  document.querySelector(`[data-tab-panel="${tabId}"]`)?.classList.remove("hidden");
+
+  // Refit graphs when switching to their tabs
+  if (tabId === "graph" && repoRenderer) {
+    setTimeout(() => repoRenderer?.fitToScreen(), 50);
+  }
+  if (tabId === "search" && searchRenderer) {
+    setTimeout(() => searchRenderer?.fitToScreen(), 50);
+  }
+  if (tabId === "impact" && impactRenderer) {
+    setTimeout(() => impactRenderer?.fitToScreen(), 50);
+  }
+}
+
+document.querySelector("#repo-tab-nav")?.addEventListener("click", (e: Event) => {
+  const btn = (e.target as Element).closest("[data-tab-btn]");
+  if (btn) switchTab(btn.getAttribute("data-tab-btn") ?? "graph");
+});
+
+// ============================================================
+// Renderer instances
+// ============================================================
+
+function getEl<T extends HTMLElement>(id: string): T | null {
+  return document.getElementById(id) as T | null;
+}
+
+let repoRenderer: D3GraphRenderer | null = null;
+let searchRenderer: D3GraphRenderer | null = null;
+let impactRenderer: D3GraphRenderer | null = null;
+
+function initRepoRenderer(): D3GraphRenderer | null {
+  if (repoRenderer) return repoRenderer;
+  const mount = getEl("repo-graph-mount");
+  const tip = getEl("repo-graph-tooltip");
+  if (!mount || !tip) return null;
+  repoRenderer = new D3GraphRenderer(mount, tip);
+  repoRenderer.onSelect(showRepoNodeDetails);
+  repoRenderer.onSimStatus((running) => {
+    const el = getEl("repo-graph-sim-status");
+    if (!el) return;
+    if (running) el.classList.remove("hidden"), el.classList.add("flex");
+    else el.classList.add("hidden"), el.classList.remove("flex");
+    // Update toggle icon
+    const icon = getEl("repo-graph-toggle-icon");
+    if (icon) {
+      icon.innerHTML = running
+        ? `<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>` // pause
+        : `<polygon points="5,3 19,12 5,21"/>`;                                                   // play
+    }
+  });
+  return repoRenderer;
+}
+
+function initSearchRenderer(): D3GraphRenderer | null {
+  if (searchRenderer) return searchRenderer;
+  const mount = getEl("search-graph-mount");
+  const tip = getEl("search-graph-tooltip");
+  if (!mount || !tip) return null;
+  searchRenderer = new D3GraphRenderer(mount, tip);
+  searchRenderer.onSelect(showSearchNodeDetails);
+  return searchRenderer;
+}
+
+function initImpactRenderer(): D3GraphRenderer | null {
+  if (impactRenderer) return impactRenderer;
+  const mount = getEl("impact-graph-mount");
+  const tip = getEl("impact-graph-tooltip");
+  if (!mount || !tip) return null;
+  impactRenderer = new D3GraphRenderer(mount, tip);
+  impactRenderer.onSelect(showImpactNodeDetails);
+  return impactRenderer;
+}
+
+// ============================================================
+// Legend renderer
+// ============================================================
+
+function renderLegendOverlay(legendId: string, nodes: SimNode[]): void {
+  const el = getEl(legendId);
+  if (!el) return;
+  const counts = new Map<string, number>();
+  for (const n of nodes) counts.set(n.type, (counts.get(n.type) ?? 0) + 1);
+  if (!counts.size) { el.innerHTML = ""; return; }
+
+  el.innerHTML = [...counts.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([type, count]) => `
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; padding: 1px 0;">
+        <span style="display:flex; align-items:center; gap:5px;">
+          <span style="width:8px; height:8px; border-radius:50%; background:${escapeHtml(colorForType(type))}; flex-shrink:0;"></span>
+          <span style="font-size:10px; color:rgba(226,232,240,0.65); font-family: ui-monospace, monospace;">${escapeHtml(type)}</span>
+        </span>
+        <span style="font-size:10px; font-weight:600; color:rgba(226,232,240,0.9); font-family: ui-monospace, monospace;">${count}</span>
+      </div>
+    `)
+    .join("");
+}
+
+// ============================================================
+// Node details panel
+// ============================================================
+
+function showNodeDetails(
+  typeId: string, nameId: string, extraId: string, metaId: string, panelId: string,
+  node: SimNode | null,
+): void {
+  const panel = getEl(panelId);
+  if (!panel) return;
+  if (!node) { panel.classList.add("hidden"); return; }
+  panel.classList.remove("hidden");
+
+  setText(getEl(typeId), node.type);
+  setText(getEl(nameId), node.label);
+  const extraParts: string[] = [];
+  if (node.score != null) extraParts.push(`Score ${node.score}`);
+  if (node.direction) extraParts.push(`${node.direction} · distance ${node.distance ?? 1}`);
+  if (node.emphasis) extraParts.push(`Emphasis: ${node.emphasis}`);
+  setText(getEl(extraId), extraParts.join("  ·  "));
+
+  const metaEl = getEl(metaId);
+  if (!metaEl) return;
+  const rows = Object.entries(node.metadata)
+    .filter(([, v]) => v != null && v !== "")
+    .slice(0, 12)
+    .map(([k, v]) => `
+      <div class="grid gap-0.5 border border-stone-100 rounded-xl p-3">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400">${escapeHtml(k)}</span>
+        <span class="text-sm text-stone-800 break-all">${escapeHtml(String(v))}</span>
+      </div>
+    `)
+    .join("");
+  metaEl.innerHTML = rows || `<p class="text-sm text-stone-400 col-span-full">No metadata.</p>`;
+}
+
+function showRepoNodeDetails(n: SimNode | null): void {
+  showNodeDetails("repo-graph-node-type", "repo-graph-node-name", "repo-graph-node-extra", "repo-graph-node-metadata", "repo-graph-node-details", n);
+}
+function showSearchNodeDetails(n: SimNode | null): void {
+  showNodeDetails("search-graph-node-type", "search-graph-node-name", "search-graph-node-extra", "search-graph-node-metadata", "search-graph-node-details", n);
+}
+function showImpactNodeDetails(n: SimNode | null): void {
+  showNodeDetails("impact-graph-node-type", "impact-graph-node-name", "impact-graph-node-extra", "impact-graph-node-metadata", "impact-graph-node-details", n);
+}
+
+// Close buttons
+getEl("repo-graph-node-close")?.addEventListener("click", () => { showRepoNodeDetails(null); });
+getEl("search-graph-node-close")?.addEventListener("click", () => { showSearchNodeDetails(null); });
+getEl("impact-graph-node-close")?.addEventListener("click", () => { showImpactNodeDetails(null); });
+
+// ============================================================
+// Graph controls
+// ============================================================
+
+getEl("repo-graph-zoom-in")?.addEventListener("click", () => repoRenderer?.zoomIn());
+getEl("repo-graph-zoom-out")?.addEventListener("click", () => repoRenderer?.zoomOut());
+getEl("repo-graph-fit")?.addEventListener("click", () => repoRenderer?.fitToScreen());
+getEl("repo-graph-toggle")?.addEventListener("click", () => repoRenderer?.toggleLayout());
+
+getEl("search-graph-zoom-in")?.addEventListener("click", () => searchRenderer?.zoomIn());
+getEl("search-graph-zoom-out")?.addEventListener("click", () => searchRenderer?.zoomOut());
+getEl("search-graph-fit")?.addEventListener("click", () => searchRenderer?.fitToScreen());
+
+getEl("impact-graph-zoom-in")?.addEventListener("click", () => impactRenderer?.zoomIn());
+getEl("impact-graph-zoom-out")?.addEventListener("click", () => impactRenderer?.zoomOut());
+getEl("impact-graph-fit")?.addEventListener("click", () => impactRenderer?.fitToScreen());
+
+// ============================================================
+// Summary renderers
+// ============================================================
+
+function renderSummary(s: RepositoryGraphSummaryPayload): void {
+  setText(getEl("repo-summary-title"), s.repository.name);
+  setText(getEl("repo-summary-meta"), `${s.repository.remote_url ?? "No remote"} · ${s.repository.default_branch ?? "No branch"}`);
+  setText(getEl("repo-summary-sync"), lastSyncLabel(s));
+
+  const cards = getEl("repo-summary-cards");
+  if (cards) {
+    cards.innerHTML = [
+      ["Nodes", String(s.node_count)],
+      ["Types", String(Object.keys(s.counts_by_type).length)],
+      ["Routes", String(s.routes.length)],
+      ["TODOs", String(s.todos.length)],
+    ].map(([label, value]) => `
+      <article class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4">
+        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">${escapeHtml(label)}</p>
+        <p class="mt-3 text-3xl font-semibold text-stone-950">${escapeHtml(value)}</p>
+      </article>
+    `).join("");
+  }
+
+  renderNodeCollection(getEl("repo-routes"), s.routes, "No route nodes.");
+  renderNodeCollection(getEl("repo-todos"), s.todos, "No TODO nodes.");
+  renderNodeCollection(getEl("repo-services"), s.external_services, "No external services.");
+  renderDependencies(s);
+}
+
+function renderNodeCollection(el: HTMLElement | null, nodes: RepositoryGraphNodePayload[], msg: string): void {
+  if (!el) return;
+  if (!nodes.length) { el.innerHTML = `<div class="rounded-2xl border border-dashed border-stone-200 px-4 py-4 text-sm text-stone-400">${escapeHtml(msg)}</div>`; return; }
+  el.innerHTML = nodes.map((n) => {
+    const p = meta(n.metadata, "path");
+    const lang = meta(n.metadata, "language");
+    return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">${escapeHtml(n.node_type)}</p>
+      <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(n.name)}</p>
+      <p class="mt-1 text-xs text-stone-500">${escapeHtml(p ?? lang ?? "—")}</p>
+    </article>`;
+  }).join("");
+}
+
+function renderDependencies(s: RepositoryGraphSummaryPayload): void {
+  const el = getEl("repo-dependencies");
+  if (!el) return;
+  if (!s.dependencies.length) { el.innerHTML = `<div class="rounded-2xl border border-dashed border-stone-200 px-4 py-4 text-sm text-stone-400">No dependency edges.</div>`; return; }
+  el.innerHTML = s.dependencies.map((dep) => {
+    const targets = dep.depends_on.map((t) => escapeHtml(t.name)).join(", ");
+    return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Service</p>
+      <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(dep.service)}</p>
+      <p class="mt-1 text-xs text-stone-500">${targets || "No targets"}</p>
+    </article>`;
+  }).join("");
+}
+
+function renderGraphSummaryStats(nodeCount: number, edgeCount: number, typeCount: number, relationCount: number): void {
+  const el = getEl("repo-graph-summary");
+  if (!el) return;
+  const items = [
+    ["Nodes", String(nodeCount)],
+    ["Edges", String(edgeCount)],
+    ["Types", String(typeCount)],
+    ["Relations", String(relationCount)],
+  ];
+  el.innerHTML = items.map(([label, value]) => `
+    <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+      <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">${escapeHtml(label)}</p>
+      <p class="mt-1.5 text-2xl font-semibold text-stone-950">${escapeHtml(value)}</p>
+    </article>
+  `).join("");
+}
+
+// ============================================================
+// Repository list
+// ============================================================
 
 let repositories: RepositoryPayload[] = [];
 let activeRepositoryId: string | null = null;
 let activeRepository: RepositoryPayload | null = null;
 
-let repositoryGraphState: GraphCanvasState = {
-  emptyMessage: "Select a repository to render its graph.",
-  nodes: [],
-  edges: [],
-  selectedNodeId: null,
-};
-let searchGraphState: GraphCanvasState = {
-  emptyMessage: "Search results will render here.",
-  nodes: [],
-  edges: [],
-  selectedNodeId: null,
-};
-let impactGraphState: GraphCanvasState = {
-  emptyMessage: "Impact graph will render here.",
-  nodes: [],
-  edges: [],
-  selectedNodeId: null,
-};
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function setText(element: Element | null, value: string): void {
-  if (element) {
-    element.textContent = value;
-  }
-}
-
-function metadataString(
-  metadata: Record<string, unknown>,
-  key: string,
-): string | null {
-  const value = metadata[key];
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-function colorForNodeType(nodeType: string): string {
-  return NODE_TYPE_COLORS[nodeType] ?? "#57534e";
-}
-
-function radiusForNodeType(nodeType: string): number {
-  return NODE_TYPE_SIZES[nodeType] ?? 6;
-}
-
-function normalizeLabel(label: string, limit = 30): string {
-  return label.length <= limit ? label : `${label.slice(0, limit - 1)}…`;
-}
-
-function splitCsv(value: string | null | undefined): string[] {
-  return (value ?? "")
-    .split(",")
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function lastSyncLabel(summary: RepositoryGraphSummaryPayload): string {
-  const lastSync = summary.last_sync;
-  if (!lastSync || typeof lastSync.accepted_at !== "string") {
-    return summary.graph_available ? "Graph Ready" : "No Sync";
-  }
-  const acceptedAt = new Date(lastSync.accepted_at);
-  if (Number.isNaN(acceptedAt.getTime())) {
-    return "Graph Ready";
-  }
-  return `Synced ${acceptedAt.toLocaleString()}`;
-}
-
-function renderEmptyCollection(element: Element | null, message: string): void {
-  if (!element) {
-    return;
-  }
-  element.innerHTML = `<div class="rounded-2xl border border-dashed border-stone-300 bg-white px-4 py-4 text-sm text-stone-500">${escapeHtml(message)}</div>`;
-}
-
-function renderNodeCollection(
-  element: Element | null,
-  nodes: RepositoryGraphNodePayload[],
-  emptyMessage: string,
-): void {
-  if (!element) {
-    return;
-  }
-  if (!nodes.length) {
-    renderEmptyCollection(element, emptyMessage);
-    return;
-  }
-  element.innerHTML = nodes
-    .map((node) => {
-      const path = metadataString(node.metadata, "path");
-      const language = metadataString(node.metadata, "language");
-      return `
-        <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">${escapeHtml(node.node_type)}</p>
-          <p class="mt-2 text-sm font-semibold text-stone-900">${escapeHtml(node.name)}</p>
-          <p class="mt-2 text-xs text-stone-600">${escapeHtml(path ?? language ?? "No extra metadata")}</p>
-        </article>
-      `;
-    })
-    .join("");
-}
-
-function renderDependencies(summary: RepositoryGraphSummaryPayload): void {
-  if (!dependenciesRegion) {
-    return;
-  }
-  if (!summary.dependencies.length) {
-    renderEmptyCollection(
-      dependenciesRegion,
-      "No service dependency edges in the current graph snapshot.",
-    );
-    return;
-  }
-  dependenciesRegion.innerHTML = summary.dependencies
-    .map((dependency) => {
-      const targets = dependency.depends_on
-        .map((target) => escapeHtml(target.name))
-        .join(", ");
-      return `
-        <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">Service</p>
-          <p class="mt-2 text-sm font-semibold text-stone-900">${escapeHtml(dependency.service)}</p>
-          <p class="mt-2 text-xs text-stone-600">${targets || "No dependency targets"}</p>
-        </article>
-      `;
-    })
-    .join("");
-}
-
-function renderSummary(summary: RepositoryGraphSummaryPayload): void {
-  setText(summaryTitle, summary.repository.name);
-  setText(
-    summaryMeta,
-    `${summary.repository.remote_url ?? "No remote configured"} · ${summary.repository.default_branch ?? "No default branch"}`,
-  );
-  setText(summarySync, lastSyncLabel(summary));
-
-  if (summaryCards) {
-    const items = [
-      ["Nodes", String(summary.node_count)],
-      ["Types", String(Object.keys(summary.counts_by_type).length)],
-      ["Routes", String(summary.routes.length)],
-      ["TODOs", String(summary.todos.length)],
-    ];
-    summaryCards.innerHTML = items
-      .map(
-        ([label, value]) => `
-          <article class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.22em] text-stone-500">${escapeHtml(label)}</p>
-            <p class="mt-3 text-3xl font-semibold text-stone-950">${escapeHtml(value)}</p>
-          </article>
-        `,
-      )
-      .join("");
-  }
-
-  renderNodeCollection(
-    routesRegion,
-    summary.routes,
-    "No route nodes found in the current snapshot.",
-  );
-  renderNodeCollection(
-    todosRegion,
-    summary.todos,
-    "No TODO nodes found in the current snapshot.",
-  );
-  renderNodeCollection(
-    servicesRegion,
-    summary.external_services,
-    "No external service nodes found in the current snapshot.",
-  );
-  renderDependencies(summary);
-}
-
-function layerForNodeType(nodeType: string): number {
-  switch (nodeType) {
-    case "repository":
-      return 0;
-    case "folder":
-      return 1;
-    case "file":
-      return 2;
-    case "module":
-    case "service":
-    case "controller":
-    case "class":
-    case "interface":
-      return 3;
-    default:
-      return 4;
-  }
-}
-
-function folderAncestors(paths: string[]): string[] {
-  const folders = new Set<string>();
-  for (const path of paths) {
-    const segments = path.split("/").filter(Boolean);
-    for (let index = 1; index < segments.length; index += 1) {
-      folders.add(segments.slice(0, index).join("/"));
-    }
-  }
-  return [...folders].sort((left, right) => left.localeCompare(right));
-}
-
-function buildStructuredCanvasState(
-  repoName: string,
-  nodes: Array<
-    RepositoryGraphNodePayload & {
-      score?: number;
-      direction?: string;
-      distance?: number;
-      emphasis?: "seed" | "result";
-    }
-  >,
-  edges: RepositoryGraphEdgePayload[] | GraphCanvasEdge[],
-  emptyMessage: string,
-): GraphCanvasState {
-  const graphNodes = new Map<string, GraphCanvasNode>();
-  const graphEdges = new Map<string, GraphCanvasEdge>();
-
-  graphNodes.set("repository-root", {
-    id: "repository-root",
-    label: repoName,
-    type: "repository",
-    x: 0,
-    y: 0,
-    radius: radiusForNodeType("repository"),
-    metadata: {},
-    emphasis: "hub",
-  });
-
-  const paths = nodes
-    .map((node) => metadataString(node.metadata, "path"))
-    .filter((value): value is string => Boolean(value));
-
-  for (const folderPath of folderAncestors(paths)) {
-    const segments = folderPath.split("/").filter(Boolean);
-    const folderId = `folder:${folderPath}`;
-    const parentId =
-      segments.length > 1
-        ? `folder:${segments.slice(0, -1).join("/")}`
-        : "repository-root";
-    graphNodes.set(folderId, {
-      id: folderId,
-      label: segments[segments.length - 1] ?? folderPath,
-      type: "folder",
-      x: 0,
-      y: 0,
-      radius: radiusForNodeType("folder"),
-      metadata: { path: folderPath },
-    });
-    graphEdges.set(`contains:${parentId}:${folderId}`, {
-      id: `contains:${parentId}:${folderId}`,
-      from: parentId,
-      to: folderId,
-      relation: "contains",
-    });
-  }
-
-  const fileNodeIdsByPath = new Map<string, string>();
-  for (const node of nodes) {
-    const path = metadataString(node.metadata, "path");
-    if (node.node_type === "file" && path) {
-      fileNodeIdsByPath.set(path, node.id);
-    }
-  }
-
-  for (const path of paths) {
-    if (fileNodeIdsByPath.has(path)) {
-      continue;
-    }
-    const segments = path.split("/").filter(Boolean);
-    const fileId = `file:${path}`;
-    const parentId =
-      segments.length > 1
-        ? `folder:${segments.slice(0, -1).join("/")}`
-        : "repository-root";
-    graphNodes.set(fileId, {
-      id: fileId,
-      label: segments[segments.length - 1] ?? path,
-      type: "file",
-      x: 0,
-      y: 0,
-      radius: radiusForNodeType("file"),
-      metadata: { path },
-    });
-    graphEdges.set(`contains:${parentId}:${fileId}`, {
-      id: `contains:${parentId}:${fileId}`,
-      from: parentId,
-      to: fileId,
-      relation: "contains",
-    });
-  }
-
-  for (const node of nodes) {
-    graphNodes.set(node.id, {
-      id: node.id,
-      label: node.name,
-      type: node.node_type,
-      x: 0,
-      y: 0,
-      radius: radiusForNodeType(node.node_type),
-      metadata: node.metadata,
-      emphasis: node.emphasis,
-      score: node.score,
-      direction: node.direction,
-      distance: node.distance,
-    });
-
-    const path = metadataString(node.metadata, "path");
-    if (!path) {
-      continue;
-    }
-    const parentId =
-      node.node_type === "file"
-        ? path.includes("/")
-          ? `folder:${path.split("/").slice(0, -1).join("/")}`
-          : "repository-root"
-        : (fileNodeIdsByPath.get(path) ?? `file:${path}`);
-    if (graphNodes.has(parentId)) {
-      graphEdges.set(`contains:${parentId}:${node.id}`, {
-        id: `contains:${parentId}:${node.id}`,
-        from: parentId,
-        to: node.id,
-        relation: "contains",
-      });
-    }
-  }
-
-  for (const edge of edges) {
-    const normalized =
-      "source_id" in edge
-        ? {
-            id: edge.id,
-            from: edge.source_id,
-            to: edge.target_id,
-            relation: edge.relation,
-          }
-        : edge;
-    if (!graphNodes.has(normalized.from) || !graphNodes.has(normalized.to)) {
-      continue;
-    }
-    graphEdges.set(normalized.id, normalized);
-  }
-
-  const layers = new Map<number, GraphCanvasNode[]>();
-  for (const node of graphNodes.values()) {
-    const layer = layerForNodeType(node.type);
-    const bucket = layers.get(layer) ?? [];
-    bucket.push(node);
-    layers.set(layer, bucket);
-  }
-  for (const [layer, bucket] of layers) {
-    bucket.sort((left, right) => left.label.localeCompare(right.label));
-    const x = 140 + layer * 190;
-    const gap = 84;
-    const totalHeight = Math.max(1, bucket.length - 1) * gap;
-    const startY = 120 + Math.max(0, 420 - totalHeight / 2);
-    bucket.forEach((node, index) => {
-      node.x = x;
-      node.y = startY + index * gap;
-    });
-  }
-
-  return {
-    emptyMessage,
-    nodes: [...graphNodes.values()],
-    edges: [...graphEdges.values()],
-    selectedNodeId: null,
-  };
-}
-
-function renderLegend(element: Element | null, state: GraphCanvasState): void {
-  if (!element) {
-    return;
-  }
-  const counts = new Map<string, number>();
-  for (const node of state.nodes) {
-    counts.set(node.type, (counts.get(node.type) ?? 0) + 1);
-  }
-  if (!counts.size) {
-    element.innerHTML = `<p class="text-sm text-stone-500">No graph loaded.</p>`;
-    return;
-  }
-  element.innerHTML = [...counts.entries()]
-    .sort((left, right) => left[0].localeCompare(right[0]))
-    .map(
-      ([type, count]) => `
-        <div class="flex items-center justify-between gap-3 py-1 text-sm text-stone-700">
-          <span class="inline-flex items-center gap-2">
-            <span class="h-2.5 w-2.5 rounded-full" style="background:${escapeHtml(colorForNodeType(type))}"></span>
-            ${escapeHtml(type)}
-          </span>
-          <span class="font-semibold text-stone-900">${count}</span>
-        </div>
-      `,
-    )
-    .join("");
-}
-
-function renderNodeDetails(
-  element: Element | null,
-  state: GraphCanvasState,
-): void {
-  if (!element) {
-    return;
-  }
-  const selected =
-    state.nodes.find((node) => node.id === state.selectedNodeId) ?? null;
-  if (!selected) {
-    element.innerHTML = `<p class="text-sm text-stone-500">Click a node to inspect its metadata.</p>`;
-    return;
-  }
-  const metadataRows = Object.entries(selected.metadata)
-    .filter(
-      ([, value]) => value !== null && value !== undefined && value !== "",
-    )
-    .slice(0, 12)
-    .map(
-      ([key, value]) => `
-        <div class="grid gap-1 border-t border-stone-100 py-2 first:border-t-0 first:pt-0">
-          <span class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(key)}</span>
-          <span class="text-sm text-stone-800">${escapeHtml(String(value))}</span>
-        </div>
-      `,
-    )
-    .join("");
-  element.innerHTML = `
-    <div>
-      <p class="text-xs font-semibold uppercase tracking-[0.2em] text-stone-500">${escapeHtml(selected.type)}</p>
-      <h3 class="mt-2 text-lg font-semibold text-stone-950">${escapeHtml(selected.label)}</h3>
-      ${selected.score ? `<p class="mt-2 text-sm text-stone-600">Score ${selected.score}</p>` : ""}
-      ${selected.direction ? `<p class="mt-1 text-sm text-stone-600">${escapeHtml(selected.direction)} · distance ${escapeHtml(String(selected.distance ?? 1))}</p>` : ""}
-    </div>
-    <div class="mt-4">${metadataRows || '<p class="text-sm text-stone-500">No metadata available.</p>'}</div>
-  `;
-}
-
-function drawGraphCanvas(
-  canvas: HTMLCanvasElement | null,
-  state: GraphCanvasState,
-): void {
-  if (!canvas) {
-    return;
-  }
-  const context = canvas.getContext("2d");
-  if (!context) {
-    return;
-  }
-
-  const width = canvas.clientWidth || 900;
-  const height = canvas.clientHeight || 420;
-  const scale = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(width * scale);
-  canvas.height = Math.floor(height * scale);
-  context.setTransform(scale, 0, 0, scale, 0, 0);
-  context.clearRect(0, 0, width, height);
-
-  if (!state.nodes.length) {
-    context.fillStyle = "#78716c";
-    context.font = "16px ui-sans-serif, system-ui, sans-serif";
-    context.textAlign = "center";
-    context.fillText(state.emptyMessage, width / 2, height / 2);
-    return;
-  }
-
-  for (const edge of state.edges) {
-    const source = state.nodes.find((node) => node.id === edge.from);
-    const target = state.nodes.find((node) => node.id === edge.to);
-    if (!source || !target) {
-      continue;
-    }
-    const style = EDGE_RELATION_STYLES[edge.relation ?? ""];
-    context.save();
-    context.strokeStyle =
-      edge.color ?? style?.color ?? "rgba(120,113,108,0.25)";
-    context.lineWidth = 1.2;
-    context.setLineDash((edge.dashed ?? style?.dashed) ? [6, 6] : []);
-    context.beginPath();
-    context.moveTo(source.x, source.y);
-    context.lineTo(target.x, target.y);
-    context.stroke();
-    context.restore();
-  }
-
-  for (const node of state.nodes) {
-    context.save();
-    const selected = node.id === state.selectedNodeId;
-    context.fillStyle = colorForNodeType(node.type);
-    context.shadowColor = selected
-      ? "rgba(15,23,42,0.25)"
-      : "rgba(15,23,42,0.12)";
-    context.shadowBlur = selected ? 18 : 10;
-    context.beginPath();
-    context.arc(
-      node.x,
-      node.y,
-      selected ? node.radius + 2 : node.radius,
-      0,
-      Math.PI * 2,
-    );
-    context.fill();
-    context.restore();
-
-    context.save();
-    context.fillStyle = "#1c1917";
-    context.font =
-      node.type === "repository"
-        ? "600 13px ui-sans-serif, system-ui, sans-serif"
-        : "12px ui-sans-serif, system-ui, sans-serif";
-    context.textAlign = "center";
-    context.fillText(
-      normalizeLabel(node.label),
-      node.x,
-      node.y + node.radius + 16,
-    );
-    context.restore();
-  }
-}
-
-function bindCanvasInteraction(
-  canvas: HTMLCanvasElement | null,
-  getState: () => GraphCanvasState,
-  onChange: () => void,
-): void {
-  if (!canvas) {
-    return;
-  }
-  canvas.addEventListener("click", (event) => {
-    const state = getState();
-    if (!state.nodes.length) {
-      return;
-    }
-    const rect = canvas.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    let nextSelected: string | null = null;
-    for (const node of state.nodes) {
-      const distance = Math.hypot(node.x - x, node.y - y);
-      if (distance <= node.radius + 6) {
-        nextSelected = node.id;
-        break;
-      }
-    }
-    state.selectedNodeId = nextSelected;
-    onChange();
-  });
-}
-
-function renderRepositoryGraph(): void {
-  renderLegend(repoGraphLegend, repositoryGraphState);
-  renderNodeDetails(repoGraphDetails, repositoryGraphState);
-  drawGraphCanvas(repoGraphCanvas, repositoryGraphState);
-}
-
-function renderSearchGraph(): void {
-  renderLegend(searchLegend, searchGraphState);
-  renderNodeDetails(searchDetails, searchGraphState);
-  drawGraphCanvas(searchCanvas, searchGraphState);
-}
-
-function renderImpactGraph(): void {
-  renderLegend(impactLegend, impactGraphState);
-  renderNodeDetails(impactDetails, impactGraphState);
-  drawGraphCanvas(impactCanvas, impactGraphState);
-}
-
-function renderRepositoryGraphSummary(
-  payload: RepositoryGraphMapPayload,
-): void {
-  if (!repoGraphSummary) {
-    return;
-  }
-  const items = [
-    ["Visible Nodes", String(payload.summary.node_count)],
-    ["Visible Edges", String(payload.summary.edge_count)],
-    ["Node Types", String(Object.keys(payload.summary.counts_by_type).length)],
-    [
-      "Relations",
-      String(Object.keys(payload.summary.counts_by_relation).length),
-    ],
-  ];
-  repoGraphSummary.innerHTML = items
-    .map(
-      ([label, value]) => `
-        <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-          <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(label)}</p>
-          <p class="mt-2 text-2xl font-semibold text-stone-950">${escapeHtml(value)}</p>
-        </article>
-      `,
-    )
-    .join("");
-}
-
 function renderRepositories(): void {
-  if (!repositoriesList) {
-    return;
-  }
+  const list = getEl("repositories-list");
+  if (!list) return;
   if (!repositories.length) {
-    repositoriesList.innerHTML = `<article class="rounded-3xl border border-stone-200 bg-stone-50 px-4 py-4 text-sm text-stone-600">No repositories found.</article>`;
+    list.innerHTML = `<article class="rounded-2xl border border-dashed border-stone-200 px-4 py-4 text-sm text-stone-400">No repositories found.</article>`;
     return;
   }
-  repositoriesList.innerHTML = repositories
-    .map((repository) => {
-      const isActive = repository.id === activeRepositoryId;
-      return `
-        <button
-          type="button"
-          data-repository-id="${escapeHtml(repository.id)}"
-          class="rounded-3xl border px-4 py-4 text-left transition ${isActive ? "border-stone-950 bg-stone-950 text-white shadow-lg" : "border-stone-200 bg-white text-stone-800 hover:border-stone-400"}"
-        >
-          <p class="text-xs font-semibold uppercase tracking-[0.2em] ${isActive ? "text-stone-300" : "text-stone-500"}">Repository</p>
-          <p class="mt-3 text-base font-semibold">${escapeHtml(repository.name)}</p>
-          <p class="mt-2 text-xs ${isActive ? "text-stone-300" : "text-stone-500"}">${escapeHtml(repository.default_branch ?? "No branch")}</p>
-          <p class="mt-2 text-xs ${isActive ? "text-stone-300" : "text-stone-500"}">${escapeHtml(repository.remote_url ?? repository.path)}</p>
-        </button>
-      `;
-    })
-    .join("");
+  list.innerHTML = repositories.map((r) => {
+    const active = r.id === activeRepositoryId;
+    return `
+      <button type="button" data-repository-id="${escapeHtml(r.id)}"
+        class="rounded-2xl border px-4 py-3.5 text-left transition w-full ${active
+          ? "border-amber-800 bg-amber-800 text-white shadow-md"
+          : "border-stone-200 bg-white text-stone-800 hover:border-amber-700 hover:bg-amber-50"}"
+      >
+        <p class="text-[10px] font-bold uppercase tracking-widest ${active ? "text-amber-200" : "text-stone-400"}">Repository</p>
+        <p class="mt-2 text-sm font-semibold">${escapeHtml(r.name)}</p>
+        <p class="mt-1 text-xs ${active ? "text-amber-200" : "text-stone-400"}">${escapeHtml(r.default_branch ?? "—")}</p>
+        <p class="mt-0.5 text-xs truncate ${active ? "text-amber-200" : "text-stone-400"}">${escapeHtml(r.remote_url ?? r.path)}</p>
+      </button>
+    `;
+  }).join("");
 
-  repositoriesList
-    .querySelectorAll("[data-repository-id]")
-    .forEach((element) => {
-      element.addEventListener("click", () => {
-        const repoId = element.getAttribute("data-repository-id");
-        if (repoId) {
-          void selectRepository(repoId);
-        }
-      });
+  list.querySelectorAll("[data-repository-id]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.getAttribute("data-repository-id");
+      if (id) void selectRepository(id);
     });
+  });
 }
 
-function populateRepositorySettings(
-  repository: RepositoryPayload | null,
-): void {
-  if (
-    !repoSettingsName ||
-    !repoSettingsRemote ||
-    !repoSettingsBranch ||
-    !repoSettingsPath
-  ) {
-    return;
-  }
-  repoSettingsName.value = repository?.name ?? "";
-  repoSettingsRemote.value = repository?.remote_url ?? "";
-  repoSettingsBranch.value = repository?.default_branch ?? "";
-  repoSettingsPath.value = repository?.path ?? "";
+function populateSettings(r: RepositoryPayload | null): void {
+  const name = getEl<HTMLInputElement>("repo-settings-name");
+  const remote = getEl<HTMLInputElement>("repo-settings-remote");
+  const branch = getEl<HTMLInputElement>("repo-settings-branch");
+  const path = getEl<HTMLInputElement>("repo-settings-path");
+  if (!name || !remote || !branch || !path) return;
+  name.value = r?.name ?? "";
+  remote.value = r?.remote_url ?? "";
+  branch.value = r?.default_branch ?? "";
+  path.value = r?.path ?? "";
 }
 
-function resetRepositoryPanels(message: string): void {
-  setText(summaryTitle, "Select a repository");
-  setText(summaryMeta, message);
-  setText(summarySync, "Waiting");
-  if (summaryCards) {
-    summaryCards.innerHTML = `<article class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-600">${escapeHtml(message)}</article>`;
-  }
-  renderEmptyCollection(routesRegion, message);
-  renderEmptyCollection(todosRegion, message);
-  renderEmptyCollection(servicesRegion, message);
-  renderEmptyCollection(dependenciesRegion, message);
-  if (repoGraphSummary) {
-    repoGraphSummary.innerHTML = "";
-  }
-  repositoryGraphState = {
-    emptyMessage: message,
-    nodes: [],
-    edges: [],
-    selectedNodeId: null,
-  };
-  searchGraphState = {
-    emptyMessage: "Search results will render here.",
-    nodes: [],
-    edges: [],
-    selectedNodeId: null,
-  };
-  impactGraphState = {
-    emptyMessage: "Impact graph will render here.",
-    nodes: [],
-    edges: [],
-    selectedNodeId: null,
-  };
-  renderRepositoryGraph();
-  renderSearchGraph();
-  renderImpactGraph();
-  populateRepositorySettings(null);
+function resetPanels(msg: string): void {
+  setText(getEl("repo-summary-title"), "Select a repository");
+  setText(getEl("repo-summary-meta"), msg);
+  setText(getEl("repo-summary-sync"), "Waiting");
+
+  const cards = getEl("repo-summary-cards");
+  if (cards) cards.innerHTML = `<article class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-400 col-span-4">${escapeHtml(msg)}</article>`;
+
+  setText(getEl("repo-graph-status"), "");
+  const gs = getEl("repo-graph-summary");
+  if (gs) gs.innerHTML = "";
+
+  repoRenderer?.clearGraph();
+  searchRenderer?.clearGraph();
+  impactRenderer?.clearGraph();
+
+  renderNodeCollection(getEl("repo-routes"), [], msg);
+  renderNodeCollection(getEl("repo-todos"), [], msg);
+  renderNodeCollection(getEl("repo-services"), [], msg);
+  renderDependencies({ dependencies: [], routes: [], todos: [], external_services: [] } as unknown as RepositoryGraphSummaryPayload);
+
+  populateSettings(null);
 }
+
+// ============================================================
+// Data loading
+// ============================================================
 
 async function loadRepositories(): Promise<void> {
-  setText(repositoriesStatus, "Loading repositories...");
+  setText(getEl("repositories-status"), "Loading…");
   try {
-    const response = await listRepositories();
-    repositories = response.repositories;
+    const res = await listRepositories();
+    repositories = res.repositories;
     if (!repositories.length) {
       activeRepositoryId = null;
       activeRepository = null;
       renderRepositories();
-      resetRepositoryPanels("No repositories are registered yet.");
-      setText(repositoriesStatus, "No repositories found.");
+      resetPanels("No repositories registered yet.");
+      setText(getEl("repositories-status"), "No repositories found.");
       return;
     }
-
-    if (
-      !activeRepositoryId ||
-      !repositories.some((repo) => repo.id === activeRepositoryId)
-    ) {
+    if (!activeRepositoryId || !repositories.some((r) => r.id === activeRepositoryId)) {
       activeRepositoryId = repositories[0]?.id ?? null;
     }
-    activeRepository =
-      repositories.find((repo) => repo.id === activeRepositoryId) ?? null;
+    activeRepository = repositories.find((r) => r.id === activeRepositoryId) ?? null;
     renderRepositories();
-    setText(repositoriesStatus, `${repositories.length} repositories loaded.`);
-    if (activeRepositoryId) {
-      await selectRepository(activeRepositoryId);
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load repositories";
-    setText(repositoriesStatus, message);
-    resetRepositoryPanels(message);
+    setText(getEl("repositories-status"), `${repositories.length} repositor${repositories.length === 1 ? "y" : "ies"}`);
+    if (activeRepositoryId) await selectRepository(activeRepositoryId);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to load";
+    setText(getEl("repositories-status"), msg);
+    resetPanels(msg);
   }
 }
 
 async function selectRepository(repoId: string): Promise<void> {
   activeRepositoryId = repoId;
-  activeRepository = repositories.find((repo) => repo.id === repoId) ?? null;
+  activeRepository = repositories.find((r) => r.id === repoId) ?? null;
   renderRepositories();
-  populateRepositorySettings(activeRepository);
-  setText(repoSettingsStatus, "");
-  setText(searchStatus, "");
-  setText(impactStatus, "");
-  setText(repoGraphStatus, "Loading graph...");
+  populateSettings(activeRepository);
+  setText(getEl("repo-settings-status"), "");
+  setText(getEl("graph-search-status"), "");
+  setText(getEl("graph-impact-status"), "");
+  setText(getEl("repo-graph-status"), "Loading graph…");
 
   try {
     const [summary, graphMap] = await Promise.all([
@@ -918,275 +1023,193 @@ async function selectRepository(repoId: string): Promise<void> {
       getRepositoryGraphMap(repoId),
     ]);
     activeRepository = summary.repository;
-    repositories = repositories.map((repository) =>
-      repository.id === summary.repository.id ? summary.repository : repository,
-    );
+    repositories = repositories.map((r) => r.id === summary.repository.id ? summary.repository : r);
     renderRepositories();
-    populateRepositorySettings(summary.repository);
+    populateSettings(summary.repository);
     renderSummary(summary);
-    renderRepositoryGraphSummary(graphMap);
-    repositoryGraphState = buildStructuredCanvasState(
+
+    const { nodes, edges } = buildGraphData(
       summary.repository.name,
       graphMap.nodes,
       graphMap.edges,
-      graphMap.graph_available
-        ? "Graph loaded."
-        : "This repository has no synced nodes yet.",
+      graphMap.graph_available ? "Graph loaded." : "No graph snapshot.",
     );
-    renderRepositoryGraph();
+
+    renderGraphSummaryStats(
+      graphMap.summary.node_count,
+      graphMap.summary.edge_count,
+      Object.keys(graphMap.summary.counts_by_type).length,
+      Object.keys(graphMap.summary.counts_by_relation).length,
+    );
+
+    const renderer = initRepoRenderer();
+    if (renderer) {
+      renderer.render(nodes, edges);
+      renderLegendOverlay("repo-graph-legend", nodes);
+    }
+
     setText(
-      repoGraphStatus,
+      getEl("repo-graph-status"),
       graphMap.graph_available
-        ? `${graphMap.summary.node_count} nodes and ${graphMap.summary.edge_count} edges loaded.`
-        : "No synced graph snapshot for this repository yet.",
+        ? `${graphMap.summary.node_count} nodes · ${graphMap.summary.edge_count} edges`
+        : "No graph snapshot for this repository yet.",
     );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to load repository";
-    resetRepositoryPanels(message);
-    setText(repoGraphStatus, message);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Failed to load repository";
+    resetPanels(msg);
+    setText(getEl("repo-graph-status"), msg);
   }
 }
 
 async function refreshActiveGraph(): Promise<void> {
-  if (!activeRepositoryId) {
-    return;
-  }
-  await selectRepository(activeRepositoryId);
+  if (activeRepositoryId) await selectRepository(activeRepositoryId);
 }
 
-function buildSearchState(
-  repository: RepositoryPayload,
-  nodes: Array<RepositoryGraphNodePayload & { score?: number }>,
-): GraphCanvasState {
-  return buildStructuredCanvasState(
-    repository.name,
-    nodes,
-    [],
-    "No graph search results yet.",
-  );
-}
+// ============================================================
+// Search
+// ============================================================
 
-function buildImpactState(
-  repository: RepositoryPayload,
-  payload: RepositoryGraphImpactPayload,
-): GraphCanvasState {
-  const matchNodes = payload.matches.map((node) => ({
-    ...node,
-    emphasis: "seed" as const,
-  }));
-  const impactedNodes = payload.impacted.map((node) => ({
-    ...node,
-    emphasis: "result" as const,
-  }));
-  const allNodes = [...matchNodes, ...impactedNodes];
-  const edges: GraphCanvasEdge[] = [];
-  const seeds = payload.matches.map((node) => node.id);
-  for (const impacted of payload.impacted) {
-    const seedId = seeds[0];
-    if (!seedId) {
-      continue;
-    }
-    edges.push({
-      id: `${seedId}:${impacted.id}:${impacted.direction ?? "impact"}`,
-      from: impacted.direction === "upstream" ? impacted.id : seedId,
-      to: impacted.direction === "upstream" ? seedId : impacted.id,
-      relation: impacted.direction === "upstream" ? "upstream" : "downstream",
-      dashed: true,
-    });
-  }
-  return buildStructuredCanvasState(
-    repository.name,
-    allNodes,
-    edges,
-    "No impact nodes yet.",
-  );
-}
-
-async function handleSearchSubmit(event: SubmitEvent): Promise<void> {
-  event.preventDefault();
-  if (!activeRepositoryId || !searchQueryInput) {
-    setText(searchStatus, "Select a repository first.");
-    return;
-  }
-  const query = searchQueryInput.value.trim();
-  if (!query) {
-    setText(searchStatus, "Enter a search query.");
-    return;
-  }
-  setText(searchStatus, "Searching graph...");
+async function handleSearchSubmit(e: SubmitEvent): Promise<void> {
+  e.preventDefault();
+  if (!activeRepositoryId) { setText(getEl("graph-search-status"), "Select a repository first."); return; }
+  const q = getEl<HTMLInputElement>("graph-search-query")?.value.trim() ?? "";
+  if (!q) { setText(getEl("graph-search-status"), "Enter a search query."); return; }
+  setText(getEl("graph-search-status"), "Searching…");
   try {
-    const payload = await searchRepositoryGraph(activeRepositoryId, {
-      query,
-      nodeTypes: splitCsv(searchTypesInput?.value),
-      languages: splitCsv(searchLanguagesInput?.value),
-      lastStates: splitCsv(searchStatesInput?.value),
+    const res = await searchRepositoryGraph(activeRepositoryId, {
+      query: q,
+      nodeTypes: splitCsv(getEl<HTMLInputElement>("graph-search-types")?.value),
+      languages: splitCsv(getEl<HTMLInputElement>("graph-search-languages")?.value),
+      lastStates: splitCsv(getEl<HTMLInputElement>("graph-search-states")?.value),
       limit: 18,
     });
-    searchGraphState = buildSearchState(payload.repository, payload.results);
-    renderSearchGraph();
-    setText(searchStatus, `${payload.count} matching nodes.`);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Search failed";
-    setText(searchStatus, message);
-  }
-}
-
-async function handleImpactSubmit(event: SubmitEvent): Promise<void> {
-  event.preventDefault();
-  if (!activeRepositoryId || !impactTargetInput) {
-    setText(impactStatus, "Select a repository first.");
-    return;
-  }
-  const target = impactTargetInput.value.trim();
-  if (!target) {
-    setText(impactStatus, "Enter a target symbol or route.");
-    return;
-  }
-  const depth = Math.max(
-    1,
-    Math.min(Number(impactDepthInput?.value ?? "2") || 2, 6),
-  );
-  const limit = Math.max(
-    1,
-    Math.min(Number(impactLimitInput?.value ?? "25") || 25, 100),
-  );
-  setText(impactStatus, "Analyzing impact...");
-  try {
-    const payload = await getRepositoryGraphImpact(
-      activeRepositoryId,
-      target,
-      depth,
-      limit,
-    );
-    impactGraphState = buildImpactState(payload.repository, payload);
-    renderImpactGraph();
-    if (impactSummary) {
-      const summaryEntries = Object.entries(payload.summary)
-        .map(
-          ([key, value]) => `
-          <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(key)}</p>
-            <p class="mt-2 text-xl font-semibold text-stone-950">${escapeHtml(typeof value === "object" ? JSON.stringify(value) : String(value))}</p>
-          </article>
-        `,
-        )
-        .join("");
-      impactSummary.innerHTML = summaryEntries;
+    const { nodes, edges } = buildGraphData(res.repository.name, res.results, []);
+    const renderer = initSearchRenderer();
+    if (renderer) {
+      renderer.render(nodes, edges);
+      renderLegendOverlay("search-graph-legend", nodes);
     }
-    setText(impactStatus, `${payload.impacted.length} impacted nodes loaded.`);
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Impact scan failed";
-    setText(impactStatus, message);
+    setText(getEl("graph-search-status"), `${res.count} matching nodes.`);
+  } catch (err) {
+    setText(getEl("graph-search-status"), err instanceof Error ? err.message : "Search failed.");
   }
 }
 
-async function handleRepositorySave(event: SubmitEvent): Promise<void> {
-  event.preventDefault();
-  if (
-    !activeRepositoryId ||
-    !repoSettingsName ||
-    !repoSettingsRemote ||
-    !repoSettingsBranch ||
-    !repoSettingsPath
-  ) {
-    setText(repoSettingsStatus, "Select a repository first.");
-    return;
-  }
-  setText(repoSettingsStatus, "Saving repository settings...");
+// ============================================================
+// Impact
+// ============================================================
+
+async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
+  e.preventDefault();
+  if (!activeRepositoryId) { setText(getEl("graph-impact-status"), "Select a repository first."); return; }
+  const target = getEl<HTMLInputElement>("graph-impact-target")?.value.trim() ?? "";
+  if (!target) { setText(getEl("graph-impact-status"), "Enter a target symbol or route."); return; }
+  const depth = Math.max(1, Math.min(Number(getEl<HTMLInputElement>("graph-impact-depth")?.value ?? "2") || 2, 6));
+  const limit = Math.max(1, Math.min(Number(getEl<HTMLInputElement>("graph-impact-limit")?.value ?? "25") || 25, 100));
+  setText(getEl("graph-impact-status"), "Analyzing impact…");
+
   try {
-    const response = await updateRepository(activeRepositoryId, {
-      name: repoSettingsName.value.trim(),
-      remote_url: repoSettingsRemote.value.trim(),
-      default_branch: repoSettingsBranch.value.trim(),
-      path: repoSettingsPath.value.trim(),
+    const res = await getRepositoryGraphImpact(activeRepositoryId, target, depth, limit);
+    const matchNodes: ExtendedNodePayload[] = res.matches.map((n) => ({ ...n, emphasis: "seed" as const }));
+    const impactNodes: ExtendedNodePayload[] = res.impacted.map((n) => ({ ...n, emphasis: "result" as const }));
+
+    const edges: Array<{ id: string; from: string; to: string; relation?: string; dashed?: boolean }> = [];
+    const seedId = res.matches[0]?.id;
+    if (seedId) {
+      for (const n of res.impacted) {
+        edges.push({
+          id: `${seedId}:${n.id}:${n.direction ?? "impact"}`,
+          from: n.direction === "upstream" ? n.id : seedId,
+          to: n.direction === "upstream" ? seedId : n.id,
+          relation: n.direction === "upstream" ? "upstream" : "downstream",
+          dashed: true,
+        });
+      }
+    }
+
+    const { nodes, edges: simEdges } = buildGraphData(res.repository.name, [...matchNodes, ...impactNodes], edges);
+    const renderer = initImpactRenderer();
+    if (renderer) {
+      renderer.render(nodes, simEdges);
+      renderLegendOverlay("impact-graph-legend", nodes);
+    }
+
+    // Render impact summary stats
+    const summaryEl = getEl("graph-impact-summary");
+    if (summaryEl) {
+      summaryEl.innerHTML = Object.entries(res.summary)
+        .map(([k, v]) => `
+          <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">${escapeHtml(k)}</p>
+            <p class="mt-1.5 text-xl font-semibold text-stone-950">${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</p>
+          </article>
+        `)
+        .join("");
+    }
+
+    setText(getEl("graph-impact-status"), `${res.impacted.length} impacted nodes.`);
+  } catch (err) {
+    setText(getEl("graph-impact-status"), err instanceof Error ? err.message : "Impact scan failed.");
+  }
+}
+
+// ============================================================
+// Settings
+// ============================================================
+
+async function handleSettingsSave(e: SubmitEvent): Promise<void> {
+  e.preventDefault();
+  if (!activeRepositoryId) { setText(getEl("repo-settings-status"), "Select a repository first."); return; }
+  setText(getEl("repo-settings-status"), "Saving…");
+  try {
+    const res = await updateRepository(activeRepositoryId, {
+      name: getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "",
+      remote_url: getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() ?? "",
+      default_branch: getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() ?? "",
+      path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ?? "",
     });
-    activeRepository = response.repository;
-    repositories = repositories.map((repository) =>
-      repository.id === response.repository.id
-        ? response.repository
-        : repository,
-    );
+    activeRepository = res.repository;
+    repositories = repositories.map((r) => r.id === res.repository.id ? res.repository : r);
     renderRepositories();
-    populateRepositorySettings(response.repository);
-    setText(repoSettingsStatus, "Repository updated.");
+    populateSettings(res.repository);
+    setText(getEl("repo-settings-status"), "Saved.");
     await refreshActiveGraph();
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to update repository";
-    setText(repoSettingsStatus, message);
+  } catch (err) {
+    setText(getEl("repo-settings-status"), err instanceof Error ? err.message : "Failed to save.");
   }
 }
 
 async function handleRepositoryDelete(): Promise<void> {
-  if (!activeRepositoryId || !activeRepository) {
-    setText(repoSettingsStatus, "Select a repository first.");
-    return;
-  }
-  if (!window.confirm(`Delete repository ${activeRepository.name}?`)) {
-    return;
-  }
-  setText(repoSettingsStatus, "Deleting repository...");
+  if (!activeRepositoryId || !activeRepository) { setText(getEl("repo-settings-status"), "Select a repository first."); return; }
+  if (!window.confirm(`Delete repository "${activeRepository.name}"?`)) return;
+  setText(getEl("repo-settings-status"), "Deleting…");
   try {
     await deleteRepository(activeRepositoryId);
-    repositories = repositories.filter(
-      (repository) => repository.id !== activeRepositoryId,
-    );
+    repositories = repositories.filter((r) => r.id !== activeRepositoryId);
     activeRepositoryId = repositories[0]?.id ?? null;
-    activeRepository =
-      repositories.find((repository) => repository.id === activeRepositoryId) ??
-      null;
+    activeRepository = repositories.find((r) => r.id === activeRepositoryId) ?? null;
     renderRepositories();
-    setText(repoSettingsStatus, "Repository deleted.");
-    if (activeRepositoryId) {
-      await selectRepository(activeRepositoryId);
-    } else {
-      resetRepositoryPanels("No repositories are registered yet.");
-    }
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Failed to delete repository";
-    setText(repoSettingsStatus, message);
+    setText(getEl("repo-settings-status"), "Deleted.");
+    if (activeRepositoryId) await selectRepository(activeRepositoryId);
+    else resetPanels("No repositories registered yet.");
+  } catch (err) {
+    setText(getEl("repo-settings-status"), err instanceof Error ? err.message : "Failed to delete.");
   }
 }
 
-bindCanvasInteraction(
-  repoGraphCanvas,
-  () => repositoryGraphState,
-  renderRepositoryGraph,
-);
-bindCanvasInteraction(searchCanvas, () => searchGraphState, renderSearchGraph);
-bindCanvasInteraction(impactCanvas, () => impactGraphState, renderImpactGraph);
+// ============================================================
+// Event bindings
+// ============================================================
 
-refreshButton?.addEventListener("click", () => {
-  void loadRepositories();
-});
+getEl("repositories-refresh")?.addEventListener("click", () => { void loadRepositories(); });
+getEl("repo-graph-refresh")?.addEventListener("click", () => { void refreshActiveGraph(); });
+getEl("graph-search-form")?.addEventListener("submit", (e) => { void handleSearchSubmit(e); });
+getEl("graph-impact-form")?.addEventListener("submit", (e) => { void handleImpactSubmit(e); });
+getEl("repo-settings-form")?.addEventListener("submit", (e) => { void handleSettingsSave(e); });
+getEl("repo-settings-delete")?.addEventListener("click", () => { void handleRepositoryDelete(); });
 
-repoGraphRefreshButton?.addEventListener("click", () => {
-  void refreshActiveGraph();
-});
-
-searchForm?.addEventListener("submit", (event) => {
-  void handleSearchSubmit(event);
-});
-
-impactForm?.addEventListener("submit", (event) => {
-  void handleImpactSubmit(event);
-});
-
-repoSettingsForm?.addEventListener("submit", (event) => {
-  void handleRepositorySave(event);
-});
-
-repoSettingsDeleteButton?.addEventListener("click", () => {
-  void handleRepositoryDelete();
-});
-
-window.addEventListener("resize", () => {
-  renderRepositoryGraph();
-  renderSearchGraph();
-  renderImpactGraph();
-});
+// ============================================================
+// Init
+// ============================================================
 
 void loadRepositories();

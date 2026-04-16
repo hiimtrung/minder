@@ -648,8 +648,26 @@ function lastSyncLabel(s: RepositoryGraphSummaryPayload): string {
 }
 
 // ============================================================
-// Tab management
+// Tab management + full-width graph mode
 // ============================================================
+
+const sidebar = document.getElementById("repo-sidebar");
+const layoutGrid = document.getElementById("main-layout-grid");
+
+function setGraphFullWidth(enabled: boolean): void {
+  if (enabled) {
+    // Hide sidebar → canvas takes full container width
+    sidebar?.style.setProperty("display", "none");
+    // Switch grid to single column
+    if (layoutGrid) layoutGrid.style.gridTemplateColumns = "1fr";
+    // Tell CSS to expand the canvas height to viewport-relative
+    document.body.classList.add("graph-fullwidth");
+  } else {
+    sidebar?.style.removeProperty("display");
+    if (layoutGrid) layoutGrid.style.gridTemplateColumns = "";
+    document.body.classList.remove("graph-fullwidth");
+  }
+}
 
 function switchTab(tabId: string): void {
   document.querySelectorAll("[data-tab-btn]").forEach((b) => {
@@ -661,15 +679,15 @@ function switchTab(tabId: string): void {
   document.querySelector(`[data-tab-btn="${tabId}"]`)?.classList.add("tab-btn-active");
   document.querySelector(`[data-tab-panel="${tabId}"]`)?.classList.remove("hidden");
 
-  // Refit graphs when switching to their tabs
-  if (tabId === "graph" && repoRenderer) {
-    setTimeout(() => repoRenderer?.fitToScreen(), 50);
-  }
-  if (tabId === "search" && searchRenderer) {
-    setTimeout(() => searchRenderer?.fitToScreen(), 50);
-  }
-  if (tabId === "impact" && impactRenderer) {
-    setTimeout(() => impactRenderer?.fitToScreen(), 50);
+  // Graph tab → full width + expand canvas height; other tabs → restore sidebar
+  if (tabId === "graph") {
+    setGraphFullWidth(true);
+    // Give layout time to reflow before re-fitting
+    setTimeout(() => repoRenderer?.fitToScreen(), 100);
+  } else {
+    setGraphFullWidth(false);
+    if (tabId === "search" && searchRenderer) setTimeout(() => searchRenderer?.fitToScreen(), 50);
+    if (tabId === "impact" && impactRenderer) setTimeout(() => impactRenderer?.fitToScreen(), 50);
   }
 }
 
@@ -817,6 +835,41 @@ getEl("repo-graph-zoom-in")?.addEventListener("click", () => repoRenderer?.zoomI
 getEl("repo-graph-zoom-out")?.addEventListener("click", () => repoRenderer?.zoomOut());
 getEl("repo-graph-fit")?.addEventListener("click", () => repoRenderer?.fitToScreen());
 getEl("repo-graph-toggle")?.addEventListener("click", () => repoRenderer?.toggleLayout());
+
+// ── Fullscreen button ──────────────────────────────────────
+const FS_ICON_EXPAND = `<path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>`;
+const FS_ICON_SHRINK = `<path d="M8 3v3a2 2 0 01-2 2H3m18 0h-3a2 2 0 01-2-2V3m0 18v-3a2 2 0 012-2h3M3 16h3a2 2 0 012 2v3"/>`;
+
+function updateFsIcon(isFs: boolean): void {
+  const icon = getEl("repo-graph-fs-icon");
+  if (icon) icon.innerHTML = isFs ? FS_ICON_SHRINK : FS_ICON_EXPAND;
+}
+
+getEl("repo-graph-fullscreen")?.addEventListener("click", () => {
+  const wrap = getEl("repo-graph-wrap");
+  if (!wrap) return;
+
+  if (!document.fullscreenElement) {
+    wrap.requestFullscreen().then(() => {
+      updateFsIcon(true);
+      // Refit after fullscreen transition
+      setTimeout(() => repoRenderer?.fitToScreen(), 120);
+    }).catch(() => { /* fullscreen not supported */ });
+  } else {
+    document.exitFullscreen().then(() => {
+      updateFsIcon(false);
+      setTimeout(() => repoRenderer?.fitToScreen(), 120);
+    });
+  }
+});
+
+// Sync icon when user exits fullscreen via Esc
+document.addEventListener("fullscreenchange", () => {
+  if (!document.fullscreenElement) {
+    updateFsIcon(false);
+    setTimeout(() => repoRenderer?.fitToScreen(), 120);
+  }
+});
 
 getEl("search-graph-zoom-in")?.addEventListener("click", () => searchRenderer?.zoomIn());
 getEl("search-graph-zoom-out")?.addEventListener("click", () => searchRenderer?.zoomOut());
@@ -1209,7 +1262,10 @@ getEl("repo-settings-form")?.addEventListener("submit", (e) => { void handleSett
 getEl("repo-settings-delete")?.addEventListener("click", () => { void handleRepositoryDelete(); });
 
 // ============================================================
-// Init
+// Init — default tab is "graph" (applied at page load)
 // ============================================================
+
+// Apply full-width graph layout immediately (Graph is default active tab)
+setGraphFullWidth(true);
 
 void loadRepositories();

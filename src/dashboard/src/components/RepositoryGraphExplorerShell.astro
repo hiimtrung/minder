@@ -25,10 +25,10 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   </section>
 
   <!-- ── Two-column layout: sidebar | content ── -->
-  <div class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+  <div id="main-layout-grid" class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
 
     <!-- ════ LEFT SIDEBAR ════ -->
-    <aside class="shell-card p-6">
+    <aside id="repo-sidebar" class="shell-card p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="eyebrow">Repositories</p>
@@ -93,11 +93,12 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         <p id="repo-graph-status" class="min-h-5 text-sm text-stone-500"></p>
 
         <!-- ── Dark canvas + controls ── -->
-        <div class="shell-card overflow-hidden rounded-3xl p-0">
-          <!-- canvas wrapper: relative, fixed height -->
+        <div id="repo-graph-card" class="shell-card overflow-hidden rounded-3xl p-0">
+          <!-- canvas wrapper — height driven by JS via CSS var -->
           <div
-            class="relative"
-            style="height: 620px; background: radial-gradient(ellipse at 50% 20%, #1a1235 0%, #0d0d14 55%, #090910 100%); border-radius: inherit;"
+            id="repo-graph-wrap"
+            class="relative graph-canvas-wrap"
+            style="background: radial-gradient(ellipse at 50% 20%, #1a1235 0%, #0d0d14 55%, #090910 100%); border-radius: inherit;"
           >
             <!-- D3 SVG mount -->
             <div
@@ -149,6 +150,12 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
               <button id="repo-graph-toggle"   class="graph-ctrl-btn" title="Toggle layout">
                 <svg id="repo-graph-toggle-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>
+                </svg>
+              </button>
+              <div class="h-px" style="background: rgba(255,255,255,0.1);"></div>
+              <button id="repo-graph-fullscreen" class="graph-ctrl-btn" title="Fullscreen">
+                <svg id="repo-graph-fs-icon" class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
                 </svg>
               </button>
             </div>

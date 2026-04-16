@@ -84,3 +84,22 @@ body {
   color: #e2e8f0;
   border-color: rgba(255, 255, 255, 0.2);
 }
+
+/* Graph canvas: fluid height — defaults to 620px, expands to viewport in full-width mode */
+.graph-canvas-wrap {
+  height: 620px;
+  transition: height 0.25s ease;
+}
+
+/* Full-width graph mode: sidebar hidden, canvas takes viewport height */
+body.graph-fullwidth .graph-canvas-wrap {
+  height: calc(100vh - 210px);
+}
+
+/* Native fullscreen: canvas fills entire screen */
+.graph-canvas-wrap:fullscreen,
+.graph-canvas-wrap:-webkit-full-screen,
+.graph-canvas-wrap:-moz-full-screen {
+  height: 100vh !important;
+  border-radius: 0 !important;
+}

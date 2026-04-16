@@ -1,38 +1,38 @@
 {
-  "updated_at": "2026-04-15T17:51:29.145227+07:00",
+  "updated_at": "2026-04-16T16:28:17.279654+07:00",
   "skills": {
-    "task": "debug missing admin graph-map route 404",
+    "task": "astro vite outdated optimize dep",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-15T17:51:28.810634+07:00",
+    "resolved_at": "2026-04-16T16:28:16.891815+07:00",
     "keep": [],
     "add": [
-      "azure-maps-search-dotnet",
-      "api-fuzzing-bug-bounty",
-      "shopify-development"
+      "performance-optimizer",
+      "astropy",
+      "context-optimization"
     ],
     "drop": [
-      "readme",
-      "bun-development",
-      "flutter-expert"
+      "build",
+      "youtube-summarizer",
+      "conductor-implement"
     ],
     "skills": [
       {
-        "name": "azure-maps-search-dotnet",
-        "category": "general",
+        "name": "performance-optimizer",
+        "category": "development",
         "score": 0.016393442,
+        "chunk_count": 5,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "astropy",
+        "category": "general",
+        "score": 0.016129032,
         "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "api-fuzzing-bug-bounty",
-        "category": "general",
-        "score": 0.016129032,
-        "chunk_count": 1,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "shopify-development",
+        "name": "context-optimization",
         "category": "general",
         "score": 0.015873017,
         "chunk_count": 1,
@@ -42,95 +42,92 @@
   },
   "memory": {
     "mode": "search",
-    "query": "debug missing admin graph-map route 404",
+    "query": "astro vite outdated optimize dep dashboard",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-15T17:51:29.144671+07:00",
+    "searched_at": "2026-04-16T16:28:17.278541+07:00",
     "results": [
       {
-        "id": "d0b7c082-cfca-48fe-b482-5138edaf74f7",
-        "title": "Onboarding snippets follow request origin",
+        "id": "f81b859e-bf83-4751-a8b6-da3d6e663d70",
+        "title": "Astro dashboard runtime import fix",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:onboarding-snippets-follow-request-origin",
+        "canonical_key": "document:astro-dashboard-runtime-import-fix",
         "score": 0.086393446,
         "tags": [
+          "astro",
           "dashboard",
-          "onboarding",
-          "origin",
-          "http"
+          "integration",
+          "frontend"
         ],
         "conflict_detected": false,
-        "content": "Changed admin onboarding and connection-test template generation so HTTP routes derive the public base URL from request.base_url and pass it into the admin use case. This removes hardcoded localhost values from dashboard snippets and makes deployed domains show correctly, while keeping localhost as a fallback for pure use-case or unit-test calls without request context."
+        "content": "Fixed the Astro admin console integration bug where inline page scripts imported ../lib/api/admin directly and the browser fetched /lib/api/admin as a raw module path, causing 404s. Moved setup, login, and clients page logic into bundled script entry files under src/dashboard/src/scripts and referenced them from Astro pages via ?url so Vite/Astro emits proper dashboard asset URLs. Backend API contracts did not need changes."
       },
       {
-        "id": "dc374af1-030b-4af6-b3b8-3f800f6a4a1b",
-        "title": "Repository-first graph explorer and repo CRUD",
+        "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
+        "title": "Astro dashboard CSS path fix",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:repository-first-graph-explorer-and-repo-crud",
+        "canonical_key": "document:astro-dashboard-css-path-fix",
         "score": 0.086129025,
         "tags": [
-          "minder",
           "dashboard",
-          "graph",
-          "repository-crud",
-          "admin-api"
+          "astro",
+          "css",
+          "production"
         ],
         "conflict_detected": false,
-        "content": "Added admin repository detail/update/delete plus graph-map payloads so the dashboard can render a full repo graph by default. Backend files: src/minder/application/admin/dto.py, src/minder/application/admin/use_cases.py, src/minder/presentation/http/admin/api.py, src/minder/store/interfaces.py, src/minder/store/graph.py, src/minder/tools/graph.py, tests/integration/test_http_admin_expansion.py. Frontend files: src/dashboard/src/lib/api/admin.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/scripts/repositories-page.ts. Validation: pytest integration, ruff, mypy, bun check."
+        "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
       },
       {
-        "id": "ca408e81-b24b-4bb7-8a36-4dbe152e0124",
-        "title": "Add shared /health route for HTTP and SSE app",
+        "id": "26e6bb58-6d6a-4f99-a89f-4adce7b9b54a",
+        "title": "Repository-first dashboard entry and unified header",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:add-shared-health-route-for-http-and-sse-app",
+        "canonical_key": "document:repository-first-dashboard-entry-and-unified-header",
         "score": 0.08587302,
         "tags": [
           "minder",
-          "python",
-          "healthcheck",
-          "http",
-          "sse",
-          "bugfix"
+          "dashboard",
+          "navigation",
+          "ui",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Added GET /health to shared admin HTTP routes so both build_http_app and the SSE transport extra_routes respond to standard health probes. Added route-registration and integration coverage after a 404 surfaced on localhost health checks."
+        "content": "Made /dashboard and post-login browser flow land on /dashboard/repositories instead of /dashboard/clients. Updated src/minder/presentation/http/admin/dashboard.py, src/dashboard/src/scripts/dashboard-entry.ts, and src/dashboard/src/scripts/login-page.ts to keep server-side and client-side redirects aligned. Refactored src/dashboard/src/layouts/DashboardLayout.astro with showPageIntro so pages with their own hero sections do not render a duplicate title block, and enabled that mode across the registry/detail/dashboard shells. Updated transition trackers to mark the delivered transition phases DONE and moved remaining enhancements into backlog language. Validation: bun run check, uv run pytest tests/integration/test_setup_dashboard_gate.py tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy src/minder/presentation/http/admin/dashboard.py."
       },
       {
-        "id": "9802a801-e771-446b-b456-bf504d45eca7",
-        "title": "Bug: Docker dashboard build not found with Astro dist client layout",
+        "id": "5f04c082-3f3f-4ec4-95d6-9be06c1ec5d1",
+        "title": "Dashboard frontend aligned to Astro 6 baseline",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:bug-docker-dashboard-build-not-found-with-astro-dist-client-layout",
+        "canonical_key": "document:dashboard-frontend-aligned-to-astro-6-baseline",
         "score": 0.08562499,
         "tags": [
-          "bug",
-          "docker",
           "astro",
-          "dashboard"
+          "frontend",
+          "config",
+          "bun"
         ],
         "conflict_detected": false,
-        "content": "Root cause: the admin dashboard static handler only looked for HTML under dashboard.static_dir root, but Astro with the Node adapter writes static pages under dist/client. In Docker the image copied /dashboard/dist to /app/dashboard-dist, so /dashboard/login and related routes returned Dashboard build not found even though the bundle existed. Fix: add a resolver in src/minder/presentation/http/admin/dashboard.py that prefers static_dir/client when index.html exists there, while preserving the legacy flat dist layout. Added regression coverage in tests/integration/test_phase4_3_console_gate.py for the dist/client bundle layout."
+        "content": "Audited the dashboard frontend config against Astro 6 docs. package.json now targets astro ^6.1.4, keeps Bun as the package manager, and declares Node \u003e=22.12.0 for non-Bun frontend tooling in line with the Astro v6 upgrade guide. The strict tsconfig export path had already been fixed separately. bun.lock still needs regeneration in an environment with Bun available."
       },
       {
-        "id": "451337dd-47d9-4e16-a6f2-893f1ccb370e",
-        "title": "Admin route split and architecture docs refresh",
+        "id": "e145a3c1-534b-42f7-ad90-8e268e9a48e4",
+        "title": "Astro dashboard UX refinement",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:admin-route-split-and-architecture-docs-refresh",
+        "canonical_key": "document:astro-dashboard-ux-refinement",
         "score": 0.08538462,
         "tags": [
-          "architecture",
           "dashboard",
           "astro",
-          "admin",
-          "presentation"
+          "ux",
+          "frontend"
         ],
         "conflict_detected": false,
-        "content": "Split admin HTTP presentation into context/api/dashboard modules, removed legacy Python-rendered dashboard handlers, shifted tests to Astro plus JSON admin APIs, and expanded README/operator guides with whole-system architecture diagrams and route responsibilities. routes.py remains only as a composition boundary in the presentation layer."
+        "content": "Refined the Astro admin console UX by making onboarding snippets full-width readable cards with copy buttons, keeping connection-test and key-lifecycle failures inline instead of redirecting away on 401, and switching the header from a global Setup/Login/Clients button set to contextual per-page navigation. Also updated the frontend API client to surface backend error messages instead of generic status-only errors."
       }
     ]
   }

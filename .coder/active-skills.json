@@ -1,36 +1,36 @@
 {
-  "task": "debug missing admin graph-map route 404",
+  "task": "astro vite outdated optimize dep",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-15T17:51:28.810634+07:00",
+  "resolved_at": "2026-04-16T16:28:16.891815+07:00",
   "keep": [],
   "add": [
-    "azure-maps-search-dotnet",
-    "api-fuzzing-bug-bounty",
-    "shopify-development"
+    "performance-optimizer",
+    "astropy",
+    "context-optimization"
   ],
   "drop": [
-    "readme",
-    "bun-development",
-    "flutter-expert"
+    "build",
+    "youtube-summarizer",
+    "conductor-implement"
   ],
   "skills": [
     {
-      "name": "azure-maps-search-dotnet",
-      "category": "general",
+      "name": "performance-optimizer",
+      "category": "development",
       "score": 0.016393442,
+      "chunk_count": 5,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "astropy",
+      "category": "general",
+      "score": 0.016129032,
       "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "api-fuzzing-bug-bounty",
-      "category": "general",
-      "score": 0.016129032,
-      "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "shopify-development",
+      "name": "context-optimization",
       "category": "general",
       "score": 0.015873017,
       "chunk_count": 1,

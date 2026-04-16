@@ -25,6 +25,10 @@ from minder.application.admin.dto import (
     GraphSyncResultPayload,
     OnboardingPayload,
     DeleteRepositoryPayload,
+    RepositoryBranchLinkListPayload,
+    RepositoryBranchLinkPayload,
+    RepositoryBranchListPayload,
+    RepositoryBranchPayload,
     RepositoryDetailPayload,
     RepositoryGraphEdgePayload,
     RepositoryGraphImpactPayload,
@@ -32,6 +36,7 @@ from minder.application.admin.dto import (
     RepositoryGraphNodePayload,
     RepositoryGraphSearchPayload,
     RepositoryGraphSummaryPayload,
+    RepositoryLandscapePayload,
     RepositoryListPayload,
     RepositoryPayload,
     RevokeKeysPayload,
@@ -120,7 +125,9 @@ class AdminConsoleUseCases:
         self, username: str, password: str
     ) -> AdminLoginPayload:
         """Authenticate via username + password."""
-        user = await self._auth_service.authenticate_username_password(username, password)
+        user = await self._auth_service.authenticate_username_password(
+            username, password
+        )
         if user.role != "admin":
             raise PermissionError("Admin role required")
         return {"jwt": self._auth_service.issue_jwt(user)}
@@ -158,7 +165,12 @@ class AdminConsoleUseCases:
         ]
 
     async def list_clients(self) -> ClientListPayload:
-        return {"clients": [self.serialize_client(client) for client in await self._store.list_clients()]}
+        return {
+            "clients": [
+                self.serialize_client(client)
+                for client in await self._store.list_clients()
+            ]
+        }
 
     async def create_client(
         self,
@@ -230,7 +242,9 @@ class AdminConsoleUseCases:
         client_id: uuid.UUID,
         actor_user_id: uuid.UUID,
     ) -> RevokeKeysPayload:
-        await self._auth_service.revoke_client_api_keys(client_id, actor_user_id=actor_user_id)
+        await self._auth_service.revoke_client_api_keys(
+            client_id, actor_user_id=actor_user_id
+        )
         return {"revoked": True}
 
     async def get_onboarding(
@@ -244,7 +258,9 @@ class AdminConsoleUseCases:
             raise LookupError("Client not found")
         return {
             "client": self.serialize_client(client),
-            "templates": self.onboarding_templates(client, public_base_url=public_base_url),
+            "templates": self.onboarding_templates(
+                client, public_base_url=public_base_url
+            ),
         }
 
     async def test_client_connection(
@@ -257,7 +273,9 @@ class AdminConsoleUseCases:
         return {
             "ok": True,
             "client": self.serialize_client(client),
-            "templates": self.onboarding_templates(client, public_base_url=public_base_url),
+            "templates": self.onboarding_templates(
+                client, public_base_url=public_base_url
+            ),
         }
 
     async def list_audit(
@@ -281,7 +299,9 @@ class AdminConsoleUseCases:
             event_type=event_type,
             outcome=outcome,
         )
-        serialized = [await self.serialize_audit_event_enriched(event) for event in events]
+        serialized = [
+            await self.serialize_audit_event_enriched(event) for event in events
+        ]
         return {"events": serialized, "total": total, "limit": limit, "offset": offset}
 
     async def get_recent_client_activity(
@@ -291,12 +311,22 @@ class AdminConsoleUseCases:
         limit: int = 8,
     ) -> list[ActivityEventPayload]:
         events = await self._store.list_audit_logs()
-        filtered = [event for event in events if str(getattr(event, "resource_id", "")) == str(client_id)]
-        filtered.sort(key=lambda event: getattr(event, "created_at", None) or "", reverse=True)
+        filtered = [
+            event
+            for event in events
+            if str(getattr(event, "resource_id", "")) == str(client_id)
+        ]
+        filtered.sort(
+            key=lambda event: getattr(event, "created_at", None) or "", reverse=True
+        )
         return [
             {
                 "event_type": str(getattr(event, "event_type", "")),
-                "created_at": getattr(event, "created_at").isoformat() if getattr(event, "created_at", None) else "unknown time",
+                "created_at": (
+                    getattr(event, "created_at").isoformat()
+                    if getattr(event, "created_at", None)
+                    else "unknown time"
+                ),
             }
             for event in filtered[:limit]
         ]
@@ -308,11 +338,17 @@ class AdminConsoleUseCases:
             candidates.extend(list(getattr(client, "repo_scopes", [])))
         return self.dedupe_preserve_order(candidates)
 
-    def onboarding_templates(self, client: Any, *, public_base_url: str | None = None) -> dict[str, str]:
-        base_url = public_base_url.rstrip("/") if public_base_url else f"http://localhost:{self._config.server.port}"
+    def onboarding_templates(
+        self, client: Any, *, public_base_url: str | None = None
+    ) -> dict[str, str]:
+        base_url = (
+            public_base_url.rstrip("/")
+            if public_base_url
+            else f"http://localhost:{self._config.server.port}"
+        )
         return {
             "codex": (
-                '[mcp_servers.minder]\n'
+                "[mcp_servers.minder]\n"
                 f'url = "{base_url}/sse"\n'
                 'http_headers = { "X-Minder-Client-Key" = "<mkc_...>" }'
             ),
@@ -385,9 +421,13 @@ class AdminConsoleUseCases:
             if event.actor_type == "admin_user":
                 actor = await self._store.get_user_by_id(uuid.UUID(event.actor_id))
                 if actor:
-                    base["actor_name"] = getattr(actor, "display_name", None) or getattr(actor, "username", None)
+                    base["actor_name"] = getattr(
+                        actor, "display_name", None
+                    ) or getattr(actor, "username", None)
             elif event.actor_type == "client":
-                actor_client = await self._store.get_client_by_id(uuid.UUID(event.actor_id))
+                actor_client = await self._store.get_client_by_id(
+                    uuid.UUID(event.actor_id)
+                )
                 if actor_client:
                     base["actor_name"] = getattr(actor_client, "name", None)
         except Exception:
@@ -396,13 +436,19 @@ class AdminConsoleUseCases:
         # Resolve resource name
         try:
             if event.resource_type == "client":
-                resource_client = await self._store.get_client_by_id(uuid.UUID(event.resource_id))
+                resource_client = await self._store.get_client_by_id(
+                    uuid.UUID(event.resource_id)
+                )
                 if resource_client:
                     base["resource_name"] = getattr(resource_client, "name", None)
             elif event.resource_type == "user":
-                resource_user = await self._store.get_user_by_id(uuid.UUID(event.resource_id))
+                resource_user = await self._store.get_user_by_id(
+                    uuid.UUID(event.resource_id)
+                )
                 if resource_user:
-                    base["resource_name"] = getattr(resource_user, "display_name", None) or getattr(resource_user, "username", None)
+                    base["resource_name"] = getattr(
+                        resource_user, "display_name", None
+                    ) or getattr(resource_user, "username", None)
         except Exception:
             pass
 
@@ -480,7 +526,11 @@ class AdminConsoleUseCases:
             "display_name": getattr(user, "display_name", user.username),
             "role": user.role,
             "is_active": bool(getattr(user, "is_active", True)),
-            "created_at": user.created_at.isoformat() if getattr(user, "created_at", None) else None,
+            "created_at": (
+                user.created_at.isoformat()
+                if getattr(user, "created_at", None)
+                else None
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -491,7 +541,9 @@ class AdminConsoleUseCases:
         workflows = await self._store.list_workflows()
         return {"workflows": [self.serialize_workflow(w) for w in workflows]}
 
-    async def get_workflow_detail(self, workflow_id: uuid.UUID) -> WorkflowDetailPayload:
+    async def get_workflow_detail(
+        self, workflow_id: uuid.UUID
+    ) -> WorkflowDetailPayload:
         workflow = await self._store.get_workflow_by_id(workflow_id)
         if workflow is None:
             raise LookupError(f"Workflow {workflow_id} not found")
@@ -561,7 +613,11 @@ class AdminConsoleUseCases:
             "description": getattr(workflow, "description", ""),
             "enforcement": getattr(workflow, "enforcement", "strict"),
             "steps": steps,
-            "created_at": workflow.created_at.isoformat() if getattr(workflow, "created_at", None) else None,
+            "created_at": (
+                workflow.created_at.isoformat()
+                if getattr(workflow, "created_at", None)
+                else None
+            ),
         }
 
     # ------------------------------------------------------------------
@@ -580,7 +636,9 @@ class AdminConsoleUseCases:
             result.append(self.serialize_repository(repo, state))
         return {"repositories": result}
 
-    async def get_repository_detail(self, repo_id: uuid.UUID) -> RepositoryDetailPayload:
+    async def get_repository_detail(
+        self, repo_id: uuid.UUID
+    ) -> RepositoryDetailPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
             raise LookupError("Repository not found")
@@ -649,7 +707,9 @@ class AdminConsoleUseCases:
     ) -> ClientRepositoryResolvePayload:
         normalized_url = _normalize_repository_remote(repo_url)
         if normalized_url is None:
-            raise ValueError("Repository remote SSH URL is required for repository resolution")
+            raise ValueError(
+                "Repository remote SSH URL is required for repository resolution"
+            )
 
         normalized_name = _repo_name_from_remote(normalized_url) or repo_name.strip()
         normalized_path = repo_path.strip().rstrip("/")
@@ -678,15 +738,24 @@ class AdminConsoleUseCases:
             created = True
         else:
             updates: dict[str, Any] = {}
-            existing_remote = _normalize_repository_remote(getattr(repository, "repo_url", None))
+            existing_remote = _normalize_repository_remote(
+                getattr(repository, "repo_url", None)
+            )
             if existing_remote != normalized_url:
                 updates["repo_url"] = normalized_url
             if str(getattr(repository, "state_path", "") or "") != state_path:
                 updates["state_path"] = state_path
-            if normalized_branch and str(getattr(repository, "default_branch", "") or "") != normalized_branch:
+            if (
+                normalized_branch
+                and str(getattr(repository, "default_branch", "") or "")
+                != normalized_branch
+            ):
                 updates["default_branch"] = normalized_branch
             if updates:
-                repository = await self._store.update_repository(repository.id, **updates) or repository
+                repository = (
+                    await self._store.update_repository(repository.id, **updates)
+                    or repository
+                )
 
         return {
             "repository": self.serialize_repository(repository),
@@ -696,7 +765,9 @@ class AdminConsoleUseCases:
     @staticmethod
     def serialize_repository(repo: Any, state: Any = None) -> RepositoryPayload:
         raw_branches = getattr(repo, "tracked_branches", None)
-        tracked: list[str] = list(raw_branches) if isinstance(raw_branches, list) else []
+        tracked: list[str] = (
+            list(raw_branches) if isinstance(raw_branches, list) else []
+        )
         return {
             "id": str(repo.id),
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
@@ -707,7 +778,11 @@ class AdminConsoleUseCases:
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
-            "created_at": repo.created_at.isoformat() if getattr(repo, "created_at", None) else None,
+            "created_at": (
+                repo.created_at.isoformat()
+                if getattr(repo, "created_at", None)
+                else None
+            ),
         }
 
     async def sync_repository_graph(
@@ -723,8 +798,12 @@ class AdminConsoleUseCases:
         if repository is None:
             raise LookupError("Repository not found")
 
-        repo_name = getattr(repository, "repo_name", getattr(repository, "name", str(repo_id)))
-        repo_remote = _normalize_repository_remote(getattr(repository, "repo_url", None))
+        repo_name = getattr(
+            repository, "repo_name", getattr(repository, "name", str(repo_id))
+        )
+        repo_remote = _normalize_repository_remote(
+            getattr(repository, "repo_url", None)
+        )
         branch = payload.branch or getattr(repository, "default_branch", None)
         accepted_at = datetime.now(UTC).isoformat()
         node_ids: dict[tuple[str, str], uuid.UUID] = {}
@@ -736,11 +815,14 @@ class AdminConsoleUseCases:
         changed_files = payload.sync_metadata.get("changed_files", [])
         paths_to_prune: set[str] = set(payload.deleted_files)
         if isinstance(changed_files, list):
-            paths_to_prune.update(str(p) for p in changed_files if isinstance(p, str) and p.strip())
+            paths_to_prune.update(
+                str(p) for p in changed_files if isinstance(p, str) and p.strip()
+            )
         paths_to_prune.update(
             str(node.metadata.get("path"))
             for node in payload.nodes
-            if isinstance(node.metadata.get("path"), str) and str(node.metadata.get("path")).strip()
+            if isinstance(node.metadata.get("path"), str)
+            and str(node.metadata.get("path")).strip()
         )
 
         if paths_to_prune:
@@ -756,7 +838,10 @@ class AdminConsoleUseCases:
                     metadata = dict(getattr(graph_node, "node_metadata", {}) or {})
                     if metadata.get("repo_id") != str(repo_id):
                         continue
-                    if branch is not None and metadata.get("branch") not in {None, branch}:
+                    if branch is not None and metadata.get("branch") not in {
+                        None,
+                        branch,
+                    }:
                         continue
                     if str(metadata.get("path", "") or "") not in paths_to_prune:
                         continue
@@ -836,7 +921,7 @@ class AdminConsoleUseCases:
 
         # --- Update repository: tracked_branches + graph_sync metadata ---
         relationships = dict(getattr(repository, "relationships", {}) or {})
-        relationships["graph_sync"] = {
+        graph_sync_state = {
             "payload_version": payload.payload_version,
             "source": payload.source,
             "branch": branch,
@@ -849,19 +934,54 @@ class AdminConsoleUseCases:
             "edges_upserted": edges_upserted,
             "accepted_at": accepted_at,
         }
+        graph_sync = dict(relationships.get("graph_sync", {}) or {})
+        graph_sync["last_sync"] = graph_sync_state
+        graph_sync.update(graph_sync_state)
+        branch_registry = dict(graph_sync.get("branches", {}) or {})
+        if branch:
+            branch_registry[branch] = graph_sync_state
+        graph_sync["branches"] = branch_registry
+        relationships["graph_sync"] = graph_sync
+
+        cross_repo_links = self._repository_branch_links(repository)
+        if payload.branch_relationships:
+            repositories = await self._store.list_repositories()
+            cross_repo_links = self._merge_branch_links(
+                cross_repo_links,
+                self._build_branch_links(
+                    repository=repository,
+                    repositories=repositories,
+                    source_branch=branch,
+                    accepted_at=accepted_at,
+                    source=payload.source,
+                    specs=[
+                        {
+                            "source_branch": relationship.source_branch,
+                            "target_repo_id": relationship.target_repo_id,
+                            "target_repo_name": relationship.target_repo_name,
+                            "target_repo_url": relationship.target_repo_url,
+                            "target_branch": relationship.target_branch,
+                            "relation": relationship.relation,
+                            "direction": relationship.direction,
+                            "confidence": relationship.confidence,
+                            "metadata": relationship.metadata,
+                        }
+                        for relationship in payload.branch_relationships
+                    ],
+                ),
+            )
+            relationships["cross_repo_branches"] = cross_repo_links
 
         # Auto-register branch in tracked_branches on first sync
+        raw_branches = list(getattr(repository, "tracked_branches", None) or [])
         if branch:
-            raw_branches = list(getattr(repository, "tracked_branches", None) or [])
             if branch not in raw_branches:
                 raw_branches.append(branch)
-            await self._store.update_repository(
-                repo_id,
-                relationships=relationships,
-                tracked_branches=raw_branches,
-            )
-        else:
-            await self._store.update_repository(repo_id, relationships=relationships)
+        await self._store.update_repository(
+            repo_id,
+            relationships=relationships,
+            tracked_branches=raw_branches,
+        )
 
         return {
             "repo_id": str(repo_id),
@@ -886,10 +1006,20 @@ class AdminConsoleUseCases:
             raise LookupError("Repository not found")
 
         repository_payload = self.serialize_repository(repository)
+        effective_branch = branch or getattr(repository, "default_branch", None) or None
+        branch_state = self._repository_branch_state_payload(
+            repository, effective_branch
+        )
+        branch_links = await self.list_repository_branch_links(
+            repo_id=repo_id, branch=effective_branch
+        )
         if self._graph_store is None:
             return {
                 "repository": repository_payload,
                 "graph_available": False,
+                "active_branch": effective_branch,
+                "branch_state": branch_state,
+                "branch_links": branch_links["links"],
                 "last_sync": self._repository_last_sync(repository),
                 "node_count": 0,
                 "counts_by_type": {},
@@ -902,7 +1032,11 @@ class AdminConsoleUseCases:
         repo_nodes = await self._repository_graph_nodes(repository, branch=branch)
         counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
         repo_node_ids = {str(getattr(node, "id")) for node in repo_nodes}
-        services = [node for node in repo_nodes if str(getattr(node, "node_type", "")) == "service"]
+        services = [
+            node
+            for node in repo_nodes
+            if str(getattr(node, "node_type", "")) == "service"
+        ]
         dependencies: list[dict[str, Any]] = []
         for service in services:
             neighbors = await self._graph_store.get_neighbors(
@@ -930,12 +1064,21 @@ class AdminConsoleUseCases:
         return {
             "repository": repository_payload,
             "graph_available": True,
+            "active_branch": effective_branch,
+            "branch_state": branch_state,
+            "branch_links": branch_links["links"],
             "last_sync": self._repository_last_sync(repository),
             "node_count": len(repo_nodes),
             "counts_by_type": dict(counts),
-            "routes": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"route"}, limit=12),
-            "todos": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"todo"}, limit=12),
-            "external_services": self._serialize_repo_graph_nodes(repo_nodes, allowed_types={"external_service_api"}, limit=12),
+            "routes": self._serialize_repo_graph_nodes(
+                repo_nodes, allowed_types={"route"}, limit=12
+            ),
+            "todos": self._serialize_repo_graph_nodes(
+                repo_nodes, allowed_types={"todo"}, limit=12
+            ),
+            "external_services": self._serialize_repo_graph_nodes(
+                repo_nodes, allowed_types={"external_service_api"}, limit=12
+            ),
             "dependencies": dependencies,
         }
 
@@ -953,11 +1096,19 @@ class AdminConsoleUseCases:
         effective_branch = branch or getattr(repository, "default_branch", None) or None
 
         repository_payload = self.serialize_repository(repository)
+        branch_state = self._repository_branch_state_payload(
+            repository, effective_branch
+        )
+        branch_links = await self.list_repository_branch_links(
+            repo_id=repo_id, branch=effective_branch
+        )
         if self._graph_store is None:
             return {
                 "repository": repository_payload,
                 "graph_available": False,
                 "branch": effective_branch,
+                "branch_state": branch_state,
+                "branch_links": branch_links["links"],
                 "nodes": [],
                 "edges": [],
                 "summary": {
@@ -974,12 +1125,18 @@ class AdminConsoleUseCases:
             repo_path=self._repository_root_path(repository),
             branch=effective_branch,
         )
-        node_counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
-        relation_counts = Counter(str(getattr(edge, "relation", "")) for edge in repo_edges)
+        node_counts = Counter(
+            str(getattr(node, "node_type", "")) for node in repo_nodes
+        )
+        relation_counts = Counter(
+            str(getattr(edge, "relation", "")) for edge in repo_edges
+        )
         return {
             "repository": repository_payload,
             "graph_available": bool(repo_nodes),
             "branch": effective_branch,
+            "branch_state": branch_state,
+            "branch_links": branch_links["links"],
             "nodes": [self._serialize_graph_node(node) for node in repo_nodes],
             "edges": [self._serialize_graph_edge(edge) for edge in repo_edges],
             "summary": {
@@ -1020,6 +1177,7 @@ class AdminConsoleUseCases:
         )
         return {
             "repository": self.serialize_repository(repository),
+            "active_branch": branch,
             "query": query,
             "filters": result["filters"],
             "count": result["count"],
@@ -1052,6 +1210,7 @@ class AdminConsoleUseCases:
         )
         return {
             "repository": self.serialize_repository(repository),
+            "active_branch": branch,
             "target": target,
             "matches": result["matches"],
             "impacted": result["impacted"],
@@ -1066,35 +1225,23 @@ class AdminConsoleUseCases:
         self,
         *,
         repo_id: uuid.UUID,
-    ) -> "RepositoryBranchListPayload":
-        from minder.application.admin.dto import RepositoryBranchListPayload  # local import avoids circular
+    ) -> RepositoryBranchListPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
             raise LookupError("Repository not found")
 
-        default_branch = getattr(repository, "default_branch", None)
-        raw_branches = list(getattr(repository, "tracked_branches", None) or [])
-        # Ensure default branch is always in the list
-        if default_branch and default_branch not in raw_branches:
-            raw_branches.insert(0, default_branch)
-
-        relationships = dict(getattr(repository, "relationships", {}) or {})
-        graph_sync = relationships.get("graph_sync", {}) or {}
-        last_sync_branch = str(graph_sync.get("branch", "") or "")
-        last_sync_at = str(graph_sync.get("accepted_at", "") or "")
-
-        branch_payloads = []
-        for b in raw_branches:
-            branch_payloads.append({
-                "branch": b,
-                "is_default": b == default_branch,
-                "last_synced": last_sync_at if b == last_sync_branch else None,
-            })
+        tracked_branches: list[RepositoryBranchPayload] = []
+        for branch_name in self._repository_branch_names(repository):
+            branch_state = self._repository_branch_state_payload(
+                repository, branch_name
+            )
+            if branch_state is not None:
+                tracked_branches.append(branch_state)
 
         return {
             "repo_id": str(repo_id),
-            "default_branch": default_branch,
-            "tracked_branches": branch_payloads,
+            "default_branch": getattr(repository, "default_branch", None),
+            "tracked_branches": tracked_branches,
         }
 
     async def add_repository_branch(
@@ -1115,7 +1262,6 @@ class AdminConsoleUseCases:
         if branch not in raw_branches:
             raw_branches.append(branch)
             await self._store.update_repository(repo_id, tracked_branches=raw_branches)
-            repository = await self._store.get_repository_by_id(repo_id) or repository
 
         return await self.list_repository_branches(repo_id=repo_id)
 
@@ -1138,11 +1284,258 @@ class AdminConsoleUseCases:
         await self._store.update_repository(repo_id, tracked_branches=raw_branches)
         return await self.list_repository_branches(repo_id=repo_id)
 
+    async def list_repository_branch_links(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        branch: str | None = None,
+    ) -> RepositoryBranchLinkListPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        repo_id_str = str(repo_id)
+        repositories = await self._store.list_repositories()
+        links: list[RepositoryBranchLinkPayload] = []
+        for candidate in repositories:
+            for link in self._repository_branch_links(candidate):
+                source_repo_id = str(link.get("source_repo_id", "") or "")
+                target_repo_id = str(link.get("target_repo_id", "") or "")
+                if repo_id_str not in {source_repo_id, target_repo_id}:
+                    continue
+                if branch:
+                    if (
+                        source_repo_id == repo_id_str
+                        and str(link.get("source_branch", "") or "") != branch
+                    ):
+                        continue
+                    if (
+                        target_repo_id == repo_id_str
+                        and str(link.get("target_branch", "") or "") != branch
+                    ):
+                        continue
+                links.append(self._serialize_branch_link(link))
+
+        links.sort(
+            key=lambda item: (
+                0 if item["source_repo_id"] == repo_id_str else 1,
+                item["source_branch"],
+                item["target_repo_name"],
+                item["target_branch"],
+                item["relation"],
+            )
+        )
+        return {
+            "repo_id": repo_id_str,
+            "branch": branch,
+            "links": links,
+        }
+
+    async def upsert_repository_branch_link(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        source_branch: str,
+        target_repo_id: str | None = None,
+        target_repo_name: str | None = None,
+        target_repo_url: str | None = None,
+        target_branch: str,
+        relation: str = "depends_on",
+        direction: str = "outbound",
+        confidence: float = 1.0,
+        metadata: dict[str, Any] | None = None,
+    ) -> RepositoryBranchLinkListPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        normalized_source_branch = source_branch.strip()
+        normalized_target_branch = target_branch.strip()
+        if not normalized_source_branch:
+            raise ValueError("Source branch is required")
+        if not normalized_target_branch:
+            raise ValueError("Target branch is required")
+        if not (target_repo_id or target_repo_name or target_repo_url):
+            raise ValueError("Target repository is required")
+
+        repositories = await self._store.list_repositories()
+        new_links = self._build_branch_links(
+            repository=repository,
+            repositories=repositories,
+            source_branch=normalized_source_branch,
+            accepted_at=datetime.now(UTC).isoformat(),
+            source="admin-console",
+            specs=[
+                {
+                    "source_branch": normalized_source_branch,
+                    "target_repo_id": target_repo_id,
+                    "target_repo_name": target_repo_name,
+                    "target_repo_url": target_repo_url,
+                    "target_branch": normalized_target_branch,
+                    "relation": relation,
+                    "direction": direction,
+                    "confidence": confidence,
+                    "metadata": metadata or {},
+                }
+            ],
+        )
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        relationships["cross_repo_branches"] = self._merge_branch_links(
+            self._repository_branch_links(repository),
+            new_links,
+        )
+        tracked_branches = list(getattr(repository, "tracked_branches", None) or [])
+        if (
+            normalized_source_branch != getattr(repository, "default_branch", None)
+            and normalized_source_branch not in tracked_branches
+        ):
+            tracked_branches.append(normalized_source_branch)
+        await self._store.update_repository(
+            repo_id,
+            relationships=relationships,
+            tracked_branches=tracked_branches,
+        )
+        return await self.list_repository_branch_links(
+            repo_id=repo_id, branch=normalized_source_branch
+        )
+
+    async def delete_repository_branch_link(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        link_id: str,
+        branch: str | None = None,
+    ) -> RepositoryBranchLinkListPayload:
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        existing_links = self._repository_branch_links(repository)
+        filtered_links = [
+            link for link in existing_links if str(link.get("id", "") or "") != link_id
+        ]
+        if len(filtered_links) == len(existing_links):
+            raise LookupError("Repository branch link not found")
+
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        relationships["cross_repo_branches"] = filtered_links
+        await self._store.update_repository(repo_id, relationships=relationships)
+        return await self.list_repository_branch_links(repo_id=repo_id, branch=branch)
+
+    async def list_repository_landscape(self) -> RepositoryLandscapePayload:
+        repositories = await self._store.list_repositories()
+        repository_payloads = [
+            self.serialize_repository(repository) for repository in repositories
+        ]
+        nodes_by_id: dict[str, Any] = {}
+        edges: list[Any] = []
+
+        for repository in repositories:
+            repo_id_str = str(getattr(repository, "id"))
+            repo_name = str(getattr(repository, "repo_name", "") or "")
+            remote_url = _normalize_repository_remote(
+                getattr(repository, "repo_url", None)
+            )
+            default_branch = str(getattr(repository, "default_branch", "") or "")
+            for branch_name in self._repository_branch_names(repository):
+                branch_state = self._repository_branch_state_payload(
+                    repository, branch_name
+                )
+                node_id = self._landscape_node_id(repo_id_str, branch_name)
+                nodes_by_id[node_id] = {
+                    "id": node_id,
+                    "repo_id": repo_id_str,
+                    "repo_name": repo_name,
+                    "branch": branch_name,
+                    "remote_url": remote_url,
+                    "is_default": branch_name == default_branch,
+                    "last_synced": (
+                        branch_state["last_synced"]
+                        if branch_state is not None
+                        else None
+                    ),
+                }
+
+        for repository in repositories:
+            for link in self._repository_branch_links(repository):
+                source_repo_id = str(link.get("source_repo_id", "") or "")
+                source_branch = str(link.get("source_branch", "") or "")
+                target_repo_id = str(link.get("target_repo_id", "") or "")
+                target_repo_name = str(link.get("target_repo_name", "") or "")
+                target_repo_url = _normalize_repository_remote(
+                    link.get("target_repo_url")
+                )
+                target_branch = str(link.get("target_branch", "") or "")
+                if not source_repo_id or not source_branch or not target_branch:
+                    continue
+
+                source_node_id = self._landscape_node_id(source_repo_id, source_branch)
+                if source_node_id not in nodes_by_id:
+                    continue
+
+                target_node_repo_id = target_repo_id or self._external_repo_key(
+                    target_repo_name, target_repo_url
+                )
+                target_node_id = self._landscape_node_id(
+                    target_node_repo_id, target_branch
+                )
+                if target_node_id not in nodes_by_id:
+                    nodes_by_id[target_node_id] = {
+                        "id": target_node_id,
+                        "repo_id": target_node_repo_id,
+                        "repo_name": target_repo_name or target_node_repo_id,
+                        "branch": target_branch,
+                        "remote_url": target_repo_url,
+                        "is_default": False,
+                        "last_synced": None,
+                    }
+
+                edges.append(
+                    {
+                        "id": str(link.get("id", "") or ""),
+                        "source_id": source_node_id,
+                        "target_id": target_node_id,
+                        "relation": str(
+                            link.get("relation", "depends_on") or "depends_on"
+                        ),
+                        "direction": str(
+                            link.get("direction", "outbound") or "outbound"
+                        ),
+                        "confidence": float(link.get("confidence", 1.0) or 1.0),
+                    }
+                )
+
+        return {
+            "repositories": repository_payloads,
+            "nodes": sorted(
+                nodes_by_id.values(),
+                key=lambda item: (item["repo_name"], item["branch"]),
+            ),
+            "edges": sorted(
+                edges,
+                key=lambda item: (
+                    item["relation"],
+                    item["source_id"],
+                    item["target_id"],
+                ),
+            ),
+            "summary": {
+                "repo_count": len(repository_payloads),
+                "branch_count": len(nodes_by_id),
+                "link_count": len(edges),
+            },
+        }
+
     @staticmethod
     def _repository_last_sync(repository: Any) -> dict[str, Any] | None:
         relationships = dict(getattr(repository, "relationships", {}) or {})
         graph_sync = relationships.get("graph_sync")
-        return graph_sync if isinstance(graph_sync, dict) else None
+        if not isinstance(graph_sync, dict):
+            return None
+        last_sync = graph_sync.get("last_sync")
+        if isinstance(last_sync, dict):
+            return last_sync
+        return graph_sync
 
     async def _find_repository_for_client_sync(
         self,
@@ -1157,10 +1550,16 @@ class AdminConsoleUseCases:
         repositories = await self._store.list_repositories()
         for repository in repositories:
             repository_name = str(getattr(repository, "repo_name", "") or "").strip()
-            repository_url = _normalize_repository_remote(getattr(repository, "repo_url", None))
+            repository_url = _normalize_repository_remote(
+                getattr(repository, "repo_url", None)
+            )
             if normalized_url and repository_url and repository_url == normalized_url:
                 return repository
-            if repository_name and repository_name == normalized_name and not repository_url:
+            if (
+                repository_name
+                and repository_name == normalized_name
+                and not repository_url
+            ):
                 return repository
         return None
 
@@ -1213,7 +1612,9 @@ class AdminConsoleUseCases:
         limit: int,
     ) -> list[RepositoryGraphNodePayload]:
         filtered = [
-            node for node in nodes if str(getattr(node, "node_type", "")) in allowed_types
+            node
+            for node in nodes
+            if str(getattr(node, "node_type", "")) in allowed_types
         ]
         filtered.sort(
             key=lambda node: (
@@ -1223,6 +1624,225 @@ class AdminConsoleUseCases:
             )
         )
         return [self._serialize_graph_node(node) for node in filtered[:limit]]
+
+    @staticmethod
+    def _repository_branch_names(repository: Any) -> list[str]:
+        ordered: list[str] = []
+        default_branch = str(getattr(repository, "default_branch", "") or "").strip()
+        if default_branch:
+            ordered.append(default_branch)
+        for branch_name in list(getattr(repository, "tracked_branches", None) or []):
+            normalized = str(branch_name).strip()
+            if normalized and normalized not in ordered:
+                ordered.append(normalized)
+        return ordered
+
+    @staticmethod
+    def _repository_branch_state_payload(
+        repository: Any,
+        branch: str | None,
+    ) -> RepositoryBranchPayload | None:
+        normalized_branch = str(branch or "").strip()
+        if not normalized_branch:
+            return None
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        graph_sync = dict(relationships.get("graph_sync", {}) or {})
+        branch_registry = dict(graph_sync.get("branches", {}) or {})
+        branch_state = dict(branch_registry.get(normalized_branch, {}) or {})
+        return {
+            "branch": normalized_branch,
+            "is_default": normalized_branch
+            == getattr(repository, "default_branch", None),
+            "last_synced": str(branch_state.get("accepted_at", "") or "") or None,
+            "payload_version": str(branch_state.get("payload_version", "") or "")
+            or None,
+            "source": str(branch_state.get("source", "") or "") or None,
+            "node_count": int(branch_state.get("nodes_upserted", 0) or 0),
+            "edge_count": int(branch_state.get("edges_upserted", 0) or 0),
+            "deleted_nodes": int(branch_state.get("deleted_nodes", 0) or 0),
+            "repo_path": str(branch_state.get("repo_path", "") or "") or None,
+            "diff_base": str(branch_state.get("diff_base", "") or "") or None,
+        }
+
+    @staticmethod
+    def _repository_branch_links(repository: Any) -> list[dict[str, Any]]:
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        raw_links = relationships.get("cross_repo_branches", [])
+        if not isinstance(raw_links, list):
+            return []
+        return [dict(link) for link in raw_links if isinstance(link, dict)]
+
+    def _build_branch_links(
+        self,
+        *,
+        repository: Any,
+        repositories: list[Any],
+        source_branch: str | None,
+        accepted_at: str,
+        source: str,
+        specs: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        source_repo_id = str(getattr(repository, "id"))
+        source_repo_name = str(getattr(repository, "repo_name", "") or "")
+        source_repo_url = _normalize_repository_remote(
+            getattr(repository, "repo_url", None)
+        )
+        fallback_source_branch = str(
+            source_branch or getattr(repository, "default_branch", None) or ""
+        ).strip()
+        built_links: list[dict[str, Any]] = []
+
+        for spec in specs:
+            normalized_source_branch = str(
+                spec.get("source_branch") or fallback_source_branch
+            ).strip()
+            target_branch = str(spec.get("target_branch", "") or "").strip()
+            if not normalized_source_branch or not target_branch:
+                continue
+
+            target_repository = self._resolve_repository_reference(
+                repositories=repositories,
+                target_repo_id=spec.get("target_repo_id"),
+                target_repo_name=spec.get("target_repo_name"),
+                target_repo_url=spec.get("target_repo_url"),
+            )
+            target_repo_id = (
+                str(getattr(target_repository, "id"))
+                if target_repository is not None
+                else None
+            )
+            target_repo_name = (
+                str(getattr(target_repository, "repo_name", "") or "")
+                if target_repository is not None
+                else str(spec.get("target_repo_name", "") or "").strip()
+            )
+            target_repo_url = (
+                _normalize_repository_remote(
+                    getattr(target_repository, "repo_url", None)
+                )
+                if target_repository is not None
+                else _normalize_repository_remote(spec.get("target_repo_url"))
+            )
+            target_key = target_repo_id or target_repo_url or target_repo_name
+            if not target_key:
+                continue
+            relation = (
+                str(spec.get("relation", "depends_on") or "depends_on").strip()
+                or "depends_on"
+            )
+            direction = (
+                str(spec.get("direction", "outbound") or "outbound").strip()
+                or "outbound"
+            )
+            link_id = str(
+                uuid.uuid5(
+                    uuid.NAMESPACE_URL,
+                    f"{source_repo_id}:{normalized_source_branch}:{relation}:{target_key}:{target_branch}",
+                )
+            )
+            built_links.append(
+                {
+                    "id": link_id,
+                    "source_repo_id": source_repo_id,
+                    "source_repo_name": source_repo_name,
+                    "source_repo_url": source_repo_url,
+                    "source_branch": normalized_source_branch,
+                    "target_repo_id": target_repo_id,
+                    "target_repo_name": target_repo_name,
+                    "target_repo_url": target_repo_url,
+                    "target_branch": target_branch,
+                    "relation": relation,
+                    "direction": direction,
+                    "confidence": float(spec.get("confidence", 1.0) or 1.0),
+                    "last_seen_at": accepted_at,
+                    "source": source,
+                    "metadata": dict(spec.get("metadata", {}) or {}),
+                }
+            )
+
+        return built_links
+
+    @staticmethod
+    def _merge_branch_links(
+        existing_links: list[dict[str, Any]],
+        new_links: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        merged = {
+            str(link.get("id", "") or ""): dict(link)
+            for link in existing_links
+            if link.get("id")
+        }
+        for link in new_links:
+            link_id = str(link.get("id", "") or "")
+            if not link_id:
+                continue
+            merged[link_id] = {**dict(merged.get(link_id, {})), **dict(link)}
+        return list(merged.values())
+
+    @staticmethod
+    def _serialize_branch_link(link: dict[str, Any]) -> RepositoryBranchLinkPayload:
+        return {
+            "id": str(link.get("id", "") or ""),
+            "source_repo_id": str(link.get("source_repo_id", "") or ""),
+            "source_repo_name": str(link.get("source_repo_name", "") or ""),
+            "source_repo_url": _normalize_repository_remote(
+                link.get("source_repo_url")
+            ),
+            "source_branch": str(link.get("source_branch", "") or ""),
+            "target_repo_id": str(link.get("target_repo_id", "") or "") or None,
+            "target_repo_name": str(link.get("target_repo_name", "") or ""),
+            "target_repo_url": _normalize_repository_remote(
+                link.get("target_repo_url")
+            ),
+            "target_branch": str(link.get("target_branch", "") or ""),
+            "relation": str(link.get("relation", "depends_on") or "depends_on"),
+            "direction": str(link.get("direction", "outbound") or "outbound"),
+            "confidence": float(link.get("confidence", 1.0) or 1.0),
+            "last_seen_at": str(link.get("last_seen_at", "") or "") or None,
+            "source": str(link.get("source", "") or "") or None,
+            "metadata": dict(link.get("metadata", {}) or {}),
+        }
+
+    @staticmethod
+    def _resolve_repository_reference(
+        *,
+        repositories: list[Any],
+        target_repo_id: Any,
+        target_repo_name: Any,
+        target_repo_url: Any,
+    ) -> Any | None:
+        normalized_target_id = str(target_repo_id or "").strip()
+        normalized_target_name = str(target_repo_name or "").strip()
+        normalized_target_url = _normalize_repository_remote(target_repo_url)
+        for repository in repositories:
+            if (
+                normalized_target_id
+                and str(getattr(repository, "id")) == normalized_target_id
+            ):
+                return repository
+            if (
+                normalized_target_url
+                and _normalize_repository_remote(getattr(repository, "repo_url", None))
+                == normalized_target_url
+            ):
+                return repository
+            if (
+                normalized_target_name
+                and str(getattr(repository, "repo_name", "") or "")
+                == normalized_target_name
+            ):
+                return repository
+        return None
+
+    @staticmethod
+    def _landscape_node_id(repo_id: str, branch: str) -> str:
+        return f"{repo_id}:{branch}"
+
+    @staticmethod
+    def _external_repo_key(repo_name: str, repo_url: str | None) -> str:
+        normalized_name = repo_name.strip() or "external-repo"
+        normalized_url = _normalize_repository_remote(repo_url)
+        return f"external:{normalized_url or normalized_name}"
 
 
 def _normalize_repository_remote(repo_url: str | None) -> str | None:
@@ -1239,7 +1859,11 @@ def _normalize_repository_remote(repo_url: str | None) -> str | None:
             if normalized_path:
                 return f"git@{host}:{normalized_path}.git"
         return raw_url
-    if raw_url.startswith("ssh://") or raw_url.startswith("http://") or raw_url.startswith("https://"):
+    if (
+        raw_url.startswith("ssh://")
+        or raw_url.startswith("http://")
+        or raw_url.startswith("https://")
+    ):
         parts = urlsplit(raw_url)
         host = parts.hostname or ""
         path = parts.path.strip().lstrip("/").removesuffix(".git")

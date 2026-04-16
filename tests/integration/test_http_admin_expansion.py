@@ -4,6 +4,7 @@ These tests use an in-memory SQLite store (same pattern as the existing
 test_phase4_http_admin.py) to validate the new HTTP routes end-to-end
 without requiring a running Minder server.
 """
+
 from __future__ import annotations
 
 import uuid
@@ -61,7 +62,9 @@ def app(
     config: MinderConfig,
     cache: LRUCacheProvider,
 ) -> Any:
-    return build_http_app(config=config, store=store, graph_store=graph_store, cache=cache)
+    return build_http_app(
+        config=config, store=store, graph_store=graph_store, cache=cache
+    )
 
 
 @pytest_asyncio.fixture
@@ -376,7 +379,10 @@ async def test_workflow_create_requires_name(admin_client: TestClient) -> None:
 async def test_workflow_endpoints_require_auth(app: Any) -> None:
     client = TestClient(app, raise_server_exceptions=True)
     assert client.get("/v1/admin/workflows").status_code in (401, 403)
-    assert client.post("/v1/admin/workflows", json={"name": "x"}).status_code in (401, 403)
+    assert client.post("/v1/admin/workflows", json={"name": "x"}).status_code in (
+        401,
+        403,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -472,14 +478,33 @@ async def test_admin_can_get_repository_graph_map(
     file_node = await graph_store.upsert_node(
         "file",
         "src/app.py",
-        metadata={"repo_id": str(repository.id), "repository_name": "graph-map-repo", "path": "src/app.py"},
+        metadata={
+            "repo_id": str(repository.id),
+            "repository_name": "graph-map-repo",
+            "path": "src/app.py",
+        },
+        repo_id=str(repository.id),
+        branch="main",
     )
     function_node = await graph_store.upsert_node(
         "function",
         "src/app.py::build_app",
-        metadata={"repo_id": str(repository.id), "repository_name": "graph-map-repo", "path": "src/app.py", "language": "python"},
+        metadata={
+            "repo_id": str(repository.id),
+            "repository_name": "graph-map-repo",
+            "path": "src/app.py",
+            "language": "python",
+        },
+        repo_id=str(repository.id),
+        branch="main",
     )
-    edge = await graph_store.upsert_edge(file_node.id, function_node.id, "contains", weight=1.0)
+    edge = await graph_store.upsert_edge(
+        file_node.id,
+        function_node.id,
+        "contains",
+        weight=1.0,
+        repo_id=str(repository.id),
+    )
 
     response = admin_client.get(f"/v1/admin/repositories/{repository.id}/graph-map")
 
@@ -488,7 +513,10 @@ async def test_admin_can_get_repository_graph_map(
     assert payload["graph_available"] is True
     assert payload["summary"]["node_count"] == 2
     assert payload["summary"]["edge_count"] == 1
-    assert {node["name"] for node in payload["nodes"]} == {"src/app.py", "src/app.py::build_app"}
+    assert {node["name"] for node in payload["nodes"]} == {
+        "src/app.py",
+        "src/app.py::build_app",
+    }
     assert payload["edges"] == [
         {
             "id": str(edge.id),
@@ -540,7 +568,10 @@ async def test_admin_can_sync_repository_graph(
             "edges": [
                 {
                     "source": {"node_type": "file", "name": "src/app.py"},
-                    "target": {"node_type": "function", "name": "src/app.py::build_app"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::build_app",
+                    },
                     "relation": "contains",
                     "weight": 1.0,
                 }
@@ -555,20 +586,38 @@ async def test_admin_can_sync_repository_graph(
     assert payload["nodes_upserted"] == 2
     assert payload["edges_upserted"] == 1
 
-    file_node = await graph_store.get_node_by_name("file", "src/app.py")
-    function_node = await graph_store.get_node_by_name("function", "src/app.py::build_app")
+    file_node = await graph_store.get_node_by_name(
+        "file",
+        "src/app.py",
+        repo_id=str(repository.id),
+        branch="feature/fast-sync",
+    )
+    function_node = await graph_store.get_node_by_name(
+        "function",
+        "src/app.py::build_app",
+        repo_id=str(repository.id),
+        branch="feature/fast-sync",
+    )
     assert file_node is not None
     assert function_node is not None
     assert file_node.node_metadata["repo_id"] == str(repository.id)
     assert file_node.node_metadata["branch"] == "feature/fast-sync"
 
-    neighbors = await graph_store.get_neighbors(file_node.id, direction="out", relation="contains")
+    neighbors = await graph_store.get_neighbors(
+        file_node.id, direction="out", relation="contains"
+    )
     neighbor_names = {node.name for node in neighbors}
     assert "src/app.py::build_app" in neighbor_names
 
     updated_repo = await store.get_repository_by_id(repository.id)
     assert updated_repo is not None
     assert updated_repo.relationships["graph_sync"]["payload_version"] == "2026-04-15"
+    assert (
+        updated_repo.relationships["graph_sync"]["branches"]["feature/fast-sync"][
+            "accepted_at"
+        ]
+        == payload["accepted_at"]
+    )
 
 
 @pytest.mark.asyncio
@@ -647,7 +696,12 @@ async def test_client_can_sync_repository_graph_with_client_key(
     )
 
     assert response.status_code == 202
-    route_node = await graph_store.get_node_by_name("route", "GET /health")
+    route_node = await graph_store.get_node_by_name(
+        "route",
+        "GET /health",
+        repo_id=str(repository.id),
+        branch="main",
+    )
     assert route_node is not None
 
 
@@ -690,7 +744,9 @@ async def test_client_graph_sync_rejects_repository_outside_scope(
         json={
             "payload_version": "2026-04-15",
             "repo_path": "/workspace/forbidden-sync-target",
-            "sync_metadata": {"repo_remote": "git@example.com:forbidden-sync-target.git"},
+            "sync_metadata": {
+                "repo_remote": "git@example.com:forbidden-sync-target.git"
+            },
             "nodes": [],
             "edges": [],
         },
@@ -736,7 +792,10 @@ async def test_graph_sync_deletes_nodes_for_deleted_files(
             "edges": [
                 {
                     "source": {"node_type": "file", "name": "src/legacy.py"},
-                    "target": {"node_type": "function", "name": "src/legacy.py::build_legacy"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/legacy.py::build_legacy",
+                    },
                     "relation": "contains",
                 }
             ],
@@ -744,8 +803,24 @@ async def test_graph_sync_deletes_nodes_for_deleted_files(
     )
 
     assert initial_response.status_code == 202
-    assert await graph_store.get_node_by_name("file", "src/legacy.py") is not None
-    assert await graph_store.get_node_by_name("function", "src/legacy.py::build_legacy") is not None
+    assert (
+        await graph_store.get_node_by_name(
+            "file",
+            "src/legacy.py",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/legacy.py::build_legacy",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
 
     delete_response = admin_client.post(
         f"/v1/admin/repositories/{repository.id}/graph-sync",
@@ -761,8 +836,24 @@ async def test_graph_sync_deletes_nodes_for_deleted_files(
 
     assert delete_response.status_code == 202
     assert delete_response.json()["deleted_nodes"] == 2
-    assert await graph_store.get_node_by_name("file", "src/legacy.py") is None
-    assert await graph_store.get_node_by_name("function", "src/legacy.py::build_legacy") is None
+    assert (
+        await graph_store.get_node_by_name(
+            "file",
+            "src/legacy.py",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/legacy.py::build_legacy",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
 
 
 @pytest.mark.asyncio
@@ -803,7 +894,10 @@ async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
             "edges": [
                 {
                     "source": {"node_type": "file", "name": "src/app.py"},
-                    "target": {"node_type": "function", "name": "src/app.py::old_handler"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::old_handler",
+                    },
                     "relation": "contains",
                 }
             ],
@@ -811,7 +905,15 @@ async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
     )
 
     assert initial_response.status_code == 202
-    assert await graph_store.get_node_by_name("function", "src/app.py::old_handler") is not None
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::old_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
 
     refresh_response = admin_client.post(
         f"/v1/admin/repositories/{repository.id}/graph-sync",
@@ -835,7 +937,10 @@ async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
             "edges": [
                 {
                     "source": {"node_type": "file", "name": "src/app.py"},
-                    "target": {"node_type": "function", "name": "src/app.py::new_handler"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::new_handler",
+                    },
                     "relation": "contains",
                 }
             ],
@@ -844,8 +949,24 @@ async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
 
     assert refresh_response.status_code == 202
     assert refresh_response.json()["deleted_nodes"] == 2
-    assert await graph_store.get_node_by_name("function", "src/app.py::old_handler") is None
-    assert await graph_store.get_node_by_name("function", "src/app.py::new_handler") is not None
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::old_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::new_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
 
 
 @pytest.mark.asyncio
@@ -874,22 +995,40 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
                 {
                     "node_type": "service",
                     "name": "src/service.py::BillingService",
-                    "metadata": {"path": "src/service.py", "language": "python", "last_state": "clean"},
+                    "metadata": {
+                        "path": "src/service.py",
+                        "language": "python",
+                        "last_state": "clean",
+                    },
                 },
                 {
                     "node_type": "route",
                     "name": "GET /billing/health",
-                    "metadata": {"path": "src/http.py", "route_path": "/billing/health", "language": "python", "last_state": "clean"},
+                    "metadata": {
+                        "path": "src/http.py",
+                        "route_path": "/billing/health",
+                        "language": "python",
+                        "last_state": "clean",
+                    },
                 },
                 {
                     "node_type": "todo",
                     "name": "TODO: add retry policy",
-                    "metadata": {"path": "src/service.py", "text": "add retry policy", "language": "python", "last_state": "modified"},
+                    "metadata": {
+                        "path": "src/service.py",
+                        "text": "add retry policy",
+                        "language": "python",
+                        "last_state": "modified",
+                    },
                 },
                 {
                     "node_type": "external_service_api",
                     "name": "Stripe API",
-                    "metadata": {"path": "src/service.py", "language": "python", "last_state": "modified"},
+                    "metadata": {
+                        "path": "src/service.py",
+                        "language": "python",
+                        "last_state": "modified",
+                    },
                 },
                 {
                     "node_type": "function",
@@ -947,6 +1086,8 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
     summary = summary_response.json()
     assert summary["repository"]["id"] == str(repository.id)
     assert summary["graph_available"] is True
+    assert summary["active_branch"] == "main"
+    assert summary["branch_state"]["branch"] == "main"
     assert summary["node_count"] >= 5
     assert summary["counts_by_type"]["service"] >= 1
     assert summary["routes"][0]["name"] == "GET /billing/health"
@@ -970,3 +1111,124 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
     assert impact["matches"][0]["name"] == "src/service.py::charge_customer"
     impacted_names = {item["name"] for item in impact["impacted"]}
     assert "src/service.py::BillingService" in impacted_names
+    assert impact["active_branch"] is None
+
+
+@pytest.mark.asyncio
+async def test_admin_can_manage_repository_branch_links_and_landscape(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    source_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="repo-a",
+        repo_url="git@github.com:example/repo-a.git",
+        default_branch="main",
+        tracked_branches=["feature/a1"],
+        state_path="/workspace/repo-a/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    target_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="repo-b",
+        repo_url="git@github.com:example/repo-b.git",
+        default_branch="develop",
+        tracked_branches=["feature/b1"],
+        state_path="/workspace/repo-b/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    upsert_response = admin_client.post(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links",
+        json={
+            "source_branch": "feature/a1",
+            "target_repo_id": str(target_repository.id),
+            "target_branch": "feature/b1",
+            "relation": "depends_on",
+            "direction": "outbound",
+            "confidence": 0.9,
+            "metadata": {"reason": "shared contract"},
+        },
+    )
+
+    assert upsert_response.status_code == 201
+    links_payload = upsert_response.json()
+    assert links_payload["repo_id"] == str(source_repository.id)
+    assert len(links_payload["links"]) == 1
+    link = links_payload["links"][0]
+    assert link["source_branch"] == "feature/a1"
+    assert link["target_repo_id"] == str(target_repository.id)
+    assert link["target_branch"] == "feature/b1"
+    assert link["metadata"]["reason"] == "shared contract"
+
+    graph_sync_response = admin_client.post(
+        f"/v1/admin/repositories/{source_repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-16",
+            "repo_path": "/workspace/repo-a",
+            "branch": "feature/a1",
+            "nodes": [],
+            "edges": [],
+            "branch_relationships": [
+                {
+                    "source_branch": "feature/a1",
+                    "target_repo_id": str(target_repository.id),
+                    "target_repo_name": "repo-b",
+                    "target_branch": "feature/b1",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                    "metadata": {"discovered_by": "sync"},
+                }
+            ],
+        },
+    )
+    assert graph_sync_response.status_code == 202
+
+    branch_links_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links?branch=feature/a1"
+    )
+    assert branch_links_response.status_code == 200
+    branch_links = branch_links_response.json()
+    assert len(branch_links["links"]) == 1
+    assert branch_links["links"][0]["target_repo_name"] == "repo-b"
+
+    summary_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-summary?branch=feature/a1"
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["active_branch"] == "feature/a1"
+    assert summary["branch_state"]["branch"] == "feature/a1"
+    assert len(summary["branch_links"]) == 1
+
+    landscape_response = admin_client.get("/v1/admin/repositories/landscape")
+    assert landscape_response.status_code == 200
+    landscape = landscape_response.json()
+    assert landscape["summary"]["repo_count"] >= 2
+    assert landscape["summary"]["branch_count"] >= 4
+    assert landscape["summary"]["link_count"] >= 1
+    edge = landscape["edges"][0]
+    assert edge["relation"] == "depends_on"
+    source_node = next(
+        node
+        for node in landscape["nodes"]
+        if node["repo_id"] == str(source_repository.id)
+        and node["branch"] == "feature/a1"
+    )
+    target_node = next(
+        node
+        for node in landscape["nodes"]
+        if node["repo_id"] == str(target_repository.id)
+        and node["branch"] == "feature/b1"
+    )
+    assert edge["source_id"] == source_node["id"]
+    assert edge["target_id"] == target_node["id"]
+
+    delete_response = admin_client.delete(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links/{link['id']}?branch=feature/a1"
+    )
+    assert delete_response.status_code == 200
+    assert delete_response.json()["links"] == []

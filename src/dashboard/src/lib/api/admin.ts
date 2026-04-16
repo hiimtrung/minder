@@ -548,6 +548,9 @@ export type RepositoryGraphDependencyPayload = {
 export type RepositoryGraphSummaryPayload = {
   repository: RepositoryPayload;
   graph_available: boolean;
+  active_branch: string | null;
+  branch_state: RepositoryBranchPayload | null;
+  branch_links: RepositoryBranchLinkPayload[];
   last_sync: Record<string, unknown> | null;
   node_count: number;
   counts_by_type: Record<string, number>;
@@ -559,6 +562,7 @@ export type RepositoryGraphSummaryPayload = {
 
 export type RepositoryGraphSearchPayload = {
   repository: RepositoryPayload;
+  active_branch: string | null;
   query: string;
   filters: {
     node_types?: string[];
@@ -571,6 +575,7 @@ export type RepositoryGraphSearchPayload = {
 
 export type RepositoryGraphImpactPayload = {
   repository: RepositoryPayload;
+  active_branch: string | null;
   target: string;
   matches: RepositoryGraphNodePayload[];
   impacted: Array<
@@ -583,6 +588,8 @@ export type RepositoryGraphMapPayload = {
   repository: RepositoryPayload;
   graph_available: boolean;
   branch: string | null;
+  branch_state: RepositoryBranchPayload | null;
+  branch_links: RepositoryBranchLinkPayload[];
   nodes: RepositoryGraphNodePayload[];
   edges: RepositoryGraphEdgePayload[];
   summary: {
@@ -597,12 +604,73 @@ export type RepositoryBranchPayload = {
   branch: string;
   is_default: boolean;
   last_synced: string | null;
+  payload_version: string | null;
+  source: string | null;
+  node_count: number;
+  edge_count: number;
+  deleted_nodes: number;
+  repo_path: string | null;
+  diff_base: string | null;
 };
 
 export type RepositoryBranchListPayload = {
   repo_id: string;
   default_branch: string | null;
   tracked_branches: RepositoryBranchPayload[];
+};
+
+export type RepositoryBranchLinkPayload = {
+  id: string;
+  source_repo_id: string;
+  source_repo_name: string;
+  source_repo_url: string | null;
+  source_branch: string;
+  target_repo_id: string | null;
+  target_repo_name: string;
+  target_repo_url: string | null;
+  target_branch: string;
+  relation: string;
+  direction: string;
+  confidence: number;
+  last_seen_at: string | null;
+  source: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type RepositoryBranchLinkListPayload = {
+  repo_id: string;
+  branch: string | null;
+  links: RepositoryBranchLinkPayload[];
+};
+
+export type RepositoryLandscapeNodePayload = {
+  id: string;
+  repo_id: string;
+  repo_name: string;
+  branch: string;
+  remote_url: string | null;
+  is_default: boolean;
+  last_synced: string | null;
+};
+
+export type RepositoryLandscapeEdgePayload = {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation: string;
+  direction: string;
+  confidence: number;
+};
+
+export type RepositoryLandscapePayload = {
+  repositories: RepositoryPayload[];
+  nodes: RepositoryLandscapeNodePayload[];
+  edges: RepositoryLandscapeEdgePayload[];
+  summary: {
+    repo_count: number;
+    branch_count: number;
+    link_count: number;
+  };
 };
 
 export async function getRepositoryBranches(
@@ -630,6 +698,63 @@ export async function removeRepositoryBranch(
   return requestJson<RepositoryBranchListPayload>(
     `/v1/admin/repositories/${repoId}/branches/${encodeURIComponent(branch)}`,
     { method: "DELETE" },
+  );
+}
+
+export async function getRepositoryBranchLinks(
+  repoId: string,
+  branch?: string,
+): Promise<RepositoryBranchLinkListPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function upsertRepositoryBranchLink(
+  repoId: string,
+  payload: {
+    source_branch: string;
+    target_repo_id?: string | null;
+    target_repo_name?: string | null;
+    target_repo_url?: string | null;
+    target_branch: string;
+    relation?: string;
+    direction?: "outbound" | "inbound" | "bidirectional";
+    confidence?: number;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<RepositoryBranchLinkListPayload> {
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteRepositoryBranchLink(
+  repoId: string,
+  linkId: string,
+  branch?: string,
+): Promise<RepositoryBranchLinkListPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links/${encodeURIComponent(linkId)}${qs ? `?${qs}` : ""}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function getRepositoryLandscape(): Promise<RepositoryLandscapePayload> {
+  return requestJson<RepositoryLandscapePayload>(
+    "/v1/admin/repositories/landscape",
   );
 }
 

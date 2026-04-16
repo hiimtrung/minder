@@ -1111,7 +1111,112 @@ async def test_admin_can_read_repository_graph_explorer_endpoints(
     assert impact["matches"][0]["name"] == "src/service.py::charge_customer"
     impacted_names = {item["name"] for item in impact["impacted"]}
     assert "src/service.py::BillingService" in impacted_names
-    assert impact["active_branch"] is None
+    assert impact["active_branch"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_admin_graph_search_and_impact_include_linked_repo_results(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    source_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="impact-source",
+        repo_url="https://example.com/impact-source",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path="/workspace/impact-source/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    target_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="impact-target",
+        repo_url="https://example.com/impact-target",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path="/workspace/impact-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    await store.update_repository(
+        source_repository.id,
+        relationships={
+            "cross_repo_branches": [
+                {
+                    "id": "impact-source-main-target-main",
+                    "source_repo_id": str(source_repository.id),
+                    "source_repo_name": source_repository.repo_name,
+                    "source_branch": "main",
+                    "target_repo_id": str(target_repository.id),
+                    "target_repo_name": target_repository.repo_name,
+                    "target_branch": "main",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                }
+            ]
+        },
+    )
+
+    source_function = await graph_store.upsert_node(
+        node_type="function",
+        name="src/orders.py::checkout",
+        metadata={"project": "impact-source", "path": "src/orders.py"},
+        repo_id=str(source_repository.id),
+        branch="main",
+    )
+    linked_function = await graph_store.upsert_node(
+        node_type="function",
+        name="src/payments.py::checkout_consumer",
+        metadata={"project": "impact-target", "path": "src/payments.py"},
+        repo_id=str(target_repository.id),
+        branch="main",
+    )
+    linked_route = await graph_store.upsert_node(
+        node_type="route",
+        name="POST /payments/checkout",
+        metadata={
+            "project": "impact-target",
+            "path": "src/payments.py",
+            "route_path": "/payments/checkout",
+        },
+        repo_id=str(target_repository.id),
+        branch="main",
+    )
+    await graph_store.upsert_edge(linked_function.id, linked_route.id, "exposes_route")
+    await graph_store.upsert_edge(
+        source_function.id, linked_function.id, "cross_repo_calls"
+    )
+
+    search_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-search?query=checkout&node_type=function&limit=10"
+    )
+    assert search_response.status_code == 200
+    search = search_response.json()
+    assert search["scope_count"] == 2
+    assert {scope["repo_name"] for scope in search["searched_scopes"]} == {
+        "impact-source",
+        "impact-target",
+    }
+    assert {item["repo_name"] for item in search["results"]} == {
+        "impact-source",
+        "impact-target",
+    }
+
+    impact_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-impact?target=checkout&depth=2&limit=10"
+    )
+    assert impact_response.status_code == 200
+    impact = impact_response.json()
+    assert len(impact["searched_scopes"]) == 2
+    assert impact["summary"]["scope_count"] == 2
+    linked_names = {item["name"] for item in impact["matches"]} | {
+        item["name"] for item in impact["impacted"]
+    }
+    assert "POST /payments/checkout" in linked_names
+    assert any(item["repo_name"] == "impact-target" for item in impact["matches"])
 
 
 @pytest.mark.asyncio

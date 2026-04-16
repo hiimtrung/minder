@@ -92,7 +92,7 @@ class AdminConsoleUseCases:
         self._auth_service = auth_service
         self._config = config
         self._graph_store = graph_store
-        self._graph_tools = GraphTools(graph_store)
+        self._graph_tools = GraphTools(graph_store, store)
 
     async def has_admin_users(self) -> bool:
         return await self._auth_service.has_admin_users()
@@ -1174,12 +1174,19 @@ class AdminConsoleUseCases:
             languages=languages,
             last_states=last_states,
             limit=limit,
+            include_linked_repos=True,
         )
+        searched_scopes = result.get("searched_scopes", [])
+        active_branch = branch
+        if searched_scopes:
+            active_branch = searched_scopes[0].get("branch")
         return {
             "repository": self.serialize_repository(repository),
-            "active_branch": branch,
+            "active_branch": active_branch,
             "query": query,
             "filters": result["filters"],
+            "scope_count": int(result.get("scope_count", len(searched_scopes))),
+            "searched_scopes": searched_scopes,
             "count": result["count"],
             "results": result["results"],
         }
@@ -1207,11 +1214,17 @@ class AdminConsoleUseCases:
             branch=branch,
             depth=depth,
             limit=limit,
+            include_linked_repos=True,
         )
+        searched_scopes = result.get("searched_scopes", [])
+        active_branch = branch
+        if searched_scopes:
+            active_branch = searched_scopes[0].get("branch")
         return {
             "repository": self.serialize_repository(repository),
-            "active_branch": branch,
+            "active_branch": active_branch,
             "target": target,
+            "searched_scopes": searched_scopes,
             "matches": result["matches"],
             "impacted": result["impacted"],
             "summary": result["summary"],

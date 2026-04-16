@@ -352,6 +352,26 @@ class RepositoryGraphNodePayload(TypedDict):
     metadata: dict[str, Any]
 
 
+class RepositoryGraphScopePayload(TypedDict):
+    repo_id: str
+    repo_name: str
+    repo_path: str | None
+    branch: str | None
+    distance: int
+    via_link: dict[str, Any] | None
+
+
+class RepositoryGraphResultNodePayload(RepositoryGraphNodePayload, total=False):
+    score: int
+    direction: str
+    distance: int
+    repo_id: str
+    repo_name: str
+    branch: str | None
+    landscape_distance: int
+    via_link: dict[str, Any] | None
+
+
 class RepositoryGraphEdgePayload(TypedDict):
     id: str
     source_id: str
@@ -380,16 +400,19 @@ class RepositoryGraphSearchPayload(TypedDict):
     active_branch: str | None
     query: str
     filters: dict[str, Any]
+    scope_count: int
+    searched_scopes: list[RepositoryGraphScopePayload]
     count: int
-    results: list[RepositoryGraphNodePayload]
+    results: list[RepositoryGraphResultNodePayload]
 
 
 class RepositoryGraphImpactPayload(TypedDict):
     repository: RepositoryPayload
     active_branch: str | None
     target: str
-    matches: list[RepositoryGraphNodePayload]
-    impacted: list[dict[str, Any]]
+    searched_scopes: list[RepositoryGraphScopePayload]
+    matches: list[RepositoryGraphResultNodePayload]
+    impacted: list[RepositoryGraphResultNodePayload]
     summary: dict[str, Any]
 
 

@@ -1,39 +1,39 @@
 {
-  "updated_at": "2026-04-16T16:28:17.279654+07:00",
+  "updated_at": "2026-04-16T17:30:12.939746+07:00",
   "skills": {
-    "task": "astro vite outdated optimize dep",
+    "task": "frontend dashboard repository explorer tab layout sticky graph sidebar",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-16T16:28:16.891815+07:00",
+    "resolved_at": "2026-04-16T17:30:12.591157+07:00",
     "keep": [],
     "add": [
-      "performance-optimizer",
-      "astropy",
-      "context-optimization"
+      "algorithmic-art",
+      "frontend-ui-dark-ts",
+      "ui-styling"
     ],
     "drop": [
-      "build",
-      "youtube-summarizer",
-      "conductor-implement"
+      "github-automation",
+      "oss-hunter",
+      "wiki-architect"
     ],
     "skills": [
       {
-        "name": "performance-optimizer",
-        "category": "development",
+        "name": "algorithmic-art",
+        "category": "general",
         "score": 0.016393442,
-        "chunk_count": 5,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "astropy",
-        "category": "general",
+        "name": "frontend-ui-dark-ts",
+        "category": "frontend",
         "score": 0.016129032,
         "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "context-optimization",
-        "category": "general",
+        "name": "ui-styling",
+        "category": "frontend",
         "score": 0.015873017,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
@@ -42,43 +42,78 @@
   },
   "memory": {
     "mode": "search",
-    "query": "astro vite outdated optimize dep dashboard",
+    "query": "dashboard repository explorer tab layout graph sidebar overview default",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-16T16:28:17.278541+07:00",
+    "searched_at": "2026-04-16T17:30:12.939064+07:00",
     "results": [
       {
-        "id": "f81b859e-bf83-4751-a8b6-da3d6e663d70",
-        "title": "Astro dashboard runtime import fix",
+        "id": "2c598507-5f77-42e5-a88e-8ba6dbe4df4f",
+        "title": "GitNexus-style structural graph canvas",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:astro-dashboard-runtime-import-fix",
+        "canonical_key": "document:gitnexus-style-structural-graph-canvas",
         "score": 0.086393446,
         "tags": [
-          "astro",
+          "minder",
           "dashboard",
-          "integration",
-          "frontend"
+          "graph-ui",
+          "gitnexus"
         ],
         "conflict_detected": false,
-        "content": "Fixed the Astro admin console integration bug where inline page scripts imported ../lib/api/admin directly and the browser fetched /lib/api/admin as a raw module path, causing 404s. Moved setup, login, and clients page logic into bundled script entry files under src/dashboard/src/scripts and referenced them from Astro pages via ?url so Vite/Astro emits proper dashboard asset URLs. Backend API contracts did not need changes."
+        "content": "Refactored dashboard graph canvases to feel closer to GitNexus by adding repository/folder/file context nodes, hierarchy-aware placement, GitNexus-inspired node size/color mapping, relation-styled edges, and larger structural graph canvases for both search and impact views. Files: src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, docs/progress/architecture-transition-cli-edge-sync.md"
       },
       {
-        "id": "41f6f4ef-404a-445a-90f5-fb92b937e454",
-        "title": "Astro dashboard CSS path fix",
+        "id": "dc374af1-030b-4af6-b3b8-3f800f6a4a1b",
+        "title": "Repository-first graph explorer and repo CRUD",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:astro-dashboard-css-path-fix",
+        "canonical_key": "document:repository-first-graph-explorer-and-repo-crud",
         "score": 0.086129025,
         "tags": [
+          "minder",
           "dashboard",
-          "astro",
-          "css",
-          "production"
+          "graph",
+          "repository-crud",
+          "admin-api"
         ],
         "conflict_detected": false,
-        "content": "The Astro admin console was missing base=/dashboard in src/dashboard/astro.config.mjs, so built CSS and JS assets resolved to root /_astro paths and failed when served by the Python app under /dashboard. Setting base to /dashboard fixes asset URLs; the dashboard bundle or Docker image must be rebuilt after the change because existing dist output still contains old asset paths."
+        "content": "Added admin repository detail/update/delete plus graph-map payloads so the dashboard can render a full repo graph by default. Backend files: src/minder/application/admin/dto.py, src/minder/application/admin/use_cases.py, src/minder/presentation/http/admin/api.py, src/minder/store/interfaces.py, src/minder/store/graph.py, src/minder/tools/graph.py, tests/integration/test_http_admin_expansion.py. Frontend files: src/dashboard/src/lib/api/admin.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/scripts/repositories-page.ts. Validation: pytest integration, ruff, mypy, bun check."
+      },
+      {
+        "id": "09b5f075-5007-43a2-87e4-9732df63d73c",
+        "title": "Components docs page uses left content and sticky right menu",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:components-docs-page-uses-left-content-and-sticky-right-menu",
+        "score": 0.08587302,
+        "tags": [
+          "planTourUI",
+          "docs-layout",
+          "right-menu",
+          "sticky-sidebar",
+          "components-page"
+        ],
+        "conflict_detected": false,
+        "content": "Updated src/app/components/page.tsx into a documentation-style layout with main content on the left and a sticky 'On this page' navigation menu on the right. The right menu tracks active sections via IntersectionObserver, and the main content currently wraps the Combobox demo and API notes as a reusable docs-page pattern."
+      },
+      {
+        "id": "9165aef9-2a0a-4159-bbb7-6a336f756328",
+        "title": "Repository graph explorer flow",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:repository-graph-explorer-flow",
+        "score": 0.08562499,
+        "tags": [
+          "minder",
+          "dashboard",
+          "graph",
+          "admin-api",
+          "astro"
+        ],
+        "conflict_detected": false,
+        "content": "Added admin repository graph read APIs and Astro dashboard explorer for synced repo graphs. Backend: src/minder/application/admin/use_cases.py adds summary/search/impact methods backed by GraphTools; src/minder/presentation/http/admin/api.py exposes /v1/admin/repositories/{repo_id}/graph-summary, graph-search, and graph-impact. Frontend: src/dashboard/src/lib/api/admin.ts adds typed graph client calls; src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/pages/repositories/index.astro, and src/dashboard/src/scripts/repositories-page.ts add the repository explorer UI. Validation: uv run pytest tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy ..., cd src/dashboard \u0026\u0026 bun run check."
       },
       {
         "id": "26e6bb58-6d6a-4f99-a89f-4adce7b9b54a",
@@ -86,7 +121,7 @@
         "type": "document",
         "status": "active",
         "canonical_key": "document:repository-first-dashboard-entry-and-unified-header",
-        "score": 0.08587302,
+        "score": 0.08538462,
         "tags": [
           "minder",
           "dashboard",
@@ -96,38 +131,6 @@
         ],
         "conflict_detected": false,
         "content": "Made /dashboard and post-login browser flow land on /dashboard/repositories instead of /dashboard/clients. Updated src/minder/presentation/http/admin/dashboard.py, src/dashboard/src/scripts/dashboard-entry.ts, and src/dashboard/src/scripts/login-page.ts to keep server-side and client-side redirects aligned. Refactored src/dashboard/src/layouts/DashboardLayout.astro with showPageIntro so pages with their own hero sections do not render a duplicate title block, and enabled that mode across the registry/detail/dashboard shells. Updated transition trackers to mark the delivered transition phases DONE and moved remaining enhancements into backlog language. Validation: bun run check, uv run pytest tests/integration/test_setup_dashboard_gate.py tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy src/minder/presentation/http/admin/dashboard.py."
-      },
-      {
-        "id": "5f04c082-3f3f-4ec4-95d6-9be06c1ec5d1",
-        "title": "Dashboard frontend aligned to Astro 6 baseline",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:dashboard-frontend-aligned-to-astro-6-baseline",
-        "score": 0.08562499,
-        "tags": [
-          "astro",
-          "frontend",
-          "config",
-          "bun"
-        ],
-        "conflict_detected": false,
-        "content": "Audited the dashboard frontend config against Astro 6 docs. package.json now targets astro ^6.1.4, keeps Bun as the package manager, and declares Node \u003e=22.12.0 for non-Bun frontend tooling in line with the Astro v6 upgrade guide. The strict tsconfig export path had already been fixed separately. bun.lock still needs regeneration in an environment with Bun available."
-      },
-      {
-        "id": "e145a3c1-534b-42f7-ad90-8e268e9a48e4",
-        "title": "Astro dashboard UX refinement",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:astro-dashboard-ux-refinement",
-        "score": 0.08538462,
-        "tags": [
-          "dashboard",
-          "astro",
-          "ux",
-          "frontend"
-        ],
-        "conflict_detected": false,
-        "content": "Refined the Astro admin console UX by making onboarding snippets full-width readable cards with copy buttons, keeping connection-test and key-lifecycle failures inline instead of redirecting away on 401, and switching the header from a global Setup/Login/Clients button set to contextual per-page navigation. Also updated the frontend API client to surface backend error messages instead of generic status-only errors."
       }
     ]
   }

@@ -47,7 +47,9 @@ class WorkflowPlannerNode:
 
         workflow_steps: list[dict[str, Any]] = []
         if workflow is not None:
-            raw_steps: list[Any] = workflow.steps if isinstance(workflow.steps, list) else []
+            raw_steps: list[Any] = (
+                workflow.steps if isinstance(workflow.steps, list) else []
+            )
             workflow_steps = [step for step in raw_steps if isinstance(step, dict)]
 
         workflow_state = None
@@ -74,9 +76,17 @@ class WorkflowPlannerNode:
         # Graph-enriched guidance (P3-T12)
         # ------------------------------------------------------------------
         if self._graph_store is not None and state.repo_path:
-            graph_guidance = await self._build_graph_guidance(state.repo_path, artifacts)
+            graph_guidance = await self._build_graph_guidance(
+                state.repo_path, artifacts
+            )
             if graph_guidance:
                 guidance = guidance + "\n\n" + graph_guidance
+
+        cross_repo_context = str(
+            state.workflow_context.get("cross_repo_context", "") or ""
+        ).strip()
+        if cross_repo_context:
+            guidance = guidance + "\n\n" + cross_repo_context
 
         state.workflow_context.update(
             {
@@ -178,5 +188,7 @@ class WorkflowPlannerNode:
         if "implement" in lowered:
             return "Current step: Implementation. Use existing failing tests as the contract."
         if "review" in lowered:
-            return "Current step: Review. Focus on correctness, regressions, and coverage."
+            return (
+                "Current step: Review. Focus on correctness, regressions, and coverage."
+            )
         return f"Current step: {current_step}. Follow the workflow and do not skip prerequisites."

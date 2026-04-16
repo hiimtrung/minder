@@ -51,6 +51,7 @@ Detailed task tables have been split into phase-specific files under [progress/R
 | Phase 4.3          | [progress/phase-4-3-console-clean-architecture.md](progress/phase-4-3-console-clean-architecture.md)                       | Clean architecture + Astro migration                       |
 | Phase 4.4          | [progress/phase-4-4-context-continuity.md](progress/phase-4-4-context-continuity.md)                                       | Context continuity backlog                                 |
 | Phase 5            | [progress/phase-5-learning-and-skill-catalog.md](progress/phase-5-learning-and-skill-catalog.md)                           | Learning, skill catalog, metadata-first graph              |
+| Phase 6            | [progress/phase-6-branch-topology-automation.md](progress/phase-6-branch-topology-automation.md)                           | Post-Phase-5 CLI branch-topology automation                |
 | Transition roadmap | [progress/architecture-transition-cli-edge-sync.md](progress/architecture-transition-cli-edge-sync.md)                     | New CLI edge extraction and graph sync modernization track |
 
 ---

@@ -1,37 +1,37 @@
 {
-  "task": "astro vite outdated optimize dep",
+  "task": "frontend dashboard repository explorer tab layout sticky graph sidebar",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-16T16:28:16.891815+07:00",
+  "resolved_at": "2026-04-16T17:30:12.591157+07:00",
   "keep": [],
   "add": [
-    "performance-optimizer",
-    "astropy",
-    "context-optimization"
+    "algorithmic-art",
+    "frontend-ui-dark-ts",
+    "ui-styling"
   ],
   "drop": [
-    "build",
-    "youtube-summarizer",
-    "conductor-implement"
+    "github-automation",
+    "oss-hunter",
+    "wiki-architect"
   ],
   "skills": [
     {
-      "name": "performance-optimizer",
-      "category": "development",
+      "name": "algorithmic-art",
+      "category": "general",
       "score": 0.016393442,
-      "chunk_count": 5,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "astropy",
-      "category": "general",
+      "name": "frontend-ui-dark-ts",
+      "category": "frontend",
       "score": 0.016129032,
       "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "context-optimization",
-      "category": "general",
+      "name": "ui-styling",
+      "category": "frontend",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

@@ -560,6 +560,26 @@ export type RepositoryGraphSummaryPayload = {
   dependencies: RepositoryGraphDependencyPayload[];
 };
 
+export type RepositoryGraphScopePayload = {
+  repo_id: string;
+  repo_name: string;
+  repo_path: string | null;
+  branch: string | null;
+  distance: number;
+  via_link: Record<string, unknown> | null;
+};
+
+export type RepositoryGraphResultNodePayload = RepositoryGraphNodePayload & {
+  score?: number;
+  direction?: string;
+  distance?: number;
+  repo_id?: string;
+  repo_name?: string;
+  branch?: string | null;
+  landscape_distance?: number;
+  via_link?: Record<string, unknown> | null;
+};
+
 export type RepositoryGraphSearchPayload = {
   repository: RepositoryPayload;
   active_branch: string | null;
@@ -569,18 +589,19 @@ export type RepositoryGraphSearchPayload = {
     languages?: string[];
     last_states?: string[];
   };
+  scope_count: number;
+  searched_scopes: RepositoryGraphScopePayload[];
   count: number;
-  results: Array<RepositoryGraphNodePayload & { score?: number }>;
+  results: RepositoryGraphResultNodePayload[];
 };
 
 export type RepositoryGraphImpactPayload = {
   repository: RepositoryPayload;
   active_branch: string | null;
   target: string;
-  matches: RepositoryGraphNodePayload[];
-  impacted: Array<
-    RepositoryGraphNodePayload & { direction?: string; distance?: number }
-  >;
+  searched_scopes: RepositoryGraphScopePayload[];
+  matches: RepositoryGraphResultNodePayload[];
+  impacted: RepositoryGraphResultNodePayload[];
   summary: Record<string, number | Record<string, number>>;
 };
 

@@ -2,6 +2,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport
 from httpx import AsyncClient
+import uuid
 
 from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport
 from minder.auth.service import AuthService
@@ -35,19 +36,25 @@ async def graph_store() -> KnowledgeGraphStore:
 def config() -> MinderConfig:
     return MinderConfig()
 
+
 @pytest.fixture
 def cache() -> LRUCacheProvider:
     return LRUCacheProvider()
 
 
 @pytest.fixture
-def auth(store: RelationalStore, config: MinderConfig, cache: LRUCacheProvider) -> AuthService:
+def auth(
+    store: RelationalStore, config: MinderConfig, cache: LRUCacheProvider
+) -> AuthService:
     return AuthService(store, config, cache=cache)
 
 
 @pytest.mark.asyncio
 async def test_sse_transport_rejects_missing_jwt_for_protected_tool(
-    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
+    store: RelationalStore,
+    config: MinderConfig,
+    auth: AuthService,
+    cache: LRUCacheProvider,
 ) -> None:
     transport = SSETransport(config=config, auth_service=auth, cache_provider=cache)
 
@@ -64,7 +71,10 @@ async def test_sse_transport_rejects_missing_jwt_for_protected_tool(
 
 @pytest.mark.asyncio
 async def test_sse_transport_dispatches_tool_with_authenticated_user(
-    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
+    store: RelationalStore,
+    config: MinderConfig,
+    auth: AuthService,
+    cache: LRUCacheProvider,
 ) -> None:
     user, _ = await auth.register_user(
         email="transport@example.com",
@@ -91,7 +101,10 @@ async def test_sse_transport_dispatches_tool_with_authenticated_user(
 
 @pytest.mark.asyncio
 async def test_stdio_transport_uses_same_dispatch_contract(
-    store: RelationalStore, config: MinderConfig, auth: AuthService, cache: LRUCacheProvider
+    store: RelationalStore,
+    config: MinderConfig,
+    auth: AuthService,
+    cache: LRUCacheProvider,
 ) -> None:
     user, _ = await auth.register_user(
         email="stdio@example.com",
@@ -223,7 +236,9 @@ async def test_build_transport_registers_descriptions_for_all_runtime_tools(
     config: MinderConfig,
     cache: LRUCacheProvider,
 ) -> None:
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     assert set(transport.list_tools()) == set(TOOL_DESCRIPTIONS)
     assert all(transport._tools[name].description for name in transport.list_tools())
@@ -248,7 +263,9 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
         created_by_user_id=admin.id,
         tool_scopes=["minder_memory_store", "minder_memory_list"],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     stored = await transport.call_tool(
         "minder_memory_store",
@@ -288,7 +305,9 @@ async def test_build_transport_rejects_client_tool_outside_scope(
         created_by_user_id=admin.id,
         tool_scopes=["minder_memory_list"],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(
@@ -336,7 +355,11 @@ async def test_build_transport_allows_client_graph_impact_when_scoped(
     route = await graph_store.upsert_node(
         node_type="route",
         name="POST /checkout",
-        metadata={"project": repo_root.name, "path": "app.py", "route_path": "/checkout"},
+        metadata={
+            "project": repo_root.name,
+            "path": "app.py",
+            "route_path": "/checkout",
+        },
     )
     await graph_store.upsert_edge(source.id, function.id, "contains")
     await graph_store.upsert_edge(function.id, route.id, "exposes_route")
@@ -358,7 +381,12 @@ async def test_build_transport_allows_client_graph_impact_when_scoped(
 
     result = await transport.call_tool(
         "minder_find_impact",
-        arguments={"target": "checkout", "repo_path": str(repo_root), "depth": 2, "limit": 10},
+        arguments={
+            "target": "checkout",
+            "repo_path": str(repo_root),
+            "depth": 2,
+            "limit": 10,
+        },
         client_key=client_api_key,
     )
 
@@ -392,7 +420,9 @@ async def test_build_transport_rejects_client_search_code_outside_repo_scope(
         tool_scopes=["minder_search_code"],
         repo_scopes=[str(allowed_repo)],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(
@@ -430,7 +460,9 @@ async def test_build_transport_rejects_client_query_outside_repo_scope(
         tool_scopes=["minder_query"],
         repo_scopes=[str(allowed_repo)],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(
@@ -463,12 +495,21 @@ async def test_build_transport_allows_client_graph_search_when_scoped(
     await graph_store.upsert_node(
         node_type="function",
         name="service.py::checkout",
-        metadata={"project": repo_root.name, "path": "service.py", "symbol": "checkout"},
+        metadata={
+            "project": repo_root.name,
+            "path": "service.py",
+            "symbol": "checkout",
+        },
     )
     await graph_store.upsert_node(
         node_type="route",
         name="POST /checkout",
-        metadata={"project": repo_root.name, "path": "service.py", "route_path": "/checkout", "method": "POST"},
+        metadata={
+            "project": repo_root.name,
+            "path": "service.py",
+            "route_path": "/checkout",
+            "method": "POST",
+        },
     )
 
     _, client_api_key = await auth.register_client(
@@ -498,7 +539,255 @@ async def test_build_transport_allows_client_graph_search_when_scoped(
     )
 
     assert result["count"] == 2
-    assert [item["name"] for item in result["results"]] == ["service.py::checkout", "POST /checkout"]
+    assert [item["name"] for item in result["results"]] == [
+        "service.py::checkout",
+        "POST /checkout",
+    ]
+
+
+@pytest.mark.asyncio
+async def test_build_transport_search_graph_follows_linked_repository_landscape(
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    tmp_path,
+) -> None:
+    auth = AuthService(store, config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="graph-landscape-admin@example.com",
+        username="graph_landscape_admin",
+        display_name="Graph Landscape Admin",
+        role=UserRole.ADMIN,
+    )
+    repo_a_root = tmp_path / "repo-a"
+    repo_a_root.mkdir()
+    repo_b_root = tmp_path / "repo-b"
+    repo_b_root.mkdir()
+
+    repo_b = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="repo-b",
+        repo_url="https://example.com/repo-b",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path=str(repo_b_root / ".minder"),
+        context_snapshot={},
+        relationships={},
+    )
+    repo_a_id = uuid.uuid4()
+    repo_a = await store.create_repository(
+        id=repo_a_id,
+        repo_name="repo-a",
+        repo_url="https://example.com/repo-a",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path=str(repo_a_root / ".minder"),
+        context_snapshot={},
+        relationships={
+            "cross_repo_branches": [
+                {
+                    "id": "link-a-b-main",
+                    "source_repo_id": str(repo_a_id),
+                    "source_repo_name": "repo-a",
+                    "source_branch": "main",
+                    "target_repo_id": str(repo_b.id),
+                    "target_repo_name": "repo-b",
+                    "target_branch": "main",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                }
+            ]
+        },
+    )
+
+    await graph_store.upsert_node(
+        node_type="function",
+        name="orders.py::checkout",
+        metadata={"project": "repo-a", "path": "orders.py", "symbol": "checkout"},
+        repo_id=str(repo_a.id),
+        branch="main",
+    )
+    await graph_store.upsert_node(
+        node_type="function",
+        name="payments.py::checkout_consumer",
+        metadata={
+            "project": "repo-b",
+            "path": "payments.py",
+            "symbol": "checkout_consumer",
+        },
+        repo_id=str(repo_b.id),
+        branch="main",
+    )
+
+    _, client_api_key = await auth.register_client(
+        name="Graph Landscape Client",
+        slug="graph-landscape-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_search_graph"],
+        repo_scopes=[repo_a_root.name, repo_b_root.name],
+    )
+    transport = build_transport(
+        config=config,
+        store=store,
+        vector_store=store,
+        graph_store=graph_store,
+        cache=cache,
+    )
+
+    result = await transport.call_tool(
+        "minder_search_graph",
+        arguments={
+            "query": "checkout",
+            "repo_path": str(repo_a_root),
+            "node_types": ["function"],
+            "limit": 10,
+        },
+        client_key=client_api_key,
+    )
+
+    assert result["scope_count"] == 2
+    assert {scope["repo_name"] for scope in result["searched_scopes"]} == {
+        "repo-a",
+        "repo-b",
+    }
+    assert {item["repo_name"] for item in result["results"]} == {"repo-a", "repo-b"}
+
+
+@pytest.mark.asyncio
+async def test_build_transport_find_impact_follows_linked_repository_landscape(
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    tmp_path,
+) -> None:
+    auth = AuthService(store, config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="impact-landscape-admin@example.com",
+        username="impact_landscape_admin",
+        display_name="Impact Landscape Admin",
+        role=UserRole.ADMIN,
+    )
+    repo_a_root = tmp_path / "impact-a"
+    repo_a_root.mkdir()
+    repo_b_root = tmp_path / "impact-b"
+    repo_b_root.mkdir()
+
+    repo_b = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="impact-b",
+        repo_url="https://example.com/impact-b",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path=str(repo_b_root / ".minder"),
+        context_snapshot={},
+        relationships={},
+    )
+    repo_a_id = uuid.uuid4()
+    repo_a = await store.create_repository(
+        id=repo_a_id,
+        repo_name="impact-a",
+        repo_url="https://example.com/impact-a",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path=str(repo_a_root / ".minder"),
+        context_snapshot={},
+        relationships={
+            "cross_repo_branches": [
+                {
+                    "id": "impact-link-a-b-main",
+                    "source_repo_id": str(repo_a_id),
+                    "source_repo_name": "impact-a",
+                    "source_branch": "main",
+                    "target_repo_id": str(repo_b.id),
+                    "target_repo_name": "impact-b",
+                    "target_branch": "main",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                }
+            ]
+        },
+    )
+
+    source = await graph_store.upsert_node(
+        node_type="function",
+        name="orders.py::checkout",
+        metadata={"project": "impact-a", "path": "orders.py", "symbol": "checkout"},
+        repo_id=str(repo_a.id),
+        branch="main",
+    )
+    await graph_store.upsert_node(
+        node_type="route",
+        name="POST /checkout",
+        metadata={
+            "project": "impact-a",
+            "path": "orders.py",
+            "route_path": "/checkout",
+        },
+        repo_id=str(repo_a.id),
+        branch="main",
+    )
+    linked_function = await graph_store.upsert_node(
+        node_type="function",
+        name="payments.py::checkout_consumer",
+        metadata={
+            "project": "impact-b",
+            "path": "payments.py",
+            "symbol": "checkout_consumer",
+        },
+        repo_id=str(repo_b.id),
+        branch="main",
+    )
+    linked_route = await graph_store.upsert_node(
+        node_type="route",
+        name="POST /payments/checkout",
+        metadata={
+            "project": "impact-b",
+            "path": "payments.py",
+            "route_path": "/payments/checkout",
+        },
+        repo_id=str(repo_b.id),
+        branch="main",
+    )
+    await graph_store.upsert_edge(linked_function.id, linked_route.id, "exposes_route")
+    await graph_store.upsert_edge(source.id, linked_function.id, "cross_repo_calls")
+
+    _, client_api_key = await auth.register_client(
+        name="Impact Landscape Client",
+        slug="impact-landscape-client",
+        created_by_user_id=admin.id,
+        tool_scopes=["minder_find_impact"],
+        repo_scopes=[repo_a_root.name, repo_b_root.name],
+    )
+    transport = build_transport(
+        config=config,
+        store=store,
+        vector_store=store,
+        graph_store=graph_store,
+        cache=cache,
+    )
+
+    result = await transport.call_tool(
+        "minder_find_impact",
+        arguments={
+            "target": "checkout",
+            "repo_path": str(repo_a_root),
+            "depth": 2,
+            "limit": 10,
+        },
+        client_key=client_api_key,
+    )
+
+    assert result["summary"]["scope_count"] == 2
+    assert any(item["repo_name"] == "impact-b" for item in result["matches"])
+    assert any(item["repo_name"] == "impact-b" for item in result["impacted"])
+    linked_names = {item["name"] for item in result["matches"]} | {
+        item["name"] for item in result["impacted"]
+    }
+    assert "POST /payments/checkout" in linked_names
 
 
 @pytest.mark.asyncio
@@ -527,7 +816,9 @@ async def test_build_transport_rejects_client_graph_search_outside_repo_scope(
         tool_scopes=["minder_search_graph"],
         repo_scopes=[str(allowed_repo)],
     )
-    transport = build_transport(config=config, store=store, vector_store=store, cache=cache)
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(

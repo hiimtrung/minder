@@ -160,3 +160,20 @@ Direction note: Phase 5 graph work continues to follow the metadata-first policy
 6. Add Dashboard-backed skill CRUD and remote import from GitHub, GitLab, and generic Git repositories.
 7. Keep GraphNode storage limited to metadata and long-lived reusable excerpts.
 8. Add experimentation support for workflow and retrieval strategy variants.
+
+## Phase 6: Branch Topology Automation
+
+**Goal**: automate repository branch-topology discovery in the CLI pipeline after the learning/skill backlog is in place, without diluting the runtime search and impact follow-up work.
+
+### Tasks
+
+1. Extend `minder-cli` and the repo scanner to infer `branch_relationships` from local branch state, configured remotes, and worktree context.
+2. Normalize detected branch links against the persisted repository landscape so sync payloads can submit stable `repo/branch -> repo/branch` relationships.
+3. Add review-safe fallback behavior when inferred topology is ambiguous, incomplete, or conflicts with admin-managed links.
+4. Validate that automatic branch-topology submission does not regress the manual dashboard branch-link workflow.
+
+### Validation
+
+- CLI sync can submit inferred `branch_relationships` without requiring dashboard-only manual entry for the common case.
+- Ambiguous or conflicting branch topology is surfaced safely instead of silently creating incorrect cross-repo links.
+- Existing repository landscape, search, and impact workflows continue to function when automatic topology detection is enabled.

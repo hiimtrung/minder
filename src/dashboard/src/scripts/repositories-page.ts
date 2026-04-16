@@ -5,8 +5,12 @@ import {
   deleteRepository,
   getRepositoryBranchLinks,
   getRepositoryBranches,
+  type RepositoryGraphImpactPayload,
   getRepositoryGraphImpact,
   getRepositoryGraphMap,
+  type RepositoryGraphResultNodePayload,
+  type RepositoryGraphScopePayload,
+  type RepositoryGraphSearchPayload,
   getRepositoryGraphSummary,
   getRepositoryLandscape,
   listRepositories,
@@ -630,16 +634,186 @@ function folderAncestors(paths: string[]): string[] {
   return [...s].sort((a, b) => a.localeCompare(b));
 }
 
-type ExtendedNodePayload = RepositoryGraphNodePayload & {
-  score?: number;
-  direction?: string;
-  distance?: number;
+type ExtendedNodePayload = RepositoryGraphResultNodePayload & {
   emphasis?: "seed" | "result";
 };
 
 interface BuildResult {
   nodes: SimNode[];
   edges: SimEdge[];
+}
+
+function scopeNodeId(scope: RepositoryGraphScopePayload): string {
+  return `scope:${scope.repo_id}:${scope.branch ?? "default"}`;
+}
+
+function scopeLabel(scope: RepositoryGraphScopePayload): string {
+  return scope.branch
+    ? `${scope.repo_name} · ${scope.branch}`
+    : scope.repo_name;
+}
+
+function isLinkedResultNode(node: ExtendedNodePayload): boolean {
+  return Number(node.landscape_distance ?? 0) > 0;
+}
+
+function buildScopedResultGraphData(
+  primaryRepoName: string,
+  apiNodes: ExtendedNodePayload[],
+  scopes: RepositoryGraphScopePayload[],
+  apiEdges: Array<
+    | RepositoryGraphEdgePayload
+    | {
+        id: string;
+        from: string;
+        to: string;
+        relation?: string;
+        dashed?: boolean;
+        color?: string;
+      }
+  > = [],
+): BuildResult {
+  const normalizedScopes =
+    scopes.length > 0
+      ? scopes
+      : [
+          {
+            repo_id: primaryRepoName,
+            repo_name: primaryRepoName,
+            repo_path: null,
+            branch: null,
+            distance: 0,
+            via_link: null,
+          },
+        ];
+  const primaryScope = normalizedScopes[0];
+  const primaryScopeId = scopeNodeId(primaryScope);
+  const nodeMap = new Map<string, SimNode>();
+  const edgeMap = new Map<string, SimEdge>();
+  const scopeLookup = new Map(
+    normalizedScopes.map((scope) => [
+      `${scope.repo_name}::${scope.branch ?? ""}`,
+      scope,
+    ]),
+  );
+  const nodeIdLookup = new Map<string, string>();
+
+  for (const scope of normalizedScopes) {
+    const currentScopeId = scopeNodeId(scope);
+    const viaLink =
+      scope.via_link && typeof scope.via_link === "object"
+        ? scope.via_link
+        : null;
+    nodeMap.set(currentScopeId, {
+      id: currentScopeId,
+      label: scopeLabel(scope),
+      type: "repository",
+      radius: radiusForType("repository"),
+      color: colorForType("repository"),
+      metadata: {
+        repo_name: scope.repo_name,
+        branch: scope.branch ?? "",
+        landscape_distance: scope.distance,
+        relation: viaLink?.relation ?? null,
+        direction: viaLink?.direction ?? null,
+      },
+      emphasis: scope.distance === 0 ? "hub" : undefined,
+    });
+    if (scope.distance > 0) {
+      const relation =
+        typeof viaLink?.relation === "string" ? viaLink.relation : "depends_on";
+      const direction =
+        typeof viaLink?.direction === "string" ? viaLink.direction : "outbound";
+      const edgeFrom =
+        direction === "inbound" ? currentScopeId : primaryScopeId;
+      const edgeTo = direction === "inbound" ? primaryScopeId : currentScopeId;
+      edgeMap.set(`scope-link:${edgeFrom}:${edgeTo}:${relation}`, {
+        id: `scope-link:${edgeFrom}:${edgeTo}:${relation}`,
+        source: edgeFrom,
+        target: edgeTo,
+        relation,
+        dashed: true,
+        edgeColor: EDGE_STYLES[relation]?.color ?? "#f59e0b",
+      });
+    }
+  }
+
+  for (const node of apiNodes) {
+    const resolvedScope =
+      scopeLookup.get(
+        `${node.repo_name ?? primaryRepoName}::${node.branch ?? ""}`,
+      ) ?? primaryScope;
+    const resolvedScopeId = scopeNodeId(resolvedScope);
+    const scopedNodeId = `${resolvedScopeId}:${node.id}`;
+    nodeIdLookup.set(node.id, scopedNodeId);
+    nodeMap.set(scopedNodeId, {
+      id: scopedNodeId,
+      label: isLinkedResultNode(node)
+        ? `${node.repo_name ?? resolvedScope.repo_name} · ${node.name}`
+        : node.name,
+      type: node.node_type,
+      radius: radiusForType(node.node_type),
+      color: colorForType(node.node_type),
+      metadata: {
+        ...node.metadata,
+        repo_name: node.repo_name ?? resolvedScope.repo_name,
+        branch: node.branch ?? resolvedScope.branch ?? "",
+        landscape_distance: node.landscape_distance ?? resolvedScope.distance,
+        via_link: node.via_link ?? resolvedScope.via_link ?? null,
+      },
+      emphasis: node.emphasis,
+      score: node.score,
+      direction: node.direction,
+      distance: node.distance,
+    });
+    edgeMap.set(`scope-contains:${resolvedScopeId}:${scopedNodeId}`, {
+      id: `scope-contains:${resolvedScopeId}:${scopedNodeId}`,
+      source: resolvedScopeId,
+      target: scopedNodeId,
+      relation: "contains",
+    });
+  }
+
+  for (const edge of apiEdges) {
+    let id: string;
+    let from: string;
+    let to: string;
+    let relation: string | undefined;
+    let dashed: boolean | undefined;
+    let edgeColor: string | undefined;
+
+    if ("source_id" in edge) {
+      id = edge.id;
+      from = edge.source_id;
+      to = edge.target_id;
+      relation = edge.relation;
+    } else {
+      id = edge.id;
+      from = edge.from;
+      to = edge.to;
+      relation = edge.relation;
+      dashed = edge.dashed;
+      edgeColor = edge.color;
+    }
+
+    const scopedFrom = nodeIdLookup.get(from);
+    const scopedTo = nodeIdLookup.get(to);
+    if (scopedFrom && scopedTo) {
+      edgeMap.set(id, {
+        id,
+        source: scopedFrom,
+        target: scopedTo,
+        relation,
+        dashed,
+        edgeColor,
+      });
+    }
+  }
+
+  return {
+    nodes: [...nodeMap.values()],
+    edges: [...edgeMap.values()],
+  };
 }
 
 function buildGraphData(
@@ -853,6 +1027,10 @@ function setGraphFullWidth(enabled: boolean): void {
   }
 }
 
+function isWideGraphTab(tabId: string): boolean {
+  return tabId === "graph" || tabId === "search" || tabId === "impact";
+}
+
 function switchTab(tabId: string): void {
   document.querySelectorAll("[data-tab-btn]").forEach((b) => {
     b.classList.remove("tab-btn-active");
@@ -867,17 +1045,16 @@ function switchTab(tabId: string): void {
     .querySelector(`[data-tab-panel="${tabId}"]`)
     ?.classList.remove("hidden");
 
-  // Graph tab → full width + expand canvas height; other tabs → restore sidebar
-  if (tabId === "graph") {
+  // Graph-heavy tabs use the wide layout; overview/settings restore the sidebar.
+  if (isWideGraphTab(tabId)) {
     setGraphFullWidth(true);
-    // Give layout time to reflow before re-fitting
-    setTimeout(() => repoRenderer?.fitToScreen(), 100);
+    setTimeout(() => {
+      if (tabId === "graph") repoRenderer?.fitToScreen();
+      if (tabId === "search") searchRenderer?.fitToScreen();
+      if (tabId === "impact") impactRenderer?.fitToScreen();
+    }, 100);
   } else {
     setGraphFullWidth(false);
-    if (tabId === "search" && searchRenderer)
-      setTimeout(() => searchRenderer?.fitToScreen(), 50);
-    if (tabId === "impact" && impactRenderer)
-      setTimeout(() => impactRenderer?.fitToScreen(), 50);
     // Settings tab: load tracked branches and branch links from API
     if (tabId === "settings") {
       void loadTrackedBranches();
@@ -890,7 +1067,7 @@ document
   .querySelector("#repo-tab-nav")
   ?.addEventListener("click", (e: Event) => {
     const btn = (e.target as Element).closest("[data-tab-btn]");
-    if (btn) switchTab(btn.getAttribute("data-tab-btn") ?? "graph");
+    if (btn) switchTab(btn.getAttribute("data-tab-btn") ?? "overview");
   });
 
 // ============================================================
@@ -1001,9 +1178,16 @@ function showNodeDetails(
   setText(getEl(typeId), node.type);
   setText(getEl(nameId), node.label);
   const extraParts: string[] = [];
+  const repoName = meta(node.metadata, "repo_name");
+  const branch = meta(node.metadata, "branch");
+  if (repoName) extraParts.push(branch ? `${repoName} · ${branch}` : repoName);
   if (node.score != null) extraParts.push(`Score ${node.score}`);
   if (node.direction)
     extraParts.push(`${node.direction} · distance ${node.distance ?? 1}`);
+  const landscapeDistance = node.metadata["landscape_distance"];
+  if (typeof landscapeDistance === "number" && landscapeDistance > 0) {
+    extraParts.push(`Cross-repo hop ${landscapeDistance}`);
+  }
   if (node.emphasis) extraParts.push(`Emphasis: ${node.emphasis}`);
   setText(getEl(extraId), extraParts.join("  ·  "));
 
@@ -1026,6 +1210,17 @@ function showNodeDetails(
 }
 
 function showRepoNodeDetails(n: SimNode | null): void {
+  const empty = getEl("repo-graph-node-empty");
+  const details = getEl("repo-graph-node-details");
+  if (empty && details) {
+    if (n) {
+      empty.classList.add("hidden");
+      details.classList.remove("hidden");
+    } else {
+      empty.classList.remove("hidden");
+      details.classList.add("hidden");
+    }
+  }
   showNodeDetails(
     "repo-graph-node-type",
     "repo-graph-node-name",
@@ -1387,6 +1582,102 @@ function renderGraphSummaryStats(
     .join("");
 }
 
+function renderScopeCards(
+  containerId: string,
+  scopes: RepositoryGraphScopePayload[],
+  emptyMessage: string,
+): void {
+  const el = getEl(containerId);
+  if (!el) return;
+  if (!scopes.length) {
+    el.innerHTML = `<article class="rounded-2xl border border-dashed border-stone-200 px-4 py-3 text-stone-400">${escapeHtml(emptyMessage)}</article>`;
+    return;
+  }
+
+  el.innerHTML = scopes
+    .map((scope) => {
+      const viaLink =
+        scope.via_link && typeof scope.via_link === "object"
+          ? scope.via_link
+          : null;
+      const relation =
+        typeof viaLink?.relation === "string"
+          ? viaLink.relation
+          : scope.distance === 0
+            ? "primary"
+            : "linked";
+      const direction =
+        typeof viaLink?.direction === "string" ? viaLink.direction : "outbound";
+      return `
+      <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="rounded-full bg-stone-900 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-white">${escapeHtml(scope.distance === 0 ? "primary" : `hop ${String(scope.distance)}`)}</span>
+          <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(relation)}</span>
+          <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(direction)}</span>
+        </div>
+        <p class="mt-2 text-sm font-semibold text-stone-950">${escapeHtml(scope.repo_name)}</p>
+        <p class="mt-1 text-xs text-stone-500">${escapeHtml(scope.branch ?? "No branch")}</p>
+      </article>
+    `;
+    })
+    .join("");
+}
+
+function renderCrossRepoResultCards(
+  containerId: string,
+  nodes: ExtendedNodePayload[],
+  emptyMessage: string,
+): void {
+  const el = getEl(containerId);
+  if (!el) return;
+  const linkedNodes = nodes.filter((node) => isLinkedResultNode(node));
+  if (!linkedNodes.length) {
+    el.innerHTML = `<article class="rounded-2xl border border-dashed border-stone-200 px-4 py-3 text-stone-400">${escapeHtml(emptyMessage)}</article>`;
+    return;
+  }
+
+  const grouped = new Map<string, ExtendedNodePayload[]>();
+  for (const node of linkedNodes) {
+    const key = `${node.repo_name ?? "unknown"}::${node.branch ?? "default"}`;
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(node);
+    grouped.set(key, bucket);
+  }
+
+  el.innerHTML = [...grouped.entries()]
+    .map(([key, items]) => {
+      const [repoName, branch] = key.split("::");
+      const topItems = items.slice(0, 6);
+      return `
+      <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-stone-950">${escapeHtml(repoName)}</p>
+            <p class="mt-1 text-xs text-stone-500">${escapeHtml(branch || "No branch")} · ${escapeHtml(String(items.length))} hit${items.length === 1 ? "" : "s"}</p>
+          </div>
+          <span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-500">cross-repo</span>
+        </div>
+        <div class="mt-3 grid gap-2">
+          ${topItems
+            .map((item) => {
+              const detail = item.direction
+                ? `${item.direction} · d${item.distance ?? 1}`
+                : item.score != null
+                  ? `score ${item.score}`
+                  : item.node_type;
+              return `<div class="rounded-xl border border-white bg-white px-3 py-2">
+                <p class="text-sm font-medium text-stone-900 break-words">${escapeHtml(item.name)}</p>
+                <p class="mt-1 text-[11px] uppercase tracking-[0.16em] text-stone-400">${escapeHtml(detail)}</p>
+              </div>`;
+            })
+            .join("")}
+        </div>
+      </article>
+    `;
+    })
+    .join("");
+}
+
 // ============================================================
 // Repository list
 // ============================================================
@@ -1397,8 +1688,22 @@ let activeRepository: RepositoryPayload | null = null;
 let activeBranch: string | null = null; // currently selected branch for graph view
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
 
+function renderQuickSwitch(): void {
+  const select = getEl<HTMLSelectElement>("repo-quick-switch");
+  if (!select) return;
+  select.innerHTML = [
+    `<option value="">Select a repository</option>`,
+    ...repositories.map(
+      (repo) =>
+        `<option value="${escapeHtml(repo.id)}" ${repo.id === activeRepositoryId ? "selected" : ""}>${escapeHtml(repo.name)}${repo.default_branch ? ` · ${escapeHtml(repo.default_branch)}` : ""}</option>`,
+    ),
+  ].join("");
+  select.disabled = repositories.length === 0;
+}
+
 function renderRepositories(): void {
   const list = getEl("repositories-list");
+  renderQuickSwitch();
   if (!list) return;
   if (!repositories.length) {
     list.innerHTML = `<article class="rounded-2xl border border-dashed border-stone-200 px-4 py-4 text-sm text-stone-400">No repositories found.</article>`;
@@ -1462,6 +1767,36 @@ function populateSettings(r: RepositoryPayload | null): void {
   }
 }
 
+function renderSearchInsights(
+  payload: RepositoryGraphSearchPayload | null,
+): void {
+  renderScopeCards(
+    "graph-search-scopes",
+    payload?.searched_scopes ?? [],
+    "Run a search to inspect repo and branch scopes.",
+  );
+  renderCrossRepoResultCards(
+    "graph-search-cross-repo",
+    payload?.results ?? [],
+    "No linked-repo matches for this search.",
+  );
+}
+
+function renderImpactInsights(
+  payload: RepositoryGraphImpactPayload | null,
+): void {
+  renderScopeCards(
+    "graph-impact-scopes",
+    payload?.searched_scopes ?? [],
+    "Run an impact scan to inspect traversed repo and branch scopes.",
+  );
+  renderCrossRepoResultCards(
+    "graph-impact-cross-repo",
+    payload ? [...payload.matches, ...payload.impacted] : [],
+    "No linked-repo impact hits for this target.",
+  );
+}
+
 function resetPanels(msg: string): void {
   setText(getEl("repo-summary-title"), "Select a repository");
   setText(getEl("repo-summary-meta"), msg);
@@ -1491,6 +1826,10 @@ function resetPanels(msg: string): void {
   renderBranchState(null);
   renderBranchLinks([], msg);
   renderLandscapeSummary(null, msg);
+  renderSearchInsights(null);
+  renderImpactInsights(null);
+  const impactSummary = getEl("graph-impact-summary");
+  if (impactSummary) impactSummary.innerHTML = "";
 
   populateSettings(null);
 }
@@ -1583,6 +1922,12 @@ async function selectRepository(repoId: string): Promise<void> {
   setText(getEl("graph-search-status"), "");
   setText(getEl("graph-impact-status"), "");
   setText(getEl("repo-graph-status"), "Loading graph…");
+  searchRenderer?.clearGraph();
+  impactRenderer?.clearGraph();
+  renderSearchInsights(null);
+  renderImpactInsights(null);
+  const impactSummary = getEl("graph-impact-summary");
+  if (impactSummary) impactSummary.innerHTML = "";
 
   await loadRepoGraph(repoId, activeBranch);
 }
@@ -1687,18 +2032,23 @@ async function handleSearchSubmit(e: SubmitEvent): Promise<void> {
       ),
       limit: 18,
     });
-    const { nodes, edges } = buildGraphData(
+    const { nodes, edges } = buildScopedResultGraphData(
       res.repository.name,
       res.results,
-      [],
+      res.searched_scopes,
     );
     const renderer = initSearchRenderer();
     if (renderer) {
       renderer.render(nodes, edges);
       renderLegendOverlay("search-graph-legend", nodes);
     }
-    setText(getEl("graph-search-status"), `${res.count} matching nodes.`);
+    renderSearchInsights(res);
+    setText(
+      getEl("graph-search-status"),
+      `${res.count} matching nodes across ${res.scope_count} scope${res.scope_count === 1 ? "" : "s"}.`,
+    );
   } catch (err) {
+    renderSearchInsights(null);
     setText(
       getEl("graph-search-status"),
       err instanceof Error ? err.message : "Search failed.",
@@ -1776,9 +2126,10 @@ async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
       }
     }
 
-    const { nodes, edges: simEdges } = buildGraphData(
+    const { nodes, edges: simEdges } = buildScopedResultGraphData(
       res.repository.name,
       [...matchNodes, ...impactNodes],
+      res.searched_scopes,
       edges,
     );
     const renderer = initImpactRenderer();
@@ -1802,11 +2153,18 @@ async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
         .join("");
     }
 
+    renderImpactInsights(res);
+
+    const scopeCount = Number(
+      res.summary["scope_count"] ?? res.searched_scopes.length,
+    );
+
     setText(
       getEl("graph-impact-status"),
-      `${res.impacted.length} impacted nodes.`,
+      `${res.impacted.length} impacted nodes across ${scopeCount} scope${scopeCount === 1 ? "" : "s"}.`,
     );
   } catch (err) {
+    renderImpactInsights(null);
     setText(
       getEl("graph-impact-status"),
       err instanceof Error ? err.message : "Impact scan failed.",
@@ -2129,6 +2487,18 @@ async function handleBranchLinkDelete(linkId: string): Promise<void> {
 getEl("repositories-refresh")?.addEventListener("click", () => {
   void loadRepositories();
 });
+getEl("repo-toolbar-refresh")?.addEventListener("click", () => {
+  void loadRepositories();
+});
+getEl<HTMLSelectElement>("repo-quick-switch")?.addEventListener(
+  "change",
+  (e) => {
+    const repoId = (e.target as HTMLSelectElement).value;
+    if (repoId && repoId !== activeRepositoryId) {
+      void selectRepository(repoId);
+    }
+  },
+);
 getEl("repo-graph-refresh")?.addEventListener("click", () => {
   void refreshActiveGraph();
 });
@@ -2203,7 +2573,7 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
 // Init — default tab is "graph" (applied at page load)
 // ============================================================
 
-// Apply full-width graph layout immediately (Graph is default active tab)
-setGraphFullWidth(true);
+// Overview is the default tab on page load.
+switchTab("overview");
 
 void loadRepositories();

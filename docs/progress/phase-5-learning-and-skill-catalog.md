@@ -16,6 +16,8 @@ The metadata-only graph backlog in this phase now has a related transition track
 
 That transition plan adds a standalone `minder-cli` extractor and secure sync path so the server no longer has to perform the slow graph refresh workflow by default.
 
+CLI-side automatic `branch_relationships` discovery is intentionally tracked separately in a post-Phase-5 file, [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md), so Phase 5 stays focused on learning, skill synthesis, and metadata-first graph refinement.
+
 ## Tasks
 
 | Task        | Owner   | Status    | Summary                                                    | Related Context                                                                                                                                                                                                        |

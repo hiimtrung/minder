@@ -245,6 +245,130 @@ def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa
     assert "Removed Minder IDE asset" in output
 
 
+def test_check_update_reports_cli_and_server_versions(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
+    install_dir = tmp_path / "release"
+    install_dir.mkdir()
+    (install_dir / ".env").write_text(
+        "MINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:v0.1.0\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.1.0")
+    monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.2.0")
+    monkeypatch.setattr(
+        cli,
+        "_latest_github_release",
+        lambda slug: {
+            "version": "v0.2.0",
+            "url": f"https://github.com/{slug}/releases/tag/v0.2.0",
+        },
+    )
+
+    exit_code = main(["check-update", "--install-dir", str(install_dir)])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "CLI update status:" in output
+    assert "status: update available (0.1.0 -> 0.2.0)" in output
+    assert "Server update status:" in output
+    assert "status: update available (v0.1.0 -> v0.2.0)" in output
+
+
+def test_self_update_cli_uses_available_manager(
+    monkeypatch, capsys
+) -> None:  # noqa: ANN001
+    captured: dict[str, object] = {}
+
+    class _Result:
+        returncode = 0
+        stdout = "updated"
+        stderr = ""
+
+    monkeypatch.setattr(cli.shutil, "which", lambda name: f"/usr/bin/{name}")
+
+    def _fake_run(command, capture_output, text, check):  # noqa: ANN001
+        captured["command"] = command
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["check"] = check
+        return _Result()
+
+    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+
+    exit_code = main(["self-update", "--component", "cli", "--manager", "uv"])
+
+    assert exit_code == 0
+    assert captured["command"] == ["uv", "tool", "upgrade", "minder"]
+    output = capsys.readouterr().out
+    assert "CLI self-update completed via: uv tool upgrade minder" in output
+
+
+def test_self_update_server_downloads_release_installer_and_reuses_env(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
+    install_dir = tmp_path / "release"
+    install_dir.mkdir()
+    (install_dir / ".env").write_text(
+        "MINDER_PORT=8800\nMILVUS_PORT=19530\nMINDER_MODELS_DIR=/models\nOPENAI_API_KEY=test-key\nMINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:v0.1.0\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        cli,
+        "_latest_github_release",
+        lambda slug: {
+            "version": "v0.2.0",
+            "url": f"https://github.com/{slug}/releases/tag/v0.2.0",
+        },
+    )
+
+    class _HttpResponse:
+        text = "#!/usr/bin/env bash\necho server-updated\n"
+
+        def raise_for_status(self) -> None:
+            return None
+
+    monkeypatch.setattr(cli.httpx, "get", lambda url, timeout: _HttpResponse())
+
+    captured: dict[str, object] = {}
+
+    class _RunResult:
+        returncode = 0
+        stdout = "server-updated\n"
+        stderr = ""
+
+    def _fake_run(command, input, capture_output, text, env, check):  # noqa: ANN001
+        captured["command"] = command
+        captured["input"] = input
+        captured["capture_output"] = capture_output
+        captured["text"] = text
+        captured["env"] = env
+        captured["check"] = check
+        return _RunResult()
+
+    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+
+    exit_code = main(
+        ["self-update", "--component", "server", "--install-dir", str(install_dir)]
+    )
+
+    assert exit_code == 0
+    assert captured["command"] == ["bash"]
+    assert captured["input"] == "#!/usr/bin/env bash\necho server-updated\n"
+    env = captured["env"]
+    assert isinstance(env, dict)
+    assert env["MINDER_INSTALL_DIR"] == str(install_dir)
+    assert env["MINDER_MODELS_DIR"] == "/models"
+    assert env["MINDER_PORT"] == "8800"
+    assert env["MILVUS_PORT"] == "19530"
+    assert env["OPENAI_API_KEY"] == "test-key"
+    output = capsys.readouterr().out
+    assert "Server self-update completed" in output
+    assert "Rollback guidance" in output
+
+
 def test_sync_dry_run_prints_delta_payload(
     tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001

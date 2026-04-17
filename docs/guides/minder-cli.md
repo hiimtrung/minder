@@ -22,6 +22,13 @@ Upgrade later with:
 uv tool upgrade minder
 ```
 
+Or let Minder manage both the check and upgrade flow:
+
+```bash
+minder check-update --component cli
+minder self-update --component cli
+```
+
 ## Login
 
 Store the client key and default server URL locally:
@@ -144,6 +151,55 @@ Disable that check for air-gapped or tightly controlled environments:
 ```bash
 minder sync --skip-upgrade-check
 ```
+
+## Check Updates
+
+Check both the installed CLI and the local server deployment at once:
+
+```bash
+minder check-update
+```
+
+Check only one component:
+
+```bash
+minder check-update --component cli
+minder check-update --component server
+```
+
+If the server release lives outside the default `~/.minder/current` or `~/.minder/releases/*` locations, point the CLI at that deployment explicitly:
+
+```bash
+minder check-update --component server --install-dir ~/.minder/releases/v0.1.0
+```
+
+## Self Update
+
+Upgrade the CLI in place:
+
+```bash
+minder self-update --component cli
+```
+
+Choose a specific package manager if your environment is pinned to one tool:
+
+```bash
+minder self-update --component cli --manager pipx
+```
+
+Upgrade a local server deployment in place by reusing the published GitHub release installer for the newest tag:
+
+```bash
+minder self-update --component server
+```
+
+Or target a specific deployment directory:
+
+```bash
+minder self-update --component server --install-dir ~/.minder/current
+```
+
+The server self-update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR`, `MINDER_PORT`, and `MILVUS_PORT`, then prints rollback guidance for the previous release.
 
 ## Supported Extraction Coverage
 

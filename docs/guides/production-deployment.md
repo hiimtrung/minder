@@ -194,6 +194,22 @@ Upgrade the CLI independently with:
 uv tool upgrade minder
 ```
 
+Or use Minder's unified update surface:
+
+```bash
+minder check-update
+minder self-update --component cli
+```
+
+Check and upgrade the deployed server release in place:
+
+```bash
+minder check-update --component server --install-dir ~/.minder/current
+minder self-update --component server --install-dir ~/.minder/current
+```
+
+The release installer now keeps a stable `~/.minder/current` link and writes release metadata into each deployment directory so the CLI can resolve the current server version before applying an upgrade.
+
 ## Health Checks
 
 Recommended checks:

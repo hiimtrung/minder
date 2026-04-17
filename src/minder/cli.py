@@ -4,9 +4,15 @@ import argparse
 import json
 import os
 import platform
+import shutil
 import subprocess
+import sys
 from getpass import getpass
-from importlib.metadata import PackageNotFoundError, version as package_version
+from importlib.metadata import (
+    PackageNotFoundError,
+    metadata as package_metadata,
+    version as package_version,
+)
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
@@ -19,6 +25,9 @@ _DEFAULT_SERVER_URL = "http://localhost:8801/sse"
 _LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code")
 _PYPI_JSON_URL = "https://pypi.org/pypi/minder/json"
 _IDE_GITIGNORE_KEY = "minder-ide-bootstrap"
+_DEFAULT_RELEASE_REPOSITORY_URL = "https://github.com/hiimtrung/minder"
+_GITHUB_RELEASE_REPOSITORY_API = "https://api.github.com/repos"
+_SERVER_RELEASE_METADATA_NAME = ".minder-release.json"
 
 
 def _bootstrap_version() -> str:
@@ -163,6 +172,337 @@ def _maybe_print_upgrade_notice() -> None:
         f"A newer minder CLI is available ({installed} -> {latest}). "
         "Run 'uv tool upgrade minder' or 'pipx upgrade minder'."
     )
+
+
+def _project_repository_url() -> str:
+    override = os.getenv("MINDER_RELEASE_REPOSITORY", "").strip()
+    if override:
+        if override.startswith("http://") or override.startswith("https://"):
+            return override
+        return f"https://github.com/{override.strip('/')}"
+    try:
+        metadata = package_metadata("minder")
+    except PackageNotFoundError:
+        return _DEFAULT_RELEASE_REPOSITORY_URL
+    for value in metadata.get_all("Project-URL") or []:
+        label, _, url = value.partition(",")
+        if label.strip().lower() == "repository" and url.strip():
+            return url.strip()
+    homepage = str(metadata.get("Home-page", "")).strip()
+    return homepage or _DEFAULT_RELEASE_REPOSITORY_URL
+
+
+def _project_repository_slug() -> str:
+    repository_url = _project_repository_url().strip().rstrip("/")
+    if repository_url.startswith("http://") or repository_url.startswith("https://"):
+        parts = urlsplit(repository_url)
+        path_parts = [piece for piece in parts.path.strip("/").split("/") if piece]
+    else:
+        path_parts = [piece for piece in repository_url.strip("/").split("/") if piece]
+    if len(path_parts) < 2:
+        raise ValueError(
+            f"Unsupported repository URL for release lookup: {repository_url}"
+        )
+    return f"{path_parts[0]}/{path_parts[1].removesuffix('.git')}"
+
+
+def _latest_github_release(repository_slug: str) -> dict[str, str] | None:
+    try:
+        response = httpx.get(
+            f"{_GITHUB_RELEASE_REPOSITORY_API}/{repository_slug}/releases/latest",
+            timeout=5,
+            headers={"Accept": "application/vnd.github+json"},
+        )
+        response.raise_for_status()
+    except Exception:
+        return None
+    payload = response.json()
+    if not isinstance(payload, dict):
+        return None
+    tag_name = payload.get("tag_name")
+    html_url = payload.get("html_url")
+    if not isinstance(tag_name, str) or not tag_name.strip():
+        return None
+    if not isinstance(html_url, str) or not html_url.strip():
+        html_url = f"https://github.com/{repository_slug}/releases/latest"
+    return {"version": tag_name.strip(), "url": html_url.strip()}
+
+
+def _default_server_install_dir() -> Path:
+    current_link = Path.home() / ".minder" / "current"
+    if current_link.exists():
+        return current_link.resolve()
+    releases_dir = Path.home() / ".minder" / "releases"
+    if releases_dir.is_dir():
+        candidates = [path for path in releases_dir.iterdir() if path.is_dir()]
+        if candidates:
+            return max(candidates, key=lambda path: path.stat().st_mtime)
+    return current_link
+
+
+def _load_env_file(path: Path) -> dict[str, str]:
+    if not path.is_file():
+        return {}
+    payload: dict[str, str] = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        raw_line = line.strip()
+        if not raw_line or raw_line.startswith("#") or "=" not in raw_line:
+            continue
+        key, _, value = raw_line.partition("=")
+        payload[key.strip()] = value.strip()
+    return payload
+
+
+def _server_release_metadata_path(install_dir: Path) -> Path:
+    return install_dir / _SERVER_RELEASE_METADATA_NAME
+
+
+def _load_server_release_metadata(install_dir: Path) -> dict[str, Any]:
+    path = _server_release_metadata_path(install_dir)
+    if not path.is_file():
+        return {}
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    return payload if isinstance(payload, dict) else {}
+
+
+def _image_tag(image_ref: str | None) -> str | None:
+    if image_ref is None:
+        return None
+    _, separator, tag = image_ref.rpartition(":")
+    if not separator or not tag.strip():
+        return None
+    return tag.strip()
+
+
+def _server_repository_slug(install_dir: Path) -> str:
+    metadata = _load_server_release_metadata(install_dir)
+    repository = metadata.get("repository")
+    if isinstance(repository, str) and repository.strip():
+        repository_url = repository.strip()
+        if repository_url.startswith("http://") or repository_url.startswith(
+            "https://"
+        ):
+            parts = urlsplit(repository_url)
+            pieces = [piece for piece in parts.path.strip("/").split("/") if piece]
+        else:
+            pieces = [piece for piece in repository_url.strip("/").split("/") if piece]
+        if len(pieces) >= 2:
+            return f"{pieces[0]}/{pieces[1].removesuffix('.git')}"
+    repo_owner = str(metadata.get("repo_owner", "")).strip()
+    repo_name = str(metadata.get("repo_name", "")).strip()
+    if repo_owner and repo_name:
+        return f"{repo_owner}/{repo_name.removesuffix('.git')}"
+    return _project_repository_slug()
+
+
+def _server_current_version(install_dir: Path) -> str | None:
+    metadata = _load_server_release_metadata(install_dir)
+    release_tag = metadata.get("release_tag")
+    if isinstance(release_tag, str) and release_tag.strip():
+        return release_tag.strip()
+    env_payload = _load_env_file(install_dir / ".env")
+    return _image_tag(env_payload.get("MINDER_API_IMAGE")) or _image_tag(
+        env_payload.get("MINDER_DASHBOARD_IMAGE")
+    )
+
+
+def _cli_update_available() -> tuple[str | None, str | None, bool]:
+    installed = _installed_package_version()
+    latest = _latest_pypi_version()
+    if installed is None or latest is None:
+        return installed, latest, False
+    return installed, latest, _parse_version(latest) > _parse_version(installed)
+
+
+def _server_update_available(
+    install_dir: Path,
+) -> tuple[str | None, str | None, str, str | None, bool]:
+    repository_slug = _server_repository_slug(install_dir)
+    current = _server_current_version(install_dir)
+    latest_release = _latest_github_release(repository_slug)
+    latest = latest_release["version"] if latest_release is not None else None
+    release_url = latest_release["url"] if latest_release is not None else None
+    if current is None or latest is None:
+        return current, latest, repository_slug, release_url, False
+    return (
+        current,
+        latest,
+        repository_slug,
+        release_url,
+        _parse_version(latest) > _parse_version(current),
+    )
+
+
+def _print_cli_update_status() -> None:
+    installed, latest, has_update = _cli_update_available()
+    status = (
+        f"update available ({installed} -> {latest})"
+        if has_update and installed and latest
+        else (
+            "up to date"
+            if installed and latest
+            else "unable to determine latest version"
+        )
+    )
+    print("CLI update status:")
+    print(f"  installed: {installed or 'unknown'}")
+    print(f"  latest: {latest or 'unknown'}")
+    print(f"  status: {status}")
+
+
+def _print_server_update_status(install_dir: Path) -> None:
+    if not install_dir.is_dir():
+        print("Server update status:")
+        print(f"  install dir: {install_dir}")
+        print("  status: no local release installation found")
+        return
+    current, latest, repository_slug, release_url, has_update = (
+        _server_update_available(install_dir)
+    )
+    status = (
+        f"update available ({current} -> {latest})"
+        if has_update and current and latest
+        else (
+            "up to date" if current and latest else "unable to determine latest release"
+        )
+    )
+    print("Server update status:")
+    print(f"  install dir: {install_dir}")
+    print(f"  repository: {repository_slug}")
+    print(f"  current: {current or 'unknown'}")
+    print(f"  latest: {latest or 'unknown'}")
+    if release_url:
+        print(f"  release: {release_url}")
+    print(f"  status: {status}")
+
+
+def _cli_update_commands(manager: str) -> list[list[str]]:
+    if manager == "uv":
+        return [["uv", "tool", "upgrade", "minder"]]
+    if manager == "pipx":
+        return [["pipx", "upgrade", "minder"]]
+    if manager == "pip":
+        return [[sys.executable, "-m", "pip", "install", "--upgrade", "minder"]]
+    return [
+        ["uv", "tool", "upgrade", "minder"],
+        ["pipx", "upgrade", "minder"],
+        [sys.executable, "-m", "pip", "install", "--upgrade", "minder"],
+    ]
+
+
+def _self_update_cli(manager: str) -> None:
+    failures: list[str] = []
+    for command in _cli_update_commands(manager):
+        executable = command[0]
+        if executable != sys.executable and shutil.which(executable) is None:
+            failures.append(f"{' '.join(command)} -> command not available")
+            continue
+        result = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if result.returncode == 0:
+            output = result.stdout.strip()
+            if output:
+                print(output)
+            print(f"CLI self-update completed via: {' '.join(command)}")
+            return
+        details = (
+            result.stderr.strip() or result.stdout.strip() or str(result.returncode)
+        )
+        failures.append(f"{' '.join(command)} -> {details}")
+    raise RuntimeError("CLI self-update failed: " + "; ".join(failures))
+
+
+def _download_release_installer(
+    repository_slug: str, release_tag: str
+) -> tuple[str, str]:
+    installer_url = (
+        f"https://github.com/{repository_slug}/releases/download/{release_tag}/"
+        f"install-minder-{release_tag}.sh"
+    )
+    response = httpx.get(installer_url, timeout=10)
+    response.raise_for_status()
+    return installer_url, response.text
+
+
+def _self_update_server(install_dir: Path) -> None:
+    if not install_dir.is_dir():
+        raise ValueError(f"Server install directory does not exist: {install_dir}")
+    current, latest, repository_slug, _, has_update = _server_update_available(
+        install_dir
+    )
+    if latest is None:
+        raise RuntimeError("Could not determine the latest Minder server release")
+    if current is not None and not has_update:
+        print(f"Minder server is already up to date ({current})")
+        return
+    installer_url, installer_script = _download_release_installer(
+        repository_slug, latest
+    )
+    env_payload = _load_env_file(install_dir / ".env")
+    update_env = os.environ.copy()
+    update_env["MINDER_INSTALL_DIR"] = str(install_dir)
+    for key in ("MINDER_MODELS_DIR", "MINDER_PORT", "MILVUS_PORT", "OPENAI_API_KEY"):
+        value = env_payload.get(key)
+        if value:
+            update_env[key] = value
+    result = subprocess.run(
+        ["bash"],
+        input=installer_script,
+        capture_output=True,
+        text=True,
+        env=update_env,
+        check=False,
+    )
+    if result.returncode != 0:
+        details = (
+            result.stderr.strip() or result.stdout.strip() or str(result.returncode)
+        )
+        raise RuntimeError(f"Server self-update failed: {details}")
+    output = result.stdout.strip()
+    if output:
+        print(output)
+    print(
+        f"Server self-update completed for {install_dir}: "
+        f"{current or 'unknown'} -> {latest}"
+    )
+    print(f"Release installer: {installer_url}")
+    if current:
+        print(
+            "Rollback guidance: rerun the previous release installer for "
+            f"{current} with MINDER_INSTALL_DIR={install_dir}."
+        )
+
+
+def _check_update(args: argparse.Namespace) -> int:
+    components = ["cli", "server"] if args.component == "all" else [args.component]
+    if "cli" in components:
+        _print_cli_update_status()
+    if "server" in components:
+        install_dir = (
+            Path(args.install_dir).expanduser().resolve()
+            if args.install_dir
+            else _default_server_install_dir()
+        )
+        _print_server_update_status(install_dir)
+    return 0
+
+
+def _self_update(args: argparse.Namespace) -> int:
+    components = ["cli", "server"] if args.component == "all" else [args.component]
+    if "cli" in components:
+        _self_update_cli(args.manager)
+    if "server" in components:
+        install_dir = (
+            Path(args.install_dir).expanduser().resolve()
+            if args.install_dir
+            else _default_server_install_dir()
+        )
+        _self_update_server(install_dir)
+    return 0
 
 
 def _repo_root(path: str) -> Path:
@@ -874,6 +1214,44 @@ def build_parser() -> argparse.ArgumentParser:
         help="Workspace directory to remove repo-local IDE assets from.",
     )
 
+    check_update = subparsers.add_parser(
+        "check-update",
+        help="Check for newer published Minder CLI and server releases.",
+    )
+    check_update.add_argument(
+        "--component",
+        choices=("cli", "server", "all"),
+        default="all",
+        help="Which installed component to inspect for available updates.",
+    )
+    check_update.add_argument(
+        "--install-dir",
+        default=None,
+        help="Server install directory to inspect. Defaults to ~/.minder/current or the newest release directory.",
+    )
+
+    self_update = subparsers.add_parser(
+        "self-update",
+        help="Apply a self-update for the Minder CLI, server deployment, or both.",
+    )
+    self_update.add_argument(
+        "--component",
+        choices=("cli", "server", "all"),
+        default="cli",
+        help="Which component to self-update.",
+    )
+    self_update.add_argument(
+        "--manager",
+        choices=("auto", "uv", "pipx", "pip"),
+        default="auto",
+        help="Preferred package manager for CLI self-update.",
+    )
+    self_update.add_argument(
+        "--install-dir",
+        default=None,
+        help="Server install directory to update. Defaults to ~/.minder/current or the newest release directory.",
+    )
+
     sync = subparsers.add_parser(
         "sync",
         help="Build a delta payload from git diff and sync graph metadata using the stored client key.",
@@ -925,6 +1303,10 @@ def main(argv: list[str] | None = None) -> int:
         return _install_ide(args)
     if args.command == "uninstall-ide":
         return _uninstall_ide(args)
+    if args.command == "check-update":
+        return _check_update(args)
+    if args.command == "self-update":
+        return _self_update(args)
     if args.command == "sync":
         return _sync(args)
 

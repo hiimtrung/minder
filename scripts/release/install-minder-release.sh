@@ -7,6 +7,7 @@ REPO_NAME="__REPO_NAME__"
 RELEASE_TAG="__RELEASE_TAG__"
 
 INSTALL_DIR="${MINDER_INSTALL_DIR:-$HOME/.minder/releases/$RELEASE_TAG}"
+CURRENT_LINK="${MINDER_CURRENT_LINK:-$HOME/.minder/current}"
 MODELS_DIR="${MINDER_MODELS_DIR:-$HOME/.minder/models}"
 PUBLIC_PORT="${MINDER_PORT:-8800}"
 MILVUS_PORT="${MILVUS_PORT:-19530}"
@@ -36,6 +37,7 @@ if [[ ! -d "$MODELS_DIR" ]]; then
 fi
 
 mkdir -p "$INSTALL_DIR"
+mkdir -p "$(dirname "$CURRENT_LINK")"
 
 curl -fsSL "$RELEASE_BASE_URL/docker-compose.yml" -o "$INSTALL_DIR/docker-compose.yml"
 curl -fsSL "$RELEASE_BASE_URL/Caddyfile" -o "$INSTALL_DIR/Caddyfile"
@@ -49,13 +51,24 @@ MINDER_MODELS_DIR=$MODELS_DIR
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 EOF
 
+cat > "$INSTALL_DIR/.minder-release.json" <<EOF
+{
+  "repo_owner": "$REPO_OWNER",
+  "repo_name": "$REPO_NAME",
+  "repository": "https://github.com/$REPO_OWNER/$REPO_NAME",
+  "release_tag": "$RELEASE_TAG"
+}
+EOF
+
 docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" pull
 docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" up -d
+ln -sfn "$INSTALL_DIR" "$CURRENT_LINK"
 
 cat <<EOF
 Minder release $RELEASE_TAG is starting.
 
 Deployment directory: $INSTALL_DIR
+Current release link: $CURRENT_LINK
 API image: $API_IMAGE
 Dashboard image: $DASHBOARD_IMAGE
 

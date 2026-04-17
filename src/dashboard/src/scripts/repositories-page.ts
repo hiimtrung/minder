@@ -15,6 +15,7 @@ import {
   getRepositoryLandscape,
   listRepositories,
   removeRepositoryBranch,
+  searchAdminCatalog,
   searchRepositoryGraph,
   upsertRepositoryBranchLink,
   updateRepository,
@@ -27,6 +28,7 @@ import {
   type RepositoryLandscapePayload,
   type RepositoryPayload,
 } from "../lib/api/admin";
+import { createDebouncedHandler } from "./catalog-controls";
 
 // ============================================================
 // Types
@@ -1683,58 +1685,131 @@ function renderCrossRepoResultCards(
 // ============================================================
 
 let repositories: RepositoryPayload[] = [];
+let visibleRepositories: RepositoryPayload[] = [];
 let activeRepositoryId: string | null = null;
 let activeRepository: RepositoryPayload | null = null;
 let activeBranch: string | null = null; // currently selected branch for graph view
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
+let repositoryQuery = "";
 
-function renderQuickSwitch(): void {
-  const select = getEl<HTMLSelectElement>("repo-quick-switch");
-  if (!select) return;
-  select.innerHTML = [
-    `<option value="">Select a repository</option>`,
-    ...repositories.map(
-      (repo) =>
-        `<option value="${escapeHtml(repo.id)}" ${repo.id === activeRepositoryId ? "selected" : ""}>${escapeHtml(repo.name)}${repo.default_branch ? ` · ${escapeHtml(repo.default_branch)}` : ""}</option>`,
-    ),
-  ].join("");
-  select.disabled = repositories.length === 0;
+function requestedRepositoryId(): string | null {
+  const value =
+    getEl<HTMLElement>("repo-detail-context")?.dataset.repoId?.trim() ?? "";
+  return value || null;
 }
 
-function renderRepositories(): void {
-  const list = getEl("repositories-list");
-  renderQuickSwitch();
-  if (!list) return;
-  if (!repositories.length) {
-    list.innerHTML = `<article class="rounded-2xl border border-dashed border-stone-200 px-4 py-4 text-sm text-stone-400">No repositories found.</article>`;
+function closeRepositoryPicker(): void {
+  getEl("repo-picker-popover")?.classList.add("hidden");
+  getEl<HTMLButtonElement>("repo-picker-trigger")?.setAttribute(
+    "aria-expanded",
+    "false",
+  );
+}
+
+function openRepositoryPicker(): void {
+  getEl("repo-picker-popover")?.classList.remove("hidden");
+  getEl<HTMLButtonElement>("repo-picker-trigger")?.setAttribute(
+    "aria-expanded",
+    "true",
+  );
+  window.setTimeout(() => {
+    getEl<HTMLInputElement>("repo-quick-search")?.focus();
+  }, 0);
+}
+
+function toggleRepositoryPicker(): void {
+  const popover = getEl("repo-picker-popover");
+  if (!popover) return;
+  if (popover.classList.contains("hidden")) {
+    openRepositoryPicker();
     return;
   }
-  list.innerHTML = repositories
-    .map((r) => {
-      const active = r.id === activeRepositoryId;
+  closeRepositoryPicker();
+}
+
+function renderQuickSwitch(): void {
+  const trigger = getEl<HTMLButtonElement>("repo-picker-trigger");
+  const label = getEl("repo-picker-label");
+  const results = getEl("repo-picker-results");
+  if (!trigger || !label || !results) return;
+
+  const activeRepositoryRecord = repositories.find(
+    (repo) => repo.id === activeRepositoryId,
+  );
+  label.textContent = activeRepositoryRecord
+    ? `${activeRepositoryRecord.name}${activeRepositoryRecord.default_branch ? ` · ${activeRepositoryRecord.default_branch}` : ""}`
+    : "Select a repository…";
+  trigger.disabled = repositories.length === 0;
+
+  if (!visibleRepositories.length) {
+    results.innerHTML = `<p class="rounded-2xl px-3 py-2 text-sm text-stone-400">${repositoryQuery ? `No repositories matched &quot;${escapeHtml(repositoryQuery)}&quot;.` : "No repositories found."}</p>`;
+    return;
+  }
+
+  results.innerHTML = visibleRepositories
+    .map((repo) => {
+      const active = repo.id === activeRepositoryId;
       return `
-      <button type="button" data-repository-id="${escapeHtml(r.id)}"
-        class="rounded-2xl border px-4 py-3.5 text-left transition w-full ${
-          active
-            ? "border-amber-800 bg-amber-800 text-white shadow-md"
-            : "border-stone-200 bg-white text-stone-800 hover:border-amber-700 hover:bg-amber-50"
-        }"
-      >
-        <p class="text-[10px] font-bold uppercase tracking-widest ${active ? "text-amber-200" : "text-stone-400"}">Repository</p>
-        <p class="mt-2 text-sm font-semibold">${escapeHtml(r.name)}</p>
-        <p class="mt-1 text-xs ${active ? "text-amber-200" : "text-stone-400"}">${escapeHtml(r.default_branch ?? "—")}</p>
-        <p class="mt-0.5 text-xs truncate ${active ? "text-amber-200" : "text-stone-400"}">${escapeHtml(r.remote_url ?? r.path)}</p>
-      </button>
-    `;
+        <button
+          type="button"
+          data-repo-picker-item="${escapeHtml(repo.id)}"
+          class="flex w-full items-start justify-between gap-3 rounded-2xl px-3 py-2.5 text-left transition ${
+            active
+              ? "bg-amber-50 text-amber-950"
+              : "text-stone-800 hover:bg-stone-50"
+          }"
+        >
+          <span class="min-w-0 flex-1">
+            <span class="block truncate text-sm font-medium">${escapeHtml(repo.name)}</span>
+            <span class="mt-1 block truncate text-xs text-stone-500">${escapeHtml(repo.remote_url ?? repo.path)}</span>
+          </span>
+          <span class="shrink-0 rounded-full border border-stone-200 bg-white px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-stone-500">
+            ${escapeHtml(repo.default_branch ?? "—")}
+          </span>
+        </button>
+      `;
     })
     .join("");
 
-  list.querySelectorAll("[data-repository-id]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-repository-id");
-      if (id) void selectRepository(id);
+  results
+    .querySelectorAll<HTMLButtonElement>("[data-repo-picker-item]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const repoId = button.dataset.repoPickerItem;
+        if (!repoId || repoId === activeRepositoryId) {
+          closeRepositoryPicker();
+          return;
+        }
+        closeRepositoryPicker();
+        if (requestedRepositoryId()) {
+          window.location.assign(
+            `/dashboard/repositories/${encodeURIComponent(repoId)}`,
+          );
+          return;
+        }
+        void selectRepository(repoId);
+      });
     });
-  });
+}
+
+function renderRepositories(): void {
+  renderQuickSwitch();
+}
+
+async function syncVisibleRepositories(): Promise<void> {
+  if (!repositoryQuery) {
+    visibleRepositories = repositories;
+    renderRepositories();
+    return;
+  }
+  const result = await searchAdminCatalog<RepositoryPayload>(
+    "repositories",
+    repositoryQuery,
+    200,
+    0,
+  );
+  visibleRepositories = result.items;
+  renderRepositories();
 }
 
 function populateSettings(r: RepositoryPayload | null): void {
@@ -1875,7 +1950,9 @@ async function loadRepositories(): Promise<void> {
   try {
     const res = await listRepositories();
     repositories = res.repositories;
+    visibleRepositories = repositories;
     await loadRepositoryLandscape();
+    const routeRepositoryId = requestedRepositoryId();
     if (!repositories.length) {
       activeRepositoryId = null;
       activeRepository = null;
@@ -1885,14 +1962,21 @@ async function loadRepositories(): Promise<void> {
       return;
     }
     if (
+      routeRepositoryId &&
+      !repositories.some((repository) => repository.id === routeRepositoryId)
+    ) {
+      window.location.assign("/dashboard/repositories");
+      return;
+    }
+    if (
       !activeRepositoryId ||
       !repositories.some((r) => r.id === activeRepositoryId)
     ) {
-      activeRepositoryId = repositories[0]?.id ?? null;
+      activeRepositoryId = routeRepositoryId ?? repositories[0]?.id ?? null;
     }
     activeRepository =
       repositories.find((r) => r.id === activeRepositoryId) ?? null;
-    renderRepositories();
+    await syncVisibleRepositories();
     setText(
       getEl("repositories-status"),
       `${repositories.length} repositor${repositories.length === 1 ? "y" : "ies"}`,
@@ -2522,15 +2606,32 @@ getEl("repositories-refresh")?.addEventListener("click", () => {
 getEl("repo-toolbar-refresh")?.addEventListener("click", () => {
   void loadRepositories();
 });
-getEl<HTMLSelectElement>("repo-quick-switch")?.addEventListener(
-  "change",
-  (e) => {
-    const repoId = (e.target as HTMLSelectElement).value;
-    if (repoId && repoId !== activeRepositoryId) {
-      void selectRepository(repoId);
-    }
-  },
+getEl("repo-picker-trigger")?.addEventListener("click", () => {
+  toggleRepositoryPicker();
+});
+getEl<HTMLInputElement>("repo-quick-search")?.addEventListener(
+  "input",
+  createDebouncedHandler(async () => {
+    const nextValue =
+      getEl<HTMLInputElement>("repo-quick-search")?.value.trim() ?? "";
+    repositoryQuery = nextValue;
+    await syncVisibleRepositories();
+  }),
 );
+document.addEventListener("click", (event) => {
+  const target = event.target;
+  if (!(target instanceof Node)) return;
+  const trigger = getEl("repo-picker-trigger");
+  const popover = getEl("repo-picker-popover");
+  if (!trigger || !popover) return;
+  if (trigger.contains(target) || popover.contains(target)) return;
+  closeRepositoryPicker();
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape") {
+    closeRepositoryPicker();
+  }
+});
 getEl("repo-graph-refresh")?.addEventListener("click", () => {
   void refreshActiveGraph();
 });

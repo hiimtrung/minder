@@ -45,7 +45,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   <!-- Metric stat cards -->
   <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <!-- Active sessions -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Sessions</p>
       <p
         id="stat-sessions"
@@ -57,7 +57,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- Tool calls -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Tool calls</p>
       <p
         id="stat-tool-calls"
@@ -71,7 +71,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- Auth events -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Auth events</p>
       <p
         id="stat-auth-events"
@@ -85,7 +85,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- HTTP requests -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">HTTP requests</p>
       <p
         id="stat-http-requests"
@@ -100,7 +100,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   </section>
 
   <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Continuity packets</p>
       <p
         id="stat-continuity-packets"
@@ -113,7 +113,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </p>
     </div>
 
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Continuity recalls</p>
       <p
         id="stat-continuity-recalls"
@@ -126,7 +126,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </p>
     </div>
 
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Step compatibility</p>
       <p
         id="stat-step-compatibility"
@@ -139,7 +139,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </p>
     </div>
 
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow">Correction retries</p>
       <p
         id="stat-correction-retries"
@@ -156,7 +156,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   <!-- Metric breakdown charts -->
   <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <!-- Tool calls by outcome -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">Tool calls by outcome</p>
       <div id="chart-tool-outcomes" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
@@ -164,7 +164,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- Auth by type -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">Auth events by type</p>
       <div id="chart-auth-types" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
@@ -172,7 +172,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- HTTP by status -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">HTTP by status code</p>
       <div id="chart-http-status" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
@@ -180,7 +180,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
 
     <!-- Admin operations -->
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">Admin ops by outcome</p>
       <div id="chart-admin-ops" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
@@ -189,14 +189,14 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   </section>
 
   <section class="mb-8 grid gap-4 sm:grid-cols-2">
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">Query prompts by source</p>
       <div id="chart-continuity-prompts" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
       </div>
     </div>
 
-    <div class="shell-card p-6">
+    <div class="shell-card p-4">
       <p class="eyebrow mb-4">Continuity gates by outcome</p>
       <div id="chart-continuity-gates" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>

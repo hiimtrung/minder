@@ -13,10 +13,10 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
     <div class="space-y-3">
       <p class="eyebrow">Client Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+      <h1 class="text-2xl font-semibold tracking-tight text-stone-950">
         Manage MCP clients.
       </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+      <p class="max-w-6xl text-md leading-8 text-stone-700">
         Create clients, issue keys, and route into a dedicated client detail
         screen without losing the dashboard shell. Each registry card opens a
         focused detail path with lifecycle controls, onboarding snippets, and
@@ -112,6 +112,31 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
         </div>
         <a href="/dashboard" class="action-pill">Dashboard home</a>
+        <div
+          class="flex w-full flex-wrap items-center gap-3 border-t border-stone-200 pt-4"
+        >
+          <input
+            id="client-quick-search"
+            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
+            placeholder="Semantic quick search clients"
+          />
+          <span id="client-pagination-status" class="text-xs text-stone-500"
+          ></span>
+          <button
+            id="client-page-prev"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Prev
+          </button>
+          <button
+            id="client-page-next"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Next
+          </button>
+        </div>
       </section>
 
       <div id="client-registry" class="grid gap-4 md:grid-cols-2">

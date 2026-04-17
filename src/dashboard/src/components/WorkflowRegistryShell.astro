@@ -97,6 +97,31 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
         </div>
         <a href="/dashboard" class="action-pill">Dashboard home</a>
+        <div
+          class="flex w-full flex-wrap items-center gap-3 border-t border-stone-200 pt-4"
+        >
+          <input
+            id="workflow-quick-search"
+            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
+            placeholder="Semantic quick search workflows"
+          />
+          <span id="workflow-pagination-status" class="text-xs text-stone-500"
+          ></span>
+          <button
+            id="workflow-page-prev"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Prev
+          </button>
+          <button
+            id="workflow-page-next"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Next
+          </button>
+        </div>
       </section>
 
       <div id="workflow-registry" class="grid gap-4 md:grid-cols-2">

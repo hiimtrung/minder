@@ -206,25 +206,45 @@ class PromptRegistry:
 
     @staticmethod
     def _prompt_manager(app: FastMCP) -> Any:
-        return getattr(app, "_prompt_manager")
+        return getattr(app, "_prompt_manager", None)
+
+    @staticmethod
+    def _prompt_mapping(app: FastMCP) -> dict[str, Any]:
+        manager = PromptRegistry._prompt_manager(app)
+        if manager is not None and hasattr(manager, "_prompts"):
+            return manager._prompts
+
+        prompts = getattr(app, "_prompts", None)
+        if isinstance(prompts, dict):
+            return prompts
+
+        raise AttributeError("Prompt registry storage is not available on app")
 
     @staticmethod
     def _upsert_prompt(app: FastMCP, prompt: Prompt) -> None:
         manager = PromptRegistry._prompt_manager(app)
-        existing = manager._prompts.get(prompt.name)
+        prompt_mapping = PromptRegistry._prompt_mapping(app)
+        existing = prompt_mapping.get(prompt.name)
         if existing is None:
-            app.add_prompt(prompt)
+            if hasattr(app, "add_prompt"):
+                app.add_prompt(prompt)
+            else:
+                prompt_mapping[prompt.name] = prompt.fn
             return
-        existing.title = prompt.title
-        existing.description = prompt.description
-        existing.arguments = prompt.arguments
-        existing.fn = prompt.fn
-        existing.context_kwarg = prompt.context_kwarg
+        if manager is not None and hasattr(existing, "title"):
+            existing.title = prompt.title
+            existing.description = prompt.description
+            existing.arguments = prompt.arguments
+            existing.fn = prompt.fn
+            existing.context_kwarg = prompt.context_kwarg
+            return
+
+        prompt_mapping[prompt.name] = prompt.fn
 
     @staticmethod
     def _remove_prompt(app: FastMCP, name: str) -> None:
-        manager = PromptRegistry._prompt_manager(app)
-        manager._prompts.pop(name, None)
+        prompt_mapping = PromptRegistry._prompt_mapping(app)
+        prompt_mapping.pop(name, None)
 
     @staticmethod
     def _optional_arguments(name: str) -> list[PromptArgument]:

@@ -3,9 +3,17 @@ import {
   deleteWorkflow,
   getWorkflowDetail,
   listWorkflows,
+  searchAdminCatalog,
   updateWorkflow,
+  type WorkflowPayload,
   type WorkflowStepPayload,
 } from "../lib/api/admin";
+import {
+  createDebouncedHandler,
+  paginateItems,
+  setPagerStatus,
+  updatePagerButtons,
+} from "./catalog-controls";
 
 // ---------------------------------------------------------------------------
 // Shared element refs
@@ -22,7 +30,11 @@ const showToast = (
   toast.className =
     "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
   if (tone === "success") {
-    toast.classList.add("border-emerald-200", "bg-emerald-50/95", "text-emerald-900");
+    toast.classList.add(
+      "border-emerald-200",
+      "bg-emerald-50/95",
+      "text-emerald-900",
+    );
   } else if (tone === "danger") {
     toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
   } else {
@@ -97,19 +109,22 @@ const renderStepList = (
     )
     .join("");
 
-  container.querySelectorAll<HTMLButtonElement>("[data-remove-step]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = parseInt(btn.dataset.removeStep ?? "-1", 10);
-      if (idx >= 0) onRemove(idx);
+  container
+    .querySelectorAll<HTMLButtonElement>("[data-remove-step]")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.removeStep ?? "-1", 10);
+        if (idx >= 0) onRemove(idx);
+      });
     });
-  });
 };
 
 const promptAddStep = (onConfirm: (step: WorkflowStepPayload) => void) => {
   const name = window.prompt("Step name (e.g. write_test):", "")?.trim() ?? "";
   if (!name) return;
   const description = window.prompt("Step description:", "")?.trim() ?? "";
-  const gate = window.prompt("Gate condition (leave blank for none):", "")?.trim() || null;
+  const gate =
+    window.prompt("Gate condition (leave blank for none):", "")?.trim() || null;
   onConfirm({ name, description, gate });
 };
 
@@ -122,6 +137,20 @@ const createWorkflowForm = document.querySelector("#create-workflow-form");
 const createStatusEl = document.querySelector("#create-workflow-status");
 const stepsListEl = document.querySelector("#workflow-steps-list");
 const addStepButton = document.querySelector("#add-step-button");
+const quickSearchEl = document.querySelector(
+  "#workflow-quick-search",
+) as HTMLInputElement | null;
+const paginationStatusEl = document.querySelector(
+  "#workflow-pagination-status",
+);
+const pagePrevButton = document.querySelector("#workflow-page-prev");
+const pageNextButton = document.querySelector("#workflow-page-next");
+
+const PAGE_SIZE = 6;
+let allWorkflows: WorkflowPayload[] = [];
+let visibleWorkflows: WorkflowPayload[] = [];
+let currentQuery = "";
+let currentPage = 1;
 
 const setCreateStatus = (
   message: string,
@@ -149,14 +178,26 @@ addStepButton?.addEventListener("click", () => {
   });
 });
 
-const renderWorkflows = async () => {
+const renderWorkflows = () => {
   if (!workflowRegistry) return;
-  try {
-    const payload = await listWorkflows();
-    workflowRegistry.innerHTML = payload.workflows.length
-      ? payload.workflows
-          .map(
-            (w) => `
+  const slice = paginateItems(visibleWorkflows, currentPage, PAGE_SIZE);
+  currentPage = slice.page;
+  setPagerStatus(paginationStatusEl, {
+    slice,
+    label: "workflows",
+    query: currentQuery,
+  });
+  updatePagerButtons(
+    pagePrevButton,
+    pageNextButton,
+    slice.page,
+    slice.pageCount,
+  );
+
+  workflowRegistry.innerHTML = visibleWorkflows.length
+    ? slice.items
+        .map(
+          (w) => `
           <a href="/dashboard/workflows/${encodeURIComponent(w.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
             <p class="eyebrow">${escapeHtml(w.enforcement)}</p>
             <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${escapeHtml(w.name)}</h2>
@@ -164,29 +205,59 @@ const renderWorkflows = async () => {
             <p class="mt-5 text-sm text-stone-500">${w.steps.length} step${w.steps.length !== 1 ? "s" : ""}</p>
           </a>
         `,
-          )
-          .join("")
-      : `<article class="shell-card p-6 text-sm text-stone-600">No workflows yet. Create the first one from this page.</article>`;
+        )
+        .join("")
+    : `<article class="shell-card p-6 text-sm text-stone-600">${currentQuery ? `No workflows matched \"${escapeHtml(currentQuery)}\".` : "No workflows yet. Create the first one from this page."}</article>`;
+};
+
+const syncVisibleWorkflows = async () => {
+  if (!currentQuery) {
+    visibleWorkflows = allWorkflows;
+    renderWorkflows();
+    return;
+  }
+  const result = await searchAdminCatalog<WorkflowPayload>(
+    "workflows",
+    currentQuery,
+    200,
+    0,
+  );
+  visibleWorkflows = result.items;
+  renderWorkflows();
+};
+
+const refreshWorkflows = async () => {
+  if (!workflowRegistry) return;
+  workflowRegistry.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading workflows...</article>`;
+  try {
+    const payload = await listWorkflows();
+    allWorkflows = payload.workflows;
+    await syncVisibleWorkflows();
   } catch (error) {
-    if (workflowRegistry) {
-      workflowRegistry.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${
-        error instanceof Error ? error.message : "Unable to load workflows."
-      }</article>`;
-    }
+    workflowRegistry.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${
+      error instanceof Error ? error.message : "Unable to load workflows."
+    }</article>`;
   }
 };
 
 createWorkflowForm?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const name =
-    (document.querySelector("#workflow-name") as HTMLInputElement | null)
-      ?.value.trim() ?? "";
+    (
+      document.querySelector("#workflow-name") as HTMLInputElement | null
+    )?.value.trim() ?? "";
   const description =
-    (document.querySelector("#workflow-description") as HTMLTextAreaElement | null)
-      ?.value.trim() ?? "";
+    (
+      document.querySelector(
+        "#workflow-description",
+      ) as HTMLTextAreaElement | null
+    )?.value.trim() ?? "";
   const enforcement =
-    (document.querySelector("#workflow-enforcement") as HTMLSelectElement | null)
-      ?.value ?? "strict";
+    (
+      document.querySelector(
+        "#workflow-enforcement",
+      ) as HTMLSelectElement | null
+    )?.value ?? "strict";
 
   if (!name) {
     setCreateStatus("Name is required.", "danger");
@@ -205,17 +276,42 @@ createWorkflowForm?.addEventListener("submit", async (event) => {
     showToast(`Created workflow ${result.workflow.name}.`, "success");
     createSteps = [];
     refreshCreateStepList();
-    (document.querySelector("#workflow-name") as HTMLInputElement | null &&
-      ((document.querySelector("#workflow-name") as HTMLInputElement).value = ""));
-    (document.querySelector("#workflow-description") as HTMLTextAreaElement | null &&
-      ((document.querySelector("#workflow-description") as HTMLTextAreaElement).value = ""));
-    await renderWorkflows();
+    (document.querySelector("#workflow-name") as HTMLInputElement | null) &&
+      ((document.querySelector("#workflow-name") as HTMLInputElement).value =
+        "");
+    (document.querySelector(
+      "#workflow-description",
+    ) as HTMLTextAreaElement | null) &&
+      ((
+        document.querySelector("#workflow-description") as HTMLTextAreaElement
+      ).value = "");
+    await refreshWorkflows();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to create workflow.";
+    const message =
+      error instanceof Error ? error.message : "Unable to create workflow.";
     setCreateStatus(message, "danger");
     showToast(message, "danger");
   }
 });
+
+pagePrevButton?.addEventListener("click", () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderWorkflows();
+});
+
+pageNextButton?.addEventListener("click", () => {
+  currentPage += 1;
+  renderWorkflows();
+});
+
+quickSearchEl?.addEventListener(
+  "input",
+  createDebouncedHandler(async () => {
+    currentQuery = quickSearchEl.value.trim();
+    currentPage = 1;
+    await syncVisibleWorkflows();
+  }),
+);
 
 // ---------------------------------------------------------------------------
 // Detail page — workflow editor
@@ -223,7 +319,9 @@ createWorkflowForm?.addEventListener("submit", async (event) => {
 
 const detailTitleEl = document.querySelector("#workflow-detail-title");
 const editWorkflowForm = document.querySelector("#edit-workflow-form");
-const editWorkflowName = document.querySelector("#edit-workflow-name") as HTMLInputElement | null;
+const editWorkflowName = document.querySelector(
+  "#edit-workflow-name",
+) as HTMLInputElement | null;
 const editWorkflowDesc = document.querySelector(
   "#edit-workflow-description",
 ) as HTMLTextAreaElement | null;
@@ -284,7 +382,8 @@ saveStepsButton?.addEventListener("click", async () => {
     setStepsStatus("Steps saved.", "success");
     showToast("Steps saved.", "success");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to save steps.";
+    const message =
+      error instanceof Error ? error.message : "Unable to save steps.";
     setStepsStatus(message, "danger");
     showToast(message, "danger");
   }
@@ -298,7 +397,8 @@ const renderDetail = async () => {
     detailTitleEl.textContent = workflow.name;
     if (editWorkflowName) editWorkflowName.value = workflow.name;
     if (editWorkflowDesc) editWorkflowDesc.value = workflow.description;
-    if (editWorkflowEnforcement) editWorkflowEnforcement.value = workflow.enforcement;
+    if (editWorkflowEnforcement)
+      editWorkflowEnforcement.value = workflow.enforcement;
     detailSteps = workflow.steps.map((s) => ({ ...s }));
     refreshDetailStepList();
   } catch (error) {
@@ -336,7 +436,8 @@ editWorkflowForm?.addEventListener("submit", async (event) => {
     setEditStatus("Changes saved.", "success");
     showToast(`Saved ${result.workflow.name}.`, "success");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to save changes.";
+    const message =
+      error instanceof Error ? error.message : "Unable to save changes.";
     setEditStatus(message, "danger");
     showToast(message, "danger");
   }
@@ -354,7 +455,8 @@ deleteWorkflowButton?.addEventListener("click", async () => {
     showToast("Workflow deleted.", "success");
     window.location.href = "/dashboard/workflows";
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to delete workflow.";
+    const message =
+      error instanceof Error ? error.message : "Unable to delete workflow.";
     if (deleteStatusEl) deleteStatusEl.textContent = message;
     showToast(message, "danger");
   }
@@ -364,5 +466,5 @@ deleteWorkflowButton?.addEventListener("click", async () => {
 // Boot
 // ---------------------------------------------------------------------------
 
-void renderWorkflows();
+void refreshWorkflows();
 void renderDetail();

@@ -1,38 +1,38 @@
 {
-  "task": "dashboard skill CRUD ingest impact tab overflow astro typescript",
+  "task": "astro custom dropdown popover repository picker quick search",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T11:17:11.168255+07:00",
+  "resolved_at": "2026-04-17T13:08:40.486474+07:00",
   "keep": [],
   "add": [
-    "javascript-typescript-typescript-scaffold",
-    "ui-styling",
-    "typescript-advanced-types"
+    "react-native-skills",
+    "hig-components-menus",
+    "web-scraper"
   ],
   "drop": [
-    "ai-ml",
-    "observability-monitoring-monitor-setup",
-    "backend-development-feature-development"
+    "sred-project-organizer",
+    "conductor-status",
+    "hierarchical-agent-memory"
   ],
   "skills": [
     {
-      "name": "javascript-typescript-typescript-scaffold",
-      "category": "backend",
+      "name": "react-native-skills",
+      "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 2,
+      "chunk_count": 7,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "ui-styling",
+      "name": "hig-components-menus",
       "category": "frontend",
-      "score": 0.015873017,
+      "score": 0.016129032,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "typescript-advanced-types",
-      "category": "frontend",
-      "score": 0.015625,
+      "name": "web-scraper",
+      "category": "backend",
+      "score": 0.015384615,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

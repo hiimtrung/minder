@@ -18,7 +18,8 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </h1>
       <p class="max-w-3xl text-lg leading-8 text-stone-700">
         Capture reusable workflow knowledge with step tags, artifact tags,
-        provenance, and quality signals so the runtime can recall better context.
+        provenance, and quality signals so the runtime can recall better
+        context.
       </p>
     </div>
   </section>
@@ -32,7 +33,11 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             Skill draft
           </h2>
         </div>
-        <button id="skill-reset-button" type="button" class="action-pill text-xs">
+        <button
+          id="skill-reset-button"
+          type="button"
+          class="action-pill text-xs"
+        >
           New draft
         </button>
       </div>
@@ -133,8 +138,35 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
               entries from the recall catalog.
             </p>
           </div>
-          <button id="skill-refresh-button" type="button" class="action-pill text-xs">
+          <button
+            id="skill-refresh-button"
+            type="button"
+            class="action-pill text-xs"
+          >
             Refresh list
+          </button>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <input
+            id="skill-quick-search"
+            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
+            placeholder="Semantic quick search skills"
+          />
+          <span id="skill-pagination-status" class="text-xs text-stone-500"
+          ></span>
+          <button
+            id="skill-page-prev"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Prev
+          </button>
+          <button
+            id="skill-page-next"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Next
           </button>
         </div>
       </section>
@@ -146,7 +178,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </article>
         </div>
 
-        <aside class="shell-card p-6">
+        <aside class="shell-card p-4">
           <p class="eyebrow">Ingest Guide</p>
           <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
             What makes a good skill
@@ -158,8 +190,8 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             </p>
             <p>
               Use workflow steps to guide recall ranking, artifact types to bind
-              the skill to expected outputs, and provenance to show where it came
-              from.
+              the skill to expected outputs, and provenance to show where it
+              came from.
             </p>
             <p>
               Quality score is a soft confidence signal. Higher values push the

@@ -3,12 +3,21 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 from typing import Any
+from collections.abc import Awaitable
 
 from minder.continuity import build_continuity_brief, build_instruction_envelope
 from minder.graph.state import GraphState
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 
 logger = logging.getLogger(__name__)
+
+
+def _explicit_attribute(value: Any, name: str) -> Any | None:
+    if value is None:
+        return None
+    if hasattr(value, "__dict__") and name in value.__dict__:
+        return value.__dict__[name]
+    return getattr(value, name, None)
 
 
 class WorkflowPlannerNode:
@@ -32,6 +41,12 @@ class WorkflowPlannerNode:
     ) -> None:
         self._store = store
         self._graph_store = graph_store
+
+    async def _load_session(self, session_id: Any) -> Any:
+        result = self._store.get_session_by_id(session_id)
+        if isinstance(result, Awaitable):
+            return await result
+        return result
 
     async def run(self, state: GraphState) -> GraphState:
         workflow = None
@@ -75,13 +90,11 @@ class WorkflowPlannerNode:
         instruction_envelope: dict[str, Any] | None = None
         continuity_brief: dict[str, Any] | None = None
         session = None
+        workflow_state_session_id = _explicit_attribute(workflow_state, "session_id")
         if state.session_id is not None:
-            session = await self._store.get_session_by_id(state.session_id)
-        elif (
-            workflow_state is not None
-            and getattr(workflow_state, "session_id", None) is not None
-        ):
-            session = await self._store.get_session_by_id(workflow_state.session_id)
+            session = await self._load_session(state.session_id)
+        elif workflow_state_session_id is not None:
+            session = await self._load_session(workflow_state_session_id)
 
         if workflow is not None and workflow_state is not None:
             instruction_envelope = build_instruction_envelope(

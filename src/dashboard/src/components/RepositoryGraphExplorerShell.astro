@@ -1,5 +1,11 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+
+interface Props {
+  repoId?: string;
+}
+
+const { repoId = "" } = Astro.props;
 ---
 
 <DashboardLayout
@@ -10,6 +16,21 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
+  <div id="repo-detail-context" data-repo-id={repoId} class="hidden"></div>
+  <section class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div class="space-y-2">
+      <p class="eyebrow">Repository Detail</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-stone-950">
+        Explore a single repository.
+      </h1>
+      <p class="max-w-3xl text-sm leading-7 text-stone-600">
+        Use the detail route for graph inspection, cross-repo impact, branch
+        state, and repository settings.
+      </p>
+    </div>
+    <a href="/dashboard/repositories" class="action-pill">All repositories</a>
+  </section>
+
   <!-- ── Single-column layout — sidebar removed; repo picker lives in the command bar ── -->
   <div id="main-layout-grid" class="grid gap-6">
     <div class="min-w-0 space-y-5">
@@ -27,21 +48,65 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           <div class="flex min-w-0 flex-1 items-center gap-2.5">
             <p class="eyebrow shrink-0">Repo</p>
             <div class="relative min-w-0 flex-1 max-w-md">
-              <select
-                id="repo-quick-switch"
-                class="peer w-full appearance-none rounded-full border border-stone-300 bg-white pl-4 pr-10 py-2 text-sm font-medium text-stone-900 shadow-sm transition focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20 disabled:bg-stone-50 disabled:text-stone-400"
+              <button
+                id="repo-picker-trigger"
+                type="button"
+                class="flex w-full items-center justify-between gap-3 rounded-full border border-stone-300 bg-white px-4 py-1 text-left shadow-sm transition hover:border-amber-700 focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20"
+                aria-haspopup="dialog"
+                aria-expanded="false"
               >
-                <option value="">Select a repository…</option>
-              </select>
-              <svg
-                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 peer-focus:text-amber-700"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                ><path
-                  fill-rule="evenodd"
-                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
-                  clip-rule="evenodd"></path></svg
+                <span class="min-w-0 flex-1">
+                  <span
+                    id="repo-picker-label"
+                    class="mt-1 block truncate text-sm font-medium text-stone-900"
+                  >
+                    Select a repository…
+                  </span>
+                </span>
+                <svg
+                  class="h-4 w-4 shrink-0 text-stone-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"></path>
+                </svg>
+              </button>
+              <div
+                id="repo-picker-popover"
+                class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 hidden overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_22px_60px_rgba(28,25,23,0.16)]"
               >
+                <label
+                  for="repo-quick-search"
+                  class="flex items-center gap-2 border-b border-stone-200/80 px-4 py-3"
+                >
+                  <svg
+                    class="h-4 w-4 shrink-0 text-stone-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8.5 3a5.5 5.5 0 014.378 8.83l3.146 3.146a.75.75 0 11-1.06 1.06l-3.146-3.145A5.5 5.5 0 118.5 3zm-4 5.5a4 4 0 108 0 4 4 0 00-8 0z"
+                      clip-rule="evenodd"></path>
+                  </svg>
+                  <input
+                    id="repo-quick-search"
+                    class="w-full bg-transparent text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none"
+                    placeholder="Search repositories semantically"
+                  />
+                </label>
+                <div
+                  id="repo-picker-results"
+                  class="max-h-80 overflow-y-auto p-2"
+                >
+                  <p class="rounded-2xl px-3 py-2 text-sm text-stone-400">
+                    Loading repositories...
+                  </p>
+                </div>
+              </div>
             </div>
 
             <!-- Branch selector — hidden until a repo with tracked branches is loaded -->
@@ -91,27 +156,24 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             </button>
           </div>
         </div>
-
-        <!-- Row 2 — active repo summary line -->
-        <div
-          class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 border-b border-stone-200/70"
-        >
-          <h2
-            id="repo-summary-title"
-            class="text-base font-semibold tracking-tight text-stone-950 truncate"
-          >
-            Select a repository
-          </h2>
-          <p id="repo-summary-meta" class="text-xs text-stone-500 truncate">
-            No repository selected.
-          </p>
-        </div>
-
         <!-- Row 3 — tabs -->
         <nav
           class="flex flex-wrap items-center gap-1 px-3 py-2"
           id="repo-tab-nav"
         >
+          <div
+            class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5"
+          >
+            <h2
+              id="repo-summary-title"
+              class="text-base font-semibold tracking-tight text-stone-950 truncate"
+            >
+              Select a repository
+            </h2>
+            <p id="repo-summary-meta" class="text-xs text-stone-500 truncate">
+              No repository selected.
+            </p>
+          </div>
           <button data-tab-btn="overview" class="tab-btn tab-btn-active"
             >Overview</button
           >
@@ -124,7 +186,6 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 
       <!-- Hidden legacy hooks — preserved so existing scripts can still write status text without crashing -->
       <span id="repositories-status" class="sr-only"></span>
-      <span id="repositories-list" class="sr-only"></span>
 
       <!-- ══════════════════════════════════════════
            TAB: GRAPH
@@ -472,9 +533,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
         </header>
 
-        <div class="grid gap-5 2xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div class="grid gap-2 xl:grid-cols-[460px_minmax(0,1fr)]">
           <div class="space-y-5">
-            <div class="shell-card p-6">
+            <div class="shell-card p-4">
               <p class="eyebrow">Query</p>
               <h3
                 class="mt-2 text-base font-semibold tracking-tight text-stone-950"
@@ -487,7 +548,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
                   class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-amber-700 focus:outline-none"
                   placeholder="Search for route path, file, symbol, or text"
                 />
-                <div class="grid gap-3">
+                <div class="grid grid-cols-2 gap-2">
                   <input
                     id="graph-search-types"
                     class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm"
@@ -498,12 +559,12 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
                     class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm"
                     placeholder="Languages"
                   />
-                  <input
-                    id="graph-search-states"
-                    class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm"
-                    placeholder="States (modified, clean…)"
-                  />
                 </div>
+                <input
+                  id="graph-search-states"
+                  class="rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm"
+                  placeholder="States (modified, clean…)"
+                />
                 <div class="flex items-center justify-between gap-3">
                   <p
                     id="graph-search-status"
@@ -515,7 +576,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
               </form>
             </div>
 
-            <div class="shell-card p-6">
+            <div class="shell-card p-4">
               <p class="eyebrow">Search Scope</p>
               <h3
                 class="mt-2 text-lg font-semibold tracking-tight text-stone-950"
@@ -686,9 +747,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
         </header>
 
-        <div class="grid gap-5 2xl:grid-cols-[360px_minmax(0,1fr)]">
+        <div class="grid gap-2 xl:grid-cols-[460px_minmax(0,1fr)]">
           <div class="space-y-5">
-            <div class="shell-card p-6">
+            <div class="shell-card p-4">
               <p class="eyebrow">Scan</p>
               <h3
                 class="mt-2 text-base font-semibold tracking-tight text-stone-950"
@@ -701,7 +762,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
                   class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm focus:border-amber-700 focus:outline-none"
                   placeholder="Target symbol or route path"
                 />
-                <div class="grid gap-3">
+                <div class="grid grid-cols-2 gap-3">
                   <label class="grid gap-1.5 text-xs text-stone-500">
                     Depth (1–6)
                     <input
@@ -734,14 +795,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
                   <button type="submit" class="primary-pill">Analyze</button>
                 </div>
               </form>
-              <div
-                id="graph-impact-summary"
-                class="mt-5 grid gap-3 sm:grid-cols-2"
-              >
-              </div>
             </div>
 
-            <div class="shell-card p-6">
+            <div class="shell-card p-4">
               <p class="eyebrow">Impact Scope</p>
               <h3
                 class="mt-2 text-lg font-semibold tracking-tight text-stone-950"
@@ -915,7 +971,9 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 
         <div class="shell-card p-7">
           <p class="eyebrow">Core Metadata</p>
-          <h3 class="mt-2 text-base font-semibold tracking-tight text-stone-950">
+          <h3
+            class="mt-2 text-base font-semibold tracking-tight text-stone-950"
+          >
             Edit or delete this repository
           </h3>
           <p class="mt-1.5 text-sm leading-6 text-stone-600">

@@ -17,7 +17,9 @@ from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperation
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
+from .memories import build_memories_routes
 from .prompts import build_prompts_routes
+from .search import build_search_routes
 from .skills import build_skills_routes
 
 
@@ -74,6 +76,8 @@ def build_http_routes(
         *build_admin_api_routes(context),
         *build_prompts_routes(context),
         *build_skills_routes(context),
+        *build_memories_routes(context),
+        *build_search_routes(context),
         *build_dashboard_routes(context),
     ]
 

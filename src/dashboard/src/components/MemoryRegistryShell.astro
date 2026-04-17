@@ -1,0 +1,167 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="Memories · Minder"
+  description="Manage continuity memories stored in the Minder runtime."
+  navTitle="Minder Dashboard"
+  navDescription="Capture, refine, and retrieve reusable continuity memory entries without leaving the admin dashboard."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
+    <div class="space-y-3">
+      <p class="eyebrow">Memory Registry</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Manage continuity memories.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        Curate reusable memory entries that can be recalled semantically during
+        runtime continuity and review loops.
+      </p>
+    </div>
+  </section>
+
+  <section class="grid gap-8 xl:grid-cols-[420px_minmax(0,1fr)]">
+    <aside class="shell-card p-7">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="eyebrow">Editor</p>
+          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+            Memory draft
+          </h2>
+        </div>
+        <button
+          id="memory-reset-button"
+          type="button"
+          class="action-pill text-xs"
+        >
+          New draft
+        </button>
+      </div>
+
+      <form id="memory-form" class="mt-6 grid gap-4">
+        <input id="memory-id" type="hidden" />
+        <label class="grid gap-2 text-sm text-stone-700">
+          Title
+          <input
+            id="memory-title"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="Retry strategy for flaky branch sync"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Language
+          <input
+            id="memory-language"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="markdown"
+            value="markdown"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Tags
+          <input
+            id="memory-tags"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="continuity, retry, branch-sync"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Memory content
+          <textarea
+            id="memory-content"
+            class="min-h-[280px] rounded-3xl border border-stone-300 bg-white px-4 py-4 text-sm leading-6"
+            placeholder="Describe the memory entry, when to recall it, and what decision it should influence."
+          ></textarea>
+          <span class="text-xs text-stone-500">
+            Memories share the continuity store and are available to semantic
+            recall.
+          </span>
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="primary-pill flex-1 min-w-[180px]">
+            Save memory
+          </button>
+        </div>
+        <p id="memory-editor-status" class="min-h-6 text-sm text-stone-600"></p>
+      </form>
+    </aside>
+
+    <div class="grid gap-6">
+      <section class="shell-card px-6 py-5">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-medium text-stone-900">Registry</p>
+            <p class="mt-1 text-sm text-stone-600">
+              Use semantic quick search to locate the right memory, then load it
+              into the editor to refine or remove it.
+            </p>
+          </div>
+          <button
+            id="memory-refresh-button"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Refresh list
+          </button>
+        </div>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+          <input
+            id="memory-quick-search"
+            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
+            placeholder="Semantic quick search memories"
+          />
+          <span id="memory-pagination-status" class="text-xs text-stone-500"
+          ></span>
+          <button
+            id="memory-page-prev"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Prev
+          </button>
+          <button
+            id="memory-page-next"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Next
+          </button>
+        </div>
+      </section>
+
+      <section class="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="memory-registry" class="grid gap-4">
+          <article class="shell-card p-6 text-sm text-stone-600">
+            Loading memories...
+          </article>
+        </div>
+
+        <aside class="shell-card p-4">
+          <p class="eyebrow">Recall Guide</p>
+          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+            What makes a useful memory
+          </h2>
+          <div class="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
+            <p>
+              Keep each memory focused on a single operational lesson, decision,
+              or runtime behavior that should be recalled later.
+            </p>
+            <p>
+              Tags improve browseability, while semantic search helps operators
+              recover related memories even when wording changes.
+            </p>
+            <p>
+              Prefer concise, action-oriented content over long narrative notes.
+            </p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </section>
+
+  <script src="../scripts/memories-page.ts"></script>
+</DashboardLayout>

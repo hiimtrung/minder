@@ -435,6 +435,23 @@ export type PromptPolishPayload = {
   };
 };
 
+export type AdminCatalogResource =
+  | "clients"
+  | "repositories"
+  | "skills"
+  | "memories"
+  | "prompts"
+  | "workflows";
+
+export type AdminCatalogSearchResult<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  resource: AdminCatalogResource;
+  query: string;
+};
+
 export async function listPrompts(): Promise<PromptPayload[]> {
   return requestJson<PromptPayload[]>("/api/v1/prompts");
 }
@@ -490,6 +507,16 @@ export type SkillPayload = {
   updated_at: string | null;
 };
 
+export type MemoryPayload = {
+  id: string;
+  title: string;
+  content: string;
+  language: string;
+  tags: string[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
 export async function listSkills(): Promise<SkillPayload[]> {
   return requestJson<SkillPayload[]>("/api/v1/skills");
 }
@@ -534,6 +561,60 @@ export async function deleteSkill(skillId: string): Promise<void> {
     method: "DELETE",
     body: JSON.stringify({}),
   });
+}
+
+export async function listMemories(): Promise<MemoryPayload[]> {
+  return requestJson<MemoryPayload[]>("/api/v1/memories");
+}
+
+export async function createMemory(payload: {
+  title: string;
+  content: string;
+  language?: string;
+  tags?: string[];
+}): Promise<MemoryPayload> {
+  return requestJson<MemoryPayload>("/api/v1/memories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMemory(
+  memoryId: string,
+  payload: {
+    title?: string;
+    content?: string;
+    language?: string;
+    tags?: string[];
+  },
+): Promise<MemoryPayload> {
+  return requestJson<MemoryPayload>(`/api/v1/memories/${memoryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMemory(memoryId: string): Promise<void> {
+  await requestJson(`/api/v1/memories/${memoryId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function searchAdminCatalog<T>(
+  resource: AdminCatalogResource,
+  query: string,
+  limit = 100,
+  offset = 0,
+): Promise<AdminCatalogSearchResult<T>> {
+  const params = new URLSearchParams({
+    query,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return requestJson<AdminCatalogSearchResult<T>>(
+    `/v1/admin/search/${resource}?${params.toString()}`,
+  );
 }
 
 export async function polishPromptDraft(payload: {

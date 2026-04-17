@@ -1,40 +1,40 @@
 {
-  "updated_at": "2026-04-17T11:17:13.088902+07:00",
+  "updated_at": "2026-04-17T13:08:41.011885+07:00",
   "skills": {
-    "task": "dashboard skill CRUD ingest impact tab overflow astro typescript",
+    "task": "astro custom dropdown popover repository picker quick search",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-17T11:17:11.168255+07:00",
+    "resolved_at": "2026-04-17T13:08:40.486474+07:00",
     "keep": [],
     "add": [
-      "javascript-typescript-typescript-scaffold",
-      "ui-styling",
-      "typescript-advanced-types"
+      "react-native-skills",
+      "hig-components-menus",
+      "web-scraper"
     ],
     "drop": [
-      "ai-ml",
-      "observability-monitoring-monitor-setup",
-      "backend-development-feature-development"
+      "sred-project-organizer",
+      "conductor-status",
+      "hierarchical-agent-memory"
     ],
     "skills": [
       {
-        "name": "javascript-typescript-typescript-scaffold",
-        "category": "backend",
+        "name": "react-native-skills",
+        "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 2,
+        "chunk_count": 7,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "ui-styling",
+        "name": "hig-components-menus",
         "category": "frontend",
-        "score": 0.015873017,
+        "score": 0.016129032,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "typescript-advanced-types",
-        "category": "frontend",
-        "score": 0.015625,
+        "name": "web-scraper",
+        "category": "backend",
+        "score": 0.015384615,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
@@ -42,98 +42,99 @@
   },
   "memory": {
     "mode": "search",
-    "query": "dashboard skill CRUD ingest impact tab overflow",
+    "query": "repository picker dropdown quick search popover",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-17T11:17:13.088155+07:00",
+    "searched_at": "2026-04-17T13:08:41.011065+07:00",
     "results": [
       {
-        "id": "990b6e92-a9a9-49a0-ace9-609c5a2e0c93",
-        "title": "Dashboard home landing page with system status + usage",
+        "id": "75faaede-eb67-4335-90d7-7ba6e8d457b6",
+        "title": "SingleCombobox selected text and reopen bug fix",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:dashboard-home-landing-page-with-system-status-usage",
+        "canonical_key": "document:singlecombobox-selected-text-and-reopen-bug-fix",
         "score": 0.086393446,
         "tags": [
-          "minder",
-          "dashboard",
-          "frontend",
-          "astro",
-          "observability",
-          "metrics"
+          "planTourUI",
+          "raw-combobox",
+          "single-combobox",
+          "bugfix",
+          "popover"
         ],
         "conflict_detected": false,
-        "content": "Built /dashboard/ landing page (previously redirected to /dashboard/clients). Now renders: (1) API health strip via new getServiceHealth() helper pinging /health; (2) inventory KPI cards for Clients/Repositories/Workflows/Users (counted from list endpoints); (3) usage metrics from /v1/admin/metrics-summary — active sessions, tool calls (+success%), HTTP requests (+error% for \u003e=400), auth events (+top type); (4) recent activity — last 8 audit events via listAudit. Manual refresh + optional 30s auto-refresh. Client-side auth gate in src/scripts/dashboard-home.ts calls getDashboardBootstrapState + getAdminSession; unauthenticated → /dashboard/login, no admin users → /dashboard/setup. Old dashboard-entry.ts deleted. Added getServiceHealth() and HealthStatus type in src/dashboard/src/lib/api/admin.ts."
+        "content": "Fixed the new raw SingleCombobox so the selected item text is visible again when the search input is empty, and clicking the combobox reliably reopens the popup. The fix swaps the combobox wrapper from PopoverTrigger to PopoverAnchor to avoid trigger-toggle conflicts, clears single-mode search input on selection, and overlays the selected label in the input area when idle."
       },
       {
-        "id": "26e6bb58-6d6a-4f99-a89f-4adce7b9b54a",
-        "title": "Repository-first dashboard entry and unified header",
+        "id": "383eb6aa-ed08-447f-95ad-140e4cb2067d",
+        "title": "Raw combobox input refocus after open/select",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:repository-first-dashboard-entry-and-unified-header",
+        "canonical_key": "document:raw-combobox-input-refocus-after-open-select",
         "score": 0.086129025,
         "tags": [
-          "minder",
-          "dashboard",
-          "navigation",
-          "ui",
-          "docs"
+          "planTourUI",
+          "frontend",
+          "raw-combobox",
+          "focus",
+          "popover",
+          "bugfix"
         ],
         "conflict_detected": false,
-        "content": "Made /dashboard and post-login browser flow land on /dashboard/repositories instead of /dashboard/clients. Updated src/minder/presentation/http/admin/dashboard.py, src/dashboard/src/scripts/dashboard-entry.ts, and src/dashboard/src/scripts/login-page.ts to keep server-side and client-side redirects aligned. Refactored src/dashboard/src/layouts/DashboardLayout.astro with showPageIntro so pages with their own hero sections do not render a duplicate title block, and enabled that mode across the registry/detail/dashboard shells. Updated transition trackers to mark the delivered transition phases DONE and moved remaining enhancements into backlog language. Validation: bun run check, uv run pytest tests/integration/test_setup_dashboard_gate.py tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy src/minder/presentation/http/admin/dashboard.py."
+        "content": "Fixed src/shared/components/ui/raw-combobox.tsx so popover open no longer steals focus from the search input. Added inputRef + focusInput helper, prevented Radix popover auto-focus in RawCombobox content, focused input when clicking the trigger wrapper, and refocused after onValueChange/onValuesChange so users can keep searching after selecting an item."
       },
       {
-        "id": "c28fd6db-e6b8-4c17-a797-3af5ba7dc517",
-        "title": "Astro clients detail route split",
+        "id": "396c8962-ea6b-46fb-8f55-0b420827ba34",
+        "title": "Single combobox open trigger selected text",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:astro-clients-detail-route-split",
+        "canonical_key": "document:single-combobox-open-trigger-selected-text",
         "score": 0.08587302,
         "tags": [
-          "minder",
-          "dashboard",
-          "astro",
+          "planTourUI",
           "frontend",
-          "routing"
+          "raw-combobox",
+          "single-combobox",
+          "trigger",
+          "bugfix"
         ],
         "conflict_detected": false,
-        "content": "Split the dashboard clients screen into /dashboard/clients and /dashboard/clients/detail using dedicated Astro shells. Kept the project static-build safe by passing clientId via query param instead of a dynamic file route, and updated the shared clients-page.ts script to read query param first while preserving legacy path parsing."
+        "content": "Adjusted src/shared/components/ui/raw-combobox.tsx so a selected single-combobox item remains visible in the trigger while the popup is open. The trigger now shows the selected label through the input placeholder when open and keeps the absolute overlay only when closed, avoiding hidden text while preserving empty search behavior."
       },
       {
-        "id": "09b5f075-5007-43a2-87e4-9732df63d73c",
-        "title": "Components docs page uses left content and sticky right menu",
+        "id": "5b569e5f-ba10-41d1-a6e7-e8e4aea18c2c",
+        "title": "CitySelect remote search hidden by client filter",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:components-docs-page-uses-left-content-and-sticky-right-menu",
+        "canonical_key": "document:cityselect-remote-search-hidden-by-client-filter",
+        "score": 0.08562499,
+        "tags": [
+          "findtourgo",
+          "cityselect",
+          "react-select",
+          "remote-search",
+          "bugfix"
+        ],
+        "conflict_detected": false,
+        "content": "In TourOverviewForm CitySelect, react-select was still applying its own client-side filtering while options were already server-filtered. Searching 'saigon' returned API items whose labels did not literally contain the typed term, so the open menu stayed empty until closing/reopening reset the input. Fix: set filterOption={() =\u003e true} for the remote-search select and keep option mapping memoized."
+      },
+      {
+        "id": "2127cf10-a074-45eb-abcb-fba26eba830c",
+        "title": "Combobox supports virtualization and async debounce search",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:combobox-supports-virtualization-and-async-debounce-search",
         "score": 0.08538462,
         "tags": [
           "planTourUI",
-          "docs-layout",
-          "right-menu",
-          "sticky-sidebar",
-          "components-page"
+          "combobox",
+          "virtualized",
+          "async-search",
+          "debounce",
+          "react-window"
         ],
         "conflict_detected": false,
-        "content": "Updated src/app/components/page.tsx into a documentation-style layout with main content on the left and a sticky 'On this page' navigation menu on the right. The right menu tracks active sections via IntersectionObserver, and the main content currently wraps the Combobox demo and API notes as a reusable docs-page pattern."
-      },
-      {
-        "id": "2b9d30d6-3104-44ad-a66f-d5e1b9e5717c",
-        "title": "D3.js Graph Explorer Refactor",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:d3-js-graph-explorer-refactor",
-        "score": 0.08515151,
-        "tags": [
-          "minder",
-          "dashboard",
-          "d3",
-          "graph",
-          "frontend",
-          "refactor"
-        ],
-        "conflict_detected": false,
-        "content": "Replaced static Canvas graph on minder/src/dashboard with D3.js v7 force-directed renderer. Pattern: D3GraphRenderer class (extends d3.SimulationNodeDatum/SimulationLinkDatum), forceManyBody+forceLink+forceCollide+forceCenter, d3.zoom for pan/zoom, SVG glow filter for selected nodes, drag-to-pin. Tab nav: Graph|Overview|Search|Impact|Settings. Dark canvas (radial-gradient dark navy). Legend overlay, tooltip, zoom controls overlay. Three renderer instances: repoRenderer (eager), searchRenderer/impactRenderer (lazy on first use). bun add d3 @types/d3. CSS classes (tab-btn, tab-btn-active, graph-ctrl-btn) in global.css — NOT Astro scoped style (Tailwind v4 @apply breaks in scoped blocks). Build: astro build passes."
+        "content": "Enhanced src/shared/components/ui/combobox.tsx with virtualized dropdown rendering using react-window and async search mode via onSearch + debounceMs. Local filtering still works by default; async mode disables local filtering and debounces remote queries. Added test-page demos for a 200-item virtualized list and a simulated async API search in src/app/(test)/test/page.tsx."
       }
     ]
   }

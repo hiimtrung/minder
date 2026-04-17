@@ -2,26 +2,60 @@ import {
   createSkill,
   deleteSkill,
   listSkills,
+  searchAdminCatalog,
   updateSkill,
   type SkillPayload,
 } from "../lib/api/admin";
+import {
+  createDebouncedHandler,
+  paginateItems,
+  setPagerStatus,
+  updatePagerButtons,
+} from "./catalog-controls";
 
 const registryEl = document.querySelector("#skill-registry");
 const formEl = document.querySelector("#skill-form") as HTMLFormElement | null;
-const skillIdEl = document.querySelector("#skill-id") as HTMLInputElement | null;
-const titleEl = document.querySelector("#skill-title") as HTMLInputElement | null;
-const contentEl = document.querySelector("#skill-content") as HTMLTextAreaElement | null;
-const languageEl = document.querySelector("#skill-language") as HTMLInputElement | null;
+const skillIdEl = document.querySelector(
+  "#skill-id",
+) as HTMLInputElement | null;
+const titleEl = document.querySelector(
+  "#skill-title",
+) as HTMLInputElement | null;
+const contentEl = document.querySelector(
+  "#skill-content",
+) as HTMLTextAreaElement | null;
+const languageEl = document.querySelector(
+  "#skill-language",
+) as HTMLInputElement | null;
 const tagsEl = document.querySelector("#skill-tags") as HTMLInputElement | null;
-const workflowStepsEl = document.querySelector("#skill-workflow-steps") as HTMLInputElement | null;
-const artifactTypesEl = document.querySelector("#skill-artifact-types") as HTMLInputElement | null;
-const provenanceEl = document.querySelector("#skill-provenance") as HTMLInputElement | null;
-const qualityScoreEl = document.querySelector("#skill-quality-score") as HTMLInputElement | null;
+const workflowStepsEl = document.querySelector(
+  "#skill-workflow-steps",
+) as HTMLInputElement | null;
+const artifactTypesEl = document.querySelector(
+  "#skill-artifact-types",
+) as HTMLInputElement | null;
+const provenanceEl = document.querySelector(
+  "#skill-provenance",
+) as HTMLInputElement | null;
+const qualityScoreEl = document.querySelector(
+  "#skill-quality-score",
+) as HTMLInputElement | null;
+const quickSearchEl = document.querySelector(
+  "#skill-quick-search",
+) as HTMLInputElement | null;
+const paginationStatusEl = document.querySelector("#skill-pagination-status");
+const pagePrevButton = document.querySelector("#skill-page-prev");
+const pageNextButton = document.querySelector("#skill-page-next");
 const statusEl = document.querySelector("#skill-editor-status");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-let skills: SkillPayload[] = [];
+const PAGE_SIZE = 6;
+
+let allSkills: SkillPayload[] = [];
+let visibleSkills: SkillPayload[] = [];
 let selectedSkillId: string | null = null;
+let currentQuery = "";
+let currentPage = 1;
 
 const escapeHtml = (value: string): string =>
   value
@@ -109,16 +143,30 @@ const fillForm = (skill?: SkillPayload) => {
 
 const renderRegistry = () => {
   if (!(registryEl instanceof HTMLElement)) return;
-  if (!skills.length) {
+  const slice = paginateItems(visibleSkills, currentPage, PAGE_SIZE);
+  currentPage = slice.page;
+  setPagerStatus(paginationStatusEl, {
+    slice,
+    label: "skills",
+    query: currentQuery,
+  });
+  updatePagerButtons(
+    pagePrevButton,
+    pageNextButton,
+    slice.page,
+    slice.pageCount,
+  );
+
+  if (!visibleSkills.length) {
     registryEl.innerHTML = `
       <article class="shell-card p-6 text-sm text-stone-600">
-        No skills yet. Ingest the first skill from the editor.
+        ${currentQuery ? `No skills matched \"${escapeHtml(currentQuery)}\".` : "No skills yet. Ingest the first skill from the editor."}
       </article>
     `;
     return;
   }
 
-  registryEl.innerHTML = skills
+  registryEl.innerHTML = slice.items
     .map((skill) => {
       const activeClass =
         skill.id === selectedSkillId
@@ -165,7 +213,9 @@ const renderRegistry = () => {
     .querySelectorAll<HTMLButtonElement>("[data-skill-select]")
     .forEach((button) => {
       button.addEventListener("click", () => {
-        const skill = skills.find((item) => item.id === button.dataset.skillSelect);
+        const skill = allSkills.find(
+          (item) => item.id === button.dataset.skillSelect,
+        );
         if (!skill) return;
         fillForm(skill);
         renderRegistry();
@@ -177,14 +227,13 @@ const renderRegistry = () => {
     .forEach((button) => {
       button.addEventListener("click", async () => {
         const skillId = button.dataset.skillDelete;
-        const skill = skills.find((item) => item.id === skillId);
+        const skill = allSkills.find((item) => item.id === skillId);
         if (!skillId || !skill) return;
         if (!window.confirm(`Delete skill ${skill.title}?`)) return;
         try {
           await deleteSkill(skillId);
-          skills = skills.filter((item) => item.id !== skillId);
           if (selectedSkillId === skillId) fillForm();
-          renderRegistry();
+          await refreshSkills();
           showToast(`Deleted ${skill.title}.`, "success");
         } catch (error) {
           showToast(
@@ -196,17 +245,33 @@ const renderRegistry = () => {
     });
 };
 
+const syncVisibleSkills = async () => {
+  if (!currentQuery) {
+    visibleSkills = allSkills;
+    renderRegistry();
+    return;
+  }
+  const result = await searchAdminCatalog<SkillPayload>(
+    "skills",
+    currentQuery,
+    200,
+    0,
+  );
+  visibleSkills = result.items;
+  renderRegistry();
+};
+
 const refreshSkills = async () => {
   if (registryEl instanceof HTMLElement) {
     registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading skills...</article>`;
   }
   try {
-    skills = await listSkills();
+    allSkills = await listSkills();
     if (selectedSkillId) {
-      const selected = skills.find((item) => item.id === selectedSkillId);
+      const selected = allSkills.find((item) => item.id === selectedSkillId);
       if (selected) fillForm(selected);
     }
-    renderRegistry();
+    await syncVisibleSkills();
   } catch (error) {
     if (registryEl instanceof HTMLElement) {
       registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${escapeHtml(error instanceof Error ? error.message : "Unable to load skills.")}</article>`;
@@ -214,14 +279,35 @@ const refreshSkills = async () => {
   }
 };
 
-document.querySelector("#skill-refresh-button")?.addEventListener("click", () => {
-  void refreshSkills();
-});
+document
+  .querySelector("#skill-refresh-button")
+  ?.addEventListener("click", () => {
+    void refreshSkills();
+  });
 
 document.querySelector("#skill-reset-button")?.addEventListener("click", () => {
   fillForm();
   renderRegistry();
 });
+
+pagePrevButton?.addEventListener("click", () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderRegistry();
+});
+
+pageNextButton?.addEventListener("click", () => {
+  currentPage += 1;
+  renderRegistry();
+});
+
+quickSearchEl?.addEventListener(
+  "input",
+  createDebouncedHandler(async () => {
+    currentQuery = quickSearchEl.value.trim();
+    currentPage = 1;
+    await syncVisibleSkills();
+  }),
+);
 
 formEl?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -243,10 +329,14 @@ formEl?.addEventListener("submit", async (event) => {
       : await createSkill(draft);
     fillForm(saved);
     await refreshSkills();
-    showToast(`${isUpdate ? "Saved" : "Ingested"} skill ${saved.title}.`, "success");
+    showToast(
+      `${isUpdate ? "Saved" : "Ingested"} skill ${saved.title}.`,
+      "success",
+    );
     setStatus("Skill saved.", "success");
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to save skill.";
+    const message =
+      error instanceof Error ? error.message : "Unable to save skill.";
     setStatus(message, "danger");
     showToast(message, "danger");
   }

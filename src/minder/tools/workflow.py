@@ -4,6 +4,10 @@ import uuid
 from typing import Any
 
 from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.observability.metrics import (
+    record_continuity_gate,
+    record_continuity_packet,
+)
 from minder.store.interfaces import IOperationalStore
 from minder.store.repo_state import RepoStateStore
 
@@ -152,6 +156,8 @@ class WorkflowTools:
             if allowed
             else f"Requested step '{requested_step}' is not allowed from '{state.current_step}'"
         )
+        record_continuity_gate("passed" if allowed else "blocked")
+        record_continuity_packet("workflow_guard")
         return {
             "allowed": allowed,
             "reason": reason,

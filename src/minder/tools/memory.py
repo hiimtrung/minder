@@ -8,6 +8,7 @@ from minder.continuity import compatibility_score_for_memory
 from minder.continuity import ContinuitySynthesizer
 from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
+from minder.observability.metrics import record_continuity_recall
 from minder.store.interfaces import IOperationalStore
 
 
@@ -105,6 +106,10 @@ class MemoryTools:
             item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
             item["synthesis"] = synthesis_meta
+            record_continuity_recall(
+                provider=str(synthesis_meta.get("provider", "unknown")),
+                step_compatibility=float(item["step_compatibility"]),
+            )
         return limited
 
     async def minder_memory_list(self) -> list[dict[str, Any]]:

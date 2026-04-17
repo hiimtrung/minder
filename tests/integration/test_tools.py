@@ -7,12 +7,14 @@ import pytest
 
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.observability.metrics import get_metrics_summary
 from minder.store.relational import RelationalStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
 from minder.tools.memory import MemoryTools
 from minder.tools.search import SearchTools
 from minder.tools.session import SessionTools
+from minder.tools.skills import SkillTools
 from minder.tools.workflow import WorkflowTools
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
@@ -142,6 +144,7 @@ async def test_phase1_tool_modules_round_trip(
     session_tools = SessionTools(store)
     workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
+    skill_tools = SkillTools(store, config)
     search_tools = SearchTools(store, config)
 
     created_user, api_key = await auth_service.register_user(
@@ -230,11 +233,52 @@ async def test_phase1_tool_modules_round_trip(
     listed = await memory_tools.minder_memory_list()
     assert listed
 
+    stored_skill = await skill_tools.minder_skill_store(
+        title="Testing workflow skill",
+        content="Capture failing tests and only then move into implementation.",
+        language="markdown",
+        tags=["tdd"],
+        workflow_steps=["Test Writing"],
+        artifact_types=["test_plan"],
+        provenance="phase_4_4",
+        quality_score=0.9,
+    )
+    assert stored_skill["provenance"] == "phase_4_4"
+
+    recalled_skills = await skill_tools.minder_skill_recall(
+        "write failing tests",
+        current_step="Test Writing",
+        artifact_type="test_plan",
+    )
+    assert recalled_skills
+    assert recalled_skills[0]["title"] == "Testing workflow skill"
+    assert recalled_skills[0]["step_compatibility"] > 0
+
+    updated_skill = await skill_tools.minder_skill_update(
+        stored_skill["id"],
+        quality_score=1.0,
+        tags=["tdd", "regression"],
+        workflow_steps=["Test Writing"],
+        artifact_types=["test_plan"],
+        provenance="phase_4_4",
+    )
+    assert updated_skill["quality_score"] == 1.0
+
+    listed_skills = await skill_tools.minder_skill_list(current_step="Test Writing")
+    assert any(item["id"] == stored_skill["id"] for item in listed_skills)
+
     search_result = await search_tools.minder_search("implementation")
     assert search_result
 
+    metrics_summary = await get_metrics_summary(store=store)
+    assert metrics_summary["continuity_quality"]["packets_emitted_total"] >= 2
+    assert metrics_summary["continuity_quality"]["recalls_total"] >= 1
+    assert metrics_summary["continuity_quality"]["average_step_compatibility"] > 0
+
     deleted = await memory_tools.minder_memory_delete(memory_entry["id"])
     assert deleted["deleted"] is True
+    deleted_skill = await skill_tools.minder_skill_delete(stored_skill["id"])
+    assert deleted_skill["deleted"] is True
 
     repo_state = await repo_state_store.read_all(str(repo_path))
     assert repo_state["workflow"]["current_step"] == "Implementation"

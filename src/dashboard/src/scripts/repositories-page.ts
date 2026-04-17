@@ -1797,6 +1797,38 @@ function renderImpactInsights(
   );
 }
 
+function humanizeMetricLabel(value: string): string {
+  return value
+    .replaceAll(/_/g, " ")
+    .replaceAll(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function renderMetricValue(value: number | Record<string, number>): string {
+  if (typeof value === "number") {
+    return `<p class="mt-2 text-2xl font-semibold text-stone-950">${escapeHtml(String(value))}</p>`;
+  }
+
+  const entries = Object.entries(value);
+  if (!entries.length) {
+    return '<p class="mt-2 text-sm text-stone-400">No breakdown</p>';
+  }
+
+  return `
+    <div class="mt-3 grid gap-2">
+      ${entries
+        .map(
+          ([key, count]) => `
+            <div class="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white bg-white px-3 py-2">
+              <span class="min-w-0 break-words text-sm font-medium text-stone-700">${escapeHtml(humanizeMetricLabel(key))}</span>
+              <span class="shrink-0 rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">${escapeHtml(String(count))}</span>
+            </div>
+          `,
+        )
+        .join("")}
+    </div>
+  `;
+}
+
 function resetPanels(msg: string): void {
   setText(getEl("repo-summary-title"), "Select a repository");
   setText(getEl("repo-summary-meta"), msg);
@@ -2144,9 +2176,9 @@ async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
       summaryEl.innerHTML = Object.entries(res.summary)
         .map(
           ([k, v]) => `
-          <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">${escapeHtml(k)}</p>
-            <p class="mt-1.5 text-xl font-semibold text-stone-950">${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</p>
+          <article class="min-w-0 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 break-words">${escapeHtml(humanizeMetricLabel(k))}</p>
+            ${renderMetricValue(v)}
           </article>
         `,
         )

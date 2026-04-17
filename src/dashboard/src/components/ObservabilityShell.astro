@@ -99,6 +99,60 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     </div>
   </section>
 
+  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="shell-card p-6">
+      <p class="eyebrow">Continuity packets</p>
+      <p
+        id="stat-continuity-packets"
+        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-continuity-packets-sub" class="mt-1 text-sm text-stone-500">
+        Session, guard, and query packets
+      </p>
+    </div>
+
+    <div class="shell-card p-6">
+      <p class="eyebrow">Continuity recalls</p>
+      <p
+        id="stat-continuity-recalls"
+        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-continuity-recalls-sub" class="mt-1 text-sm text-stone-500">
+        Memory + skill synthesis activity
+      </p>
+    </div>
+
+    <div class="shell-card p-6">
+      <p class="eyebrow">Step compatibility</p>
+      <p
+        id="stat-step-compatibility"
+        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-step-compatibility-sub" class="mt-1 text-sm text-stone-500">
+        Average recall alignment
+      </p>
+    </div>
+
+    <div class="shell-card p-6">
+      <p class="eyebrow">Correction retries</p>
+      <p
+        id="stat-correction-retries"
+        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
+      >
+        —
+      </p>
+      <p id="stat-correction-retries-sub" class="mt-1 text-sm text-stone-500">
+        Workflow contract retries
+      </p>
+    </div>
+  </section>
+
   <!-- Metric breakdown charts -->
   <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
     <!-- Tool calls by outcome -->
@@ -129,6 +183,22 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
     <div class="shell-card p-6">
       <p class="eyebrow mb-4">Admin ops by outcome</p>
       <div id="chart-admin-ops" class="flex justify-center">
+        <p class="text-sm text-stone-400 py-4">Loading...</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="mb-8 grid gap-4 sm:grid-cols-2">
+    <div class="shell-card p-6">
+      <p class="eyebrow mb-4">Query prompts by source</p>
+      <div id="chart-continuity-prompts" class="flex justify-center">
+        <p class="text-sm text-stone-400 py-4">Loading...</p>
+      </div>
+    </div>
+
+    <div class="shell-card p-6">
+      <p class="eyebrow mb-4">Continuity gates by outcome</p>
+      <div id="chart-continuity-gates" class="flex justify-center">
         <p class="text-sm text-stone-400 py-4">Loading...</p>
       </div>
     </div>

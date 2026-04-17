@@ -115,7 +115,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
         </div>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <a
           href="/dashboard/clients"
           class="shell-card group flex items-center justify-between p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
@@ -183,6 +183,33 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
               —
             </p>
             <p class="mt-0.5 text-xs text-stone-500">Enforcement pipelines</p>
+          </div>
+          <span
+            class="text-stone-300 transition group-hover:text-amber-700"
+            aria-hidden="true"
+          >
+            <svg viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6"
+              ><path
+                fill-rule="evenodd"
+                d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+                clip-rule="evenodd"></path></svg
+            >
+          </span>
+        </a>
+
+        <a
+          href="/dashboard/skills"
+          class="shell-card group flex items-center justify-between p-5 transition hover:-translate-y-0.5 hover:shadow-lg"
+        >
+          <div>
+            <p class="eyebrow">Skills</p>
+            <p
+              id="home-count-skills"
+              class="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-stone-950"
+            >
+              —
+            </p>
+            <p class="mt-0.5 text-xs text-stone-500">Reusable recall skills</p>
           </div>
           <span
             class="text-stone-300 transition group-hover:text-amber-700"

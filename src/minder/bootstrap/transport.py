@@ -26,6 +26,7 @@ from minder.tools.query import QueryTools
 from minder.tools.registry import TOOL_DESCRIPTIONS
 from minder.tools.search import SearchTools
 from minder.tools.session import SessionTools
+from minder.tools.skills import SkillTools
 from minder.tools.workflow import WorkflowTools
 from minder.transport import SSETransport, StdioTransport
 
@@ -45,6 +46,7 @@ def build_transport(
     session_tools = SessionTools(store)
     workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
+    skill_tools = SkillTools(store, config)
     search_tools = SearchTools(store, config)
     graph_tools = GraphTools(graph_store, store)
     query_tools = QueryTools(
@@ -360,6 +362,94 @@ def build_transport(
         del user
         return await memory_tools.minder_memory_delete(skill_id)
 
+    async def minder_skill_store(
+        *,
+        user=None,
+        title: str,
+        content: str,
+        language: str,
+        tags: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        provenance: str | None = None,
+        quality_score: float = 0.0,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_store(
+            title=title,
+            content=content,
+            language=language,
+            tags=tags,
+            workflow_steps=workflow_steps,
+            artifact_types=artifact_types,
+            provenance=provenance,
+            quality_score=quality_score,
+        )
+
+    async def minder_skill_recall(
+        *,
+        user=None,
+        query: str,
+        limit: int = 5,
+        current_step: str | None = None,
+        artifact_type: str | None = None,
+        min_quality_score: float = 0.0,
+    ) -> list[dict[str, Any]]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_recall(
+            query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+            min_quality_score=min_quality_score,
+        )
+
+    async def minder_skill_list(
+        *,
+        user=None,
+        current_step: str | None = None,
+        tag: str | None = None,
+        min_quality_score: float = 0.0,
+    ) -> list[dict[str, Any]]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_list(
+            current_step=current_step,
+            tag=tag,
+            min_quality_score=min_quality_score,
+        )
+
+    async def minder_skill_update(
+        *,
+        user=None,
+        skill_id: str,
+        title: str | None = None,
+        content: str | None = None,
+        language: str | None = None,
+        tags: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        provenance: str | None = None,
+        quality_score: float | None = None,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_update(
+            skill_id,
+            title=title,
+            content=content,
+            language=language,
+            tags=tags,
+            workflow_steps=workflow_steps,
+            artifact_types=artifact_types,
+            provenance=provenance,
+            quality_score=quality_score,
+        )
+
+    async def minder_skill_delete(
+        *, user=None, skill_id: str
+    ) -> dict[str, bool]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_delete(skill_id)
+
     async def minder_search(
         *, user=None, query: str, limit: int = 5
     ) -> list[dict[str, Any]]:  # noqa: ANN001
@@ -582,6 +672,36 @@ def build_transport(
         minder_memory_delete,
         require_auth=True,
         description=TOOL_DESCRIPTIONS["minder_memory_delete"],
+    )
+    transport.register_tool(
+        "minder_skill_store",
+        minder_skill_store,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_store"],
+    )
+    transport.register_tool(
+        "minder_skill_recall",
+        minder_skill_recall,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_recall"],
+    )
+    transport.register_tool(
+        "minder_skill_list",
+        minder_skill_list,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_list"],
+    )
+    transport.register_tool(
+        "minder_skill_update",
+        minder_skill_update,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_update"],
+    )
+    transport.register_tool(
+        "minder_skill_delete",
+        minder_skill_delete,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_delete"],
     )
     transport.register_tool(
         "minder_search",

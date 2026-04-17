@@ -4,6 +4,7 @@ Tool Registry — single source of truth for tool names, descriptions, and scope
 Import TOOL_DESCRIPTIONS in bootstrap/transport.py to register tools.
 Import SCOPEABLE_TOOLS in admin use-cases to populate the tool-scope picker.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,6 +38,26 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_memory_delete",
         description="Delete a stored memory entry by its ID.",
+    ),
+    ToolMeta(
+        name="minder_skill_store",
+        description="Store a reusable workflow-aware skill with step, artifact, provenance, and quality metadata.",
+    ),
+    ToolMeta(
+        name="minder_skill_recall",
+        description="Retrieve reusable skills ranked by workflow-step compatibility, semantic similarity, and quality score.",
+    ),
+    ToolMeta(
+        name="minder_skill_list",
+        description="List stored skills with optional workflow-step, tag, and quality filters.",
+    ),
+    ToolMeta(
+        name="minder_skill_update",
+        description="Update skill content, metadata, and quality signals for an existing stored skill.",
+    ),
+    ToolMeta(
+        name="minder_skill_delete",
+        description="Delete a stored skill by its ID.",
     ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(

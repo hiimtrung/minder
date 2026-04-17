@@ -475,6 +475,67 @@ export async function deletePrompt(promptId: string): Promise<void> {
   });
 }
 
+export type SkillPayload = {
+  id: string;
+  title: string;
+  content: string;
+  language: string;
+  tags: string[];
+  quality_score: number;
+  usage_count: number;
+  workflow_step_tags: string[];
+  artifact_type_tags: string[];
+  provenance: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export async function listSkills(): Promise<SkillPayload[]> {
+  return requestJson<SkillPayload[]>("/api/v1/skills");
+}
+
+export async function createSkill(payload: {
+  title: string;
+  content: string;
+  language: string;
+  tags?: string[];
+  workflow_steps?: string[];
+  artifact_types?: string[];
+  provenance?: string | null;
+  quality_score?: number;
+}): Promise<SkillPayload> {
+  return requestJson<SkillPayload>("/api/v1/skills", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateSkill(
+  skillId: string,
+  payload: {
+    title?: string;
+    content?: string;
+    language?: string;
+    tags?: string[];
+    workflow_steps?: string[];
+    artifact_types?: string[];
+    provenance?: string | null;
+    quality_score?: number;
+  },
+): Promise<SkillPayload> {
+  return requestJson<SkillPayload>(`/api/v1/skills/${skillId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteSkill(skillId: string): Promise<void> {
+  await requestJson(`/api/v1/skills/${skillId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function polishPromptDraft(payload: {
   name: string;
   title?: string;
@@ -949,6 +1010,17 @@ export type MetricsSummaryPayload = {
   auth_events: { total: number; by_type: Record<string, number> };
   http_requests: { total: number; by_status: Record<string, number> };
   admin_operations: { total: number; by_outcome: Record<string, number> };
+  continuity_quality: {
+    packets_emitted_total: number;
+    packets_by_source: Record<string, number>;
+    recalls_total: number;
+    recalls_by_provider: Record<string, number>;
+    average_step_compatibility: number;
+    average_skill_quality: number;
+    query_prompts_by_source: Record<string, number>;
+    correction_retries_total: number;
+    gates_by_outcome: Record<string, number>;
+  };
 };
 
 export async function getMetricsSummary(

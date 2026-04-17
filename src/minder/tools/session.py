@@ -33,6 +33,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.observability.metrics import record_continuity_packet
 from minder.store.interfaces import IOperationalStore
 
 
@@ -229,6 +230,7 @@ class SessionTools:
             "project_context": session.project_context,
         }
         if continuity_packet is not None:
+            record_continuity_packet("session_restore")
             payload["continuity_packet"] = continuity_packet
         return payload
 

@@ -18,6 +18,7 @@ from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
 from .prompts import build_prompts_routes
+from .skills import build_skills_routes
 
 
 DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
@@ -72,6 +73,7 @@ def build_http_routes(
         Route("/metrics", metrics_endpoint, methods=["GET"]),
         *build_admin_api_routes(context),
         *build_prompts_routes(context),
+        *build_skills_routes(context),
         *build_dashboard_routes(context),
     ]
 

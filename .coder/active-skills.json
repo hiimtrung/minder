@@ -1,39 +1,39 @@
 {
-  "task": "phase 4.4 observability skill tool continuity gate python",
+  "task": "dashboard skill CRUD ingest impact tab overflow astro typescript",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T11:03:19.302359+07:00",
+  "resolved_at": "2026-04-17T11:17:11.168255+07:00",
   "keep": [],
   "add": [
+    "javascript-typescript-typescript-scaffold",
+    "ui-styling",
+    "typescript-advanced-types"
+  ],
+  "drop": [
     "ai-ml",
     "observability-monitoring-monitor-setup",
     "backend-development-feature-development"
   ],
-  "drop": [
-    "skill-creator",
-    "api-security-testing",
-    "llm-app-patterns"
-  ],
   "skills": [
     {
-      "name": "ai-ml",
-      "category": "workflow-bundle",
+      "name": "javascript-typescript-typescript-scaffold",
+      "category": "backend",
       "score": 0.016393442,
       "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "observability-monitoring-monitor-setup",
-      "category": "general",
-      "score": 0.016129032,
-      "chunk_count": 3,
+      "name": "ui-styling",
+      "category": "frontend",
+      "score": 0.015873017,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "backend-development-feature-development",
-      "category": "general",
-      "score": 0.015873017,
-      "chunk_count": 2,
+      "name": "typescript-advanced-types",
+      "category": "frontend",
+      "score": 0.015625,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

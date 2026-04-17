@@ -16,11 +16,39 @@ const statAuthEvents = document.querySelector("#stat-auth-events");
 const statAuthEventsSub = document.querySelector("#stat-auth-events-sub");
 const statHttpRequests = document.querySelector("#stat-http-requests");
 const statHttpSub = document.querySelector("#stat-http-sub");
+const statContinuityPackets = document.querySelector(
+  "#stat-continuity-packets",
+);
+const statContinuityPacketsSub = document.querySelector(
+  "#stat-continuity-packets-sub",
+);
+const statContinuityRecalls = document.querySelector(
+  "#stat-continuity-recalls",
+);
+const statContinuityRecallsSub = document.querySelector(
+  "#stat-continuity-recalls-sub",
+);
+const statStepCompatibility = document.querySelector(
+  "#stat-step-compatibility",
+);
+const statStepCompatibilitySub = document.querySelector(
+  "#stat-step-compatibility-sub",
+);
+const statCorrectionRetries = document.querySelector(
+  "#stat-correction-retries",
+);
+const statCorrectionRetriesSub = document.querySelector(
+  "#stat-correction-retries-sub",
+);
 
 const chartToolOutcomes = document.querySelector("#chart-tool-outcomes");
 const chartAuthTypes = document.querySelector("#chart-auth-types");
 const chartHttpStatus = document.querySelector("#chart-http-status");
 const chartAdminOps = document.querySelector("#chart-admin-ops");
+const chartContinuityPrompts = document.querySelector(
+  "#chart-continuity-prompts",
+);
+const chartContinuityGates = document.querySelector("#chart-continuity-gates");
 
 const auditLogBody = document.querySelector("#audit-log-body");
 const auditActorFilter = document.querySelector(
@@ -78,6 +106,9 @@ const escapeHtml = (value: string): string =>
 
 const fmt = (n: number): string =>
   Number.isFinite(n) ? Math.round(n).toLocaleString() : "0";
+
+const fmtDecimal = (n: number): string =>
+  Number.isFinite(n) ? n.toFixed(2) : "0.00";
 
 const relativeTime = (iso: string | null): string => {
   if (!iso) return "—";
@@ -172,9 +203,7 @@ function renderDonut(
     .join("");
 
   const totalLabel =
-    total >= 1000
-      ? (total / 1000).toFixed(1) + "k"
-      : String(Math.round(total));
+    total >= 1000 ? (total / 1000).toFixed(1) + "k" : String(Math.round(total));
 
   container.innerHTML = `
     <div class="flex flex-col items-center gap-3 w-full">
@@ -227,10 +256,67 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
         : "No errors";
   }
 
+  if (statContinuityPackets) {
+    statContinuityPackets.textContent = fmt(
+      data.continuity_quality.packets_emitted_total,
+    );
+  }
+  if (statContinuityPacketsSub) {
+    const sources = Object.keys(
+      data.continuity_quality.packets_by_source,
+    ).length;
+    statContinuityPacketsSub.textContent =
+      sources > 0
+        ? `${fmt(sources)} packet source${sources !== 1 ? "s" : ""}`
+        : "No packets yet";
+  }
+
+  if (statContinuityRecalls) {
+    statContinuityRecalls.textContent = fmt(
+      data.continuity_quality.recalls_total,
+    );
+  }
+  if (statContinuityRecallsSub) {
+    const providers = Object.keys(
+      data.continuity_quality.recalls_by_provider,
+    ).length;
+    statContinuityRecallsSub.textContent =
+      providers > 0
+        ? `${fmt(providers)} synthesis provider${providers !== 1 ? "s" : ""}`
+        : "No recalls yet";
+  }
+
+  if (statStepCompatibility) {
+    statStepCompatibility.textContent = fmtDecimal(
+      data.continuity_quality.average_step_compatibility,
+    );
+  }
+  if (statStepCompatibilitySub) {
+    statStepCompatibilitySub.textContent = `Avg skill quality ${fmtDecimal(data.continuity_quality.average_skill_quality)}`;
+  }
+
+  if (statCorrectionRetries) {
+    statCorrectionRetries.textContent = fmt(
+      data.continuity_quality.correction_retries_total,
+    );
+  }
+  if (statCorrectionRetriesSub) {
+    const blocked = data.continuity_quality.gates_by_outcome["blocked"] ?? 0;
+    statCorrectionRetriesSub.textContent =
+      blocked > 0
+        ? `${fmt(blocked)} blocked gate${blocked !== 1 ? "s" : ""}`
+        : "No blocked gates";
+  }
+
   renderDonut(chartToolOutcomes, data.tool_calls.by_outcome);
   renderDonut(chartAuthTypes, data.auth_events.by_type);
   renderDonut(chartHttpStatus, data.http_requests.by_status);
   renderDonut(chartAdminOps, data.admin_operations.by_outcome);
+  renderDonut(
+    chartContinuityPrompts,
+    data.continuity_quality.query_prompts_by_source,
+  );
+  renderDonut(chartContinuityGates, data.continuity_quality.gates_by_outcome);
 };
 
 // ---------------------------------------------------------------------------
@@ -373,17 +459,29 @@ const loadMetrics = async (): Promise<void> => {
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Unable to load metrics.";
-    [statSessions, statToolCalls, statAuthEvents, statHttpRequests].forEach(
-      (el) => {
-        if (el) el.textContent = "—";
-      },
-    );
-    [chartToolOutcomes, chartAuthTypes, chartHttpStatus, chartAdminOps].forEach(
-      (el) => {
-        if (el)
-          el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
-      },
-    );
+    [
+      statSessions,
+      statToolCalls,
+      statAuthEvents,
+      statHttpRequests,
+      statContinuityPackets,
+      statContinuityRecalls,
+      statStepCompatibility,
+      statCorrectionRetries,
+    ].forEach((el) => {
+      if (el) el.textContent = "—";
+    });
+    [
+      chartToolOutcomes,
+      chartAuthTypes,
+      chartHttpStatus,
+      chartAdminOps,
+      chartContinuityPrompts,
+      chartContinuityGates,
+    ].forEach((el) => {
+      if (el)
+        el.innerHTML = `<p class="text-sm text-red-600">${escapeHtml(msg)}</p>`;
+    });
   }
 };
 

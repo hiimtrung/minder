@@ -421,6 +421,18 @@ class MongoOperationalStore:
         cursor = self._db.skills.find()
         return [_to_doc(doc) async for doc in cursor]
 
+    async def update_skill(
+        self, skill_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
+        if not kwargs:
+            return await self.get_skill_by_id(skill_id)
+        kwargs["updated_at"] = _now()
+        await self._db.skills.update_one(
+            {"_id": _uuid_to_str(skill_id)},
+            {"$set": kwargs},
+        )
+        return await self.get_skill_by_id(skill_id)
+
     async def delete_skill(self, skill_id: uuid.UUID) -> None:
         await self._db.skills.delete_one({"_id": _uuid_to_str(skill_id)})
 

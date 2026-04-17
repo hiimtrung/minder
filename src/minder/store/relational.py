@@ -125,7 +125,9 @@ class RelationalStore:
             res = await sess.execute(stmt)
             return list(res.scalars().all())
 
-    async def update_prompt(self, prompt_id: uuid.UUID, **kwargs: Any) -> Optional[Prompt]:
+    async def update_prompt(
+        self, prompt_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[Prompt]:
         async with self._session() as sess:
             item = await sess.get(Prompt, prompt_id)
             if not item:
@@ -188,7 +190,9 @@ class RelationalStore:
 
     async def has_admin_users(self) -> bool:
         async with self._session() as sess:
-            result = await sess.execute(select(select(User).where(User.role == "admin").exists()))
+            result = await sess.execute(
+                select(select(User).where(User.role == "admin").exists())
+            )
             return result.scalar_one_or_none() or False
 
     # ------------------------------------------------------------------
@@ -213,6 +217,17 @@ class RelationalStore:
             result = await sess.execute(select(Skill))
             return list(result.scalars().all())
 
+    async def update_skill(self, skill_id: uuid.UUID, **kwargs) -> Optional[Skill]:
+        async with self._session() as sess:
+            skill = await sess.get(Skill, skill_id)
+            if skill is None:
+                return None
+            for key, value in kwargs.items():
+                setattr(skill, key, value)
+            await sess.flush()
+            await sess.refresh(skill)
+            return skill
+
     async def delete_skill(self, skill_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(Skill).where(Skill.id == skill_id))
@@ -236,12 +251,16 @@ class RelationalStore:
 
     async def get_sessions_by_user(self, user_id: uuid.UUID) -> List[Session]:
         async with self._session() as sess:
-            result = await sess.execute(select(Session).where(Session.user_id == user_id))
+            result = await sess.execute(
+                select(Session).where(Session.user_id == user_id)
+            )
             return list(result.scalars().all())
 
     async def get_sessions_by_client(self, client_id: uuid.UUID) -> List[Session]:
         async with self._session() as sess:
-            result = await sess.execute(select(Session).where(Session.client_id == client_id))
+            result = await sess.execute(
+                select(Session).where(Session.client_id == client_id)
+            )
             return list(result.scalars().all())
 
     async def find_session_by_name(
@@ -261,7 +280,9 @@ class RelationalStore:
             result = await sess.execute(query)
             return result.scalar_one_or_none()
 
-    async def update_session(self, session_id: uuid.UUID, **kwargs) -> Optional[Session]:
+    async def update_session(
+        self, session_id: uuid.UUID, **kwargs
+    ) -> Optional[Session]:
         async with self._session() as sess:
             await sess.execute(
                 update(Session).where(Session.id == session_id).values(**kwargs)
@@ -287,7 +308,9 @@ class RelationalStore:
 
     async def get_workflow_by_id(self, workflow_id: uuid.UUID) -> Optional[Workflow]:
         async with self._session() as sess:
-            result = await sess.execute(select(Workflow).where(Workflow.id == workflow_id))
+            result = await sess.execute(
+                select(Workflow).where(Workflow.id == workflow_id)
+            )
             return result.scalar_one_or_none()
 
     async def get_workflow_by_name(self, name: str) -> Optional[Workflow]:
@@ -300,12 +323,16 @@ class RelationalStore:
             result = await sess.execute(select(Workflow))
             return list(result.scalars().all())
 
-    async def update_workflow(self, workflow_id: uuid.UUID, **kwargs) -> Optional[Workflow]:
+    async def update_workflow(
+        self, workflow_id: uuid.UUID, **kwargs
+    ) -> Optional[Workflow]:
         async with self._session() as sess:
             await sess.execute(
                 update(Workflow).where(Workflow.id == workflow_id).values(**kwargs)
             )
-            result = await sess.execute(select(Workflow).where(Workflow.id == workflow_id))
+            result = await sess.execute(
+                select(Workflow).where(Workflow.id == workflow_id)
+            )
             return result.scalar_one_or_none()
 
     async def delete_workflow(self, workflow_id: uuid.UUID) -> None:
@@ -326,7 +353,9 @@ class RelationalStore:
 
     async def get_repository_by_id(self, repo_id: uuid.UUID) -> Optional[Repository]:
         async with self._session() as sess:
-            result = await sess.execute(select(Repository).where(Repository.id == repo_id))
+            result = await sess.execute(
+                select(Repository).where(Repository.id == repo_id)
+            )
             return result.scalar_one_or_none()
 
     async def get_repository_by_name(self, repo_name: str) -> Optional[Repository]:
@@ -341,12 +370,16 @@ class RelationalStore:
             result = await sess.execute(select(Repository))
             return list(result.scalars().all())
 
-    async def update_repository(self, repo_id: uuid.UUID, **kwargs) -> Optional[Repository]:
+    async def update_repository(
+        self, repo_id: uuid.UUID, **kwargs
+    ) -> Optional[Repository]:
         async with self._session() as sess:
             await sess.execute(
                 update(Repository).where(Repository.id == repo_id).values(**kwargs)
             )
-            result = await sess.execute(select(Repository).where(Repository.id == repo_id))
+            result = await sess.execute(
+                select(Repository).where(Repository.id == repo_id)
+            )
             return result.scalar_one_or_none()
 
     async def delete_repository(self, repo_id: uuid.UUID) -> None:
@@ -382,7 +415,9 @@ class RelationalStore:
 
     async def update_client(self, client_id: uuid.UUID, **kwargs) -> Optional[Client]:
         async with self._session() as sess:
-            await sess.execute(update(Client).where(Client.id == client_id).values(**kwargs))
+            await sess.execute(
+                update(Client).where(Client.id == client_id).values(**kwargs)
+            )
             result = await sess.execute(select(Client).where(Client.id == client_id))
             return result.scalar_one_or_none()
 
@@ -401,7 +436,9 @@ class RelationalStore:
             )
             return list(result.scalars().all())
 
-    async def update_client_api_key(self, key_id: uuid.UUID, **kwargs) -> Optional[ClientApiKey]:
+    async def update_client_api_key(
+        self, key_id: uuid.UUID, **kwargs
+    ) -> Optional[ClientApiKey]:
         async with self._session() as sess:
             await sess.execute(
                 update(ClientApiKey).where(ClientApiKey.id == key_id).values(**kwargs)
@@ -422,6 +459,7 @@ class RelationalStore:
     async def count_active_client_sessions(self) -> int:
         from sqlalchemy import func as sqlfunc
         from datetime import datetime
+
         async with self._session() as sess:
             # Using naive comparison for SQLite compatibility
             now = datetime.utcnow()
@@ -432,17 +470,23 @@ class RelationalStore:
             result = await sess.execute(stmt)
             return result.scalar_one() or 0
 
-    async def get_client_session_by_token_id(self, token_id: str) -> Optional[ClientSession]:
+    async def get_client_session_by_token_id(
+        self, token_id: str
+    ) -> Optional[ClientSession]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(ClientSession).where(ClientSession.access_token_id == token_id)
             )
             return result.scalar_one_or_none()
 
-    async def update_client_session(self, session_id: uuid.UUID, **kwargs) -> Optional[ClientSession]:
+    async def update_client_session(
+        self, session_id: uuid.UUID, **kwargs
+    ) -> Optional[ClientSession]:
         async with self._session() as sess:
             await sess.execute(
-                update(ClientSession).where(ClientSession.id == session_id).values(**kwargs)
+                update(ClientSession)
+                .where(ClientSession.id == session_id)
+                .values(**kwargs)
             )
             result = await sess.execute(
                 select(ClientSession).where(ClientSession.id == session_id)
@@ -521,16 +565,19 @@ class RelationalStore:
                 col = getattr(AuditLog, group_by)
 
             stmt = select(col, sqlfunc.count()).group_by(col)
-            
+
             if actor_id is not None:
                 stmt = stmt.where(AuditLog.actor_id == actor_id)
             if event_type is not None:
                 stmt = stmt.where(AuditLog.event_type == event_type)
             if outcome is not None:
                 stmt = stmt.where(AuditLog.outcome == outcome)
-            
+
             result = await sess.execute(stmt)
-            return {str(row[0]) if row[0] is not None else "unknown": int(row[1]) for row in result.all()}
+            return {
+                str(row[0]) if row[0] is not None else "unknown": int(row[1])
+                for row in result.all()
+            }
 
     # ------------------------------------------------------------------
     # RepositoryWorkflowState
@@ -589,6 +636,7 @@ class RelationalStore:
                     RepositoryWorkflowState.id == state_id
                 )
             )
+
     # ------------------------------------------------------------------
     # Document
     # ------------------------------------------------------------------
@@ -682,7 +730,9 @@ class RelationalStore:
                     project=project,
                 )
             )
-            result = await sess.execute(select(Document).where(Document.id == existing.id))
+            result = await sess.execute(
+                select(Document).where(Document.id == existing.id)
+            )
             return result.scalar_one()
 
     async def delete_documents_not_in_paths(
@@ -889,6 +939,7 @@ class RelationalStore:
 
     async def average_rating(self, entity_id: uuid.UUID) -> Optional[float]:
         from sqlalchemy import func as sa_func
+
         async with self._session() as sess:
             result = await sess.execute(
                 select(sa_func.avg(Feedback.rating)).where(

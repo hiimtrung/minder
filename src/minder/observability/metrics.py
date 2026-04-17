@@ -3,6 +3,7 @@
 Registers all application-level counters, histograms, and gauges and
 exposes a WSGI/ASGI-compatible handler that can be mounted at `/metrics`.
 """
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, cast
@@ -35,7 +36,10 @@ REGISTRY = CollectorRegistry(auto_describe=True)
 TOOL_CALLS_TOTAL = Counter(
     "minder_tool_calls_total",
     "Total number of MCP tool invocations.",
-    ["tool_name", "outcome"],  # client_id is high-cardinality → stored in audit DB, not here
+    [
+        "tool_name",
+        "outcome",
+    ],  # client_id is high-cardinality → stored in audit DB, not here
     registry=REGISTRY,
 )
 
@@ -95,6 +99,59 @@ ADMIN_OPERATIONS_TOTAL = Counter(
 )
 
 # ---------------------------------------------------------------------------
+# Continuity quality metrics
+# ---------------------------------------------------------------------------
+
+CONTINUITY_PACKETS_TOTAL = Counter(
+    "minder_continuity_packets_total",
+    "Total continuity packets emitted by continuity-aware surfaces.",
+    ["source"],
+    registry=REGISTRY,
+)
+
+CONTINUITY_RECALLS_TOTAL = Counter(
+    "minder_continuity_recalls_total",
+    "Total continuity recall operations grouped by synthesis provider.",
+    ["provider"],
+    registry=REGISTRY,
+)
+
+CONTINUITY_STEP_COMPATIBILITY = Histogram(
+    "minder_continuity_step_compatibility",
+    "Observed workflow-step compatibility scores for continuity-aware retrieval.",
+    buckets=(0.0, 0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5),
+    registry=REGISTRY,
+)
+
+CONTINUITY_SKILL_QUALITY = Histogram(
+    "minder_continuity_skill_quality",
+    "Observed quality scores for workflow-aware skill retrieval.",
+    buckets=(0.0, 0.1, 0.25, 0.5, 0.75, 1.0),
+    registry=REGISTRY,
+)
+
+CONTINUITY_QUERY_PROMPTS_TOTAL = Counter(
+    "minder_continuity_query_prompts_total",
+    "Total query prompt renders grouped by prompt source.",
+    ["source"],
+    registry=REGISTRY,
+)
+
+CONTINUITY_CORRECTION_RETRIES_TOTAL = Counter(
+    "minder_continuity_correction_retries_total",
+    "Total corrective retries triggered by continuity/workflow contract failures.",
+    ["failure_kind"],
+    registry=REGISTRY,
+)
+
+CONTINUITY_GATES_TOTAL = Counter(
+    "minder_continuity_gates_total",
+    "Total continuity gate evaluations grouped by outcome.",
+    ["outcome"],
+    registry=REGISTRY,
+)
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
@@ -148,16 +205,44 @@ def record_http_request(
     HTTP_REQUESTS_TOTAL.labels(
         method=method, path_template=path_template, status=str(status)
     ).inc()
-    HTTP_REQUEST_DURATION.labels(
-        method=method, path_template=path_template
-    ).observe(duration_seconds)
+    HTTP_REQUEST_DURATION.labels(method=method, path_template=path_template).observe(
+        duration_seconds
+    )
+
+
+def record_continuity_packet(source: str) -> None:
+    CONTINUITY_PACKETS_TOTAL.labels(source=source or "unknown").inc()
+
+
+def record_continuity_recall(*, provider: str, step_compatibility: float) -> None:
+    CONTINUITY_RECALLS_TOTAL.labels(provider=provider or "unknown").inc()
+    CONTINUITY_STEP_COMPATIBILITY.observe(step_compatibility)
+
+
+def record_continuity_skill_recall(
+    *, step_compatibility: float, quality_score: float
+) -> None:
+    CONTINUITY_STEP_COMPATIBILITY.observe(step_compatibility)
+    CONTINUITY_SKILL_QUALITY.observe(max(quality_score, 0.0))
+
+
+def record_query_prompt_render(source: str, *, correction_retries: int = 0) -> None:
+    CONTINUITY_QUERY_PROMPTS_TOTAL.labels(source=source or "unknown").inc()
+    if correction_retries > 0:
+        CONTINUITY_CORRECTION_RETRIES_TOTAL.labels(
+            failure_kind="workflow_contract"
+        ).inc(correction_retries)
+
+
+def record_continuity_gate(outcome: str) -> None:
+    CONTINUITY_GATES_TOTAL.labels(outcome=outcome or "unknown").inc()
 
 
 async def record_admin_operation(
-    operation: str, 
-    outcome: str, 
-    actor_id: str = "unknown", 
-    store: IOperationalStore | None = None
+    operation: str,
+    outcome: str,
+    actor_id: str = "unknown",
+    store: IOperationalStore | None = None,
 ) -> None:
     """Record an admin API operation (outcome: 'success' | 'error')."""
     ADMIN_OPERATIONS_TOTAL.labels(operation=operation, outcome=outcome).inc()
@@ -171,7 +256,7 @@ async def record_admin_operation(
                 resource_type="admin_api",
                 resource_id=operation,
                 outcome=outcome,
-                audit_metadata={"operation": operation}
+                audit_metadata={"operation": operation},
             )
         except Exception:
             pass
@@ -203,14 +288,14 @@ def get_registry_snapshot() -> dict[str, Any]:
 
 
 def _counter_total(
-    counter: Counter, 
-    filter_label: str | None = None, 
-    filter_value: str | None = None
+    counter: Counter, filter_label: str | None = None, filter_value: str | None = None
 ) -> float:
     """Sum all label-value combinations of a Counter, optionally filtering."""
     total = 0.0
     label_names = counter._labelnames  # noqa: SLF001
-    filter_idx = label_names.index(filter_label) if filter_label in label_names else None
+    filter_idx = (
+        label_names.index(filter_label) if filter_label in label_names else None
+    )
 
     for label_tuple, child in counter._metrics.items():  # noqa: SLF001
         if filter_idx is not None and filter_value:
@@ -221,27 +306,45 @@ def _counter_total(
 
 
 def _counter_by_label(
-    counter: Counter, 
-    label_name: str, 
-    filter_label: str | None = None, 
-    filter_value: str | None = None
+    counter: Counter,
+    label_name: str,
+    filter_label: str | None = None,
+    filter_value: str | None = None,
 ) -> dict[str, float]:
     """Aggregate a Counter by a single label, optionally filtering."""
     label_names: tuple[str, ...] = counter._labelnames  # noqa: SLF001
     if label_name not in label_names:
         return {}
-    
+
     idx = label_names.index(label_name)
-    filter_idx = label_names.index(filter_label) if filter_label in label_names else None
-    
+    filter_idx = (
+        label_names.index(filter_label) if filter_label in label_names else None
+    )
+
     result: dict[str, float] = {}
     for label_tuple, child in counter._metrics.items():  # noqa: SLF001
         if filter_idx is not None and filter_value:
             if label_tuple[filter_idx] != filter_value:
                 continue
         key = label_tuple[idx]
-        result[key] = result.get(key, 0.0) + cast(Any, child)._value.get()  # noqa: SLF001
+        result[key] = (
+            result.get(key, 0.0) + cast(Any, child)._value.get()
+        )  # noqa: SLF001
     return result
+
+
+def _histogram_average(histogram: Histogram) -> float:
+    total = 0.0
+    count = 0.0
+    for metric in histogram.collect():
+        for sample in metric.samples:
+            if sample.name.endswith("_sum"):
+                total = float(sample.value)
+            elif sample.name.endswith("_count"):
+                count = float(sample.value)
+    if count <= 0:
+        return 0.0
+    return round(total / count, 4)
 
 
 async def get_metrics_summary(
@@ -257,15 +360,13 @@ async def get_metrics_summary(
     while falling back to Prometheus for ephemeral runtime stats (active sessions, HTTP).
     """
     import logging
+
     logger = logging.getLogger("minder.metrics")
 
     # Metrics from Store (Persistent)
     # 1. Tool Calls
     tool_by_outcome = await store.get_audit_summary(
-        actor_id=client_id, 
-        event_type="tool_call", 
-        outcome=outcome,
-        group_by="outcome"
+        actor_id=client_id, event_type="tool_call", outcome=outcome, group_by="outcome"
     )
     tool_by_client = await store.get_audit_summary(
         event_type="tool_call",
@@ -282,24 +383,28 @@ async def get_metrics_summary(
 
     # 2. Auth Events (we combine tool_calls and auth_events for a "unified" view if needed)
     auth_by_type = await store.get_audit_summary(
-        actor_id=client_id,
-        outcome=outcome,
-        group_by="event_type"
+        actor_id=client_id, outcome=outcome, group_by="event_type"
     )
     auth_total = sum(auth_by_type.values())
 
     # 3. Admin Ops
     admin_by_outcome = await store.get_audit_summary(
-        event_type="admin_op",
-        outcome=outcome,
-        group_by="outcome"
+        event_type="admin_op", outcome=outcome, group_by="outcome"
     )
     admin_total = sum(admin_by_outcome.values())
 
     # Runtime stats from Prometheus (Fallback/Ephemeral)
-    effective_sessions = active_sessions if active_sessions is not None else ACTIVE_CLIENT_SESSIONS._value.get()
-    
-    logger.info("Serving persistent metrics summary: sessions=%s, tool_calls=%s", effective_sessions, tool_total)
+    effective_sessions = (
+        active_sessions
+        if active_sessions is not None
+        else ACTIVE_CLIENT_SESSIONS._value.get()
+    )
+
+    logger.info(
+        "Serving persistent metrics summary: sessions=%s, tool_calls=%s",
+        effective_sessions,
+        tool_total,
+    )
 
     return {
         "active_client_sessions": effective_sessions,
@@ -320,5 +425,24 @@ async def get_metrics_summary(
         "admin_operations": {
             "total": admin_total,
             "by_outcome": admin_by_outcome,
+        },
+        "continuity_quality": {
+            "packets_emitted_total": _counter_total(CONTINUITY_PACKETS_TOTAL),
+            "packets_by_source": _counter_by_label(CONTINUITY_PACKETS_TOTAL, "source"),
+            "recalls_total": _counter_total(CONTINUITY_RECALLS_TOTAL),
+            "recalls_by_provider": _counter_by_label(
+                CONTINUITY_RECALLS_TOTAL, "provider"
+            ),
+            "average_step_compatibility": _histogram_average(
+                CONTINUITY_STEP_COMPATIBILITY
+            ),
+            "average_skill_quality": _histogram_average(CONTINUITY_SKILL_QUALITY),
+            "query_prompts_by_source": _counter_by_label(
+                CONTINUITY_QUERY_PROMPTS_TOTAL, "source"
+            ),
+            "correction_retries_total": _counter_total(
+                CONTINUITY_CORRECTION_RETRIES_TOTAL
+            ),
+            "gates_by_outcome": _counter_by_label(CONTINUITY_GATES_TOTAL, "outcome"),
         },
     }

@@ -1,0 +1,175 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+---
+
+<DashboardLayout
+  title="Skills · Minder"
+  description="Ingest, curate, and manage reusable workflow-aware skills for the Minder runtime."
+  navTitle="Minder Dashboard"
+  navDescription="Create, ingest, and maintain workflow-aware skills that can be recalled by the continuity layer at runtime."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
+    <div class="space-y-3">
+      <p class="eyebrow">Skill Registry</p>
+      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
+        Ingest and manage skills.
+      </h1>
+      <p class="max-w-3xl text-lg leading-8 text-stone-700">
+        Capture reusable workflow knowledge with step tags, artifact tags,
+        provenance, and quality signals so the runtime can recall better context.
+      </p>
+    </div>
+  </section>
+
+  <section class="grid gap-8 xl:grid-cols-[430px_minmax(0,1fr)]">
+    <aside class="shell-card p-7">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="eyebrow">Editor</p>
+          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+            Skill draft
+          </h2>
+        </div>
+        <button id="skill-reset-button" type="button" class="action-pill text-xs">
+          New draft
+        </button>
+      </div>
+
+      <form id="skill-form" class="mt-6 grid gap-4">
+        <input id="skill-id" type="hidden" />
+        <label class="grid gap-2 text-sm text-stone-700">
+          Title
+          <input
+            id="skill-title"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="Test plan drafting pattern"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Language
+          <input
+            id="skill-language"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="markdown"
+            value="markdown"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Tags
+          <input
+            id="skill-tags"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="tdd, regression, continuity"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Workflow steps
+          <input
+            id="skill-workflow-steps"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="Test Writing, Implementation"
+          />
+        </label>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Artifact types
+          <input
+            id="skill-artifact-types"
+            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            placeholder="test_plan, implementation_notes"
+          />
+        </label>
+        <div class="grid gap-4 sm:grid-cols-2">
+          <label class="grid gap-2 text-sm text-stone-700">
+            Provenance
+            <input
+              id="skill-provenance"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+              placeholder="dashboard_manual"
+            />
+          </label>
+          <label class="grid gap-2 text-sm text-stone-700">
+            Quality score
+            <input
+              id="skill-quality-score"
+              type="number"
+              min="0"
+              max="1"
+              step="0.1"
+              value="0.7"
+              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+            />
+          </label>
+        </div>
+        <label class="grid gap-2 text-sm text-stone-700">
+          Skill content
+          <textarea
+            id="skill-content"
+            class="min-h-[260px] rounded-3xl border border-stone-300 bg-white px-4 py-4 text-sm leading-6"
+            placeholder="Describe the reusable workflow pattern, expected artifacts, and common pitfalls."
+          ></textarea>
+          <span class="text-xs text-stone-500">
+            Saving this form ingests the skill into the continuity store.
+          </span>
+        </label>
+
+        <div class="flex flex-wrap gap-3">
+          <button type="submit" class="primary-pill flex-1 min-w-[180px]">
+            Save and ingest skill
+          </button>
+        </div>
+        <p id="skill-editor-status" class="min-h-6 text-sm text-stone-600"></p>
+      </form>
+    </aside>
+
+    <div class="grid gap-6">
+      <section class="shell-card px-6 py-5">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p class="text-sm font-medium text-stone-900">Registry</p>
+            <p class="mt-1 text-sm text-stone-600">
+              Load any skill into the editor, update metadata, or remove stale
+              entries from the recall catalog.
+            </p>
+          </div>
+          <button id="skill-refresh-button" type="button" class="action-pill text-xs">
+            Refresh list
+          </button>
+        </div>
+      </section>
+
+      <section class="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="skill-registry" class="grid gap-4">
+          <article class="shell-card p-6 text-sm text-stone-600">
+            Loading skills...
+          </article>
+        </div>
+
+        <aside class="shell-card p-6">
+          <p class="eyebrow">Ingest Guide</p>
+          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+            What makes a good skill
+          </h2>
+          <div class="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
+            <p>
+              Write a single reusable pattern per skill. Keep it operational and
+              specific to a workflow step or artifact outcome.
+            </p>
+            <p>
+              Use workflow steps to guide recall ranking, artifact types to bind
+              the skill to expected outputs, and provenance to show where it came
+              from.
+            </p>
+            <p>
+              Quality score is a soft confidence signal. Higher values push the
+              skill up when semantic similarity is close.
+            </p>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </section>
+
+  <script src="../scripts/skills-page.ts"></script>
+</DashboardLayout>

@@ -6,6 +6,7 @@ import {
   listAudit,
   listClients,
   listRepositories,
+  listSkills,
   listUsers,
   listWorkflows,
   type AdminSessionPayload,
@@ -122,12 +123,14 @@ function renderInventory(counts: {
   clients: number;
   repositories: number;
   workflows: number;
+  skills: number;
   users: number;
   activeUsers: number;
 }): void {
   setText("home-count-clients", formatNumber(counts.clients));
   setText("home-count-repos", formatNumber(counts.repositories));
   setText("home-count-workflows", formatNumber(counts.workflows));
+  setText("home-count-skills", formatNumber(counts.skills));
   setText("home-count-users", formatNumber(counts.users));
   setText(
     "home-count-users-sub",
@@ -245,6 +248,7 @@ async function loadHomeData(): Promise<void> {
     clientsResult,
     reposResult,
     workflowsResult,
+    skillsResult,
     usersAllResult,
     usersActiveResult,
     metricsResult,
@@ -254,6 +258,7 @@ async function loadHomeData(): Promise<void> {
     listClients(),
     listRepositories(),
     listWorkflows(),
+    listSkills(),
     listUsers(false),
     listUsers(true),
     getMetricsSummary(),
@@ -281,6 +286,8 @@ async function loadHomeData(): Promise<void> {
       workflowsResult.status === "fulfilled"
         ? workflowsResult.value.workflows.length
         : 0,
+    skills:
+      skillsResult.status === "fulfilled" ? skillsResult.value.length : 0,
     users:
       usersAllResult.status === "fulfilled"
         ? usersAllResult.value.users.length

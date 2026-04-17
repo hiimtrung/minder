@@ -8,6 +8,10 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
+from minder.observability.metrics import (
+    record_continuity_packet,
+    record_query_prompt_render,
+)
 from minder.prompts import PromptRegistry
 from minder.store.interfaces import IOperationalStore, IVectorStore
 from minder.tools.graph import GraphTools
@@ -102,6 +106,20 @@ class QueryTools:
             },
         )
         result = await self._graph.run(state)
+        record_continuity_packet("query")
+        record_query_prompt_render(
+            str(
+                result.metadata.get(
+                    "query_prompt_source",
+                    state.metadata.get("query_prompt_source", "unknown"),
+                )
+            ),
+            correction_retries=sum(
+                1
+                for item in result.transition_log
+                if str(item.get("edge")) == "guard_failed"
+            ),
+        )
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),

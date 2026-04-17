@@ -167,9 +167,11 @@ Basic flow:
 
 ```bash
 minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
-minder install-mcp
+minder install-ide --target vscode --target claude-code
 minder sync --repo-id <repository-uuid>
 ```
+
+`minder install-ide` prepares repo-local MCP config plus supported instruction and agent assets for VS Code, Cursor, and Claude Code, and updates local `.gitignore` so generated config does not get committed accidentally.
 
 ---
 

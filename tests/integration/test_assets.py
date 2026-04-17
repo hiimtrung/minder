@@ -37,7 +37,9 @@ def config() -> MinderConfig:
 
 
 @pytest.mark.asyncio
-async def test_create_admin_script_is_idempotent(store: RelationalStore, config: MinderConfig) -> None:
+async def test_create_admin_script_is_idempotent(
+    store: RelationalStore, config: MinderConfig
+) -> None:
     module = _load_module(Path("scripts/create_admin.py"), "create_admin_script")
     first = await module.ensure_admin(
         store,
@@ -66,7 +68,9 @@ async def test_seed_skills_script_imports_local_skill_directory(
 ) -> None:
     skill_dir = tmp_path / "skills"
     skill_dir.mkdir()
-    (skill_dir / "review.md").write_text("# Review\nReview carefully.\n", encoding="utf-8")
+    (skill_dir / "review.md").write_text(
+        "# Review\nReview carefully.\n", encoding="utf-8"
+    )
     (skill_dir / "debug.md").write_text("# Debug\nDebug carefully.\n", encoding="utf-8")
 
     module = _load_module(Path("scripts/seed_skills.py"), "seed_skills_script")
@@ -169,6 +173,7 @@ async def test_server_build_transport_registers_expected_tools(
 
     assert "minder_auth_login" in tool_names
     assert "minder_session_create" in tool_names
+    assert "minder_session_cleanup" in tool_names
     assert "minder_workflow_get" in tool_names
     assert "minder_query" in tool_names
 
@@ -192,7 +197,10 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     release_workflow_text = release_workflow.read_text(encoding="utf-8")
     assert "docker/Dockerfile.api" in release_workflow_text
     assert "docker/Dockerfile.dashboard" in release_workflow_text
-    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh" in release_workflow_text
+    assert (
+        "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh"
+        in release_workflow_text
+    )
     assert "dist/release/docker-compose.yml" in release_workflow_text
     assert "dist/release/Caddyfile" in release_workflow_text
     assert "body_path: dist/release/release-notes.md" in release_workflow_text

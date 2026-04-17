@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import uuid
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -32,6 +32,14 @@ def _str_to_uuid(value: str) -> uuid.UUID:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class _MongoDoc:
@@ -507,6 +515,46 @@ class MongoOperationalStore:
     async def delete_session(self, session_id: uuid.UUID) -> None:
         await self._db.sessions.delete_one({"_id": _uuid_to_str(session_id)})
 
+    async def cleanup_expired_sessions(
+        self,
+        *,
+        now: datetime | None = None,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, int]:
+        reference_time = _normalize_datetime(now) or _now()
+        query: dict[str, Any] = {}
+        if user_id is not None:
+            query["user_id"] = _uuid_to_str(user_id)
+        if client_id is not None:
+            query["client_id"] = _uuid_to_str(client_id)
+
+        cursor = self._db.sessions.find(query)
+        expired_session_ids: list[str] = []
+        async for session in cursor:
+            ttl = int(session.get("ttl", 0) or 0)
+            if ttl <= 0:
+                continue
+            base = _normalize_datetime(
+                session.get("last_active") or session.get("created_at")
+            )
+            if base is not None and base + timedelta(seconds=ttl) <= reference_time:
+                expired_session_ids.append(str(session["_id"]))
+
+        if not expired_session_ids:
+            return {"deleted_sessions": 0, "deleted_history": 0}
+
+        history_result = await self._db.history.delete_many(
+            {"session_id": {"$in": expired_session_ids}}
+        )
+        session_result = await self._db.sessions.delete_many(
+            {"_id": {"$in": expired_session_ids}}
+        )
+        return {
+            "deleted_sessions": int(session_result.deleted_count),
+            "deleted_history": int(history_result.deleted_count),
+        }
+
     # ------------------------------------------------------------------
     # Workflow
     # ------------------------------------------------------------------
@@ -794,6 +842,12 @@ class MongoOperationalStore:
             return []
         cursor = self._db.history.find({"session_id": {"$in": session_ids}})
         return [_to_doc(doc) async for doc in cursor]
+
+    async def delete_history_for_session(self, session_id: uuid.UUID) -> int:
+        result = await self._db.history.delete_many(
+            {"session_id": _uuid_to_str(session_id)}
+        )
+        return int(result.deleted_count)
 
     # ------------------------------------------------------------------
     # Error

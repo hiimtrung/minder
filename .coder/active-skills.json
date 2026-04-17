@@ -1,36 +1,36 @@
 {
-  "task": "optional repository dashboard chat runtime query",
+  "task": "implement phase 6 cli and server update self-update commands",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T17:27:50.891281+07:00",
+  "resolved_at": "2026-04-17T18:02:36.392075+07:00",
   "keep": [],
   "add": [
-    "langchain-architecture",
-    "mixpanel-automation",
-    "analyze-project"
+    "devops-deploy",
+    "speckit-updater",
+    "agents-md"
   ],
   "drop": [
-    "chat-widget",
-    "kpi-dashboard-design",
-    "web-performance-optimization"
+    "electron-development",
+    "security-scanning-security-dependencies",
+    "claude-settings-audit"
   ],
   "skills": [
     {
-      "name": "langchain-architecture",
-      "category": "frontend",
+      "name": "devops-deploy",
+      "category": "backend",
       "score": 0.016393442,
-      "chunk_count": 1,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "mixpanel-automation",
+      "name": "speckit-updater",
       "category": "general",
       "score": 0.016129032,
-      "chunk_count": 1,
+      "chunk_count": 6,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "analyze-project",
+      "name": "agents-md",
       "category": "general",
       "score": 0.015873017,
       "chunk_count": 1,

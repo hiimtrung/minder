@@ -52,7 +52,9 @@ class RetrieverNode:
             for path in repo_path.rglob("*"):
                 if not path.is_file():
                     continue
-                if any(part.startswith(".") and part != ".minder" for part in path.parts):
+                if any(
+                    part.startswith(".") and part != ".minder" for part in path.parts
+                ):
                     continue
                 if path.suffix not in {".py", ".md", ".txt", ".json"}:
                     continue

@@ -274,6 +274,18 @@ def build_transport(
             open_files=open_files,
         )
 
+    async def minder_session_cleanup(
+        *,
+        user=None,
+        principal: Principal | None = None,
+    ) -> dict[str, int]:
+        if isinstance(principal, ClientPrincipal):
+            return await session_tools.minder_session_cleanup(
+                client_id=principal.client_id
+            )
+        authenticated_user = require_authenticated_user(user)
+        return await session_tools.minder_session_cleanup(user_id=authenticated_user.id)
+
     async def minder_workflow_get(
         *, user=None, repo_id: str, repo_path: str
     ) -> dict[str, Any]:  # noqa: ANN001
@@ -656,6 +668,12 @@ def build_transport(
         minder_session_context,
         require_auth=True,
         description=TOOL_DESCRIPTIONS["minder_session_context"],
+    )
+    transport.register_tool(
+        "minder_session_cleanup",
+        minder_session_cleanup,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_session_cleanup"],
     )
     transport.register_tool(
         "minder_workflow_get",

@@ -18,6 +18,11 @@ from minder.tools.repo_scanner import RepoScanner
 _DEFAULT_SERVER_URL = "http://localhost:8801/sse"
 _LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code")
 _PYPI_JSON_URL = "https://pypi.org/pypi/minder/json"
+_IDE_GITIGNORE_KEY = "minder-ide-bootstrap"
+
+
+def _bootstrap_version() -> str:
+    return _installed_package_version() or "dev"
 
 
 def _client_config_path() -> Path:
@@ -33,6 +38,68 @@ def _load_json(path: Path) -> dict[str, Any]:
     if not path.is_file():
         return {}
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _marker_pair(path: Path, key: str) -> tuple[str, str]:
+    if path.name == ".gitignore":
+        return (f"# minder:begin {key}", f"# minder:end {key}")
+    return (f"<!-- minder:begin {key} -->", f"<!-- minder:end {key} -->")
+
+
+def _wrap_managed_block(path: Path, key: str, body: str) -> str:
+    start, end = _marker_pair(path, key)
+    normalized_body = body.strip("\n")
+    return f"{start}\n{normalized_body}\n{end}\n"
+
+
+def _upsert_managed_block(path: Path, key: str, body: str) -> None:
+    block = _wrap_managed_block(path, key, body)
+    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    start, end = _marker_pair(path, key)
+    if start in existing and end in existing:
+        before, remainder = existing.split(start, 1)
+        _, after = remainder.split(end, 1)
+        updated = before.rstrip()
+        if updated:
+            updated += "\n\n"
+        updated += block.rstrip("\n")
+        tail = after.strip("\n")
+        if tail:
+            updated += "\n\n" + tail
+        updated += "\n"
+    else:
+        updated = existing.rstrip("\n")
+        if updated:
+            updated += "\n\n"
+        updated += block
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(updated, encoding="utf-8")
+
+
+def _remove_managed_block(path: Path, key: str) -> bool:
+    if not path.is_file():
+        return False
+    existing = path.read_text(encoding="utf-8")
+    start, end = _marker_pair(path, key)
+    if start not in existing or end not in existing:
+        return False
+    before, remainder = existing.split(start, 1)
+    _, after = remainder.split(end, 1)
+    updated = before.rstrip("\n")
+    tail = after.strip("\n")
+    if updated and tail:
+        updated = f"{updated}\n\n{tail}\n"
+    elif updated:
+        updated = f"{updated}\n"
+    elif tail:
+        updated = f"{tail}\n"
+    else:
+        updated = ""
+    if updated:
+        path.write_text(updated, encoding="utf-8")
+    else:
+        path.unlink(missing_ok=True)
+    return True
 
 
 def _prompt_client_key() -> str:
@@ -147,7 +214,11 @@ def _normalize_repo_remote(remote_url: str | None) -> str | None:
             if normalized_path:
                 return f"git@{host}:{normalized_path}.git"
         return raw_url
-    if raw_url.startswith("ssh://") or raw_url.startswith("http://") or raw_url.startswith("https://"):
+    if (
+        raw_url.startswith("ssh://")
+        or raw_url.startswith("http://")
+        or raw_url.startswith("https://")
+    ):
         parts = urlsplit(raw_url)
         host = parts.hostname or ""
         path = parts.path.strip().lstrip("/").removesuffix(".git")
@@ -166,7 +237,9 @@ def _repo_name_from_remote(remote_url: str | None) -> str | None:
     return repo_name or None
 
 
-def _git_file_delta(repo_root: Path, diff_base: str | None = None) -> tuple[list[str], list[str]]:
+def _git_file_delta(
+    repo_root: Path, diff_base: str | None = None
+) -> tuple[list[str], list[str]]:
     diff_command = ["git", "diff", "--name-only", "--diff-filter=ACMRD"]
     if diff_base:
         diff_command.append(f"{diff_base}...HEAD")
@@ -179,23 +252,23 @@ def _git_file_delta(repo_root: Path, diff_base: str | None = None) -> tuple[list
         text=True,
         check=True,
     )
-    changed = {
-        line.strip()
-        for line in diff_result.stdout.splitlines()
-        if line.strip()
-    }
+    changed = {line.strip() for line in diff_result.stdout.splitlines() if line.strip()}
 
     deleted_result = subprocess.run(
-        ["git", "diff", "--name-only", "--diff-filter=D", *( [f"{diff_base}...HEAD"] if diff_base else ["HEAD"] )],
+        [
+            "git",
+            "diff",
+            "--name-only",
+            "--diff-filter=D",
+            *([f"{diff_base}...HEAD"] if diff_base else ["HEAD"]),
+        ],
         cwd=repo_root,
         capture_output=True,
         text=True,
         check=True,
     )
     deleted = {
-        line.strip()
-        for line in deleted_result.stdout.splitlines()
-        if line.strip()
+        line.strip() for line in deleted_result.stdout.splitlines() if line.strip()
     }
     changed.difference_update(deleted)
 
@@ -207,9 +280,7 @@ def _git_file_delta(repo_root: Path, diff_base: str | None = None) -> tuple[list
         check=True,
     )
     changed.update(
-        line.strip()
-        for line in untracked_result.stdout.splitlines()
-        if line.strip()
+        line.strip() for line in untracked_result.stdout.splitlines() if line.strip()
     )
     return sorted(changed), sorted(deleted)
 
@@ -246,13 +317,22 @@ def _global_target_path(target: str) -> Path:
     home = Path.home()
     if target == "vscode":
         if system == "darwin":
-            return home / "Library" / "Application Support" / "Code" / "User" / "mcp.json"
+            return (
+                home / "Library" / "Application Support" / "Code" / "User" / "mcp.json"
+            )
         if system == "windows":
             return _appdata_dir() / "Code" / "User" / "mcp.json"
         return home / ".config" / "Code" / "User" / "mcp.json"
     if target == "cursor":
         if system == "darwin":
-            return home / "Library" / "Application Support" / "Cursor" / "User" / "mcp.json"
+            return (
+                home
+                / "Library"
+                / "Application Support"
+                / "Cursor"
+                / "User"
+                / "mcp.json"
+            )
         if system == "windows":
             return _appdata_dir() / "Cursor" / "User" / "mcp.json"
         return home / ".config" / "Cursor" / "User" / "mcp.json"
@@ -271,6 +351,163 @@ def _local_target_path(target: str, cwd: Path) -> Path:
     if target == "claude-code":
         return cwd / ".claude" / "mcp.json"
     raise ValueError(f"Unsupported MCP target: {target}")
+
+
+def _ide_instruction_path(target: str, cwd: Path) -> Path | None:
+    if target == "vscode":
+        return cwd / ".github" / "copilot-instructions.md"
+    if target == "cursor":
+        return cwd / ".cursor" / "rules" / "minder.mdc"
+    if target == "claude-code":
+        return cwd / "CLAUDE.md"
+    return None
+
+
+def _ide_agent_path(target: str, cwd: Path) -> Path | None:
+    if target == "claude-code":
+        return cwd / ".claude" / "agents" / "minder-repo-guide.md"
+    return None
+
+
+def _ide_instruction_key(target: str) -> str:
+    return f"minder-ide-instructions:{target}"
+
+
+def _ide_agent_key(target: str) -> str:
+    return f"minder-ide-agent:{target}"
+
+
+def _ide_bootstrap_instruction(target: str) -> str:
+    version = _bootstrap_version()
+    if target == "vscode":
+        return (
+            f"Minder repo-local instructions (version {version})\n\n"
+            "- Use Minder MCP tools for repository-aware search, impact, workflow, and query flows.\n"
+            "- Prefer `minder_workflow_get` or `minder_workflow_step` before making large changes.\n"
+            "- Use `minder_query`, `minder_search_graph`, and `minder_find_impact` before broad refactors.\n"
+            "- Run `minder sync` after structural repository changes so graph metadata stays current."
+        )
+    if target == "cursor":
+        return (
+            "---\n"
+            "description: Minder repository guidance\n"
+            "globs:\n"
+            "alwaysApply: false\n"
+            "---\n\n"
+            f"Use Minder repo-local automation (version {version}) for repository queries and workflow guidance.\n\n"
+            "- Ask Minder for impact and graph context before cross-module edits.\n"
+            "- Sync repo metadata with `minder sync` after structural changes.\n"
+            "- Keep workflow-aware MCP calls in the loop for non-trivial implementation work."
+        )
+    if target == "claude-code":
+        return (
+            f"Minder repo-local instructions (version {version})\n\n"
+            "- Use Minder MCP tools as the first source of repository context.\n"
+            "- Prefer workflow and graph lookups before broad implementation changes.\n"
+            "- Run `minder sync` after structural edits so future queries use fresh repo metadata."
+        )
+    raise ValueError(f"Unsupported IDE target: {target}")
+
+
+def _ide_agent_content(target: str) -> str:
+    version = _bootstrap_version()
+    if target != "claude-code":
+        raise ValueError(f"Unsupported IDE target for agent bootstrap: {target}")
+    return (
+        "---\n"
+        "name: minder-repo-guide\n"
+        "description: Use Minder MCP tools to gather repository, workflow, and impact context before implementation.\n"
+        f"version: {version}\n"
+        "---\n\n"
+        "Use this agent prompt when you need to explore a repository through Minder before editing code.\n\n"
+        "Recommended flow:\n"
+        "1. Call Minder workflow and graph tools to understand the current repository state.\n"
+        "2. Use Minder query/search tools to narrow the affected code paths.\n"
+        "3. Only then move into implementation and resync metadata when structure changes."
+    )
+
+
+def _gitignore_entries_for_targets(targets: list[str]) -> list[str]:
+    entries = [".minder/"]
+    for target in targets:
+        local_path = _local_target_path(target, Path("."))
+        entries.append(local_path.as_posix())
+    ordered: list[str] = []
+    for entry in entries:
+        if entry not in ordered:
+            ordered.append(entry)
+    return ordered
+
+
+def _metadata_path(cwd: Path) -> Path:
+    return cwd / ".minder" / "ide-bootstrap.json"
+
+
+def _write_bootstrap_metadata(cwd: Path, targets: list[str]) -> None:
+    _write_json(
+        _metadata_path(cwd),
+        {
+            "version": _bootstrap_version(),
+            "targets": targets,
+            "mode": "repo-local",
+        },
+    )
+
+
+def _install_repo_local_ide_assets(cwd: Path, targets: list[str]) -> list[Path]:
+    installed_paths: list[Path] = []
+    for target in targets:
+        instruction_path = _ide_instruction_path(target, cwd)
+        if instruction_path is not None:
+            _upsert_managed_block(
+                instruction_path,
+                _ide_instruction_key(target),
+                _ide_bootstrap_instruction(target),
+            )
+            installed_paths.append(instruction_path)
+        agent_path = _ide_agent_path(target, cwd)
+        if agent_path is not None:
+            _upsert_managed_block(
+                agent_path,
+                _ide_agent_key(target),
+                _ide_agent_content(target),
+            )
+            installed_paths.append(agent_path)
+
+    gitignore_path = cwd / ".gitignore"
+    _upsert_managed_block(
+        gitignore_path,
+        _IDE_GITIGNORE_KEY,
+        "\n".join(_gitignore_entries_for_targets(targets)),
+    )
+    installed_paths.append(gitignore_path)
+    _write_bootstrap_metadata(cwd, targets)
+    installed_paths.append(_metadata_path(cwd))
+    return installed_paths
+
+
+def _remove_repo_local_ide_assets(cwd: Path, targets: list[str]) -> list[Path]:
+    removed_paths: list[Path] = []
+    for target in targets:
+        instruction_path = _ide_instruction_path(target, cwd)
+        if instruction_path is not None and _remove_managed_block(
+            instruction_path, _ide_instruction_key(target)
+        ):
+            removed_paths.append(instruction_path)
+        agent_path = _ide_agent_path(target, cwd)
+        if agent_path is not None and _remove_managed_block(
+            agent_path, _ide_agent_key(target)
+        ):
+            removed_paths.append(agent_path)
+
+    gitignore_path = cwd / ".gitignore"
+    if _remove_managed_block(gitignore_path, _IDE_GITIGNORE_KEY):
+        removed_paths.append(gitignore_path)
+    metadata_path = _metadata_path(cwd)
+    if metadata_path.exists():
+        metadata_path.unlink()
+        removed_paths.append(metadata_path)
+    return removed_paths
 
 
 def _target_root_key(target: str) -> str:
@@ -382,7 +619,11 @@ def _install_mcp(args: argparse.Namespace) -> int:
     installed_paths: list[Path] = []
 
     for target in targets:
-        path = _global_target_path(target) if args.global_install else _local_target_path(target, install_root)
+        path = (
+            _global_target_path(target)
+            if args.global_install
+            else _local_target_path(target, install_root)
+        )
         _install_target(
             path,
             target,
@@ -402,13 +643,61 @@ def _uninstall_mcp(args: argparse.Namespace) -> int:
     removed_count = 0
 
     for target in targets:
-        path = _global_target_path(target) if args.global_install else _local_target_path(target, install_root)
+        path = (
+            _global_target_path(target)
+            if args.global_install
+            else _local_target_path(target, install_root)
+        )
         if _uninstall_target(path, target):
             removed_count += 1
             print(f"Removed Minder MCP config: {path}")
 
     if removed_count == 0:
         print("No Minder MCP entries were found to remove")
+    return 0
+
+
+def _install_ide(args: argparse.Namespace) -> int:
+    config_path = Path(args.config_path).expanduser()
+    settings = _require_client_settings(config_path)
+    targets = _parse_targets(args.target)
+    install_root = Path(args.cwd).resolve()
+    installed_paths: list[Path] = []
+
+    for target in targets:
+        path = _local_target_path(target, install_root)
+        _install_target(
+            path,
+            target,
+            str(settings["server_url"]),
+            str(settings["client_api_key"]),
+        )
+        installed_paths.append(path)
+
+    installed_paths.extend(_install_repo_local_ide_assets(install_root, targets))
+
+    for path in installed_paths:
+        print(f"Installed Minder IDE asset: {path}")
+    return 0
+
+
+def _uninstall_ide(args: argparse.Namespace) -> int:
+    targets = _parse_targets(args.target)
+    install_root = Path(args.cwd).resolve()
+    removed_paths: list[Path] = []
+
+    for target in targets:
+        path = _local_target_path(target, install_root)
+        if _uninstall_target(path, target):
+            removed_paths.append(path)
+
+    removed_paths.extend(_remove_repo_local_ide_assets(install_root, targets))
+
+    if not removed_paths:
+        print("No Minder IDE assets were found to remove")
+        return 0
+    for path in removed_paths:
+        print(f"Removed Minder IDE asset: {path}")
     return 0
 
 
@@ -550,6 +839,41 @@ def build_parser() -> argparse.ArgumentParser:
         help="Workspace directory to remove local MCP config from.",
     )
 
+    install_ide = subparsers.add_parser(
+        "install-ide",
+        help="Install repo-local Minder MCP config plus IDE instruction and agent assets.",
+    )
+    install_ide.add_argument(
+        "--config-path",
+        default=str(_client_config_path()),
+        help="Path to the persisted CLI client config file.",
+    )
+    install_ide.add_argument(
+        "--target",
+        action="append",
+        help="IDE target to install: vscode, cursor, claude-code, or all. Repeatable.",
+    )
+    install_ide.add_argument(
+        "--cwd",
+        default=".",
+        help="Workspace directory to install repo-local IDE assets into.",
+    )
+
+    uninstall_ide = subparsers.add_parser(
+        "uninstall-ide",
+        help="Remove repo-local Minder IDE bootstrap assets from the current workspace.",
+    )
+    uninstall_ide.add_argument(
+        "--target",
+        action="append",
+        help="IDE target to uninstall: vscode, cursor, claude-code, or all. Repeatable.",
+    )
+    uninstall_ide.add_argument(
+        "--cwd",
+        default=".",
+        help="Workspace directory to remove repo-local IDE assets from.",
+    )
+
     sync = subparsers.add_parser(
         "sync",
         help="Build a delta payload from git diff and sync graph metadata using the stored client key.",
@@ -597,6 +921,10 @@ def main(argv: list[str] | None = None) -> int:
         return _install_mcp(args)
     if args.command == "uninstall-mcp":
         return _uninstall_mcp(args)
+    if args.command == "install-ide":
+        return _install_ide(args)
+    if args.command == "uninstall-ide":
+        return _uninstall_ide(args)
     if args.command == "sync":
         return _sync(args)
 

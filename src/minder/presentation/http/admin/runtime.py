@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import uuid
+from collections.abc import Mapping
 
 from pydantic import BaseModel, Field
 from starlette.responses import JSONResponse, StreamingResponse
@@ -91,7 +92,7 @@ def _sanitize_answer(
 def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def _resolve_request(
         request,
-    ) -> tuple[RuntimeQueryRequest, dict[str, object], str | None] | JSONResponse:
+    ) -> tuple[RuntimeQueryRequest, Mapping[str, object], str | None] | JSONResponse:
         try:
             await context.admin_user_from_request(request)
         except PermissionError:
@@ -166,9 +167,11 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 **result,
                 "query": query,
                 "repository": {
-                    "id": str(repository.get("id") or payload.repo_id)
-                    if (repository.get("id") or payload.repo_id)
-                    else None,
+                    "id": (
+                        str(repository.get("id") or payload.repo_id)
+                        if (repository.get("id") or payload.repo_id)
+                        else None
+                    ),
                     "name": repository.get("name") if repository else None,
                     "path": repo_path,
                 },
@@ -189,9 +192,11 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         async def event_stream():
             query_tools = QueryTools(context.store, context.config)
             repository_payload = {
-                "id": str(repository.get("id") or payload.repo_id)
-                if (repository.get("id") or payload.repo_id)
-                else None,
+                "id": (
+                    str(repository.get("id") or payload.repo_id)
+                    if (repository.get("id") or payload.repo_id)
+                    else None
+                ),
                 "name": repository.get("name") if repository else None,
                 "path": repo_path,
             }

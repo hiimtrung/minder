@@ -6,6 +6,7 @@ Covers:
 - minder_session_list returns sessions scoped to the client
 - minder_session_restore returns correct state
 - minder_session_save / minder_session_context write-through
+- expired sessions are hidden or rejected and can be cleaned up
 - minder_auth_whoami works for ClientPrincipal (always_available gate)
 - Scope gate blocks non-always-available tools for ClientPrincipal without granted scopes
 - always_available tools bypass scope gate
@@ -13,6 +14,7 @@ Covers:
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 import uuid
 from typing import Any
 from unittest.mock import MagicMock
@@ -83,6 +85,7 @@ class TestAlwaysAvailableSet:
             "minder_session_save",
             "minder_session_restore",
             "minder_session_context",
+            "minder_session_cleanup",
         ):
             assert (
                 tool in ALWAYS_AVAILABLE_FOR_CLIENTS
@@ -209,6 +212,104 @@ class TestClientSessionContext:
         )
         assert result["branch"] == "feature/session-fix"
         assert result["open_files"] == ["src/minder/tools/session.py"]
+
+
+class TestClientSessionExpiry:
+    async def test_expired_sessions_are_filtered_from_list_and_find(
+        self, session_tools: SessionTools, client_principal: ClientPrincipal
+    ) -> None:
+        expired = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="expired-session",
+        )
+        active = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="active-session",
+        )
+
+        await session_tools._store.update_session(
+            uuid.UUID(expired["session_id"]),
+            ttl=1,
+            last_active=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+
+        listed = await session_tools.minder_session_list(
+            client_id=client_principal.client_id
+        )
+        listed_ids = {item["session_id"] for item in listed["sessions"]}
+        assert expired["session_id"] not in listed_ids
+        assert active["session_id"] in listed_ids
+
+        with pytest.raises(ValueError, match="No session named 'expired-session'"):
+            await session_tools.minder_session_find(
+                name="expired-session",
+                client_id=client_principal.client_id,
+            )
+
+    async def test_restore_expired_session_deletes_it_and_history(
+        self, session_tools: SessionTools, client_principal: ClientPrincipal
+    ) -> None:
+        created = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="cleanup-me",
+        )
+        session_id = uuid.UUID(created["session_id"])
+        await session_tools._store.create_history(
+            session_id=session_id,
+            role="assistant",
+            content="stale history",
+        )
+        await session_tools._store.update_session(
+            session_id,
+            ttl=1,
+            last_active=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+
+        with pytest.raises(ValueError, match="Session expired"):
+            await session_tools.minder_session_restore(session_id)
+
+        assert await session_tools._store.get_session_by_id(session_id) is None
+        assert await session_tools._store.list_history_for_session(session_id) == []
+
+    async def test_cleanup_removes_only_expired_sessions(
+        self, session_tools: SessionTools, client_principal: ClientPrincipal
+    ) -> None:
+        expired = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="expired-cleanup",
+        )
+        active = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="active-cleanup",
+        )
+        expired_id = uuid.UUID(expired["session_id"])
+        active_id = uuid.UUID(active["session_id"])
+
+        await session_tools._store.create_history(
+            session_id=expired_id,
+            role="assistant",
+            content="expired history",
+        )
+        await session_tools._store.create_history(
+            session_id=active_id,
+            role="assistant",
+            content="active history",
+        )
+        await session_tools._store.update_session(
+            expired_id,
+            ttl=1,
+            last_active=datetime(2020, 1, 1, tzinfo=UTC),
+        )
+
+        result = await session_tools.minder_session_cleanup(
+            client_id=client_principal.client_id
+        )
+
+        assert result == {"deleted_sessions": 1, "deleted_history": 1}
+        assert await session_tools._store.get_session_by_id(expired_id) is None
+        assert await session_tools._store.get_session_by_id(active_id) is not None
+        active_history = await session_tools._store.list_history_for_session(active_id)
+        assert len(active_history) == 1
 
 
 # ---------------------------------------------------------------------------

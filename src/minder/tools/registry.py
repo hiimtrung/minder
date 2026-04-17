@@ -154,6 +154,11 @@ ALL_TOOLS: list[ToolMeta] = [
         description="Update branch and open-file context for an existing Minder session.",
         always_available=True,
     ),
+    ToolMeta(
+        name="minder_session_cleanup",
+        description="Delete expired sessions owned by the calling principal and remove their persisted history records.",
+        always_available=True,
+    ),
     # ── Auth (internal — not grantable to client principals) ─────────────────
     ToolMeta(
         name="minder_auth_ping",

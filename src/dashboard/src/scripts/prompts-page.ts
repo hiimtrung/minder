@@ -235,7 +235,7 @@ const fillForm = (prompt?: PromptPayload) => {
 const renderPreview = () => {
   const template = templateEl?.value ?? "";
   if (!template.trim()) {
-    setStatus(previewStatusEl, "Prompt template is empty.", "danger");
+    setStatus(previewStatusEl, "Prompt template is empty.", "default");
     if (previewOutputEl instanceof HTMLElement) {
       previewOutputEl.textContent =
         "Choose a prompt to preview its rendered output.";

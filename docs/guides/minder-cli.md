@@ -42,6 +42,26 @@ Install MCP config files into the current workspace:
 minder install-mcp
 ```
 
+Install a full repo-local IDE bootstrap instead:
+
+```bash
+minder install-ide
+```
+
+This repo-local bootstrap currently:
+
+- writes target-specific MCP config into `.vscode/`, `.cursor/`, and/or `.claude/`
+- installs supported instruction files for VS Code, Cursor, and Claude Code
+- installs a Claude Code repo agent file
+- patches existing instruction files in place using Minder-managed blocks
+- updates local `.gitignore` so generated MCP config and `.minder/` metadata do not get committed accidentally
+
+Remove the repo-local bootstrap later with:
+
+```bash
+minder uninstall-ide
+```
+
 Install into user-level config locations instead:
 
 ```bash
@@ -58,6 +78,12 @@ Select one or more targets explicitly:
 
 ```bash
 minder install-mcp --target vscode --target cursor
+```
+
+The same target selection works for repo-local IDE bootstrap:
+
+```bash
+minder install-ide --target vscode --target claude-code
 ```
 
 Remove the generated entries later with:

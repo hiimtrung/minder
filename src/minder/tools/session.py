@@ -29,7 +29,7 @@ principal_id automatically.
 from __future__ import annotations
 
 import uuid
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from minder.continuity import build_continuity_brief, build_instruction_envelope
@@ -40,6 +40,46 @@ from minder.store.interfaces import IOperationalStore
 class SessionTools:
     def __init__(self, store: IOperationalStore) -> None:
         self._store = store
+
+    def _normalize_datetime(self, value: datetime | None) -> datetime | None:
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value.astimezone(UTC)
+
+    def _expires_at(self, session: Any) -> datetime | None:
+        ttl = int(getattr(session, "ttl", 0) or 0)
+        if ttl <= 0:
+            return None
+        base = self._normalize_datetime(
+            getattr(session, "last_active", None)
+            or getattr(session, "created_at", None)
+        )
+        if base is None:
+            return None
+        return base + timedelta(seconds=ttl)
+
+    def _is_expired(self, session: Any, *, now: datetime | None = None) -> bool:
+        expires_at = self._expires_at(session)
+        if expires_at is None:
+            return False
+        reference_time = self._normalize_datetime(now) or datetime.now(UTC)
+        return expires_at <= reference_time
+
+    async def _cleanup_session(self, session_id: uuid.UUID) -> dict[str, int]:
+        deleted_history = await self._store.delete_history_for_session(session_id)
+        await self._store.delete_session(session_id)
+        return {"deleted_sessions": 1, "deleted_history": deleted_history}
+
+    async def _require_active_session(self, session_id: uuid.UUID) -> Any:
+        session = await self._store.get_session_by_id(session_id)
+        if session is None:
+            raise ValueError(f"Session not found: {session_id}")
+        if self._is_expired(session):
+            await self._cleanup_session(session_id)
+            raise ValueError(f"Session expired: {session_id}")
+        return session
 
     # ------------------------------------------------------------------
     # Create
@@ -99,23 +139,20 @@ class SessionTools:
         Returns the full session payload (same shape as ``minder_session_restore``)
         or raises ``ValueError`` if no matching session is found.
         """
-        if client_id is not None:
-            sessions = await self._store.get_sessions_by_client(client_id)
-        elif user_id is not None:
-            sessions = await self._store.get_sessions_by_user(user_id)
-        else:
-            raise ValueError("Either user_id or client_id must be provided")
-
-        for s in sessions:
-            if s.name == name:
-                return {
-                    "session_id": str(s.id),
-                    "name": s.name,
-                    "state": s.state,
-                    "active_skills": s.active_skills,
-                    "project_context": s.project_context,
-                    "last_active": s.last_active.isoformat(),
-                }
+        session = await self._store.find_session_by_name(
+            name,
+            user_id=user_id,
+            client_id=client_id,
+        )
+        if session is not None and not self._is_expired(session):
+            return {
+                "session_id": str(session.id),
+                "name": session.name,
+                "state": session.state,
+                "active_skills": session.active_skills,
+                "project_context": session.project_context,
+                "last_active": session.last_active.isoformat(),
+            }
         raise ValueError(
             f"No session named '{name}' found for the current principal. "
             "Use minder_session_list to see all sessions or minder_session_create to start one."
@@ -138,6 +175,9 @@ class SessionTools:
             sessions = await self._store.get_sessions_by_user(user_id)
         else:
             raise ValueError("Either user_id or client_id must be provided")
+        active_sessions = [
+            session for session in sessions if not self._is_expired(session)
+        ]
         return {
             "sessions": [
                 {
@@ -148,7 +188,9 @@ class SessionTools:
                     "last_active": s.last_active.isoformat(),
                     "created_at": s.created_at.isoformat(),
                 }
-                for s in sorted(sessions, key=lambda s: s.last_active, reverse=True)
+                for s in sorted(
+                    active_sessions, key=lambda s: s.last_active, reverse=True
+                )
             ]
         }
 
@@ -175,6 +217,7 @@ class SessionTools:
         - Next planned steps
         - Open questions / blockers
         """
+        await self._require_active_session(session_id)
         session = await self._store.update_session(
             session_id,
             state=state or {},
@@ -196,9 +239,7 @@ class SessionTools:
         Use ``minder_session_find`` instead when you know the session name —
         it performs owner-scoped lookup and returns the same payload.
         """
-        session = await self._store.get_session_by_id(session_id)
-        if session is None:
-            raise ValueError(f"Session not found: {session_id}")
+        session = await self._require_active_session(session_id)
 
         continuity_packet: dict[str, Any] | None = None
         if session.repo_id is not None:
@@ -246,9 +287,7 @@ class SessionTools:
         Call after a branch switch or when the set of actively edited files
         changes so that future session restores include current context.
         """
-        session = await self._store.get_session_by_id(session_id)
-        if session is None:
-            raise ValueError(f"Session not found: {session_id}")
+        session = await self._require_active_session(session_id)
         project_context = dict(session.project_context)
         project_context.update({"branch": branch, "open_files": open_files})
         updated = await self._store.update_session(
@@ -262,3 +301,16 @@ class SessionTools:
             "branch": branch,
             "open_files": open_files,
         }
+
+    async def minder_session_cleanup(
+        self,
+        *,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, int]:
+        if client_id is None and user_id is None:
+            raise ValueError("Either user_id or client_id must be provided")
+        return await self._store.cleanup_expired_sessions(
+            user_id=user_id,
+            client_id=client_id,
+        )

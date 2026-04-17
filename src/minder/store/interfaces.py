@@ -8,6 +8,7 @@ only on these interfaces, never on concrete implementations.
 
 from __future__ import annotations
 
+from datetime import datetime
 import uuid
 from typing import Any, Protocol, runtime_checkable
 
@@ -84,6 +85,13 @@ class ISessionRepository(Protocol):
         self, session_id: uuid.UUID, **kwargs: Any
     ) -> Any | None: ...
     async def delete_session(self, session_id: uuid.UUID) -> None: ...
+    async def cleanup_expired_sessions(
+        self,
+        *,
+        now: datetime | None = None,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, int]: ...
 
 
 # ---------------------------------------------------------------------------
@@ -200,6 +208,7 @@ class IHistoryRepository(Protocol):
 
     async def list_history_for_session(self, session_id: uuid.UUID) -> list[Any]: ...
     async def list_history_for_user(self, user_id: uuid.UUID) -> list[Any]: ...
+    async def delete_history_for_session(self, session_id: uuid.UUID) -> int: ...
 
 
 # ---------------------------------------------------------------------------

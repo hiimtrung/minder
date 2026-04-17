@@ -1,5 +1,6 @@
 import pytest
 import pytest_asyncio
+from datetime import UTC, datetime
 from httpx import ASGITransport
 from httpx import AsyncClient
 from pathlib import Path
@@ -311,6 +312,54 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
     assert any(entry["title"] == "Transport memory" for entry in listed)
     assert compacted["candidate_count"] == 2
     assert compacted["duplicate_group_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_build_transport_allows_client_session_cleanup_when_always_available(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store, config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="session-cleanup-admin@example.com",
+        username="session_cleanup_admin",
+        display_name="Session Cleanup Admin",
+        role=UserRole.ADMIN,
+    )
+    client, client_api_key = await auth.register_client(
+        name="Session Cleanup Client",
+        slug="session-cleanup-client",
+        created_by_user_id=admin.id,
+        tool_scopes=[],
+    )
+    expired_session = await store.create_session(
+        id=uuid.uuid4(),
+        client_id=client.id,
+        project_context={},
+        active_skills={},
+        state={},
+        ttl=1,
+    )
+    await store.create_history(
+        session_id=expired_session.id,
+        role="assistant",
+        content="expired transport history",
+    )
+    await store.update_session(
+        expired_session.id,
+        last_active=datetime(2020, 1, 1, tzinfo=UTC),
+    )
+
+    transport = build_transport(
+        config=config, store=store, vector_store=store, cache=cache
+    )
+    cleaned = await transport.call_tool(
+        "minder_session_cleanup",
+        client_key=client_api_key,
+    )
+
+    assert cleaned == {"deleted_sessions": 1, "deleted_history": 1}
 
 
 @pytest.mark.asyncio

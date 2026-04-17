@@ -26,14 +26,18 @@ def test_login_persists_client_config(tmp_path, capsys) -> None:  # noqa: ANN001
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     assert payload["client_api_key"] == "mkc_test_client_key_123"
     assert payload["server_url"] == "http://localhost:8801/sse"
-    assert payload["default_headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
+    assert (
+        payload["default_headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
+    )
 
     output = capsys.readouterr().out
     assert "Stored client credentials" in output
     assert "MINDER_CLIENT_API_KEY" in output
 
 
-def test_install_and_uninstall_local_mcp_configs(tmp_path, capsys) -> None:  # noqa: ANN001
+def test_install_and_uninstall_local_mcp_configs(
+    tmp_path, capsys
+) -> None:  # noqa: ANN001
     config_path = tmp_path / "client.json"
     config_path.write_text(
         json.dumps(
@@ -56,11 +60,20 @@ def test_install_and_uninstall_local_mcp_configs(tmp_path, capsys) -> None:  # n
     )
 
     assert exit_code == 0
-    vscode_payload = json.loads((tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8"))
-    cursor_payload = json.loads((tmp_path / ".cursor" / "mcp.json").read_text(encoding="utf-8"))
-    claude_payload = json.loads((tmp_path / ".claude" / "mcp.json").read_text(encoding="utf-8"))
+    vscode_payload = json.loads(
+        (tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8")
+    )
+    cursor_payload = json.loads(
+        (tmp_path / ".cursor" / "mcp.json").read_text(encoding="utf-8")
+    )
+    claude_payload = json.loads(
+        (tmp_path / ".claude" / "mcp.json").read_text(encoding="utf-8")
+    )
 
-    assert vscode_payload["servers"]["minder"]["headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
+    assert (
+        vscode_payload["servers"]["minder"]["headers"]["X-Minder-Client-Key"]
+        == "mkc_test_client_key_123"
+    )
     assert cursor_payload["mcpServers"]["minder"]["url"] == "http://localhost:8801/mcp"
     assert claude_payload["mcpServers"]["minder"]["url"] == "http://localhost:8801/sse"
 
@@ -82,11 +95,167 @@ def test_install_and_uninstall_local_mcp_configs(tmp_path, capsys) -> None:  # n
     assert "Removed Minder MCP config" in output
 
 
-def test_sync_dry_run_prints_delta_payload(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+def test_install_ide_creates_repo_local_assets_and_gitignore(
+    tmp_path, capsys
+) -> None:  # noqa: ANN001
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "install-ide",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+            "--target",
+            "claude-code",
+        ]
+    )
+
+    assert exit_code == 0
+    vscode_payload = json.loads(
+        (tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8")
+    )
+    assert (
+        vscode_payload["servers"]["minder"]["headers"]["X-Minder-Client-Key"]
+        == "mkc_test_client_key_123"
+    )
+    assert "Minder repo-local instructions" in (
+        tmp_path / ".github" / "copilot-instructions.md"
+    ).read_text(encoding="utf-8")
+    assert "minder-repo-guide" in (
+        tmp_path / ".claude" / "agents" / "minder-repo-guide.md"
+    ).read_text(encoding="utf-8")
+    assert "Minder repo-local instructions" in (tmp_path / "CLAUDE.md").read_text(
+        encoding="utf-8"
+    )
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert ".vscode/mcp.json" in gitignore
+    assert ".claude/mcp.json" in gitignore
+    assert ".minder/" in gitignore
+
+    metadata = json.loads(
+        (tmp_path / ".minder" / "ide-bootstrap.json").read_text(encoding="utf-8")
+    )
+    assert metadata["targets"] == ["vscode", "claude-code"]
+
+    output = capsys.readouterr().out
+    assert "Installed Minder IDE asset" in output
+
+
+def test_install_ide_updates_managed_blocks_without_removing_custom_text(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+    claude_file = tmp_path / "CLAUDE.md"
+    claude_file.write_text(
+        "Custom project notes\n\n<!-- minder:begin minder-ide-instructions:claude-code -->\noutdated\n<!-- minder:end minder-ide-instructions:claude-code -->\n",
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "install-ide",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "claude-code",
+        ]
+    )
+
+    assert exit_code == 0
+    content = claude_file.read_text(encoding="utf-8")
+    assert "Custom project notes" in content
+    assert content.count("minder:begin minder-ide-instructions:claude-code") == 1
+    assert "outdated" not in content
+
+
+def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa: ANN001
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tmp_path / ".gitignore").write_text("dist/\n", encoding="utf-8")
+
+    install_exit = main(
+        [
+            "install-ide",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "cursor",
+            "--target",
+            "claude-code",
+        ]
+    )
+    assert install_exit == 0
+
+    uninstall_exit = main(
+        [
+            "uninstall-ide",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "cursor",
+            "--target",
+            "claude-code",
+        ]
+    )
+
+    assert uninstall_exit == 0
+    assert not (tmp_path / ".cursor" / "mcp.json").exists()
+    assert not (tmp_path / ".claude" / "mcp.json").exists()
+    assert not (tmp_path / ".cursor" / "rules" / "minder.mdc").exists()
+    assert not (tmp_path / ".claude" / "agents" / "minder-repo-guide.md").exists()
+    assert not (tmp_path / ".minder" / "ide-bootstrap.json").exists()
+    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
+    assert gitignore == "dist/\n"
+
+    output = capsys.readouterr().out
+    assert "Removed Minder IDE asset" in output
+
+
+def test_sync_dry_run_prints_delta_payload(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    (repo_root / "notes.md").write_text("# API\n\n- [ ] add sync docs\n", encoding="utf-8")
-    (repo_root / "config.json").write_text('{"service":"minder","port":8801}', encoding="utf-8")
+    (repo_root / "notes.md").write_text(
+        "# API\n\n- [ ] add sync docs\n", encoding="utf-8"
+    )
+    (repo_root / "config.json").write_text(
+        '{"service":"minder","port":8801}', encoding="utf-8"
+    )
     config_path = tmp_path / "client.json"
     config_path.write_text(
         json.dumps(
@@ -125,33 +294,63 @@ def test_sync_dry_run_prints_delta_payload(tmp_path, monkeypatch, capsys) -> Non
     assert payload["deleted_files"] == ["removed.py"]
     assert payload["sync_metadata"]["changed_files"] == ["config.json", "notes.md"]
     assert payload["sync_metadata"]["deleted_file_count"] == 1
-    assert any(node["node_type"] == "file" and node["name"] == "notes.md" for node in payload["nodes"])
-    assert any(node["node_type"] == "todo" and node["name"] == "notes.md::TODO:3" for node in payload["nodes"])
+    assert any(
+        node["node_type"] == "file" and node["name"] == "notes.md"
+        for node in payload["nodes"]
+    )
+    assert any(
+        node["node_type"] == "todo" and node["name"] == "notes.md::TODO:3"
+        for node in payload["nodes"]
+    )
 
 
-def test_global_target_paths_resolve_across_platforms(monkeypatch) -> None:  # noqa: ANN001
+def test_global_target_paths_resolve_across_platforms(
+    monkeypatch,
+) -> None:  # noqa: ANN001
     monkeypatch.setattr(cli.Path, "home", lambda: Path("/home/tester"))
 
     monkeypatch.setattr(cli.platform, "system", lambda: "Darwin")
-    assert cli._global_target_path("vscode") == Path("/home/tester/Library/Application Support/Code/User/mcp.json")
-    assert cli._global_target_path("cursor") == Path("/home/tester/Library/Application Support/Cursor/User/mcp.json")
-    assert cli._global_target_path("claude-code") == Path("/home/tester/.claude/mcp.json")
+    assert cli._global_target_path("vscode") == Path(
+        "/home/tester/Library/Application Support/Code/User/mcp.json"
+    )
+    assert cli._global_target_path("cursor") == Path(
+        "/home/tester/Library/Application Support/Cursor/User/mcp.json"
+    )
+    assert cli._global_target_path("claude-code") == Path(
+        "/home/tester/.claude/mcp.json"
+    )
 
     monkeypatch.setattr(cli.platform, "system", lambda: "Linux")
-    assert cli._global_target_path("vscode") == Path("/home/tester/.config/Code/User/mcp.json")
-    assert cli._global_target_path("cursor") == Path("/home/tester/.config/Cursor/User/mcp.json")
+    assert cli._global_target_path("vscode") == Path(
+        "/home/tester/.config/Code/User/mcp.json"
+    )
+    assert cli._global_target_path("cursor") == Path(
+        "/home/tester/.config/Cursor/User/mcp.json"
+    )
 
     monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
-    monkeypatch.setattr(cli, "_appdata_dir", lambda: Path("C:/Users/tester/AppData/Roaming"))
-    assert cli._global_target_path("vscode") == Path("C:/Users/tester/AppData/Roaming/Code/User/mcp.json")
-    assert cli._global_target_path("cursor") == Path("C:/Users/tester/AppData/Roaming/Cursor/User/mcp.json")
-    assert cli._global_target_path("claude-code") == Path("/home/tester/.claude/mcp.json")
+    monkeypatch.setattr(
+        cli, "_appdata_dir", lambda: Path("C:/Users/tester/AppData/Roaming")
+    )
+    assert cli._global_target_path("vscode") == Path(
+        "C:/Users/tester/AppData/Roaming/Code/User/mcp.json"
+    )
+    assert cli._global_target_path("cursor") == Path(
+        "C:/Users/tester/AppData/Roaming/Cursor/User/mcp.json"
+    )
+    assert cli._global_target_path("claude-code") == Path(
+        "/home/tester/.claude/mcp.json"
+    )
 
 
-def test_sync_posts_payload_to_server(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+def test_sync_posts_payload_to_server(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    (repo_root / "notes.md").write_text("# API\n\n- [ ] add sync docs\n", encoding="utf-8")
+    (repo_root / "notes.md").write_text(
+        "# API\n\n- [ ] add sync docs\n", encoding="utf-8"
+    )
     config_path = tmp_path / "client.json"
     config_path.write_text(
         json.dumps(
@@ -165,7 +364,11 @@ def test_sync_posts_payload_to_server(tmp_path, monkeypatch, capsys) -> None:  #
 
     monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
     monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
-    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], ["removed.py"]))
+    monkeypatch.setattr(
+        cli,
+        "_git_file_delta",
+        lambda repo, diff_base=None: (["notes.md"], ["removed.py"]),
+    )
     monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
 
     captured: dict[str, object] = {}
@@ -182,7 +385,9 @@ def test_sync_posts_payload_to_server(tmp_path, monkeypatch, capsys) -> None:  #
                 "deleted_nodes": 1,
             }
 
-    def _fake_post(url: str, *, headers: dict[str, str], json: dict[str, object], timeout: int) -> _FakeResponse:
+    def _fake_post(
+        url: str, *, headers: dict[str, str], json: dict[str, object], timeout: int
+    ) -> _FakeResponse:
         captured["url"] = url
         captured["headers"] = headers
         captured["json"] = json
@@ -204,7 +409,10 @@ def test_sync_posts_payload_to_server(tmp_path, monkeypatch, capsys) -> None:  #
     )
 
     assert exit_code == 0
-    assert captured["url"] == "http://localhost:8801/v1/client/repositories/11111111-1111-1111-1111-111111111111/graph-sync"
+    assert (
+        captured["url"]
+        == "http://localhost:8801/v1/client/repositories/11111111-1111-1111-1111-111111111111/graph-sync"
+    )
     assert captured["headers"] == {"X-Minder-Client-Key": "mkc_test_client_key_123"}
     assert captured["timeout"] == 30
     payload = captured["json"]
@@ -238,7 +446,9 @@ def test_sync_prints_upgrade_notice_when_newer_pypi_version_exists(
 
     monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
     monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
-    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(
+        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+    )
     monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.1.0")
     monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.2.0")
 
@@ -268,7 +478,9 @@ def test_sync_prints_upgrade_notice_when_newer_pypi_version_exists(
     assert "A newer minder CLI is available (0.1.0 -> 0.2.0)" in output
 
 
-def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+def test_sync_auto_resolves_repo_id_when_omitted(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
@@ -285,8 +497,12 @@ def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) 
 
     monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
     monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
-    monkeypatch.setattr(cli, "_git_remote_url", lambda repo: "git@github.com:example/minder.git")
-    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(
+        cli, "_git_remote_url", lambda repo: "git@github.com:example/minder.git"
+    )
+    monkeypatch.setattr(
+        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+    )
     monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
 
     captured: list[dict[str, object]] = []
@@ -301,8 +517,12 @@ def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) 
         def json(self) -> dict[str, object]:
             return self._payload
 
-    def _fake_post(url: str, *, headers: dict[str, str], json: dict[str, object], timeout: int) -> _FakeResponse:
-        captured.append({"url": url, "headers": headers, "json": json, "timeout": timeout})
+    def _fake_post(
+        url: str, *, headers: dict[str, str], json: dict[str, object], timeout: int
+    ) -> _FakeResponse:
+        captured.append(
+            {"url": url, "headers": headers, "json": json, "timeout": timeout}
+        )
         if url.endswith("/v1/client/repositories/resolve"):
             return _FakeResponse(
                 {
@@ -318,7 +538,9 @@ def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) 
                     },
                 }
             )
-        return _FakeResponse({"repo_id": "22222222-2222-2222-2222-222222222222", "nodes_upserted": 1})
+        return _FakeResponse(
+            {"repo_id": "22222222-2222-2222-2222-222222222222", "nodes_upserted": 1}
+        )
 
     monkeypatch.setattr(cli.httpx, "post", _fake_post)
 
@@ -334,7 +556,10 @@ def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) 
 
     assert exit_code == 0
     assert captured[0]["url"] == "http://localhost:8801/v1/client/repositories/resolve"
-    assert captured[1]["url"] == "http://localhost:8801/v1/client/repositories/22222222-2222-2222-2222-222222222222/graph-sync"
+    assert (
+        captured[1]["url"]
+        == "http://localhost:8801/v1/client/repositories/22222222-2222-2222-2222-222222222222/graph-sync"
+    )
     assert captured[0]["timeout"] == 15
     assert captured[1]["timeout"] == 30
     assert captured[0]["json"] == {
@@ -348,7 +573,9 @@ def test_sync_auto_resolves_repo_id_when_omitted(tmp_path, monkeypatch, capsys) 
     assert output["repo_id"] == "22222222-2222-2222-2222-222222222222"
 
 
-def test_sync_requires_remote_origin_when_repo_id_omitted(tmp_path, monkeypatch) -> None:  # noqa: ANN001
+def test_sync_requires_remote_origin_when_repo_id_omitted(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
@@ -366,7 +593,9 @@ def test_sync_requires_remote_origin_when_repo_id_omitted(tmp_path, monkeypatch)
     monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
     monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
     monkeypatch.setattr(cli, "_git_remote_url", lambda repo: None)
-    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(
+        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+    )
     monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
 
     try:
@@ -380,12 +609,19 @@ def test_sync_requires_remote_origin_when_repo_id_omitted(tmp_path, monkeypatch)
             ]
         )
     except ValueError as exc:
-        assert str(exc) == "Repository remote origin SSH URL is required when --repo-id is omitted"
+        assert (
+            str(exc)
+            == "Repository remote origin SSH URL is required when --repo-id is omitted"
+        )
     else:
-        raise AssertionError("sync should require a remote origin when repo_id is omitted")
+        raise AssertionError(
+            "sync should require a remote origin when repo_id is omitted"
+        )
 
 
-def test_sync_can_skip_upgrade_notice(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+def test_sync_can_skip_upgrade_notice(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
@@ -402,7 +638,9 @@ def test_sync_can_skip_upgrade_notice(tmp_path, monkeypatch, capsys) -> None:  #
 
     monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
     monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
-    monkeypatch.setattr(cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], []))
+    monkeypatch.setattr(
+        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+    )
 
     def _boom() -> None:
         raise AssertionError("upgrade check should be skipped")

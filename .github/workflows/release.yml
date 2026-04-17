@@ -127,6 +127,13 @@ jobs:
           # or: pipx install minder
           ```
 
+          Bootstrap the current repository for local IDE usage:
+
+          ```bash
+          minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+          minder install-ide --target vscode --target claude-code
+          ```
+
           One command install from this release:
 
           ```bash

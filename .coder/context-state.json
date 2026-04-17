@@ -1,38 +1,38 @@
 {
-  "updated_at": "2026-04-17T17:27:51.093416+07:00",
+  "updated_at": "2026-04-17T18:02:36.625955+07:00",
   "skills": {
-    "task": "optional repository dashboard chat runtime query",
+    "task": "implement phase 6 cli and server update self-update commands",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-17T17:27:50.891281+07:00",
+    "resolved_at": "2026-04-17T18:02:36.392075+07:00",
     "keep": [],
     "add": [
-      "langchain-architecture",
-      "mixpanel-automation",
-      "analyze-project"
+      "devops-deploy",
+      "speckit-updater",
+      "agents-md"
     ],
     "drop": [
-      "chat-widget",
-      "kpi-dashboard-design",
-      "web-performance-optimization"
+      "electron-development",
+      "security-scanning-security-dependencies",
+      "claude-settings-audit"
     ],
     "skills": [
       {
-        "name": "langchain-architecture",
-        "category": "frontend",
+        "name": "devops-deploy",
+        "category": "backend",
         "score": 0.016393442,
-        "chunk_count": 1,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "mixpanel-automation",
+        "name": "speckit-updater",
         "category": "general",
         "score": 0.016129032,
-        "chunk_count": 1,
+        "chunk_count": 6,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "analyze-project",
+        "name": "agents-md",
         "category": "general",
         "score": 0.015873017,
         "chunk_count": 1,
@@ -42,100 +42,94 @@
   },
   "memory": {
     "mode": "search",
-    "query": "optional repository dashboard chat runtime query",
+    "query": "implement phase 6 cli and server update self-update commands",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-17T17:27:51.093064+07:00",
+    "searched_at": "2026-04-17T18:02:36.625527+07:00",
     "results": [
       {
-        "id": "5addfa6b-14b6-4de8-992c-c0420a5fed2a",
-        "title": "Phase 5 dashboard local runtime chat shell",
+        "id": "f37b2634-98bd-42ef-95b4-06e7c43c6ec9",
+        "title": "Docs cleanup and dynamic skill retrieval plan",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-5-dashboard-local-runtime-chat-shell",
+        "canonical_key": "document:docs-cleanup-and-dynamic-skill-retrieval-plan",
         "score": 0.086393446,
         "tags": [
-          "minder",
-          "phase5",
-          "dashboard",
-          "chat",
-          "local-llm",
-          "admin-runtime",
-          "astro",
-          "tests"
+          "docs",
+          "skills",
+          "planning",
+          "roadmap"
         ],
         "conflict_detected": false,
-        "content": "Added a first dashboard chat slice backed by a real admin runtime query endpoint. Introduced src/minder/presentation/http/admin/runtime.py with /api/v1/runtime/query wrapping QueryTools.minder_query for managed repositories, added a new /dashboard/chat page with RuntimeChatShell and runtime-chat-page.ts, extended the dashboard nav and admin API client, and updated Phase 5 progress docs to mark dashboard local chat in progress. Verified with uv run pytest tests/unit/test_api_runtime.py -q (1 passed), bun run check (0 errors, 1 existing Card.astro hint), and bun run build in src/dashboard."
+        "content": "Cleaned the core docs so README, docs/GUIDE.md, docs/cli.md, and the coder-cli skill now reflect the current command surface from cmd/coder/main.go and explicitly label roadmap-only commands as future design. Added docs/dynamic_skill_retrieval_plan.md proposing a phased upgrade: structured skill output for LLMs, a server-side skill resolver, session-scoped active skills, re-resolve triggers during work, and context budgeting so agents can fetch and swap skills mid-task instead of locking retrieval at submit time."
       },
       {
-        "id": "d2f77825-2356-4d92-a871-3b1557957ccf",
-        "title": "Dashboard runtime chat streaming",
+        "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
+        "title": "README + CLI docs + dashboard-plan cleanup",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:dashboard-runtime-chat-streaming",
+        "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
         "score": 0.086129025,
         "tags": [
-          "minder",
-          "dashboard",
-          "chat",
-          "streaming",
-          "llm",
-          "runtime"
+          "coder-cli",
+          "docs",
+          "readme",
+          "cleanup"
         ],
         "conflict_detected": false,
-        "content": "Implemented incremental dashboard chat streaming for local runtime queries. Added stream_generate support to local/openai LLM clients and LLMNode, added MinderGraph.stream and QueryTools.minder_query_stream, exposed POST /api/v1/runtime/query/stream as NDJSON from admin runtime routes, and updated runtime-chat-page.ts plus admin API helpers to append assistant text live while chunks arrive. Verified with uv run pytest tests/unit/test_api_runtime.py tests/unit/test_runtime_detection.py -q (14 passed), bun run check, and bun run build."
+        "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
       },
       {
-        "id": "c7ed8901-04b4-4c2f-9424-7cede79e7a17",
-        "title": "Dashboard chat prompt-echo cleanup",
+        "id": "78a3d431-edda-4110-a64f-5ecf600f085d",
+        "title": "Phase 9-17 CLI Commands Implemented",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:dashboard-chat-prompt-echo-cleanup",
+        "canonical_key": "document:phase-9-17-cli-commands-implemented",
         "score": 0.08587302,
         "tags": [
-          "minder",
-          "phase-5",
-          "dashboard",
-          "chat",
-          "runtime"
+          "coder-cli",
+          "phases",
+          "lifecycle",
+          "implementation"
         ],
         "conflict_detected": false,
-        "content": "Sanitized admin runtime answers when prompt markers like Instruction envelope leak from model output, and refactored dashboard chat into a threaded conversation shell with side insights instead of a raw debug panel. Files: src/minder/presentation/http/admin/runtime.py, src/dashboard/src/components/RuntimeChatShell.astro, src/dashboard/src/scripts/runtime-chat-page.ts, src/dashboard/src/styles/global.css."
+        "content": "Implemented all project lifecycle commands for coder CLI (phases 9-17 from roadmap-intelligence-flows.md). Files created: cmd_new_project.go (runNewProject - Q\u0026A → REQUIREMENTS.md/ROADMAP.md/STATE.md), cmd_map_codebase.go (runMapCodebase - 4 sequential analyses → STACK/ARCH/CONVENTIONS/CONCERNS.md), cmd_discuss_phase.go (runDiscussPhase - gray-area Q\u0026A → CONTEXT.md), cmd_plan_phase.go (runPlanPhase - research + XML plans + verification loop), cmd_execute_phase.go (runExecutePhase - wave-based execution + parsePlanXML + atomic git commits), cmd_ship.go (runShip - gh pr create with AI-generated body), cmd_progress.go (runProgress + runNext - STATE.md-aware navigation), cmd_milestone.go (runMilestone - audit/complete/archive/next lifecycle), cmd_todo.go (runTodo/runStats/runHealth/runNote/runDo - project utilities). All commands registered in main.go. go build + go vet both pass clean. STATE.md format: frontmatter fields + ## Decisions/Blockers/Backlog/PRs sections. XML plan"
       },
       {
-        "id": "02f9c077-c246-4a76-b771-c24913cbc023",
-        "title": "Live chats me controller clean-architecture refactor",
+        "id": "6ea76708-9673-48db-b3c4-8a78ee59fdf6",
+        "title": "CLI packaging, upgrade checks, and changed-file refresh",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:live-chats-me-controller-clean-architecture-refactor",
+        "canonical_key": "document:cli-packaging-upgrade-checks-and-changed-file-refresh",
         "score": 0.08562499,
         "tags": [
-          "omi-channel-be",
-          "nestjs",
-          "live-chats",
-          "clean-architecture",
-          "controller"
+          "minder",
+          "python",
+          "cli",
+          "packaging",
+          "graph-sync",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Moved authenticated user live chats listing from LiveChatsController to presentation/live-chat-user.controller.ts with GET companies/:companyId/live-chats/me. Refactored GetMyLiveChatsUseCase and ILiveChatUserRepository to use application-layer response types plus tenant-aware input { companyId, externalIds[] } so repository filters by liveChat.companyId and auth user identifiers instead of presentation DTO coupling. Updated live-chats.module.ts to register LiveChatUserController."
+        "content": "Completed the remaining high-value CLI transition slices: added hatchling package metadata in pyproject.toml, CI package build verification in .github/workflows/ci.yml, PyPI trusted publishing and release asset attachments in .github/workflows/release.yml, CLI install/usage docs in README.md and docs/guides/minder-cli.md, sync-time PyPI upgrade notices in src/minder/cli.py, and changed-file path pruning in src/minder/application/admin/use_cases.py so stale symbols are removed on resync. Validated with uv build, focused pytest, ruff, and mypy."
       },
       {
-        "id": "faac0689-a17c-4321-a712-b7f3db69daad",
-        "title": "Live chats me uses shared PageResponseDto",
+        "id": "ac29c93d-91fb-462f-a386-8e39a68c74a4",
+        "title": "Lifecycle commands synced to all agent layers",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:live-chats-me-uses-shared-pageresponsedto",
+        "canonical_key": "document:lifecycle-commands-synced-to-all-agent-layers",
         "score": 0.08538462,
         "tags": [
-          "omi-channel-be",
-          "nestjs",
-          "live-chats",
-          "pagination",
-          "dto"
+          "coder-cli",
+          "workflows",
+          "copilot",
+          "agent",
+          "lifecycle"
         ],
         "conflict_detected": false,
-        "content": "Updated live-chats/me response mapping to extend shared PageResponseDto. FindLiveChatUsersByExternalIdResult now carries skip and take from repository normalization, LiveChatUserMapper includes those pagination fields, and GetMyLiveChatsResponseDto maps result.items to data with total/skip/take/hasMore so the API matches the common paginated response contract."
+        "content": "Updated all 3 layers to include Group B lifecycle commands (new-project, map-codebase, discuss-phase, plan-phase, execute-phase, ship, progress, next, milestone) and Group C utilities (todo, stats, health, note, do). Files updated: .github/copilot-instructions.md (replaced AI Workflow Commands section with 3 groups A/B/C), .agents/workflows/full-lifecycle-delivery.md (added Lifecycle Path section with per-phase loop), .agents/workflows/execute-plan.md (added lifecycle path mode detection, coder debug on error, coder note for blockers), .agents/workflows/new-requirement.md (added scope detection: small feature vs new project with coder new-project, next steps branching), .agents/workflows/update-planning.md (added coder progress/next/health/milestone audit/note integration). All workflows now aware of both quick-path (PLAN.md) and lifecycle-path (STATE.md) modes."
       }
     ]
   }

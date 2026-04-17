@@ -12,9 +12,11 @@ import math
 import uuid
 from collections import Counter
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator, List, Optional, cast
 
 from sqlalchemy import delete, select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -60,6 +62,14 @@ _REGISTERED_MODELS = (
     User,
     Workflow,
 )
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class RelationalStore:
@@ -293,6 +303,53 @@ class RelationalStore:
     async def delete_session(self, session_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(Session).where(Session.id == session_id))
+
+    async def cleanup_expired_sessions(
+        self,
+        *,
+        now: datetime | None = None,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, int]:
+        reference_time = _normalize_datetime(now) or datetime.now(UTC)
+        async with self._session() as sess:
+            query = select(Session)
+            if user_id is not None:
+                query = query.where(Session.user_id == user_id)
+            if client_id is not None:
+                query = query.where(Session.client_id == client_id)
+
+            result = await sess.execute(query)
+            sessions = list(result.scalars().all())
+            expired_session_ids = [
+                session.id
+                for session in sessions
+                if session.ttl > 0
+                and (
+                    (
+                        _normalize_datetime(session.last_active)
+                        or _normalize_datetime(session.created_at)
+                        or reference_time
+                    )
+                    + timedelta(seconds=session.ttl)
+                )
+                <= reference_time
+            ]
+            if not expired_session_ids:
+                return {"deleted_sessions": 0, "deleted_history": 0}
+
+            history_result = await sess.execute(
+                delete(History).where(History.session_id.in_(expired_session_ids))
+            )
+            session_result = await sess.execute(
+                delete(Session).where(Session.id.in_(expired_session_ids))
+            )
+            history_cursor = cast(CursorResult[Any], history_result)
+            session_cursor = cast(CursorResult[Any], session_result)
+            return {
+                "deleted_sessions": int(session_cursor.rowcount or 0),
+                "deleted_history": int(history_cursor.rowcount or 0),
+            }
 
     # ------------------------------------------------------------------
     # Workflow
@@ -789,6 +846,14 @@ class RelationalStore:
                 .where(Session.user_id == user_id)
             )
             return list(result.scalars().all())
+
+    async def delete_history_for_session(self, session_id: uuid.UUID) -> int:
+        async with self._session() as sess:
+            result = await sess.execute(
+                delete(History).where(History.session_id == session_id)
+            )
+            cursor = cast(CursorResult[Any], result)
+            return int(cursor.rowcount or 0)
 
     # ------------------------------------------------------------------
     # Error

@@ -17,22 +17,22 @@
 
 ## Tracker Files
 
-| File                                                                                                     | Scope                                                                | Status                             |
-| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- | ---------------------------------- |
-| [phase-1-foundation.md](phase-1-foundation.md)                                                           | Phase 1 foundation, auth, transport, search, CI/CD                   | Closed                             |
-| [phase-2-agentic-pipeline.md](phase-2-agentic-pipeline.md)                                               | Phase 2 core agentic pipeline                                        | Closed                             |
-| [phase-2-1-runtime-fidelity.md](phase-2-1-runtime-fidelity.md)                                           | Phase 2.1 runtime fidelity and orchestration replacement             | Closed                             |
-| [phase-2-2-verification-and-retrieval.md](phase-2-2-verification-and-retrieval.md)                       | Phase 2.2 verification, retrieval, workflow closure                  | Closed                             |
-| [phase-3-retrieval-and-graph.md](phase-3-retrieval-and-graph.md)                                         | Phase 3 retrieval, knowledge graph, ingestion, workflow intelligence | Closed                             |
-| [phase-4-overview.md](phase-4-overview.md)                                                               | Phase 4 portfolio posture and shared Phase 4 tasks                   | Closed for delivered product slice |
-| [phase-4-0-gateway-auth-and-dashboard-foundation.md](phase-4-0-gateway-auth-and-dashboard-foundation.md) | Phase 4.0 gateway auth and dashboard foundation                      | Closed                             |
-| [phase-4-1-setup-and-plug-and-play-auth.md](phase-4-1-setup-and-plug-and-play-auth.md)                   | Phase 4.1 setup and direct client auth                               | Closed                             |
-| [phase-4-2-client-management-dashboard.md](phase-4-2-client-management-dashboard.md)                     | Phase 4.2 client management dashboard UX                             | Closed                             |
-| [phase-4-3-console-clean-architecture.md](phase-4-3-console-clean-architecture.md)                       | Phase 4.3 clean architecture and Astro console migration             | Closed                             |
-| [phase-4-4-context-continuity.md](phase-4-4-context-continuity.md)                                       | Phase 4.4 context continuity and anti-drift backlog                  | Backlog                            |
-| [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 learning, skill catalog, metadata-first graph backlog        | Backlog                            |
-| [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md)                           | Phase 6 post-Phase-5 CLI branch-topology automation backlog          | Backlog                            |
-| [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync   | Closed for current scope           |
+| File                                                                                                     | Scope                                                                                        | Status                             |
+| -------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- |
+| [phase-1-foundation.md](phase-1-foundation.md)                                                           | Phase 1 foundation, auth, transport, search, CI/CD                                           | Closed                             |
+| [phase-2-agentic-pipeline.md](phase-2-agentic-pipeline.md)                                               | Phase 2 core agentic pipeline                                                                | Closed                             |
+| [phase-2-1-runtime-fidelity.md](phase-2-1-runtime-fidelity.md)                                           | Phase 2.1 runtime fidelity and orchestration replacement                                     | Closed                             |
+| [phase-2-2-verification-and-retrieval.md](phase-2-2-verification-and-retrieval.md)                       | Phase 2.2 verification, retrieval, workflow closure                                          | Closed                             |
+| [phase-3-retrieval-and-graph.md](phase-3-retrieval-and-graph.md)                                         | Phase 3 retrieval, knowledge graph, ingestion, workflow intelligence                         | Closed                             |
+| [phase-4-overview.md](phase-4-overview.md)                                                               | Phase 4 portfolio posture and shared Phase 4 tasks                                           | Closed for delivered product slice |
+| [phase-4-0-gateway-auth-and-dashboard-foundation.md](phase-4-0-gateway-auth-and-dashboard-foundation.md) | Phase 4.0 gateway auth and dashboard foundation                                              | Closed                             |
+| [phase-4-1-setup-and-plug-and-play-auth.md](phase-4-1-setup-and-plug-and-play-auth.md)                   | Phase 4.1 setup and direct client auth                                                       | Closed                             |
+| [phase-4-2-client-management-dashboard.md](phase-4-2-client-management-dashboard.md)                     | Phase 4.2 client management dashboard UX                                                     | Closed                             |
+| [phase-4-3-console-clean-architecture.md](phase-4-3-console-clean-architecture.md)                       | Phase 4.3 clean architecture and Astro console migration                                     | Closed                             |
+| [phase-4-4-context-continuity.md](phase-4-4-context-continuity.md)                                       | Phase 4.4 context continuity and anti-drift backlog                                          | Backlog                            |
+| [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 learning, skill catalog, metadata-first graph, dashboard local chat backlog          | Backlog                            |
+| [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md)                           | Phase 6 post-Phase-5 branch topology, repo-local IDE bootstrap, installer automation backlog | Backlog                            |
+| [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync                           | Closed for current scope           |
 
 ---
 

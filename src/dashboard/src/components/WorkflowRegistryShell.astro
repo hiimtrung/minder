@@ -1,5 +1,13 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Select from "./ui/Select.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
 ---
 
 <DashboardLayout
@@ -10,126 +18,80 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">Workflow Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Manage delivery workflows.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Create step-gated workflows that control how Minder guides AI agents
-        through your development process. Assign workflows to repositories and
-        track their progress from a single view.
-      </p>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Workflow Registry"
+    title="Manage delivery workflows."
+    description="Create step-gated workflows that control how Minder guides AI agents through your development process. Assign workflows to repositories and track their progress from a single view."
+  />
 
-  <section class="grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
+  <section class="u-grid-sidebar">
     <!-- Create workflow form -->
-    <aside class="shell-card p-7">
+    <aside class="shell-card p-6">
       <p class="eyebrow">Create Workflow</p>
-      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+      <h2
+        class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+      >
         New workflow definition
       </h2>
-      <p class="mt-3 text-sm leading-6 text-stone-600">
+      <p class="mt-2 text-sm leading-6 text-stone-600">
         Define a named sequence of steps with optional gate conditions. Steps
         are enforced in order; an agent cannot advance until each gate passes.
       </p>
 
-      <form id="create-workflow-form" class="mt-6 grid gap-4">
-        <input
-          id="workflow-name"
-          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Name (e.g. tdd, review)"
-        />
-        <textarea
-          id="workflow-description"
-          class="min-h-20 rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Description"></textarea>
+      <form id="create-workflow-form" class="mt-5 grid gap-4">
+        <Field label="Name" htmlFor="workflow-name">
+          <Input id="workflow-name" placeholder="tdd, review" />
+        </Field>
+        <Field label="Description" htmlFor="workflow-description">
+          <Textarea id="workflow-description" placeholder="Description" />
+        </Field>
 
-        <label class="grid gap-2 text-sm text-stone-700">
-          Enforcement
-          <select
-            id="workflow-enforcement"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-          >
+        <Field label="Enforcement" htmlFor="workflow-enforcement">
+          <Select id="workflow-enforcement">
             <option value="strict">Strict — block on gate failure</option>
             <option value="advisory">Advisory — warn only</option>
             <option value="off">Off — no enforcement</option>
-          </select>
-        </label>
+          </Select>
+        </Field>
 
         <div class="grid gap-2 text-sm text-stone-700">
           <div class="flex items-center justify-between gap-2">
-            <span class="font-medium">Steps</span>
-            <button
-              type="button"
-              id="add-step-button"
-              class="action-pill text-xs">+ Add step</button
-            >
+            <span class="u-field-label mb-0">Steps</span>
+            <Button id="add-step-button" size="sm" variant="ghost">
+              + Add step
+            </Button>
           </div>
           <div id="workflow-steps-list" class="grid gap-2">
-            <!-- Steps rendered by JS -->
             <p class="px-1 text-xs text-stone-400">
               No steps yet — add the first one above.
             </p>
           </div>
         </div>
 
-        <p id="create-workflow-status" class="min-h-6 text-sm text-stone-600">
-        </p>
-        <button type="submit" class="primary-pill w-full"
-          >Create workflow</button
-        >
+        <FormStatus id="create-workflow-status" />
+        <Button type="submit" variant="primary" fullWidth>
+          Create workflow
+        </Button>
       </form>
     </aside>
 
     <!-- Workflow list -->
-    <div class="flex flex-col gap-6">
-      <section
-        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+    <div class="flex flex-col gap-5">
+      <Toolbar
+        idPrefix="workflow"
+        description="Open any workflow card to edit steps, change enforcement, or review which repositories are using it."
+        searchPlaceholder="Semantic quick search workflows"
       >
-        <div>
-          <p class="text-sm font-medium text-stone-900">Navigator</p>
-          <p class="mt-1 text-sm text-stone-600">
-            Open any workflow card to edit steps, change enforcement, or review
-            which repositories are using it.
-          </p>
-        </div>
-        <a href="/dashboard" class="action-pill">Dashboard home</a>
-        <div
-          class="flex w-full flex-wrap items-center gap-3 border-t border-stone-200 pt-4"
-        >
-          <input
-            id="workflow-quick-search"
-            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
-            placeholder="Semantic quick search workflows"
-          />
-          <span id="workflow-pagination-status" class="text-xs text-stone-500"
-          ></span>
-          <button
-            id="workflow-page-prev"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Prev
-          </button>
-          <button
-            id="workflow-page-next"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Next
-          </button>
-        </div>
-      </section>
+        <Button slot="leading" href="/dashboard" size="sm">
+          Dashboard home
+        </Button>
+      </Toolbar>
 
       <div id="workflow-registry" class="grid gap-4 md:grid-cols-2">
-        <article class="shell-card p-6 text-sm text-stone-600">
-          Loading workflows...
-        </article>
+        <article class="u-placeholder-card">Loading workflows...</article>
       </div>
     </div>
   </section>
+
   <script src="../scripts/workflows-page.ts"></script>
 </DashboardLayout>

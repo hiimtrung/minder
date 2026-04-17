@@ -146,7 +146,7 @@ Direction note: the delivered Phase 3 baseline remains valid, but future perform
 
 ## Phase 5: Learning and Self-Improvement
 
-**Goal**: Let Minder learn from successful workflows, failures, and feedback.
+**Goal**: Let Minder learn from successful workflows, failures, and feedback, while expanding the dashboard into a local-LLM control surface that can use the full MCP toolset.
 
 Direction note: Phase 5 graph work continues to follow the metadata-first policy and now has a dedicated transition roadmap for CLI edge extraction and fast graph sync.
 
@@ -160,20 +160,29 @@ Direction note: Phase 5 graph work continues to follow the metadata-first policy
 6. Add Dashboard-backed skill CRUD and remote import from GitHub, GitLab, and generic Git repositories.
 7. Keep GraphNode storage limited to metadata and long-lived reusable excerpts.
 8. Add experimentation support for workflow and retrieval strategy variants.
+9. Add a dashboard-native local-LLM chat shell that can use the same MCP tools available to IDE agents for question-answering, operational workflows, and CRUD over managed data.
 
-## Phase 6: Branch Topology Automation
+## Phase 6: Branch Topology, IDE Bootstrap, and Secure Installer Automation
 
-**Goal**: automate repository branch-topology discovery in the CLI pipeline after the learning/skill backlog is in place, without diluting the runtime search and impact follow-up work.
+**Goal**: automate repository branch-topology discovery and repository-local IDE bootstrap in the CLI pipeline after the learning/skill backlog is in place, while adding secure installer/update flows for Minder server and Minder CLI without diluting the runtime search and impact follow-up work.
 
 ### Tasks
 
 1. Extend `minder-cli` and the repo scanner to infer `branch_relationships` from local branch state, configured remotes, and worktree context.
 2. Normalize detected branch links against the persisted repository landscape so sync payloads can submit stable `repo/branch -> repo/branch` relationships.
 3. Add review-safe fallback behavior when inferred topology is ambiguous, incomplete, or conflicts with admin-managed links.
-4. Validate that automatic branch-topology submission does not regress the manual dashboard branch-link workflow.
+4. Add `minder-cli` commands that install MCP servers, instructions, and agents for supported IDEs into the current repository instead of global user config.
+5. Make repo-local IDE bootstrap version-aware so existing config is appended or patched in place during updates instead of replaced blindly.
+6. Add secret-safe handling for repository-local MCP config so client keys are not committed, including `.gitignore` automation and/or a secure indirection mechanism.
+7. Ship quick-install scripts for Minder server and Minder CLI that validate environment compatibility on macOS, Linux, and Windows before installing required components.
+8. Publish the installer scripts and usage guidance as GitHub Release assets and release documentation.
+9. Validate that automatic branch-topology submission and repo-local IDE bootstrap do not regress the manual dashboard branch-link workflow or expose secrets accidentally.
 
 ### Validation
 
 - CLI sync can submit inferred `branch_relationships` without requiring dashboard-only manual entry for the common case.
 - Ambiguous or conflicting branch topology is surfaced safely instead of silently creating incorrect cross-repo links.
-- Existing repository landscape, search, and impact workflows continue to function when automatic topology detection is enabled.
+- Repository-local IDE bootstrap can install or update Minder MCP/instructions/agents for supported IDEs without overwriting unrelated config.
+- Client keys are not exposed through committed repository config in the default installation path.
+- Cross-platform server and CLI install scripts validate prerequisites and complete successfully on supported environments.
+- Existing repository landscape, search, and impact workflows continue to function when automatic topology detection and repo-local IDE bootstrap are enabled.

@@ -1,5 +1,13 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Card from "./ui/Card.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Select from "./ui/Select.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import ResultCallout from "./ui/ResultCallout.astro";
 ---
 
 <DashboardLayout
@@ -10,117 +18,102 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">User Management</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Manage admin users.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        View all registered admin users, update their roles and display names,
-        and deactivate accounts that no longer need access to the Minder
-        dashboard.
-      </p>
-    </div>
-    <div class="flex flex-wrap items-center gap-3">
-      <label class="flex items-center gap-2 text-sm text-stone-700">
-        <input
-          type="checkbox"
-          id="show-inactive-toggle"
-          class="accent-amber-600"
-        />
-        Show inactive
-      </label>
-      <button id="toggle-create-user" type="button" class="primary-pill">
-        + New user
-      </button>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="User Management"
+    title="Manage admin users."
+    description="View all registered admin users, update their roles and display names, and deactivate accounts that no longer need access to the Minder dashboard."
+  >
+    <label
+      slot="actions"
+      class="flex items-center gap-2 text-sm text-stone-700"
+    >
+      <input
+        type="checkbox"
+        id="show-inactive-toggle"
+        class="accent-amber-700"
+      />
+      Show inactive
+    </label>
+    <Button slot="actions" id="toggle-create-user" variant="primary" size="sm">
+      + New user
+    </Button>
+  </PageHero>
 
-  <section class="grid gap-8 lg:grid-cols-[360px_minmax(0,1fr)]">
-    <!-- Sidebar: Edit User panel (always at top, sticky) -->
+  <section class="u-grid-sidebar">
+    <!-- Sidebar: Edit User panel (sticky) -->
     <aside class="flex flex-col gap-4 self-start lg:sticky lg:top-4">
-      <section class="shell-card p-7">
+      <Card padding="lg">
         <p class="eyebrow">Edit User</p>
-        <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
           User details
         </h2>
-        <p id="edit-user-hint" class="mt-3 text-sm leading-6 text-stone-500">
+        <p id="edit-user-hint" class="mt-2 text-sm leading-6 text-stone-500">
           Select a user from the list on the right to edit their profile.
         </p>
 
-        <form id="edit-user-form" class="mt-6 gap-4 hidden">
-          <label class="grid gap-2 text-sm text-stone-700">
-            Display name
-            <input
-              id="edit-user-display-name"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-              placeholder="Display name"
-            />
-          </label>
+        <form id="edit-user-form" class="mt-5 hidden gap-4">
+          <Field label="Display name" htmlFor="edit-user-display-name">
+            <Input id="edit-user-display-name" placeholder="Display name" />
+          </Field>
 
-          <label class="grid gap-2 text-sm text-stone-700">
-            Role
-            <select
-              id="edit-user-role"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-            >
+          <Field label="Role" htmlFor="edit-user-role">
+            <Select id="edit-user-role">
               <option value="admin">Admin</option>
               <option value="member">Member</option>
               <option value="readonly">Read Only</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
 
           <div class="flex items-center gap-3">
             <input
               type="checkbox"
               id="edit-user-is-active"
-              class="h-4 w-4 rounded border-stone-300 accent-amber-600"
+              class="h-4 w-4 rounded border-stone-300 accent-amber-700"
             />
             <label for="edit-user-is-active" class="text-sm text-stone-700">
               Active (uncheck to deactivate)
             </label>
           </div>
 
-          <p id="edit-user-status" class="min-h-6 text-sm text-stone-600"></p>
+          <FormStatus id="edit-user-status" />
           <div class="flex gap-2">
-            <button type="submit" class="primary-pill flex-1">
+            <Button type="submit" variant="primary" class="flex-1">
               Save changes
-            </button>
-            <button type="button" id="cancel-edit-user" class="action-pill">
-              Cancel
-            </button>
+            </Button>
+            <Button id="cancel-edit-user">Cancel</Button>
           </div>
 
           <!-- MCP clients owned by this user -->
           <div class="mt-2 border-t border-stone-100 pt-4">
             <p class="mb-3 text-sm font-medium text-stone-700">MCP clients</p>
             <div id="edit-user-clients" class="grid gap-2">
-              <p class="text-xs text-stone-400 px-1">Loading clients…</p>
+              <p class="px-1 text-xs text-stone-400">Loading clients…</p>
             </div>
             <a
               href="/dashboard/clients"
-              class="mt-3 inline-block text-xs text-amber-700 hover:underline"
+              class="mt-3 inline-block text-xs font-medium text-amber-800 hover:underline"
             >
               Manage all clients →
             </a>
           </div>
         </form>
-      </section>
+      </Card>
     </aside>
 
     <!-- Main area: Create User collapsible + User list -->
-    <div class="flex flex-col gap-6">
-      <!-- Create User panel (collapsed by default, toggled via "+ New user") -->
+    <div class="flex flex-col gap-5">
+      <!-- Create User panel (collapsed by default) -->
       <section
         id="create-user-panel"
-        class="shell-card overflow-hidden transition-all hidden"
+        class="shell-card hidden overflow-hidden transition-all"
       >
-        <div class="flex items-start justify-between gap-4 p-7 pb-0">
+        <div class="flex items-start justify-between gap-4 p-6 pb-0">
           <div>
             <p class="eyebrow">Create User</p>
             <h2
-              class="mt-2 text-2xl font-semibold tracking-tight text-stone-950"
+              class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
             >
               Add another admin or member
             </h2>
@@ -132,7 +125,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           <button
             id="close-create-user"
             type="button"
-            class="shrink-0 rounded-full p-1.5 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition"
+            class="shrink-0 rounded-full p-1.5 text-stone-400 transition hover:bg-stone-100 hover:text-stone-700"
             aria-label="Close create user panel"
           >
             <svg
@@ -152,73 +145,63 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </button>
         </div>
 
-        <form id="create-user-form" class="p-7 pt-5 grid gap-4 sm:grid-cols-2">
-          <label class="grid gap-2 text-sm text-stone-700">
-            Username
-            <input
+        <form id="create-user-form" class="grid gap-4 p-6 pt-4 sm:grid-cols-2">
+          <Field label="Username" htmlFor="create-user-username">
+            <Input
               id="create-user-username"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
               placeholder="new_admin"
               required
             />
-          </label>
+          </Field>
 
-          <label class="grid gap-2 text-sm text-stone-700">
-            Email
-            <input
+          <Field label="Email" htmlFor="create-user-email">
+            <Input
               id="create-user-email"
               type="email"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
               placeholder="admin@example.com"
               required
             />
-          </label>
+          </Field>
 
-          <label class="grid gap-2 text-sm text-stone-700">
-            Display name
-            <input
+          <Field label="Display name" htmlFor="create-user-display-name">
+            <Input
               id="create-user-display-name"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
               placeholder="Operations Admin"
               required
             />
-          </label>
+          </Field>
 
-          <label class="grid gap-2 text-sm text-stone-700">
-            Role
-            <select
-              id="create-user-role"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-            >
+          <Field label="Role" htmlFor="create-user-role">
+            <Select id="create-user-role">
               <option value="admin">Admin</option>
               <option value="member">Member</option>
               <option value="readonly">Read Only</option>
-            </select>
-          </label>
+            </Select>
+          </Field>
 
-          <label class="grid gap-2 text-sm text-stone-700 sm:col-span-2">
-            Password <span class="text-stone-400 font-normal">(optional)</span>
-            <input
+          <Field
+            label="Password"
+            htmlFor="create-user-password"
+            hint="Leave blank for API-key-only login."
+            class="sm:col-span-2"
+          >
+            <Input
               id="create-user-password"
               type="password"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3 text-stone-900"
-              placeholder="Leave blank for API-key-only login"
+              placeholder="Min. 8 characters"
             />
-          </label>
+          </Field>
 
           <div class="sm:col-span-2">
-            <p
-              id="create-user-status"
-              class="min-h-6 mb-3 text-sm text-stone-600"
-            >
-            </p>
-            <button type="submit" class="primary-pill">Create user</button>
+            <FormStatus id="create-user-status" class="mb-3" />
+            <Button type="submit" variant="primary">Create user</Button>
           </div>
         </form>
 
-        <div
+        <ResultCallout
           id="create-user-result"
-          class="mx-7 mb-7 hidden rounded-3xl border border-emerald-200 bg-emerald-50/80 p-4"
+          tone="emerald"
+          class="mx-6 mb-6"
         >
           <p
             class="text-xs font-semibold uppercase tracking-[0.24em] text-emerald-700"
@@ -232,14 +215,14 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
           <pre
             id="create-user-api-key"
-            class="mt-3 overflow-x-auto rounded-2xl bg-emerald-950 px-4 py-3 text-xs text-emerald-50">
+            class="font-mono-ui mt-3 overflow-x-auto rounded-xl bg-emerald-950 px-4 py-3 text-xs text-emerald-50">
           </pre>
-        </div>
+        </ResultCallout>
       </section>
 
       <!-- User roster header -->
       <section
-        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-4"
       >
         <div>
           <p class="text-sm font-medium text-stone-900">User roster</p>
@@ -248,16 +231,12 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             left.
           </p>
         </div>
-        <a href="/dashboard" class="action-pill">Dashboard home</a>
+        <Button href="/dashboard" size="sm">Dashboard home</Button>
       </section>
 
       <!-- User list -->
       <div id="user-list" class="grid gap-3">
-        <div
-          class="rounded-2xl border border-stone-300 bg-stone-50/80 px-4 py-3 text-sm text-stone-600"
-        >
-          Loading users...
-        </div>
+        <div class="u-placeholder-card">Loading users...</div>
       </div>
     </div>
   </section>
@@ -265,7 +244,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   <!-- Toast region -->
   <div
     id="dashboard-toast-region"
-    class="pointer-events-none fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3"
+    class="pointer-events-none fixed right-6 bottom-6 z-50 flex flex-col items-end gap-3"
   >
   </div>
 

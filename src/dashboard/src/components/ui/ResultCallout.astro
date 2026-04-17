@@ -1,0 +1,38 @@
+---
+/**
+ * ResultCallout — reveal block for newly issued API keys, bootstrap secrets,
+ * and similar one-shot reveals. Hidden by default.
+ */
+interface Props {
+  id?: string;
+  tone?: "amber" | "emerald" | "danger";
+  eyebrow?: string;
+  hidden?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  tone = "amber",
+  eyebrow,
+  hidden = true,
+  class: className = "",
+} = Astro.props;
+
+const toneClass =
+  tone === "emerald"
+    ? "u-result-callout-emerald"
+    : tone === "danger"
+      ? "u-result-callout-danger"
+      : "u-result-callout-amber";
+
+const hiddenClass = hidden ? "hidden" : "";
+---
+
+<div
+  id={id}
+  class={`u-result-callout ${toneClass} ${hiddenClass} ${className}`}
+>
+  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+  <slot />
+</div>

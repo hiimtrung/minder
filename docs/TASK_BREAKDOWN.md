@@ -36,23 +36,23 @@ Detailed task tables have been split into phase-specific files under [progress/R
 
 ## Task Trackers By Phase
 
-| Scope              | File                                                                                                                       | Notes                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| Portfolio index    | [progress/README.md](progress/README.md)                                                                                   | Entry point for all split trackers                         |
-| Phase 1            | [progress/phase-1-foundation.md](progress/phase-1-foundation.md)                                                           | Foundation, auth, search, delivery assets                  |
-| Phase 2            | [progress/phase-2-agentic-pipeline.md](progress/phase-2-agentic-pipeline.md)                                               | Agentic pipeline core                                      |
-| Phase 2.1          | [progress/phase-2-1-runtime-fidelity.md](progress/phase-2-1-runtime-fidelity.md)                                           | Runtime fidelity and orchestration                         |
-| Phase 2.2          | [progress/phase-2-2-verification-and-retrieval.md](progress/phase-2-2-verification-and-retrieval.md)                       | Retrieval, verification, workflow closure                  |
-| Phase 3            | [progress/phase-3-retrieval-and-graph.md](progress/phase-3-retrieval-and-graph.md)                                         | Retrieval quality, graph, ingestion                        |
-| Phase 4 overview   | [progress/phase-4-overview.md](progress/phase-4-overview.md)                                                               | Shared Phase 4 tasks and posture                           |
-| Phase 4.0          | [progress/phase-4-0-gateway-auth-and-dashboard-foundation.md](progress/phase-4-0-gateway-auth-and-dashboard-foundation.md) | Gateway auth + dashboard foundation                        |
-| Phase 4.1          | [progress/phase-4-1-setup-and-plug-and-play-auth.md](progress/phase-4-1-setup-and-plug-and-play-auth.md)                   | Setup and direct auth                                      |
-| Phase 4.2          | [progress/phase-4-2-client-management-dashboard.md](progress/phase-4-2-client-management-dashboard.md)                     | Client management UX                                       |
-| Phase 4.3          | [progress/phase-4-3-console-clean-architecture.md](progress/phase-4-3-console-clean-architecture.md)                       | Clean architecture + Astro migration                       |
-| Phase 4.4          | [progress/phase-4-4-context-continuity.md](progress/phase-4-4-context-continuity.md)                                       | Context continuity backlog                                 |
-| Phase 5            | [progress/phase-5-learning-and-skill-catalog.md](progress/phase-5-learning-and-skill-catalog.md)                           | Learning, skill catalog, metadata-first graph              |
-| Phase 6            | [progress/phase-6-branch-topology-automation.md](progress/phase-6-branch-topology-automation.md)                           | Post-Phase-5 CLI branch-topology automation                |
-| Transition roadmap | [progress/architecture-transition-cli-edge-sync.md](progress/architecture-transition-cli-edge-sync.md)                     | New CLI edge extraction and graph sync modernization track |
+| Scope              | File                                                                                                                       | Notes                                                                        |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Portfolio index    | [progress/README.md](progress/README.md)                                                                                   | Entry point for all split trackers                                           |
+| Phase 1            | [progress/phase-1-foundation.md](progress/phase-1-foundation.md)                                                           | Foundation, auth, search, delivery assets                                    |
+| Phase 2            | [progress/phase-2-agentic-pipeline.md](progress/phase-2-agentic-pipeline.md)                                               | Agentic pipeline core                                                        |
+| Phase 2.1          | [progress/phase-2-1-runtime-fidelity.md](progress/phase-2-1-runtime-fidelity.md)                                           | Runtime fidelity and orchestration                                           |
+| Phase 2.2          | [progress/phase-2-2-verification-and-retrieval.md](progress/phase-2-2-verification-and-retrieval.md)                       | Retrieval, verification, workflow closure                                    |
+| Phase 3            | [progress/phase-3-retrieval-and-graph.md](progress/phase-3-retrieval-and-graph.md)                                         | Retrieval quality, graph, ingestion                                          |
+| Phase 4 overview   | [progress/phase-4-overview.md](progress/phase-4-overview.md)                                                               | Shared Phase 4 tasks and posture                                             |
+| Phase 4.0          | [progress/phase-4-0-gateway-auth-and-dashboard-foundation.md](progress/phase-4-0-gateway-auth-and-dashboard-foundation.md) | Gateway auth + dashboard foundation                                          |
+| Phase 4.1          | [progress/phase-4-1-setup-and-plug-and-play-auth.md](progress/phase-4-1-setup-and-plug-and-play-auth.md)                   | Setup and direct auth                                                        |
+| Phase 4.2          | [progress/phase-4-2-client-management-dashboard.md](progress/phase-4-2-client-management-dashboard.md)                     | Client management UX                                                         |
+| Phase 4.3          | [progress/phase-4-3-console-clean-architecture.md](progress/phase-4-3-console-clean-architecture.md)                       | Clean architecture + Astro migration                                         |
+| Phase 4.4          | [progress/phase-4-4-context-continuity.md](progress/phase-4-4-context-continuity.md)                                       | Context continuity backlog                                                   |
+| Phase 5            | [progress/phase-5-learning-and-skill-catalog.md](progress/phase-5-learning-and-skill-catalog.md)                           | Learning, skill catalog, metadata-first graph, dashboard local chat          |
+| Phase 6            | [progress/phase-6-branch-topology-automation.md](progress/phase-6-branch-topology-automation.md)                           | Post-Phase-5 branch topology, repo-local IDE bootstrap, installer automation |
+| Transition roadmap | [progress/architecture-transition-cli-edge-sync.md](progress/architecture-transition-cli-edge-sync.md)                     | New CLI edge extraction and graph sync modernization track                   |
 
 ---
 

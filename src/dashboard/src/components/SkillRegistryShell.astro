@@ -1,5 +1,14 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Card from "./ui/Card.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import GuideAside from "./ui/GuideAside.astro";
 ---
 
 <DashboardLayout
@@ -10,195 +19,121 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">Skill Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Ingest and manage skills.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Capture reusable workflow knowledge with step tags, artifact tags,
-        provenance, and quality signals so the runtime can recall better
-        context.
-      </p>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Skill Registry"
+    title="Ingest and manage skills."
+    description="Capture reusable workflow knowledge with step tags, artifact tags, provenance, and quality signals so the runtime can recall better context."
+  />
 
-  <section class="grid gap-8 xl:grid-cols-[430px_minmax(0,1fr)]">
-    <aside class="shell-card p-7">
+  <section class="u-grid-sidebar">
+    <aside class="shell-card p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="eyebrow">Editor</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          <h2
+            class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+          >
             Skill draft
           </h2>
         </div>
-        <button
-          id="skill-reset-button"
-          type="button"
-          class="action-pill text-xs"
-        >
+        <Button id="skill-reset-button" size="sm" variant="ghost">
           New draft
-        </button>
+        </Button>
       </div>
 
-      <form id="skill-form" class="mt-6 grid gap-4">
+      <form id="skill-form" class="mt-5 grid gap-4">
         <input id="skill-id" type="hidden" />
-        <label class="grid gap-2 text-sm text-stone-700">
-          Title
-          <input
-            id="skill-title"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="Test plan drafting pattern"
-          />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Language
-          <input
-            id="skill-language"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="markdown"
-            value="markdown"
-          />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Tags
-          <input
-            id="skill-tags"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="tdd, regression, continuity"
-          />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Workflow steps
-          <input
+        <Field label="Title" htmlFor="skill-title">
+          <Input id="skill-title" placeholder="Test plan drafting pattern" />
+        </Field>
+        <Field label="Language" htmlFor="skill-language">
+          <Input id="skill-language" placeholder="markdown" value="markdown" />
+        </Field>
+        <Field label="Tags" htmlFor="skill-tags">
+          <Input id="skill-tags" placeholder="tdd, regression, continuity" />
+        </Field>
+        <Field label="Workflow steps" htmlFor="skill-workflow-steps">
+          <Input
             id="skill-workflow-steps"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
             placeholder="Test Writing, Implementation"
           />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Artifact types
-          <input
+        </Field>
+        <Field label="Artifact types" htmlFor="skill-artifact-types">
+          <Input
             id="skill-artifact-types"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
             placeholder="test_plan, implementation_notes"
           />
-        </label>
+        </Field>
+
         <div class="grid gap-4 sm:grid-cols-2">
-          <label class="grid gap-2 text-sm text-stone-700">
-            Provenance
-            <input
-              id="skill-provenance"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-              placeholder="dashboard_manual"
-            />
-          </label>
-          <label class="grid gap-2 text-sm text-stone-700">
-            Quality score
-            <input
+          <Field label="Provenance" htmlFor="skill-provenance">
+            <Input id="skill-provenance" placeholder="dashboard_manual" />
+          </Field>
+          <Field label="Quality score" htmlFor="skill-quality-score">
+            <Input
               id="skill-quality-score"
               type="number"
-              min="0"
-              max="1"
-              step="0.1"
-              value="0.7"
-              class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
+              min={0}
+              max={1}
+              step={0.1}
+              value={0.7}
             />
-          </label>
+          </Field>
         </div>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Skill content
-          <textarea
+
+        <Field
+          label="Skill content"
+          htmlFor="skill-content"
+          hint="Saving this form ingests the skill into the continuity store."
+        >
+          <Textarea
             id="skill-content"
-            class="min-h-[260px] rounded-3xl border border-stone-300 bg-white px-4 py-4 text-sm leading-6"
+            variant="large"
             placeholder="Describe the reusable workflow pattern, expected artifacts, and common pitfalls."
-          ></textarea>
-          <span class="text-xs text-stone-500">
-            Saving this form ingests the skill into the continuity store.
-          </span>
-        </label>
+          />
+        </Field>
 
         <div class="flex flex-wrap gap-3">
-          <button type="submit" class="primary-pill flex-1 min-w-[180px]">
+          <Button type="submit" variant="primary" class="flex-1 min-w-[180px]">
             Save and ingest skill
-          </button>
+          </Button>
         </div>
-        <p id="skill-editor-status" class="min-h-6 text-sm text-stone-600"></p>
+        <FormStatus id="skill-editor-status" />
       </form>
     </aside>
 
-    <div class="grid gap-6">
-      <section class="shell-card px-6 py-5">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p class="text-sm font-medium text-stone-900">Registry</p>
-            <p class="mt-1 text-sm text-stone-600">
-              Load any skill into the editor, update metadata, or remove stale
-              entries from the recall catalog.
-            </p>
-          </div>
-          <button
-            id="skill-refresh-button"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Refresh list
-          </button>
-        </div>
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <input
-            id="skill-quick-search"
-            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
-            placeholder="Semantic quick search skills"
-          />
-          <span id="skill-pagination-status" class="text-xs text-stone-500"
-          ></span>
-          <button
-            id="skill-page-prev"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Prev
-          </button>
-          <button
-            id="skill-page-next"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Next
-          </button>
-        </div>
-      </section>
+    <div class="grid gap-5">
+      <Toolbar
+        idPrefix="skill"
+        title="Registry"
+        description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
+        searchPlaceholder="Semantic quick search skills"
+      >
+        <Button slot="leading" id="skill-refresh-button" size="sm">
+          Refresh list
+        </Button>
+      </Toolbar>
 
-      <section class="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_340px]">
+      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
         <div id="skill-registry" class="grid gap-4">
-          <article class="shell-card p-6 text-sm text-stone-600">
-            Loading skills...
-          </article>
+          <article class="u-placeholder-card">Loading skills...</article>
         </div>
 
-        <aside class="shell-card p-4">
-          <p class="eyebrow">Ingest Guide</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
-            What makes a good skill
-          </h2>
-          <div class="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
-            <p>
-              Write a single reusable pattern per skill. Keep it operational and
-              specific to a workflow step or artifact outcome.
-            </p>
-            <p>
-              Use workflow steps to guide recall ranking, artifact types to bind
-              the skill to expected outputs, and provenance to show where it
-              came from.
-            </p>
-            <p>
-              Quality score is a soft confidence signal. Higher values push the
-              skill up when semantic similarity is close.
-            </p>
-          </div>
-        </aside>
+        <GuideAside eyebrow="Ingest Guide" title="What makes a good skill">
+          <p>
+            Write a single reusable pattern per skill. Keep it operational and
+            specific to a workflow step or artifact outcome.
+          </p>
+          <p>
+            Use workflow steps to guide recall ranking, artifact types to bind
+            the skill to expected outputs, and provenance to show where it came
+            from.
+          </p>
+          <p>
+            Quality score is a soft confidence signal. Higher values push the
+            skill up when semantic similarity is close.
+          </p>
+        </GuideAside>
       </section>
     </div>
   </section>

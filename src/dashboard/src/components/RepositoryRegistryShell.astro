@@ -1,5 +1,8 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Button from "./ui/Button.astro";
 ---
 
 <DashboardLayout
@@ -10,71 +13,29 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">Repository Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Browse repositories.
-      </h1>
-      <p class="max-w-4xl text-lg leading-8 text-stone-700">
-        Use semantic search to find the right repository, then open a dedicated
-        detail screen for graph exploration, impact analysis, and settings.
-      </p>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Repository Registry"
+    title="Browse repositories."
+    description="Use semantic search to find the right repository, then open a dedicated detail screen for graph exploration, impact analysis, and settings."
+  />
 
-  <section class="grid gap-6">
-    <section
-      class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+  <section class="grid gap-5">
+    <Toolbar
+      searchId="repo-list-quick-search"
+      statusId="repo-list-pagination-status"
+      prevId="repo-list-page-prev"
+      nextId="repo-list-page-next"
+      description="Search by repository name, branch, remote, workflow, or path and move into a focused detail route when you are ready to inspect it."
+      searchPlaceholder="Semantic quick search repositories"
     >
-      <div>
-        <p class="text-sm font-medium text-stone-900">Navigator</p>
-        <p class="mt-1 text-sm text-stone-600">
-          Search by repository name, branch, remote, workflow, or path and move
-          into a focused detail route when you are ready to inspect it.
-        </p>
-      </div>
-      <div class="flex items-center gap-3">
-        <a href="/dashboard" class="action-pill">Dashboard home</a>
-        <button
-          id="repo-list-refresh"
-          type="button"
-          class="action-pill text-xs"
-        >
-          Refresh list
-        </button>
-      </div>
-      <div
-        class="flex w-full flex-wrap items-center gap-3 border-t border-stone-200 pt-4"
-      >
-        <input
-          id="repo-list-quick-search"
-          class="min-w-[260px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
-          placeholder="Semantic quick search repositories"
-        />
-        <span id="repo-list-pagination-status" class="text-xs text-stone-500"
-        ></span>
-        <button
-          id="repo-list-page-prev"
-          type="button"
-          class="action-pill text-xs"
-        >
-          Prev
-        </button>
-        <button
-          id="repo-list-page-next"
-          type="button"
-          class="action-pill text-xs"
-        >
-          Next
-        </button>
-      </div>
-    </section>
+      <Button slot="leading" href="/dashboard" size="sm">Dashboard home</Button>
+      <Button slot="leading" id="repo-list-refresh" size="sm">
+        Refresh list
+      </Button>
+    </Toolbar>
 
     <div id="repo-list-registry" class="grid gap-4 xl:grid-cols-2">
-      <article class="shell-card p-6 text-sm text-stone-600">
-        Loading repositories...
-      </article>
+      <article class="u-placeholder-card">Loading repositories...</article>
     </div>
   </section>
 

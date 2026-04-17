@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import Footer from "../components/ui/Footer.astro";
 
 interface Props {
   title: string;
@@ -65,88 +66,50 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href="/dashboard/favicon.png" />
+
+    <!-- Design system fonts: Fraunces (display) + Inter (body) + JetBrains Mono (code) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
   </head>
   <body>
-    <div class="min-h-screen">
-      <header class="mx-auto px-6 py-2">
-        <div class="shell-card px-5 py-5 md:px-6">
-          <div class="flex flex-wrap items-start justify-between gap-6">
-            <div class="flex min-w-0 items-center gap-4">
-              <a href="/dashboard" class="group flex items-center gap-3">
-                <div
-                  class="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-800 text-white shadow-lg transition-transform group-hover:scale-105"
-                >
-                  <span class="text-xl font-bold">M</span>
-                </div>
-                <div class="flex min-w-0 flex-col">
-                  <span class="text-lg font-bold tracking-tight text-stone-900"
-                    >{navTitle}</span
-                  >
-                  <span
-                    class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase"
-                    >Control Plane</span
-                  >
-                </div>
-              </a>
+    <div class="flex min-h-screen flex-col">
+      <header class="u-page-container pt-4 pb-2">
+        <div class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-3 md:px-6">
+          <a href="/dashboard" class="group flex min-w-0 items-center gap-3">
+            <div
+              class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-800 text-white shadow-md transition-transform group-hover:scale-105"
+            >
+              <span class="font-display text-lg font-bold">M</span>
             </div>
-
-            <div class="flex min-w-0 flex-1 flex-col gap-4 md:items-end">
-              {
-                effectiveNav.length > 0 && (
-                  <nav class="hidden flex-wrap items-center gap-1 md:flex">
-                    {effectiveNav.map((link: any) => (
-                      <a
-                        href={link.href}
-                        class="nav-link"
-                        data-active={
-                          isLinkActive(link.href, link.currentDetail)
-                            ? "true"
-                            : "false"
-                        }
-                      >
-                        {link.label}
-                      </a>
-                    ))}
-                  </nav>
-                )
-              }
-
-              <div class="flex flex-wrap items-center gap-3 md:justify-end">
-                <p
-                  class="max-w-2xl text-sm leading-6 text-stone-600 md:text-right"
-                >
-                  {navDescription}
-                </p>
-                {
-                  sessionControls && (
-                    <div class="flex items-center gap-3">
-                      <span id="dashboard-session-badge" class="session-badge">
-                        Checking...
-                      </span>
-                      <button
-                        id="dashboard-logout-button"
-                        type="button"
-                        class="action-pill px-3 py-1.5 text-xs!"
-                      >
-                        Logout
-                      </button>
-                    </div>
-                  )
-                }
-              </div>
+            <div class="flex min-w-0 flex-col">
+              <span
+                class="font-display truncate text-base font-semibold tracking-tight text-stone-900"
+              >
+                {navTitle}
+              </span>
+              <span
+                class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase"
+              >
+                Control Plane
+              </span>
             </div>
-          </div>
+          </a>
 
           {
             effectiveNav.length > 0 && (
-              <nav class="mt-5 flex flex-wrap items-center gap-2 border-t border-stone-200 pt-4 md:hidden">
+              <nav class="hidden flex-wrap items-center gap-1 md:flex">
                 {effectiveNav.map((link: any) => (
                   <a
                     href={link.href}
-                    class={
+                    class="nav-link"
+                    data-active={
                       isLinkActive(link.href, link.currentDetail)
-                        ? "primary-pill"
-                        : "action-pill"
+                        ? "true"
+                        : "false"
                     }
                   >
                     {link.label}
@@ -155,22 +118,59 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
               </nav>
             )
           }
+
+          {
+            sessionControls && (
+              <div class="flex items-center gap-3">
+                <span id="dashboard-session-badge" class="session-badge">
+                  Checking...
+                </span>
+                <button
+                  id="dashboard-logout-button"
+                  type="button"
+                  class="action-pill u-btn-sm"
+                >
+                  Logout
+                </button>
+              </div>
+            )
+          }
         </div>
+
+        {
+          effectiveNav.length > 0 && (
+            <nav class="mt-3 flex flex-wrap items-center gap-2 md:hidden">
+              {effectiveNav.map((link: any) => (
+                <a
+                  href={link.href}
+                  class={
+                    isLinkActive(link.href, link.currentDetail)
+                      ? "primary-pill u-btn-sm"
+                      : "action-pill u-btn-sm"
+                  }
+                >
+                  {link.label}
+                </a>
+              ))}
+            </nav>
+          )
+        }
       </header>
 
-      <main class="mx-auto px-6 pb-10">
+      <main class="u-page-container flex-1 pb-10">
         {
           showPageIntro && (
             <div class="mb-8 flex flex-col gap-2">
-              <h1 class="text-3xl font-bold tracking-tight text-stone-950">
-                {title}
-              </h1>
-              <p class="text-sm text-stone-600">{navDescription}</p>
+              <h1 class="u-page-hero-title">{title}</h1>
+              <p class="u-page-hero-sub">{navDescription}</p>
             </div>
           )
         }
         <slot />
       </main>
+
+      <Footer showHealth={sessionControls} />
+
       <div
         id="dashboard-toast-region"
         class="pointer-events-none fixed right-6 bottom-6 z-50 flex max-w-sm flex-col gap-3"

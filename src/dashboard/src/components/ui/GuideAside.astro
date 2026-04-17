@@ -1,0 +1,23 @@
+---
+/**
+ * GuideAside — sidecar informational card placed next to registries to
+ * explain usage, best practices, or preview tools.
+ */
+interface Props {
+  eyebrow?: string;
+  title: string;
+  class?: string;
+}
+
+const { eyebrow, title, class: className = "" } = Astro.props;
+---
+
+<aside class={`shell-card p-6 ${className}`}>
+  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+  <h2 class="mt-2 text-lg font-semibold tracking-tight text-stone-950">
+    {title}
+  </h2>
+  <div class="mt-4 grid gap-3 text-sm leading-6 text-stone-600">
+    <slot />
+  </div>
+</aside>

@@ -1,5 +1,10 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import StatCard from "./ui/StatCard.astro";
+import Button from "./ui/Button.astro";
+import Select from "./ui/Select.astro";
+import Input from "./ui/Input.astro";
 ---
 
 <DashboardLayout
@@ -10,202 +15,130 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <!-- Page header -->
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">Observability</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Runtime metrics &amp; audit trail.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Live counters for tool calls, auth events, and HTTP traffic alongside a
-        paginated audit log. All metric values reflect the current process
-        lifetime — restart resets counters; the audit log is persistent.
-      </p>
-    </div>
-    <div class="flex items-center gap-2">
-      <label class="flex items-center gap-2 text-sm text-stone-600">
-        <input
-          type="checkbox"
-          id="auto-refresh-toggle"
-          class="accent-amber-600"
-        />
-        Auto-refresh (30s)
-      </label>
-      <button
-        type="button"
-        id="refresh-observability"
-        class="action-pill self-end"
-      >
-        Refresh now
-      </button>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Observability"
+    title="Runtime metrics & audit trail."
+    description="Live counters for tool calls, auth events, and HTTP traffic alongside a paginated audit log. All metric values reflect the current process lifetime — restart resets counters; the audit log is persistent."
+  >
+    <label
+      slot="actions"
+      class="flex items-center gap-2 text-sm text-stone-600"
+    >
+      <input
+        type="checkbox"
+        id="auto-refresh-toggle"
+        class="accent-amber-700"
+      />
+      Auto-refresh (30s)
+    </label>
+    <Button slot="actions" id="refresh-observability" size="sm">
+      Refresh now
+    </Button>
+  </PageHero>
 
   <!-- Metric stat cards -->
-  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <!-- Active sessions -->
-    <div class="shell-card p-4">
-      <p class="eyebrow">Sessions</p>
-      <p
-        id="stat-sessions"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p class="mt-1 text-sm text-stone-500">Active client sessions</p>
-    </div>
-
-    <!-- Tool calls -->
-    <div class="shell-card p-4">
-      <p class="eyebrow">Tool calls</p>
-      <p
-        id="stat-tool-calls"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-tool-calls-sub" class="mt-1 text-sm text-stone-500">
-        Since process start
-      </p>
-    </div>
-
-    <!-- Auth events -->
-    <div class="shell-card p-4">
-      <p class="eyebrow">Auth events</p>
-      <p
-        id="stat-auth-events"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-auth-events-sub" class="mt-1 text-sm text-stone-500">
-        Login + token exchange
-      </p>
-    </div>
-
-    <!-- HTTP requests -->
-    <div class="shell-card p-4">
-      <p class="eyebrow">HTTP requests</p>
-      <p
-        id="stat-http-requests"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-http-sub" class="mt-1 text-sm text-stone-500">
-        Total handled
-      </p>
-    </div>
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatCard
+      eyebrow="Sessions"
+      valueId="stat-sessions"
+      sub="Active client sessions"
+    />
+    <StatCard
+      eyebrow="Tool calls"
+      valueId="stat-tool-calls"
+      subId="stat-tool-calls-sub"
+      sub="Since process start"
+    />
+    <StatCard
+      eyebrow="Auth events"
+      valueId="stat-auth-events"
+      subId="stat-auth-events-sub"
+      sub="Login + token exchange"
+    />
+    <StatCard
+      eyebrow="HTTP requests"
+      valueId="stat-http-requests"
+      subId="stat-http-sub"
+      sub="Total handled"
+    />
   </section>
 
-  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="shell-card p-4">
-      <p class="eyebrow">Continuity packets</p>
-      <p
-        id="stat-continuity-packets"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-continuity-packets-sub" class="mt-1 text-sm text-stone-500">
-        Session, guard, and query packets
-      </p>
-    </div>
-
-    <div class="shell-card p-4">
-      <p class="eyebrow">Continuity recalls</p>
-      <p
-        id="stat-continuity-recalls"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-continuity-recalls-sub" class="mt-1 text-sm text-stone-500">
-        Memory + skill synthesis activity
-      </p>
-    </div>
-
-    <div class="shell-card p-4">
-      <p class="eyebrow">Step compatibility</p>
-      <p
-        id="stat-step-compatibility"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-step-compatibility-sub" class="mt-1 text-sm text-stone-500">
-        Average recall alignment
-      </p>
-    </div>
-
-    <div class="shell-card p-4">
-      <p class="eyebrow">Correction retries</p>
-      <p
-        id="stat-correction-retries"
-        class="mt-3 text-4xl font-semibold tabular-nums tracking-tight text-stone-950"
-      >
-        —
-      </p>
-      <p id="stat-correction-retries-sub" class="mt-1 text-sm text-stone-500">
-        Workflow contract retries
-      </p>
-    </div>
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatCard
+      eyebrow="Continuity packets"
+      valueId="stat-continuity-packets"
+      subId="stat-continuity-packets-sub"
+      sub="Session, guard, and query packets"
+    />
+    <StatCard
+      eyebrow="Continuity recalls"
+      valueId="stat-continuity-recalls"
+      subId="stat-continuity-recalls-sub"
+      sub="Memory + skill synthesis activity"
+    />
+    <StatCard
+      eyebrow="Step compatibility"
+      valueId="stat-step-compatibility"
+      subId="stat-step-compatibility-sub"
+      sub="Average recall alignment"
+    />
+    <StatCard
+      eyebrow="Correction retries"
+      valueId="stat-correction-retries"
+      subId="stat-correction-retries-sub"
+      sub="Workflow contract retries"
+    />
   </section>
 
   <!-- Metric breakdown charts -->
-  <section class="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <!-- Tool calls by outcome -->
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">Tool calls by outcome</p>
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">Tool calls by outcome</p>
       <div id="chart-tool-outcomes" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
 
-    <!-- Auth by type -->
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">Auth events by type</p>
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">Auth events by type</p>
       <div id="chart-auth-types" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
 
-    <!-- HTTP by status -->
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">HTTP by status code</p>
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">HTTP by status code</p>
       <div id="chart-http-status" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
 
-    <!-- Admin operations -->
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">Admin ops by outcome</p>
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">Admin ops by outcome</p>
       <div id="chart-admin-ops" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
   </section>
 
-  <section class="mb-8 grid gap-4 sm:grid-cols-2">
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">Query prompts by source</p>
+  <section class="mb-6 grid gap-4 sm:grid-cols-2">
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">Query prompts by source</p>
       <div id="chart-continuity-prompts" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
 
-    <div class="shell-card p-4">
-      <p class="eyebrow mb-4">Continuity gates by outcome</p>
+    <div class="shell-card p-5">
+      <p class="eyebrow mb-3">Continuity gates by outcome</p>
       <div id="chart-continuity-gates" class="flex justify-center">
-        <p class="text-sm text-stone-400 py-4">Loading...</p>
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
     </div>
   </section>
 
   <!-- Audit log section -->
-  <section class="grid gap-6">
+  <section class="grid gap-5">
     <!-- Audit log header + filters -->
     <div class="shell-card px-6 py-5">
       <div class="flex flex-wrap items-start justify-between gap-4">
@@ -217,11 +150,7 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
           </p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
-          <!-- Event type filter -->
-          <select
-            id="audit-event-type-filter"
-            class="rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700 min-w-36"
-          >
+          <Select id="audit-event-type-filter" class="min-w-36">
             <option value="">All event types</option>
             <option value="client_key_issued">Key issued</option>
             <option value="client_key_revoked">Key revoked</option>
@@ -231,32 +160,23 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             <option value="client_updated">Client updated</option>
             <option value="user_created">User created</option>
             <option value="user_updated">User updated</option>
-          </select>
-          <!-- Outcome filter -->
-          <select
-            id="audit-outcome-filter"
-            class="rounded-2xl border border-stone-300 bg-white px-3 py-2 text-sm text-stone-700 min-w-32"
-          >
+          </Select>
+          <Select id="audit-outcome-filter" class="min-w-32">
             <option value="">All outcomes</option>
             <option value="success">Success</option>
             <option value="failure">Failure</option>
             <option value="denied">Denied</option>
             <option value="error">Error</option>
-          </select>
-          <!-- Actor ID search -->
-          <div class="relative">
-            <input
-              id="audit-actor-filter"
-              class="rounded-2xl border border-stone-300 bg-white pl-3 pr-8 py-2 text-sm min-w-44"
-              placeholder="Actor ID (optional)…"
-            />
-          </div>
-          <button type="button" id="audit-filter-apply" class="action-pill">
-            Apply
-          </button>
-          <button type="button" id="audit-filter-clear" class="action-pill">
+          </Select>
+          <Input
+            id="audit-actor-filter"
+            placeholder="Actor ID (optional)…"
+            class="min-w-44"
+          />
+          <Button id="audit-filter-apply" size="sm">Apply</Button>
+          <Button id="audit-filter-clear" size="sm" variant="ghost">
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -270,39 +190,26 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 
     <!-- Pagination bar -->
     <div
-      class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white px-4 py-3 text-sm"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white/95 px-4 py-3 text-sm"
     >
       <div class="flex items-center gap-3">
         <span id="audit-pagination-info" class="text-stone-500">—</span>
-        <select
-          id="audit-page-size"
-          class="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-sm"
-        >
+        <Select id="audit-page-size" class="py-1.5 text-sm">
           <option value="25" selected>25 / page</option>
           <option value="50">50 / page</option>
           <option value="100">100 / page</option>
-        </select>
+        </Select>
       </div>
       <div class="flex items-center gap-2">
-        <button
-          id="audit-prev"
-          type="button"
-          class="action-pill disabled:cursor-not-allowed disabled:opacity-40"
-          disabled>← Prev</button
-        >
-        <button
-          id="audit-next"
-          type="button"
-          class="action-pill disabled:cursor-not-allowed disabled:opacity-40"
-          disabled>Next →</button
-        >
+        <Button id="audit-prev" size="sm" disabled>← Prev</Button>
+        <Button id="audit-next" size="sm" disabled>Next →</Button>
       </div>
     </div>
 
     <!-- Audit table -->
     <div
       id="audit-log-container"
-      class="overflow-hidden rounded-3xl border border-stone-200 bg-white"
+      class="overflow-hidden rounded-2xl border border-stone-200/80 bg-white"
     >
       <table class="w-full text-sm">
         <thead>
@@ -326,5 +233,6 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       </table>
     </div>
   </section>
+
   <script src="../scripts/observability-page.ts"></script>
 </DashboardLayout>

@@ -1,0 +1,52 @@
+---
+/**
+ * Input — unified text input.
+ */
+interface Props {
+  id?: string;
+  name?: string;
+  type?: string;
+  value?: string | number;
+  placeholder?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  required?: boolean;
+  disabled?: boolean;
+  autocomplete?: string;
+  class?: string;
+  extraAttrs?: Record<string, string | number | boolean | undefined>;
+}
+
+const {
+  id,
+  name,
+  type = "text",
+  value,
+  placeholder,
+  min,
+  max,
+  step,
+  required = false,
+  disabled = false,
+  autocomplete,
+  class: className = "",
+  extraAttrs = {},
+} = Astro.props;
+---
+
+<input
+  id={id}
+  name={name}
+  type={type}
+  value={value}
+  placeholder={placeholder}
+  min={min}
+  max={max}
+  step={step}
+  required={required}
+  disabled={disabled}
+  autocomplete={autocomplete}
+  class={`u-input ${className}`}
+  {...extraAttrs}
+/>

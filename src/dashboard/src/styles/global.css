@@ -1,68 +1,191 @@
 @import "tailwindcss";
 
+/* ────────────────────────────────────────────────────────────────────────
+ * Minder Dashboard — Design Tokens
+ * Warm amber + stone palette (kept)
+ * Fraunces display, Inter body, JetBrains Mono code
+ * ──────────────────────────────────────────────────────────────────────── */
+
 :root {
   color-scheme: light;
+
+  /* Typography */
+  --font-display:
+    "Fraunces", "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia,
+    serif;
+  --font-sans:
+    "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono:
+    "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Consolas,
+    "Liberation Mono", Menlo, monospace;
+
+  /* Type scale */
+  --fs-display-xl: 2.25rem;   /* 36px — page hero */
+  --fs-display-lg: 1.875rem;  /* 30px — detail hero */
+  --fs-heading-lg: 1.25rem;   /* 20px — section */
+  --fs-heading-md: 1rem;      /* 16px — card title */
+  --fs-body-md: 0.875rem;     /* 14px — base */
+  --fs-body-sm: 0.8125rem;    /* 13px */
+  --fs-eyebrow: 0.6875rem;    /* 11px */
+
+  /* Radii */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-xl: 20px;
+  --r-2xl: 26px;
+  --r-pill: 9999px;
+
+  /* Layout */
+  --layout-max: 1440px;
+  --sidebar-w: 380px;
+  --section-gap: 1.5rem;
+
+  /* Palette tokens (from stone/amber) */
+  --color-surface: #ffffff;
+  --color-surface-sunken: rgba(250, 245, 235, 0.75);
+  --color-border-subtle: rgb(231 229 228 / 0.8); /* stone-200/80 */
+  --color-border-default: rgb(214 211 209);      /* stone-300 */
+  --color-border-strong: rgb(168 162 158);       /* stone-400 */
+
+  --color-text-primary: rgb(28 25 23);           /* stone-900 */
+  --color-text-secondary: rgb(87 83 78);         /* stone-600 */
+  --color-text-muted: rgb(120 113 108);          /* stone-500 */
+
+  --color-brand: rgb(146 64 14);                 /* amber-800 */
+  --color-brand-hover: rgb(120 53 15);           /* amber-900 */
+  --color-brand-soft: rgb(254 243 199);          /* amber-100 */
+  --color-brand-ring: rgb(146 64 14 / 0.22);
+
+  --color-success: rgb(5 150 105);               /* emerald-600 */
+  --color-warning: rgb(217 119 6);               /* amber-600 */
+  --color-danger: rgb(190 18 60);                /* rose-700 */
+
+  /* Shadows */
+  --shadow-card: 0 18px 60px rgba(28, 25, 23, 0.08);
+  --shadow-popover: 0 22px 60px rgba(28, 25, 23, 0.16);
+  --shadow-raised: 0 4px 16px rgba(28, 25, 23, 0.06);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Base
+ * ──────────────────────────────────────────────────────────────────────── */
+
+html {
+  font-family: var(--font-sans);
 }
 
 body {
   @apply bg-stone-100 text-stone-900 antialiased;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-md);
+  line-height: 1.6;
   background-image:
-    radial-gradient(circle at top left, rgba(168, 85, 47, 0.14), transparent 28%),
+    radial-gradient(circle at top left, rgba(168, 85, 47, 0.12), transparent 32%),
     linear-gradient(135deg, #fbf7f0, #f2eadf 68%, #eee2d3);
+  min-height: 100vh;
 }
 
+code,
+pre,
+kbd,
+samp {
+  font-family: var(--font-mono);
+}
+
+button {
+  font-family: var(--font-sans);
+  cursor: pointer;
+}
+
+input,
+textarea,
+select {
+  font-family: var(--font-sans);
+  font-size: var(--fs-body-md);
+}
+
+/* Display family opt-in */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "ss01", "ss02";
+  letter-spacing: -0.01em;
+}
+
+.font-sans-ui {
+  font-family: var(--font-sans);
+}
+
+.font-mono-ui {
+  font-family: var(--font-mono);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Legacy utilities (kept as names — scripts inject HTML using these)
+ * Styles refined for the new system.
+ * ──────────────────────────────────────────────────────────────────────── */
+
 .shell-card {
-  @apply rounded-3xl border border-stone-300/80 bg-white/90 shadow-[0_18px_60px_rgba(28,25,23,0.08)] backdrop-blur;
+  @apply rounded-2xl border border-stone-200/80 bg-white/95 backdrop-blur;
+  box-shadow: var(--shadow-card);
 }
 
 .eyebrow {
-  @apply text-xs font-semibold uppercase tracking-[0.22em] text-amber-800;
+  @apply text-[11px] font-semibold tracking-[0.2em] text-amber-800 uppercase;
 }
 
 .action-pill {
-  @apply inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-4 py-2 text-sm text-stone-800 transition hover:border-amber-700 hover:text-amber-800;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 transition;
+}
+.action-pill:hover {
+  @apply border-amber-700 text-amber-800;
+}
+.action-pill:disabled {
+  @apply cursor-not-allowed opacity-40;
 }
 
 .primary-pill {
-  @apply inline-flex items-center justify-center rounded-full bg-amber-800 px-4 py-2 text-sm text-white transition hover:bg-amber-900;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full bg-amber-800 px-4 py-2 text-sm font-medium text-white transition;
+}
+.primary-pill:hover {
+  @apply bg-amber-900;
+}
+.primary-pill:disabled {
+  @apply cursor-not-allowed opacity-60;
 }
 
 .nav-link {
-  @apply relative px-3 py-1 text-sm font-medium text-stone-600 transition hover:text-stone-900;
+  @apply relative rounded-full px-3 py-1.5 text-sm font-medium text-stone-600 transition;
 }
-
-.nav-link[data-active="true"] {
+.nav-link:hover {
   @apply text-stone-900;
 }
-
-.nav-link[data-active="true"]::after {
-  content: "";
-  @apply absolute bottom-0 left-3 right-3 h-0.5 bg-amber-800;
+.nav-link[data-active="true"] {
+  @apply bg-amber-50 text-amber-900;
 }
 
 .session-badge {
   @apply inline-flex items-center rounded-full border border-stone-200 bg-stone-50 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-stone-600 uppercase;
 }
-
 .session-badge.active {
   @apply border-emerald-200 bg-emerald-50 text-emerald-800;
 }
 
 .snippet-pre {
   max-height: min(48vh, 32rem);
+  font-family: var(--font-mono);
 }
 
-/* ── Repository Graph Explorer ── */
-
+/* ── Tabs ── */
 .tab-btn {
-  @apply rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition hover:text-stone-900 hover:bg-stone-100 cursor-pointer;
+  @apply cursor-pointer rounded-full px-4 py-2 text-sm font-medium text-stone-500 transition hover:bg-stone-100 hover:text-stone-900;
 }
-
 .tab-btn-active {
   @apply bg-amber-800 text-white hover:bg-amber-900 hover:text-white;
 }
 
+/* ── Repository Graph canvas controls (kept) ── */
 .graph-ctrl-btn {
   display: flex;
   align-items: center;
@@ -75,31 +198,268 @@ body {
   color: rgba(226, 232, 240, 0.7);
   cursor: pointer;
   backdrop-filter: blur(6px);
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
   flex-shrink: 0;
 }
-
 .graph-ctrl-btn:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #e2e8f0;
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-/* Graph canvas: fluid height — defaults to 620px, expands to viewport in full-width mode */
 .graph-canvas-wrap {
   height: 620px;
   transition: height 0.25s ease;
 }
-
-/* Full-width graph mode: sidebar hidden, canvas takes viewport height */
 body.graph-fullwidth .graph-canvas-wrap {
   height: calc(100vh - 210px);
 }
-
-/* Native fullscreen: canvas fills entire screen */
 .graph-canvas-wrap:fullscreen,
 .graph-canvas-wrap:-webkit-full-screen,
 .graph-canvas-wrap:-moz-full-screen {
   height: 100vh !important;
   border-radius: 0 !important;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Design-system primitives (new — consumed by Astro components)
+ * Prefix: .u-*  (utility components)
+ * ──────────────────────────────────────────────────────────────────────── */
+
+/* Form controls */
+.u-input,
+.u-textarea,
+.u-select {
+  @apply block w-full rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm text-stone-900 outline-none transition;
+  font-family: var(--font-sans);
+}
+.u-input::placeholder,
+.u-textarea::placeholder {
+  @apply text-stone-400;
+}
+.u-input:hover,
+.u-textarea:hover,
+.u-select:hover {
+  @apply border-stone-400;
+}
+.u-input:focus,
+.u-textarea:focus,
+.u-select:focus {
+  @apply border-amber-700;
+  box-shadow: 0 0 0 3px var(--color-brand-ring);
+}
+.u-input:disabled,
+.u-textarea:disabled,
+.u-select:disabled {
+  @apply cursor-not-allowed bg-stone-50 text-stone-400;
+}
+.u-textarea {
+  min-height: 96px;
+  line-height: 1.6;
+}
+.u-textarea-lg {
+  min-height: 220px;
+}
+.u-textarea-code {
+  font-family: var(--font-mono);
+  font-size: var(--fs-body-sm);
+}
+.u-select {
+  appearance: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2378716c'><path fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 0.9rem center;
+  background-size: 1rem;
+  padding-right: 2.5rem;
+}
+
+.u-field-label {
+  @apply mb-1.5 block text-sm font-medium text-stone-700;
+}
+.u-field-hint {
+  @apply mt-1.5 text-xs text-stone-500;
+}
+.u-field-error {
+  @apply mt-1.5 text-xs text-rose-600;
+}
+
+/* Status line (consistent across all forms) */
+.u-status {
+  @apply min-h-5 text-sm text-stone-600;
+  font-family: var(--font-sans);
+}
+.u-status-success {
+  @apply text-emerald-700;
+}
+.u-status-warning {
+  @apply text-amber-700;
+}
+.u-status-danger {
+  @apply text-rose-600;
+}
+
+/* Buttons — additional variants beyond .action-pill / .primary-pill */
+.u-btn-ghost {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2 text-sm font-medium text-stone-600 transition;
+}
+.u-btn-ghost:hover {
+  @apply bg-stone-100 text-stone-900;
+}
+
+.u-btn-danger {
+  @apply inline-flex items-center justify-center gap-1.5 rounded-full border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 transition;
+}
+.u-btn-danger:hover {
+  @apply border-rose-400 bg-rose-100;
+}
+
+.u-btn-sm {
+  @apply px-3 py-1.5 text-xs;
+}
+.u-btn-wide {
+  @apply w-full;
+}
+
+/* Stat card (used by Home + Observability) */
+.u-stat-card {
+  @apply rounded-2xl border border-stone-200/80 bg-white/95 p-5;
+  box-shadow: var(--shadow-card);
+}
+.u-stat-value {
+  @apply mt-2 text-4xl font-semibold tabular-nums tracking-tight text-stone-950;
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+.u-stat-sub {
+  @apply mt-1 text-xs text-stone-500;
+}
+
+/* Result callout (bootstrap key, new api key reveal, etc.) */
+.u-result-callout {
+  @apply rounded-2xl border p-4;
+}
+.u-result-callout-amber {
+  @apply border-amber-200 bg-amber-50;
+}
+.u-result-callout-emerald {
+  @apply border-emerald-200 bg-emerald-50/80;
+}
+.u-result-callout-danger {
+  @apply border-rose-200 bg-rose-50;
+}
+
+/* Breadcrumb */
+.u-breadcrumb {
+  @apply flex flex-wrap items-center gap-2 text-sm text-stone-600;
+}
+.u-breadcrumb a {
+  @apply transition hover:text-stone-950;
+}
+.u-breadcrumb-current {
+  @apply font-medium text-stone-950;
+}
+.u-breadcrumb-sep {
+  @apply text-stone-400;
+}
+
+/* Toolbar (navigator bar: search + pagination) */
+.u-toolbar {
+  @apply rounded-2xl border border-stone-200/80 bg-white/95 px-5 py-4;
+  box-shadow: var(--shadow-card);
+}
+.u-toolbar-row {
+  @apply flex flex-wrap items-center justify-between gap-4;
+}
+.u-toolbar-row + .u-toolbar-row {
+  @apply mt-4 border-t border-stone-200 pt-4;
+}
+
+/* Guide aside (sidecar cards next to registry lists) */
+.u-guide-aside {
+  @apply rounded-2xl border border-stone-200/80 bg-white/80 p-5;
+}
+
+/* Dashboard footer */
+.u-dashboard-footer {
+  @apply mx-auto flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 px-6 py-5 text-xs text-stone-500;
+  max-width: var(--layout-max);
+}
+.u-dashboard-footer a {
+  @apply text-stone-600 transition hover:text-amber-800;
+}
+.u-footer-dot {
+  @apply inline-flex h-2 w-2 rounded-full bg-stone-300;
+  flex-shrink: 0;
+}
+.u-footer-dot.ok {
+  @apply bg-emerald-500;
+}
+.u-footer-dot.warn {
+  @apply bg-amber-500;
+}
+.u-footer-dot.err {
+  @apply bg-rose-500;
+}
+
+/* Page width container */
+.u-page-container {
+  @apply mx-auto px-6;
+  max-width: var(--layout-max);
+}
+
+/* Page hero */
+.u-page-hero {
+  @apply mb-6 flex flex-wrap items-start justify-between gap-4;
+}
+.u-page-hero-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-display-xl);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  @apply text-stone-950;
+}
+.u-page-hero-sub {
+  @apply mt-3 max-w-3xl text-sm leading-7 text-stone-600;
+}
+
+/* Detail hero */
+.u-detail-hero {
+  @apply mb-8 flex flex-col gap-5;
+}
+.u-detail-hero-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-display-lg);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+  @apply text-stone-950;
+}
+
+/* Section header */
+.u-section-header {
+  @apply mb-3 flex flex-wrap items-end justify-between gap-3;
+}
+.u-section-header-title {
+  @apply text-xl font-semibold tracking-tight text-stone-950;
+}
+
+/* Sidebar grid helper (unified 380px) */
+.u-grid-sidebar {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 1024px) {
+  .u-grid-sidebar {
+    grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  }
+}
+
+/* Empty / placeholder card */
+.u-placeholder-card {
+  @apply rounded-2xl border border-stone-200/80 bg-white/80 p-6 text-sm text-stone-600;
 }

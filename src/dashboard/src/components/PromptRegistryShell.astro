@@ -1,5 +1,12 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
 ---
 
 <DashboardLayout
@@ -10,71 +17,48 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-2">
-    <div class="space-y-3">
-      <p class="eyebrow">Prompt Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Manage MCP prompts.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Author prompt templates, polish them with the minder AI runtime, and
-        publish changes directly into the server prompt registry.
-      </p>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Prompt Registry"
+    title="Manage MCP prompts."
+    description="Author prompt templates, polish them with the minder AI runtime, and publish changes directly into the server prompt registry."
+  />
 
-  <section class="grid gap-8 xl:grid-cols-[420px_minmax(0,1fr)]">
-    <aside class="shell-card p-7">
+  <section class="u-grid-sidebar">
+    <aside class="shell-card p-6">
       <div class="flex items-center justify-between gap-3">
         <div>
           <p class="eyebrow">Editor</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          <h2
+            class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+          >
             Prompt draft
           </h2>
         </div>
-        <button
-          id="prompt-reset-button"
-          type="button"
-          class="action-pill text-xs"
-        >
+        <Button id="prompt-reset-button" size="sm" variant="ghost">
           New draft
-        </button>
+        </Button>
       </div>
 
-      <form id="prompt-form" class="mt-6 grid gap-4">
+      <form id="prompt-form" class="mt-5 grid gap-4">
         <input id="prompt-id" type="hidden" />
-        <label class="grid gap-2 text-sm text-stone-700">
-          Name
-          <input
-            id="prompt-name"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="debug_assistant"
-          />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Title
-          <input
-            id="prompt-title"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="Debug Assistant"
-          />
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Description
-          <textarea
+        <Field label="Name" htmlFor="prompt-name">
+          <Input id="prompt-name" placeholder="debug_assistant" />
+        </Field>
+        <Field label="Title" htmlFor="prompt-title">
+          <Input id="prompt-title" placeholder="Debug Assistant" />
+        </Field>
+        <Field label="Description" htmlFor="prompt-description">
+          <Textarea
             id="prompt-description"
-            class="min-h-20 rounded-2xl border border-stone-300 bg-white px-4 py-3"
             placeholder="What should this prompt help the model accomplish?"
-          ></textarea>
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Arguments
-          <input
-            id="prompt-arguments"
-            class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-            placeholder="error, context, repo_name"
           />
-          <span class="text-xs text-stone-500">
+        </Field>
+        <Field
+          label="Arguments"
+          htmlFor="prompt-arguments"
+        >
+          <Input id="prompt-arguments" placeholder="error, context, repo_name" />
+          <span slot="hint">
             Comma-separated placeholder names used as <code
               >&#123;placeholder&#125;</code
             > in the template.
@@ -84,116 +68,77 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
             class="min-h-6 text-xs text-stone-500"
           >
           </div>
-        </label>
-        <label class="grid gap-2 text-sm text-stone-700">
-          Content template
-          <textarea
+        </Field>
+
+        <Field label="Content template" htmlFor="prompt-template">
+          <Textarea
             id="prompt-template"
-            class="min-h-[260px] rounded-3xl border border-stone-300 bg-white px-4 py-4 font-mono text-sm leading-6"
+            variant="code"
             placeholder="## Task\nInvestigate {error} with context from {repo_name}."
-          ></textarea>
-        </label>
+          />
+        </Field>
 
         <div class="flex flex-wrap gap-3">
-          <button id="prompt-polish-button" type="button" class="action-pill">
-            Polish with AI
-          </button>
-          <button type="submit" class="primary-pill flex-1 min-w-[180px]">
+          <Button id="prompt-polish-button">Polish with AI</Button>
+          <Button type="submit" variant="primary" class="flex-1 min-w-[180px]">
             Save prompt
-          </button>
+          </Button>
         </div>
-        <p id="prompt-editor-llm" class="min-h-6 text-xs text-stone-500"></p>
-        <p id="prompt-editor-status" class="min-h-6 text-sm text-stone-600"></p>
+        <p id="prompt-editor-llm" class="min-h-5 text-xs text-stone-500"></p>
+        <FormStatus id="prompt-editor-status" />
       </form>
     </aside>
 
-    <div class="grid gap-6">
-      <section class="shell-card px-6 py-5">
-        <div class="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p class="text-sm font-medium text-stone-900">Registry</p>
-            <p class="mt-1 text-sm text-stone-600">
-              Selecting a card loads it into the editor. Saving immediately
-              syncs the MCP prompt registry for new and updated prompts.
-            </p>
-          </div>
-          <button
-            id="prompt-refresh-button"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Refresh list
-          </button>
-        </div>
-        <div class="mt-4 flex flex-wrap items-center gap-3">
-          <input
-            id="prompt-quick-search"
-            class="min-w-[240px] flex-1 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm"
-            placeholder="Semantic quick search prompts"
-          />
-          <span id="prompt-pagination-status" class="text-xs text-stone-500"
-          ></span>
-          <button
-            id="prompt-page-prev"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Prev
-          </button>
-          <button
-            id="prompt-page-next"
-            type="button"
-            class="action-pill text-xs"
-          >
-            Next
-          </button>
-        </div>
-      </section>
+    <div class="grid gap-5">
+      <Toolbar
+        idPrefix="prompt"
+        title="Registry"
+        description="Selecting a card loads it into the editor. Saving immediately syncs the MCP prompt registry for new and updated prompts."
+        searchPlaceholder="Semantic quick search prompts"
+      >
+        <Button slot="leading" id="prompt-refresh-button" size="sm">
+          Refresh list
+        </Button>
+      </Toolbar>
 
-      <section class="grid gap-6 2xl:grid-cols-2">
+      <section class="grid gap-5 2xl:grid-cols-2">
         <div id="prompt-registry" class="grid gap-4">
-          <article class="shell-card p-6 text-sm text-stone-600">
-            Loading prompts...
-          </article>
+          <article class="u-placeholder-card">Loading prompts...</article>
         </div>
 
-        <aside class="shell-card p-4">
+        <aside class="shell-card p-6">
           <p class="eyebrow">Preview</p>
-          <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+          <h2
+            class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+          >
             Render template
           </h2>
-          <p class="mt-3 text-sm leading-6 text-stone-600">
+          <p class="mt-2 text-sm leading-6 text-stone-600">
             Supply sample JSON values to preview the final prompt text after
             placeholder substitution. The editor auto-detects keys from the
             prompt template and scaffolds this JSON for you.
           </p>
 
-          <label class="mt-5 grid gap-2 text-sm text-stone-700">
-            Sample variables (JSON)
-            <textarea
+          <Field
+            label="Sample variables (JSON)"
+            htmlFor="prompt-preview-variables"
+            class="mt-4"
+          >
+            <Textarea
               id="prompt-preview-variables"
-              class="min-h-36 rounded-3xl border border-stone-300 bg-white px-4 py-4 font-mono text-sm leading-6"
-              >&#123; "request": "Do some think", "context": "Fix some bug"
-              &#125;</textarea
-            >
-          </label>
+              variant="code"
+              value={'{ "request": "Do some think", "context": "Fix some bug" }'}
+            />
+          </Field>
 
-          <button
-            id="prompt-preview-button"
-            type="button"
-            class="action-pill mt-4"
-          >
+          <Button id="prompt-preview-button" class="mt-3">
             Render preview
-          </button>
-          <p
-            id="prompt-preview-status"
-            class="mt-3 min-h-6 text-sm text-stone-600"
-          >
-          </p>
+          </Button>
+          <FormStatus id="prompt-preview-status" class="mt-3" />
 
           <pre
             id="prompt-preview-output"
-            class="mt-4 min-h-[220px] overflow-auto rounded-3xl border border-stone-200 bg-stone-950 px-4 py-4 text-sm leading-6 text-stone-100">Choose a prompt to preview its rendered output.</pre>
+            class="font-mono-ui mt-3 min-h-[220px] overflow-auto rounded-xl border border-stone-200 bg-stone-950 px-4 py-4 text-sm leading-6 text-stone-100">Choose a prompt to preview its rendered output.</pre>
         </aside>
       </section>
     </div>

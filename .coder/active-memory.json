@@ -1,98 +1,102 @@
 {
   "mode": "search",
-  "query": "repository picker dropdown quick search popover",
+  "query": "phase 5 phase 6 roadmap installer IDE MCP dashboard chat",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-17T13:08:41.011065+07:00",
+  "searched_at": "2026-04-17T14:07:08.315746+07:00",
   "results": [
     {
-      "id": "75faaede-eb67-4335-90d7-7ba6e8d457b6",
-      "title": "SingleCombobox selected text and reopen bug fix",
+      "id": "a6d00cbc-cd8d-4cbe-b95c-6067549efbf7",
+      "title": "coder CLI — state.go + cmd_new_project.go + cmd_map_codebase.go (Phases 9 \u0026 10)",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:singlecombobox-selected-text-and-reopen-bug-fix",
+      "canonical_key": "document:coder-cli-state-go-cmd-new-project-go-cmd-map-codebase-go-phases-9-10",
       "score": 0.086393446,
       "tags": [
-        "planTourUI",
-        "raw-combobox",
-        "single-combobox",
-        "bugfix",
-        "popover"
+        "coder",
+        "cli",
+        "golang",
+        "new-project",
+        "map-codebase",
+        "state",
+        "phase-9",
+        "phase-10"
       ],
       "conflict_detected": false,
-      "content": "Fixed the new raw SingleCombobox so the selected item text is visible again when the search input is empty, and clicking the combobox reliably reopens the popup. The fix swaps the combobox wrapper from PopoverTrigger to PopoverAnchor to avoid trigger-toggle conflicts, clears single-mode search input on selection, and overlays the selected label in the input area when idle."
+      "content": "Implemented three new files for the coder CLI (cmd/coder/). state.go: shared ProjectState struct (project, current_phase, step, decisions, blockers, backlog, PRs map), RoadmapPhase, coderPath(), loadState(), saveState(), loadRoadmap(), phaseDir(), ensurePhaseDir(), projectExists(). All .coder/ paths route through coderPath(). cmd_new_project.go: runNewProject() — flags: --auto, --prd, --resume. Guards against re-init via projectExists(). Interactive deep Q\u0026A via ChatStream loop (bufio.Scanner, blank×2 or 'done' to exit). Generates REQUIREMENTS.md then ROADMAP.md via streaming LLM, with [Y/n/edit] approval gates. Writes PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md (phase=1, step=discuss). Uses getChatClient(cfg) pattern. cmd_map_codebase.go: runMapCodebase() — flag: --refresh, positional area arg. Four sequential ChatStream focus passes (tech→STACK.md, arch→ARCHITECTURE.md, quality→CONVENTIONS.md, concerns→CONCERNS.md) written to .coder/codebase/."
     },
     {
-      "id": "383eb6aa-ed08-447f-95ad-140e4cb2067d",
-      "title": "Raw combobox input refocus after open/select",
+      "id": "78a3d431-edda-4110-a64f-5ecf600f085d",
+      "title": "Phase 9-17 CLI Commands Implemented",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:raw-combobox-input-refocus-after-open-select",
+      "canonical_key": "document:phase-9-17-cli-commands-implemented",
       "score": 0.086129025,
       "tags": [
-        "planTourUI",
-        "frontend",
-        "raw-combobox",
-        "focus",
-        "popover",
-        "bugfix"
+        "coder-cli",
+        "phases",
+        "lifecycle",
+        "implementation"
       ],
       "conflict_detected": false,
-      "content": "Fixed src/shared/components/ui/raw-combobox.tsx so popover open no longer steals focus from the search input. Added inputRef + focusInput helper, prevented Radix popover auto-focus in RawCombobox content, focused input when clicking the trigger wrapper, and refocused after onValueChange/onValuesChange so users can keep searching after selecting an item."
+      "content": "Implemented all project lifecycle commands for coder CLI (phases 9-17 from roadmap-intelligence-flows.md). Files created: cmd_new_project.go (runNewProject - Q\u0026A → REQUIREMENTS.md/ROADMAP.md/STATE.md), cmd_map_codebase.go (runMapCodebase - 4 sequential analyses → STACK/ARCH/CONVENTIONS/CONCERNS.md), cmd_discuss_phase.go (runDiscussPhase - gray-area Q\u0026A → CONTEXT.md), cmd_plan_phase.go (runPlanPhase - research + XML plans + verification loop), cmd_execute_phase.go (runExecutePhase - wave-based execution + parsePlanXML + atomic git commits), cmd_ship.go (runShip - gh pr create with AI-generated body), cmd_progress.go (runProgress + runNext - STATE.md-aware navigation), cmd_milestone.go (runMilestone - audit/complete/archive/next lifecycle), cmd_todo.go (runTodo/runStats/runHealth/runNote/runDo - project utilities). All commands registered in main.go. go build + go vet both pass clean. STATE.md format: frontmatter fields + ## Decisions/Blockers/Backlog/PRs sections. XML plan"
     },
     {
-      "id": "396c8962-ea6b-46fb-8f55-0b420827ba34",
-      "title": "Single combobox open trigger selected text",
+      "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
+      "title": "README + CLI docs + dashboard-plan cleanup",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:single-combobox-open-trigger-selected-text",
+      "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
       "score": 0.08587302,
       "tags": [
-        "planTourUI",
-        "frontend",
-        "raw-combobox",
-        "single-combobox",
-        "trigger",
-        "bugfix"
+        "coder-cli",
+        "docs",
+        "readme",
+        "cleanup"
       ],
       "conflict_detected": false,
-      "content": "Adjusted src/shared/components/ui/raw-combobox.tsx so a selected single-combobox item remains visible in the trigger while the popup is open. The trigger now shows the selected label through the input placeholder when open and keeps the absolute overlay only when closed, avoiding hidden text while preserving empty search behavior."
+      "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
     },
     {
-      "id": "5b569e5f-ba10-41d1-a6e7-e8e4aea18c2c",
-      "title": "CitySelect remote search hidden by client filter",
+      "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
+      "title": "Phase 4.3 completed with console serving seam",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:cityselect-remote-search-hidden-by-client-filter",
+      "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
       "score": 0.08562499,
       "tags": [
-        "findtourgo",
-        "cityselect",
-        "react-select",
-        "remote-search",
-        "bugfix"
+        "phase4",
+        "dashboard",
+        "astro",
+        "console",
+        "parity"
       ],
       "conflict_detected": false,
-      "content": "In TourOverviewForm CitySelect, react-select was still applying its own client-side filtering while options were already server-filtered. Searching 'saigon' returned API items whose labels did not literally contain the typed term, so the open menu stayed empty until closing/reopening reset the input. Fix: set filterOption={() =\u003e true} for the remote-search select and keep option mapping memoized."
+      "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
     },
     {
-      "id": "2127cf10-a074-45eb-abcb-fba26eba830c",
-      "title": "Combobox supports virtualization and async debounce search",
+      "id": "4ef3936a-74f0-47c6-a413-932a62841390",
+      "title": "coder CLI Intelligence Layer — 8 AI Workflow Commands Implemented",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:combobox-supports-virtualization-and-async-debounce-search",
+      "canonical_key": "document:coder-cli-intelligence-layer-8-ai-workflow-commands-implemented",
       "score": 0.08538462,
       "tags": [
-        "planTourUI",
-        "combobox",
-        "virtualized",
-        "async-search",
-        "debounce",
-        "react-window"
+        "coder",
+        "cli",
+        "ai-workflow",
+        "chat",
+        "review",
+        "debug",
+        "plan",
+        "qa",
+        "session",
+        "workflow",
+        "coder-node"
       ],
       "conflict_detected": false,
-      "content": "Enhanced src/shared/components/ui/combobox.tsx with virtualized dropdown rendering using react-window and async search mode via onSearch + debounceMs. Local filtering still works by default; async mode disables local filtering and debounces remote queries. Added test-page demos for a 200-item virtualized list and a simulated async API search in src/app/(test)/test/page.tsx."
+      "content": "Implemented all 8 phases of the Intelligence Flows Roadmap. New commands: coder chat (Q\u0026A with SSE streaming), coder review (structured code review → JSON), coder debug (root cause analysis), coder plan (3-stage: Q\u0026A→research→PLAN.md), coder qa (UAT from PLAN.md, auto-diagnose), coder session (save/restore context to .coder/sessions/), coder workflow (auto-chain: plan→review→implement→qa→fix). coder-node HTTP endpoints: POST /v1/chat, /v1/chat/stream (SSE), /v1/review, /v1/debug. Context injection pipeline: parallel goroutines (300ms timeout) for memory+skill search before every LLM call. State files saved in .coder/ (plans/, qa/, sessions/, workflows/). Agent configs updated: .claude/agents/coder.md, .agents/workflows/, .agents/skills/coder-cli/, .github/copilot-instructions.md. Run coder skill ingest --source local after updating skills."
     }
   ]
 }

@@ -8,7 +8,7 @@ import uuid
 from pathlib import Path
 
 from minder.config import Settings
-from minder.embedding.qwen import QwenEmbeddingProvider
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.server import build_store
 from minder.store.relational import RelationalStore
 
@@ -31,7 +31,7 @@ async def seed_skills(store: RelationalStore, config: Settings, source: str) -> 
     base_dir, temp_dir = _resolve_skill_source(source)
     imported = 0
     skipped = 0
-    embedder = QwenEmbeddingProvider(
+    embedder = LocalEmbeddingProvider(
         config.embedding.model_path,
         dimensions=min(config.embedding.dimensions, 16),
         runtime="auto",

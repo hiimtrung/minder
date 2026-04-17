@@ -1,128 +1,127 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import ResultCallout from "./ui/ResultCallout.astro";
 ---
 
 <DashboardLayout
   title="Client Registry · Minder"
   description="Astro shell for the Minder client registry."
-  navTitle="Minder Client Registry"
+  navTitle="Minder Dashboard"
   navDescription="Provision client keys, then open each client in a dedicated detail route."
   sessionControls={true}
-  navLinks={[
-    { href: "/dashboard", label: "Dashboard Home", tone: "secondary" },
-    { href: "/dashboard/clients", label: "Client Registry", tone: "primary" },
-  ]}
+  showPageIntro={false}
 >
-  <section class="mb-8 flex flex-wrap items-end justify-between gap-4">
-    <div class="space-y-3">
-      <p class="eyebrow">Client Registry</p>
-      <h1 class="text-5xl font-semibold tracking-tight text-stone-950">
-        Manage MCP clients from the production dashboard.
-      </h1>
-      <p class="max-w-3xl text-lg leading-8 text-stone-700">
-        Create clients, issue keys, and route into a dedicated client detail
-        screen without losing the dashboard shell. Each registry card opens a
-        focused detail path with lifecycle controls, onboarding snippets, and
-        recent activity.
-      </p>
-    </div>
-  </section>
+  <PageHero
+    eyebrow="Client Registry"
+    title="Manage MCP clients."
+    description="Create clients, issue keys, and route into a dedicated client detail screen without losing the dashboard shell. Each registry card opens a focused detail path with lifecycle controls, onboarding snippets, and recent activity."
+  />
 
-  <section class="grid gap-8 lg:grid-cols-[380px_minmax(0,1fr)]">
-    <aside class="shell-card p-7">
+  <section class="u-grid-sidebar">
+    <aside class="shell-card p-6">
       <p class="eyebrow">Create Client</p>
-      <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">
+      <h2
+        class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+      >
         Create a new MCP client
       </h2>
-      <p class="mt-3 text-sm leading-6 text-stone-600">
+      <p class="mt-2 text-sm leading-6 text-stone-600">
         Minder will issue a new <code>mkc_...</code> key exactly once after creation.
         Keep scopes tight and prefer repo-specific access when possible.
       </p>
 
-      <form id="create-client-form" class="mt-6 grid gap-4">
-        <input
-          id="client-name"
-          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Name"
-        />
-        <input
-          id="client-slug"
-          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Slug"
-        />
-        <textarea
-          id="client-description"
-          class="min-h-28 rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Description"></textarea>
+      <form id="create-client-form" class="mt-5 grid gap-4">
+        <Field label="Name" htmlFor="client-name">
+          <Input id="client-name" placeholder="Name" />
+        </Field>
+        <Field label="Slug" htmlFor="client-slug">
+          <Input id="client-slug" placeholder="Slug" />
+        </Field>
+        <Field label="Description" htmlFor="client-description">
+          <Textarea id="client-description" placeholder="Description" />
+        </Field>
+
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap gap-2">
-            <button type="button" data-tool-preset="query" class="action-pill"
-              >Query Only</button
+            <Button
+              size="sm"
+              extraAttrs={{ "data-tool-preset": "query" }}
             >
-            <button type="button" data-tool-preset="read" class="action-pill"
-              >Read Only</button
-            >
-            <button type="button" data-tool-preset="all" class="action-pill"
-              >All</button
-            >
+              Query Only
+            </Button>
+            <Button size="sm" extraAttrs={{ "data-tool-preset": "read" }}>
+              Read Only
+            </Button>
+            <Button size="sm" extraAttrs={{ "data-tool-preset": "all" }}>
+              All
+            </Button>
           </div>
-          <button
-            type="button"
+          <Button
             id="create-refresh-tools"
-            class="action-pill text-xs"
-            title="Reload tool list from server">Refresh tools</button
+            size="sm"
+            variant="ghost"
+            title="Reload tool list from server"
           >
+            Refresh tools
+          </Button>
         </div>
+
         <div class="grid gap-2 text-sm text-stone-700">
-          <span class="font-medium">Tool scopes</span>
+          <span class="u-field-label">Tool scopes</span>
           <div
             id="client-tool-scopes"
-            class="max-h-80 overflow-y-auto min-h-32 rounded-2xl border border-stone-300 bg-white p-2"
+            class="max-h-80 min-h-32 overflow-y-auto rounded-xl border border-stone-300 bg-white p-2"
           >
-            <p class="text-sm text-stone-400 px-1">Loading tools...</p>
+            <p class="px-1 text-sm text-stone-400">Loading tools...</p>
           </div>
         </div>
-        <input
-          id="client-repo-scopes"
-          class="rounded-2xl border border-stone-300 bg-white px-4 py-3"
-          placeholder="Repo scopes (comma-separated)"
-          value="*"
-        />
-        <p id="create-client-status" class="min-h-6 text-sm text-stone-600"></p>
-        <button type="submit" class="primary-pill w-full">Create client</button>
+
+        <Field label="Repo scopes" htmlFor="client-repo-scopes" hint="Comma-separated; use * for all repos.">
+          <Input id="client-repo-scopes" placeholder="Repo scopes (comma-separated)" value="*" />
+        </Field>
+
+        <FormStatus id="create-client-status" />
+        <Button type="submit" variant="primary" fullWidth>
+          Create client
+        </Button>
       </form>
-      <div
+
+      <ResultCallout
         id="client-created-result"
-        class="mt-5 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4"
+        tone="amber"
+        eyebrow="New Client API Key"
+        class="mt-5"
       >
-        <p class="eyebrow">New Client API Key</p>
         <code
           id="client-created-key"
-          class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
+          class="font-mono-ui mt-3 block overflow-x-auto rounded-xl bg-white px-4 py-3 text-sm text-stone-800"
         ></code>
-      </div>
+      </ResultCallout>
     </aside>
 
-    <div class="grid gap-6">
-      <section
-        class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-5"
+    <div class="flex flex-col gap-5">
+      <Toolbar
+        idPrefix="client"
+        description="Open any client card to move into the dedicated detail path with breadcrumb context and focused lifecycle tools."
+        searchPlaceholder="Semantic quick search clients"
       >
-        <div>
-          <p class="text-sm font-medium text-stone-900">Navigator</p>
-          <p class="mt-1 text-sm text-stone-600">
-            Open any client card to move into the dedicated detail path with
-            breadcrumb context and focused lifecycle tools.
-          </p>
-        </div>
-        <a href="/dashboard" class="action-pill">Dashboard home</a>
-      </section>
+        <Button slot="leading" href="/dashboard" size="sm">
+          Dashboard home
+        </Button>
+      </Toolbar>
 
       <div id="client-registry" class="grid gap-4 md:grid-cols-2">
-        <article class="shell-card p-6 text-sm text-stone-600">
-          Loading client registry...
-        </article>
+        <article class="u-placeholder-card">Loading client registry...</article>
       </div>
     </div>
   </section>
+
   <script src="../scripts/clients-page.ts"></script>
 </DashboardLayout>

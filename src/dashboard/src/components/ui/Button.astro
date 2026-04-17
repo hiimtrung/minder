@@ -1,0 +1,78 @@
+---
+/**
+ * Button — unified action element.
+ *
+ * Variants map to existing legacy utility classes so JS-injected HTML keeps
+ * working. Use `variant="primary" | "secondary" | "ghost" | "danger"`.
+ */
+interface Props {
+  variant?: "primary" | "secondary" | "ghost" | "danger";
+  size?: "sm" | "md";
+  type?: "button" | "submit" | "reset";
+  id?: string;
+  href?: string;
+  fullWidth?: boolean;
+  disabled?: boolean;
+  title?: string;
+  ariaLabel?: string;
+  class?: string;
+  extraAttrs?: Record<string, string | boolean | undefined>;
+}
+
+const {
+  variant = "secondary",
+  size = "md",
+  type = "button",
+  id,
+  href,
+  fullWidth = false,
+  disabled = false,
+  title,
+  ariaLabel,
+  class: className = "",
+  extraAttrs = {},
+} = Astro.props;
+
+const variantClass =
+  variant === "primary"
+    ? "primary-pill"
+    : variant === "secondary"
+      ? "action-pill"
+      : variant === "ghost"
+        ? "u-btn-ghost"
+        : "u-btn-danger";
+
+const sizeClass = size === "sm" ? "u-btn-sm" : "";
+const widthClass = fullWidth ? "u-btn-wide" : "";
+
+const finalClass = [variantClass, sizeClass, widthClass, className]
+  .filter(Boolean)
+  .join(" ");
+---
+
+{
+  href ? (
+    <a
+      href={href}
+      id={id}
+      class={finalClass}
+      title={title}
+      aria-label={ariaLabel}
+      {...extraAttrs}
+    >
+      <slot />
+    </a>
+  ) : (
+    <button
+      type={type}
+      id={id}
+      class={finalClass}
+      disabled={disabled}
+      title={title}
+      aria-label={ariaLabel}
+      {...extraAttrs}
+    >
+      <slot />
+    </button>
+  )
+}

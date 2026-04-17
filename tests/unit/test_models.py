@@ -39,7 +39,7 @@ def test_session_schema():
     user_id = uuid.uuid4()
     session = SessionSchema(user_id=user_id)
     assert session.user_id == user_id
-    assert session.ttl == 3600
+    assert session.ttl == 86400  # 24h default for multi-day work continuity
 
 def test_workflow_schema():
     wf = WorkflowSchema(name="Test Workflow")

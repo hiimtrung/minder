@@ -32,15 +32,20 @@ export type AuditEventPayload = {
   id: string;
   actor_type: string;
   actor_id: string;
+  actor_name: string | null;
   event_type: string;
   resource_type: string;
-  resource_id: string;
+  resource_id: string | null;
+  resource_name: string | null;
   outcome: string;
   created_at: string | null;
 };
 
 export type AuditListPayload = {
   events: AuditEventPayload[];
+  total: number;
+  limit: number;
+  offset: number;
 };
 
 export type TokenExchangePayload = {
@@ -80,6 +85,59 @@ export type ToolInfo = {
 export type ToolListPayload = {
   tools: ToolInfo[];
 };
+
+export type RuntimeQueryPayload = {
+  query: string;
+  repository: {
+    id: string | null;
+    name: string | null;
+    path: string | null;
+  };
+  answer: string;
+  answer_sanitized: boolean;
+  answer_warning: string | null;
+  sources: Array<Record<string, unknown>>;
+  workflow: Record<string, unknown>;
+  guard_result: Record<string, unknown> | null;
+  verification_result: Record<string, unknown> | null;
+  evaluation: Record<string, unknown> | null;
+  provider: string | null;
+  model: string | null;
+  runtime: string | null;
+  orchestration_runtime: string | null;
+  transition_log: Array<Record<string, unknown>>;
+  edge: string | null;
+  cross_repo_graph: Record<string, unknown> | null;
+};
+
+export type RuntimeQueryStreamEvent =
+  | {
+      type: "meta";
+      repository: RuntimeQueryPayload["repository"];
+    }
+  | {
+      type: "attempt";
+      attempt: number;
+    }
+  | {
+      type: "chunk";
+      attempt: number;
+      delta: string;
+    }
+  | {
+      type: "retry";
+      attempt: number;
+      reason: string;
+      edge: string;
+    }
+  | {
+      type: "final";
+      payload: RuntimeQueryPayload;
+    }
+  | {
+      type: "error";
+      error: string;
+    };
 
 const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "")
   .trim()
@@ -163,6 +221,7 @@ export async function setupAdmin(payload: {
   username: string;
   email: string;
   display_name: string;
+  password?: string;
 }): Promise<SetupAdminPayload> {
   return requestJson<SetupAdminPayload>("/v1/admin/setup", {
     method: "POST",
@@ -170,10 +229,24 @@ export async function setupAdmin(payload: {
   });
 }
 
-export async function loginAdmin(api_key: string): Promise<{ ok: true }> {
+/** Login with username + password (preferred for human admins). */
+export async function loginAdmin(credentials: {
+  username: string;
+  password: string;
+}): Promise<{ ok: true }>;
+/** Login with a raw API key (fallback / scripted access). */
+export async function loginAdmin(credentials: {
+  api_key: string;
+}): Promise<{ ok: true }>;
+export async function loginAdmin(
+  credentials: { username: string; password: string } | { api_key: string },
+): Promise<{ ok: true }> {
   return requestJson<{ ok: true }>("/v1/admin/login", {
     method: "POST",
-    body: JSON.stringify({ api_key }),
+    body: JSON.stringify(credentials),
+    // Prevent the global 401 redirect so the login page can display the
+    // error message instead of reloading.
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
 
@@ -264,6 +337,81 @@ export async function listTools(): Promise<ToolListPayload> {
   return requestJson<ToolListPayload>("/v1/admin/tools");
 }
 
+export async function queryRuntime(payload: {
+  query: string;
+  repo_id?: string;
+  workflow_name?: string;
+  max_attempts?: number;
+}): Promise<RuntimeQueryPayload> {
+  return requestJson<RuntimeQueryPayload>("/api/v1/runtime/query", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function queryRuntimeStream(
+  payload: {
+    query: string;
+    repo_id?: string;
+    workflow_name?: string;
+    max_attempts?: number;
+  },
+  onEvent: (event: RuntimeQueryStreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(apiUrl("/api/v1/runtime/query/stream"), {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {
+      // Ignore parse failures.
+    }
+    throw new Error(message);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Streaming is not available in this browser.");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        onEvent(JSON.parse(line) as RuntimeQueryStreamEvent);
+      }
+      newlineIndex = buffer.indexOf("\n");
+    }
+
+    if (done) {
+      const finalLine = buffer.trim();
+      if (finalLine) {
+        onEvent(JSON.parse(finalLine) as RuntimeQueryStreamEvent);
+      }
+      break;
+    }
+  }
+}
+
 export async function updateClient(
   clientId: string,
   payload: {
@@ -279,9 +427,20 @@ export async function updateClient(
   });
 }
 
-export async function listAudit(actorId?: string): Promise<AuditListPayload> {
-  const query = actorId ? `?actor_id=${encodeURIComponent(actorId)}` : "";
-  return requestJson<AuditListPayload>(`/v1/admin/audit${query}`);
+export async function listAudit(
+  actorId?: string,
+  limit = 50,
+  offset = 0,
+  eventType?: string,
+  outcome?: string,
+): Promise<AuditListPayload> {
+  const params = new URLSearchParams();
+  if (actorId) params.set("actor_id", actorId);
+  if (eventType) params.set("event_type", eventType);
+  if (outcome) params.set("outcome", outcome);
+  params.set("limit", String(limit));
+  params.set("offset", String(offset));
+  return requestJson<AuditListPayload>(`/v1/admin/audit?${params.toString()}`);
 }
 
 export async function exchangeClientKey(
@@ -291,4 +450,874 @@ export async function exchangeClientKey(
     method: "POST",
     body: JSON.stringify({ client_api_key }),
   });
+}
+
+// ---------------------------------------------------------------------------
+// User management
+// ---------------------------------------------------------------------------
+
+export type UserPayload = {
+  id: string;
+  username: string;
+  email: string;
+  display_name: string;
+  role: string;
+  is_active: boolean;
+  created_at: string | null;
+};
+
+export type UserListPayload = { users: UserPayload[] };
+export type UserDetailPayload = { user: UserPayload; clients: ClientPayload[] };
+export type CreateUserPayload = { user: UserPayload; api_key: string };
+
+export async function createUser(payload: {
+  username: string;
+  email: string;
+  display_name: string;
+  role?: string;
+  password?: string;
+}): Promise<CreateUserPayload> {
+  return requestJson<CreateUserPayload>("/v1/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listUsers(activeOnly = false): Promise<UserListPayload> {
+  const query = activeOnly ? "?active_only=true" : "";
+  return requestJson<UserListPayload>(`/v1/admin/users${query}`);
+}
+
+export async function getUserDetail(
+  userId: string,
+): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`);
+}
+
+export async function updateUser(
+  userId: string,
+  payload: { role?: string; is_active?: boolean; display_name?: string },
+): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deactivateUser(
+  userId: string,
+): Promise<UserDetailPayload> {
+  return requestJson<UserDetailPayload>(`/v1/admin/users/${userId}`, {
+    method: "DELETE",
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Workflow management
+// ---------------------------------------------------------------------------
+
+export type WorkflowStepPayload = {
+  name: string;
+  description: string;
+  gate: string | null;
+};
+
+export type WorkflowPayload = {
+  id: string;
+  name: string;
+  description: string;
+  enforcement: string;
+  steps: WorkflowStepPayload[];
+  created_at: string | null;
+};
+
+export type WorkflowListPayload = { workflows: WorkflowPayload[] };
+export type WorkflowDetailPayload = { workflow: WorkflowPayload };
+
+// ---------------------------------------------------------------------------
+// Prompt management
+// ---------------------------------------------------------------------------
+
+export type PromptPayload = {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments: string[];
+  created_at: string | null;
+  updated_at: string | null;
+  is_builtin: boolean;
+};
+
+export type PromptPolishPayload = {
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments: string[];
+  llm: {
+    provider: string;
+    model: string;
+    runtime: string;
+  };
+};
+
+export type AdminCatalogResource =
+  | "clients"
+  | "repositories"
+  | "skills"
+  | "memories"
+  | "prompts"
+  | "workflows";
+
+export type AdminCatalogSearchResult<T> = {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+  resource: AdminCatalogResource;
+  query: string;
+};
+
+export async function listPrompts(): Promise<PromptPayload[]> {
+  return requestJson<PromptPayload[]>("/api/v1/prompts");
+}
+
+export async function createPrompt(payload: {
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments?: string[];
+}): Promise<PromptPayload> {
+  return requestJson<PromptPayload>("/api/v1/prompts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePrompt(
+  promptId: string,
+  payload: {
+    name?: string;
+    title?: string;
+    description?: string;
+    content_template?: string;
+    arguments?: string[];
+  },
+): Promise<PromptPayload> {
+  return requestJson<PromptPayload>(`/api/v1/prompts/${promptId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deletePrompt(promptId: string): Promise<void> {
+  await requestJson(`/api/v1/prompts/${promptId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+export type SkillPayload = {
+  id: string;
+  title: string;
+  content: string;
+  language: string;
+  tags: string[];
+  quality_score: number;
+  usage_count: number;
+  workflow_step_tags: string[];
+  artifact_type_tags: string[];
+  provenance: string | null;
+  source: SkillSourcePayload | null;
+  excerpt_kind: "none" | "reusable_excerpt";
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type SkillSourcePayload = {
+  provider: "github" | "gitlab" | "generic_git";
+  repo_url: string;
+  ref?: string | null;
+  path: string;
+  file_path?: string | null;
+  import_key?: string | null;
+  imported_at?: string | null;
+};
+
+export type SkillImportSummaryPayload = {
+  provider: "github" | "gitlab" | "generic_git";
+  repo_url: string;
+  ref: string | null;
+  path: string;
+  created_count: number;
+  updated_count: number;
+  imported_count: number;
+  imported: Array<{
+    action: "created" | "updated";
+    id: string;
+    title: string;
+    source: SkillSourcePayload | null;
+  }>;
+};
+
+export type MemoryPayload = {
+  id: string;
+  title: string;
+  content: string;
+  language: string;
+  tags: string[];
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export async function listSkills(): Promise<SkillPayload[]> {
+  return requestJson<SkillPayload[]>("/api/v1/skills");
+}
+
+export async function createSkill(payload: {
+  title: string;
+  content: string;
+  language: string;
+  tags?: string[];
+  workflow_steps?: string[];
+  artifact_types?: string[];
+  provenance?: string | null;
+  quality_score?: number;
+  excerpt_kind?: "none" | "reusable_excerpt";
+}): Promise<SkillPayload> {
+  return requestJson<SkillPayload>("/api/v1/skills", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateSkill(
+  skillId: string,
+  payload: {
+    title?: string;
+    content?: string;
+    language?: string;
+    tags?: string[];
+    workflow_steps?: string[];
+    artifact_types?: string[];
+    provenance?: string | null;
+    quality_score?: number;
+    excerpt_kind?: "none" | "reusable_excerpt";
+  },
+): Promise<SkillPayload> {
+  return requestJson<SkillPayload>(`/api/v1/skills/${skillId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function importSkills(payload: {
+  repo_url: string;
+  path?: string;
+  ref?: string;
+  provider?: "github" | "gitlab" | "generic_git";
+  excerpt_kind?: "none" | "reusable_excerpt";
+}): Promise<SkillImportSummaryPayload> {
+  return requestJson<SkillImportSummaryPayload>("/api/v1/skills/imports", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteSkill(skillId: string): Promise<void> {
+  await requestJson(`/api/v1/skills/${skillId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function listMemories(): Promise<MemoryPayload[]> {
+  return requestJson<MemoryPayload[]>("/api/v1/memories");
+}
+
+export async function createMemory(payload: {
+  title: string;
+  content: string;
+  language?: string;
+  tags?: string[];
+}): Promise<MemoryPayload> {
+  return requestJson<MemoryPayload>("/api/v1/memories", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMemory(
+  memoryId: string,
+  payload: {
+    title?: string;
+    content?: string;
+    language?: string;
+    tags?: string[];
+  },
+): Promise<MemoryPayload> {
+  return requestJson<MemoryPayload>(`/api/v1/memories/${memoryId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteMemory(memoryId: string): Promise<void> {
+  await requestJson(`/api/v1/memories/${memoryId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function searchAdminCatalog<T>(
+  resource: AdminCatalogResource,
+  query: string,
+  limit = 100,
+  offset = 0,
+): Promise<AdminCatalogSearchResult<T>> {
+  const params = new URLSearchParams({
+    query,
+    limit: String(limit),
+    offset: String(offset),
+  });
+  return requestJson<AdminCatalogSearchResult<T>>(
+    `/v1/admin/search/${resource}?${params.toString()}`,
+  );
+}
+
+export async function polishPromptDraft(payload: {
+  name: string;
+  title?: string;
+  description?: string;
+  content_template?: string;
+  arguments?: string[];
+}): Promise<PromptPolishPayload> {
+  return requestJson<PromptPolishPayload>("/api/v1/prompts/polish", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listWorkflows(): Promise<WorkflowListPayload> {
+  return requestJson<WorkflowListPayload>("/v1/admin/workflows");
+}
+
+export async function getWorkflowDetail(
+  workflowId: string,
+): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>(
+    `/v1/admin/workflows/${workflowId}`,
+  );
+}
+
+export async function createWorkflow(payload: {
+  name: string;
+  description?: string;
+  enforcement?: string;
+  steps?: WorkflowStepPayload[];
+}): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>("/v1/admin/workflows", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateWorkflow(
+  workflowId: string,
+  payload: {
+    name?: string;
+    description?: string;
+    enforcement?: string;
+    steps?: WorkflowStepPayload[];
+  },
+): Promise<WorkflowDetailPayload> {
+  return requestJson<WorkflowDetailPayload>(
+    `/v1/admin/workflows/${workflowId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteWorkflow(
+  workflowId: string,
+): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(
+    `/v1/admin/workflows/${workflowId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Repository management
+// ---------------------------------------------------------------------------
+
+export type RepositoryPayload = {
+  id: string;
+  name: string;
+  path: string;
+  remote_url: string | null;
+  default_branch: string | null;
+  tracked_branches: string[];
+  workflow_name: string | null;
+  workflow_state: string | null;
+  current_step: string | null;
+  created_at: string | null;
+};
+
+export type RepositoryListPayload = { repositories: RepositoryPayload[] };
+export type RepositoryDetailPayload = { repository: RepositoryPayload };
+export type DeleteRepositoryPayload = { deleted: boolean };
+
+export async function listRepositories(): Promise<RepositoryListPayload> {
+  return requestJson<RepositoryListPayload>("/v1/admin/repositories");
+}
+
+export async function getRepositoryDetail(
+  repoId: string,
+): Promise<RepositoryDetailPayload> {
+  return requestJson<RepositoryDetailPayload>(
+    `/v1/admin/repositories/${repoId}`,
+  );
+}
+
+export async function updateRepository(
+  repoId: string,
+  payload: {
+    name?: string;
+    remote_url?: string | null;
+    default_branch?: string | null;
+    path?: string;
+  },
+): Promise<RepositoryDetailPayload> {
+  return requestJson<RepositoryDetailPayload>(
+    `/v1/admin/repositories/${repoId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteRepository(
+  repoId: string,
+): Promise<DeleteRepositoryPayload> {
+  return requestJson<DeleteRepositoryPayload>(
+    `/v1/admin/repositories/${repoId}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export type RepositoryGraphNodePayload = {
+  id: string;
+  node_type: string;
+  name: string;
+  metadata: Record<string, unknown>;
+};
+
+export type RepositoryGraphEdgePayload = {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation: string;
+  weight: number;
+};
+
+export type RepositoryGraphDependencyPayload = {
+  service: string;
+  depends_on: Array<{
+    id: string;
+    name: string;
+    node_type: string;
+  }>;
+};
+
+export type RepositoryGraphSummaryPayload = {
+  repository: RepositoryPayload;
+  graph_available: boolean;
+  active_branch: string | null;
+  branch_state: RepositoryBranchPayload | null;
+  branch_links: RepositoryBranchLinkPayload[];
+  last_sync: Record<string, unknown> | null;
+  node_count: number;
+  counts_by_type: Record<string, number>;
+  routes: RepositoryGraphNodePayload[];
+  todos: RepositoryGraphNodePayload[];
+  external_services: RepositoryGraphNodePayload[];
+  dependencies: RepositoryGraphDependencyPayload[];
+};
+
+export type RepositoryGraphScopePayload = {
+  repo_id: string;
+  repo_name: string;
+  repo_path: string | null;
+  branch: string | null;
+  distance: number;
+  via_link: Record<string, unknown> | null;
+};
+
+export type RepositoryGraphResultNodePayload = RepositoryGraphNodePayload & {
+  score?: number;
+  direction?: string;
+  distance?: number;
+  repo_id?: string;
+  repo_name?: string;
+  branch?: string | null;
+  landscape_distance?: number;
+  via_link?: Record<string, unknown> | null;
+};
+
+export type RepositoryGraphSearchPayload = {
+  repository: RepositoryPayload;
+  active_branch: string | null;
+  query: string;
+  filters: {
+    node_types?: string[];
+    languages?: string[];
+    last_states?: string[];
+  };
+  scope_count: number;
+  searched_scopes: RepositoryGraphScopePayload[];
+  count: number;
+  results: RepositoryGraphResultNodePayload[];
+};
+
+export type RepositoryGraphImpactPayload = {
+  repository: RepositoryPayload;
+  active_branch: string | null;
+  target: string;
+  searched_scopes: RepositoryGraphScopePayload[];
+  matches: RepositoryGraphResultNodePayload[];
+  impacted: RepositoryGraphResultNodePayload[];
+  summary: Record<string, number | Record<string, number>>;
+};
+
+export type RepositoryGraphMapPayload = {
+  repository: RepositoryPayload;
+  graph_available: boolean;
+  branch: string | null;
+  branch_state: RepositoryBranchPayload | null;
+  branch_links: RepositoryBranchLinkPayload[];
+  nodes: RepositoryGraphNodePayload[];
+  edges: RepositoryGraphEdgePayload[];
+  summary: {
+    node_count: number;
+    edge_count: number;
+    counts_by_type: Record<string, number>;
+    counts_by_relation: Record<string, number>;
+  };
+};
+
+export type RepositoryBranchPayload = {
+  branch: string;
+  is_default: boolean;
+  last_synced: string | null;
+  payload_version: string | null;
+  source: string | null;
+  node_count: number;
+  edge_count: number;
+  deleted_nodes: number;
+  repo_path: string | null;
+  diff_base: string | null;
+};
+
+export type RepositoryBranchListPayload = {
+  repo_id: string;
+  default_branch: string | null;
+  tracked_branches: RepositoryBranchPayload[];
+};
+
+export type RepositoryBranchLinkPayload = {
+  id: string;
+  source_repo_id: string;
+  source_repo_name: string;
+  source_repo_url: string | null;
+  source_branch: string;
+  target_repo_id: string | null;
+  target_repo_name: string;
+  target_repo_url: string | null;
+  target_branch: string;
+  relation: string;
+  direction: string;
+  confidence: number;
+  last_seen_at: string | null;
+  source: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type RepositoryBranchLinkListPayload = {
+  repo_id: string;
+  branch: string | null;
+  links: RepositoryBranchLinkPayload[];
+};
+
+export type RepositoryLandscapeNodePayload = {
+  id: string;
+  repo_id: string;
+  repo_name: string;
+  branch: string;
+  remote_url: string | null;
+  is_default: boolean;
+  last_synced: string | null;
+};
+
+export type RepositoryLandscapeEdgePayload = {
+  id: string;
+  source_id: string;
+  target_id: string;
+  relation: string;
+  direction: string;
+  confidence: number;
+};
+
+export type RepositoryLandscapePayload = {
+  repositories: RepositoryPayload[];
+  nodes: RepositoryLandscapeNodePayload[];
+  edges: RepositoryLandscapeEdgePayload[];
+  summary: {
+    repo_count: number;
+    branch_count: number;
+    link_count: number;
+  };
+};
+
+export async function getRepositoryBranches(
+  repoId: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches`,
+  );
+}
+
+export async function addRepositoryBranch(
+  repoId: string,
+  branch: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches`,
+    { method: "POST", body: JSON.stringify({ branch }) },
+  );
+}
+
+export async function removeRepositoryBranch(
+  repoId: string,
+  branch: string,
+): Promise<RepositoryBranchListPayload> {
+  return requestJson<RepositoryBranchListPayload>(
+    `/v1/admin/repositories/${repoId}/branches/${encodeURIComponent(branch)}`,
+    { method: "DELETE" },
+  );
+}
+
+export async function getRepositoryBranchLinks(
+  repoId: string,
+  branch?: string,
+): Promise<RepositoryBranchLinkListPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function upsertRepositoryBranchLink(
+  repoId: string,
+  payload: {
+    source_branch: string;
+    target_repo_id?: string | null;
+    target_repo_name?: string | null;
+    target_repo_url?: string | null;
+    target_branch: string;
+    relation?: string;
+    direction?: "outbound" | "inbound" | "bidirectional";
+    confidence?: number;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<RepositoryBranchLinkListPayload> {
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links`,
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export async function deleteRepositoryBranchLink(
+  repoId: string,
+  linkId: string,
+  branch?: string,
+): Promise<RepositoryBranchLinkListPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryBranchLinkListPayload>(
+    `/v1/admin/repositories/${repoId}/branch-links/${encodeURIComponent(linkId)}${qs ? `?${qs}` : ""}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export async function getRepositoryLandscape(): Promise<RepositoryLandscapePayload> {
+  return requestJson<RepositoryLandscapePayload>(
+    "/v1/admin/repositories/landscape",
+  );
+}
+
+export async function getRepositoryGraphMap(
+  repoId: string,
+  branch?: string,
+): Promise<RepositoryGraphMapPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryGraphMapPayload>(
+    `/v1/admin/repositories/${repoId}/graph-map${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function getRepositoryGraphSummary(
+  repoId: string,
+  branch?: string,
+): Promise<RepositoryGraphSummaryPayload> {
+  const params = new URLSearchParams();
+  if (branch) params.set("branch", branch);
+  const qs = params.toString();
+  return requestJson<RepositoryGraphSummaryPayload>(
+    `/v1/admin/repositories/${repoId}/graph-summary${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function searchRepositoryGraph(
+  repoId: string,
+  options: {
+    query: string;
+    branch?: string;
+    nodeTypes?: string[];
+    languages?: string[];
+    lastStates?: string[];
+    limit?: number;
+  },
+): Promise<RepositoryGraphSearchPayload> {
+  const params = new URLSearchParams();
+  params.set("query", options.query);
+  params.set("limit", String(options.limit ?? 10));
+  if (options.branch) params.set("branch", options.branch);
+  for (const nodeType of options.nodeTypes ?? []) {
+    params.append("node_type", nodeType);
+  }
+  for (const language of options.languages ?? []) {
+    params.append("language", language);
+  }
+  for (const lastState of options.lastStates ?? []) {
+    params.append("last_state", lastState);
+  }
+  return requestJson<RepositoryGraphSearchPayload>(
+    `/v1/admin/repositories/${repoId}/graph-search?${params.toString()}`,
+  );
+}
+
+export async function getRepositoryGraphImpact(
+  repoId: string,
+  target: string,
+  depth = 2,
+  limit = 25,
+  branch?: string,
+): Promise<RepositoryGraphImpactPayload> {
+  const params = new URLSearchParams({
+    target,
+    depth: String(depth),
+    limit: String(limit),
+  });
+  if (branch) params.set("branch", branch);
+  return requestJson<RepositoryGraphImpactPayload>(
+    `/v1/admin/repositories/${repoId}/graph-impact?${params.toString()}`,
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Observability
+// ---------------------------------------------------------------------------
+
+export type MetricsBucket = {
+  total: number;
+  by_outcome?: Record<string, number>;
+  by_type?: Record<string, number>;
+  by_status?: Record<string, number>;
+};
+
+export type MetricsSummaryPayload = {
+  active_client_sessions: number;
+  tool_calls: { total: number; by_outcome: Record<string, number> };
+  auth_events: { total: number; by_type: Record<string, number> };
+  http_requests: { total: number; by_status: Record<string, number> };
+  admin_operations: { total: number; by_outcome: Record<string, number> };
+  continuity_quality: {
+    packets_emitted_total: number;
+    packets_by_source: Record<string, number>;
+    recalls_total: number;
+    recalls_by_provider: Record<string, number>;
+    average_step_compatibility: number;
+    average_skill_quality: number;
+    query_prompts_by_source: Record<string, number>;
+    correction_retries_total: number;
+    gates_by_outcome: Record<string, number>;
+  };
+};
+
+export async function getMetricsSummary(
+  client_id?: string,
+  event_type?: string,
+  outcome?: string,
+): Promise<MetricsSummaryPayload> {
+  const params = new URLSearchParams();
+  if (client_id) params.set("client_id", client_id);
+  if (event_type) params.set("event_type", event_type);
+  if (outcome) params.set("outcome", outcome);
+
+  const query = params.toString();
+  const path = query
+    ? `/v1/admin/metrics-summary?${query}`
+    : "/v1/admin/metrics-summary";
+  return requestJson<MetricsSummaryPayload>(path);
+}
+
+// ---------------------------------------------------------------------------
+// Service health
+// ---------------------------------------------------------------------------
+
+export type HealthStatus = {
+  ok: boolean;
+  status: number;
+  latencyMs: number;
+};
+
+/** Pings the server /health endpoint. No auth required. */
+export async function getServiceHealth(): Promise<HealthStatus> {
+  const started = performance.now();
+  try {
+    const response = await fetch(apiUrl("/health"), {
+      credentials: "include",
+      // Small timeout-like safeguard — browsers don't expose true timeouts, but this is cheap.
+    });
+    const latencyMs = Math.round(performance.now() - started);
+    return {
+      ok: response.ok,
+      status: response.status,
+      latencyMs,
+    };
+  } catch {
+    const latencyMs = Math.round(performance.now() - started);
+    return { ok: false, status: 0, latencyMs };
+  }
 }

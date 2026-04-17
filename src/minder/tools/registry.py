@@ -4,6 +4,7 @@ Tool Registry — single source of truth for tool names, descriptions, and scope
 Import TOOL_DESCRIPTIONS in bootstrap/transport.py to register tools.
 Import SCOPEABLE_TOOLS in admin use-cases to populate the tool-scope picker.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -15,6 +16,8 @@ class ToolMeta:
     description: str
     scopeable: bool = True
     """Whether this tool can be granted to client principals via tool_scopes."""
+    always_available: bool = False
+    """If True, ClientPrincipal can call this tool regardless of their tool_scopes grant list."""
 
 
 # All registered MCP tools — ordered for display
@@ -36,6 +39,34 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_memory_delete",
         description="Delete a stored memory entry by its ID.",
     ),
+    ToolMeta(
+        name="minder_memory_compact",
+        description="Review and compact duplicate memory entries by merging selected memories into a canonical entry.",
+    ),
+    ToolMeta(
+        name="minder_skill_store",
+        description="Store a reusable workflow-aware skill with step, artifact, provenance, and quality metadata.",
+    ),
+    ToolMeta(
+        name="minder_skill_recall",
+        description="Retrieve reusable skills ranked by workflow-step compatibility, semantic similarity, and quality score.",
+    ),
+    ToolMeta(
+        name="minder_skill_list",
+        description="List stored skills with optional workflow-step, tag, and quality filters.",
+    ),
+    ToolMeta(
+        name="minder_skill_update",
+        description="Update skill content, metadata, and quality signals for an existing stored skill.",
+    ),
+    ToolMeta(
+        name="minder_skill_delete",
+        description="Delete a stored skill by its ID.",
+    ),
+    ToolMeta(
+        name="minder_skill_import_git",
+        description="Import supported skill documents from a Git repository path and upsert them with source metadata.",
+    ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_search",
@@ -52,6 +83,14 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_query",
         description="Run a full Minder repository query with retrieval, reasoning, and verification.",
+    ),
+    ToolMeta(
+        name="minder_find_impact",
+        description="Traverse the repository graph to show upstream and downstream impact for a file, symbol, route, or dependency.",
+    ),
+    ToolMeta(
+        name="minder_search_graph",
+        description="Search the repository graph for matching files, symbols, routes, todos, or dependencies within a repo scope.",
     ),
     # ── Workflow ──────────────────────────────────────────────────────────────
     ToolMeta(
@@ -73,19 +112,52 @@ ALL_TOOLS: list[ToolMeta] = [
     # ── Session ───────────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_session_create",
-        description="Create a persisted Minder session for an authenticated human user.",
+        description=(
+            "Create a named, persisted Minder session for the calling principal. "
+            "Pass a stable project slug as 'name' (e.g. 'omi-channel-phase5') so the "
+            "session can be recovered from any machine using the same client API key."
+        ),
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_session_find",
+        description=(
+            "Find a session by name for the calling principal — the primary cross-environment "
+            "recovery tool. Returns full state and context so the LLM can resume after a "
+            "/compact or machine switch without needing to remember the session UUID."
+        ),
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_session_list",
+        description=(
+            "List all sessions owned by the calling principal, newest-first. "
+            "Use minder_session_find when you know the session name."
+        ),
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_save",
-        description="Persist state and active skill context for an existing Minder session.",
+        description=(
+            "Persist task state and active skill context for an existing session. "
+            "Call after each significant wave of work so context survives /compact."
+        ),
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_restore",
-        description="Load the saved state and context for an existing Minder session.",
+        description="Load saved state and context for an existing session by UUID.",
+        always_available=True,
     ),
     ToolMeta(
         name="minder_session_context",
         description="Update branch and open-file context for an existing Minder session.",
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_session_cleanup",
+        description="Delete expired sessions owned by the calling principal and remove their persisted history records.",
+        always_available=True,
     ),
     # ── Auth (internal — not grantable to client principals) ─────────────────
     ToolMeta(
@@ -107,6 +179,7 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_auth_whoami",
         description="Return the authenticated principal identity, role, and any active scopes.",
         scopeable=False,
+        always_available=True,
     ),
     ToolMeta(
         name="minder_auth_manage",
@@ -125,3 +198,8 @@ TOOL_DESCRIPTIONS: dict[str, str] = {tool.name: tool.description for tool in ALL
 
 # Tools that can be granted to client principals
 SCOPEABLE_TOOLS: list[ToolMeta] = [tool for tool in ALL_TOOLS if tool.scopeable]
+
+# Tools always callable by any authenticated ClientPrincipal (no scope grant required)
+ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
+    tool.name for tool in ALL_TOOLS if tool.always_available
+)

@@ -1,0 +1,29 @@
+---
+/**
+ * PageHero — the top banner used on every registry/list page.
+ * Eyebrow + display title + description + optional actions slot (right side).
+ */
+interface Props {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  class?: string;
+}
+
+const { eyebrow, title, description, class: className = "" } = Astro.props;
+---
+
+<section class={`u-page-hero ${className}`}>
+  <div class="min-w-0 flex-1 space-y-2">
+    {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+    <h1 class="u-page-hero-title">{title}</h1>
+    {description && <p class="u-page-hero-sub">{description}</p>}
+  </div>
+  {
+    Astro.slots.has("actions") && (
+      <div class="flex flex-wrap items-center gap-2">
+        <slot name="actions" />
+      </div>
+    )
+  }
+</section>

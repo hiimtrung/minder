@@ -1,0 +1,40 @@
+---
+/**
+ * Textarea — unified multi-line input.
+ */
+interface Props {
+  id?: string;
+  name?: string;
+  value?: string;
+  placeholder?: string;
+  rows?: number;
+  required?: boolean;
+  disabled?: boolean;
+  variant?: "default" | "large" | "code";
+  class?: string;
+}
+
+const {
+  id,
+  name,
+  value,
+  placeholder,
+  rows,
+  required = false,
+  disabled = false,
+  variant = "default",
+  class: className = "",
+} = Astro.props;
+
+const variantClass =
+  variant === "large" ? "u-textarea-lg" : variant === "code" ? "u-textarea-code u-textarea-lg" : "";
+---
+
+<textarea
+  id={id}
+  name={name}
+  placeholder={placeholder}
+  rows={rows}
+  required={required}
+  disabled={disabled}
+  class={`u-textarea ${variantClass} ${className}`}>{value}</textarea>

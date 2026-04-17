@@ -1,5 +1,5 @@
 from .base import LLMClient
+from .local import LocalModelLLM
 from .openai import OpenAIFallbackLLM
-from .qwen import QwenLocalLLM
 
-__all__ = ["LLMClient", "OpenAIFallbackLLM", "QwenLocalLLM"]
+__all__ = ["LLMClient", "LocalModelLLM", "OpenAIFallbackLLM"]

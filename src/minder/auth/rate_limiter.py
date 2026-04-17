@@ -5,7 +5,6 @@ from dataclasses import dataclass
 
 from minder.auth.principal import Principal
 from minder.auth.service import AuthError
-from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
 from minder.store.interfaces import ICacheProvider
 
@@ -27,13 +26,10 @@ class RateLimiter:
     def __init__(
         self,
         *,
-        cache: ICacheProvider | None,
+        cache: ICacheProvider,
         config: MinderConfig,
     ) -> None:
-        self._cache = cache or LRUCacheProvider(
-            max_size=max(config.cache.max_size, 1000),
-            default_ttl=config.rate_limit.window_seconds,
-        )
+        self._cache = cache
         self._config = config
 
     def enabled(self) -> bool:

@@ -1,0 +1,13 @@
+---
+import RepositoryGraphExplorerShell from "../../components/RepositoryGraphExplorerShell.astro";
+
+export const prerender = false;
+
+const repoId = Astro.params.repoId?.trim() ?? "";
+
+if (!repoId) {
+  return Astro.redirect("/dashboard/repositories");
+}
+---
+
+<RepositoryGraphExplorerShell repoId={repoId} />

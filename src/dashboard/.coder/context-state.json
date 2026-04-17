@@ -1,136 +1,133 @@
 {
-  "updated_at": "2026-04-10T09:31:54.726222+07:00",
+  "updated_at": "2026-04-17T09:26:08.269321+07:00",
   "skills": {
-    "task": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
+    "task": "prompt management crud",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-10T09:31:52.600055+07:00",
-    "keep": [],
-    "add": [
-      "dx-optimizer",
-      "bash-pro",
-      "shadcn"
+    "resolved_at": "2026-04-17T09:26:08.03711+07:00",
+    "keep": [
+      "cqrs-implementation",
+      "python-fastapi-development",
+      "context-manager"
     ],
-    "drop": [
-      "copilot-sdk",
-      "skill-creator",
-      "wiki-onboarding"
-    ],
+    "add": [],
+    "drop": null,
     "skills": [
       {
-        "name": "dx-optimizer",
+        "name": "cqrs-implementation",
         "category": "general",
         "score": 0.016393442,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
+        "chunk_count": 1,
+        "reason": "kept active: still relevant after re-resolve"
       },
       {
-        "name": "bash-pro",
-        "category": "general",
+        "name": "python-fastapi-development",
+        "category": "granular-workflow-bundle",
+        "score": 0.016393442,
+        "chunk_count": 1,
+        "reason": "kept active: still relevant after re-resolve"
+      },
+      {
+        "name": "context-manager",
+        "category": "backend",
         "score": 0.016129032,
         "chunk_count": 1,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "shadcn",
-        "category": "frontend",
-        "score": 0.015873017,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
+        "reason": "kept active: still relevant after re-resolve"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
+    "query": "prompt management crud",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-10T09:31:54.72508+07:00",
+    "searched_at": "2026-04-17T09:26:08.26721+07:00",
     "results": [
       {
-        "id": "c99f18da-5754-4cfa-b0c7-7758e6ff2cac",
-        "title": "Phase 4.1 docs refreshed",
+        "id": "079b909f-0464-472d-bbe1-c31533a103c9",
+        "title": "Conflict detected: InboxSidebarProvider readability refactor",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-1-docs-refreshed",
+        "canonical_key": "document:inboxsidebarprovider-readability-refactor",
         "score": 0.086393446,
         "tags": [
-          "docs",
-          "phase-4.1",
-          "onboarding",
-          "auth",
-          "readme"
+          "findtourgo",
+          "inboxes",
+          "refactor",
+          "readability",
+          "maintainability"
         ],
-        "conflict_detected": false,
-        "content": "Updated README.md, docs/guides/local-setup.md, docs/guides/admin-client-onboarding.md, and docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to reflect the completed Phase 4.1 flow: browser-first setup via /setup, one-time setup-complete API key reveal, browser admin login, direct SSE client-key auth, stdio bootstrap via MINDER_CLIENT_API_KEY, and admin API-key recovery. Added operator flow guidance and marked the Phase 4.1 requirement doc as implemented. Commit: aeaa3ca."
+        "conflict_detected": true,
+        "conflict_count": 2,
+        "content": "Multiple active memories disagree for document:inboxsidebarprovider-readability-refactor. Candidates: [079b909f] InboxSidebarProvider readability refactor; [706815de] InboxSidebarProvider readability refactor. Inspect history before relying on this memory."
       },
       {
-        "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
-        "title": "Phase 4.3 completed with console serving seam",
+        "id": "32b041a0-c8c5-4cd2-b024-59e969eca609",
+        "title": "Phase 1 setup-first planning refinement",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
-        "score": 0.086129025,
-        "tags": [
-          "phase4",
-          "dashboard",
-          "astro",
-          "console",
-          "parity"
-        ],
-        "conflict_detected": false,
-        "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
-      },
-      {
-        "id": "e145a3c1-534b-42f7-ad90-8e268e9a48e4",
-        "title": "Astro dashboard UX refinement",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:astro-dashboard-ux-refinement",
+        "canonical_key": "document:phase-1-setup-first-planning-refinement",
         "score": 0.08587302,
         "tags": [
-          "dashboard",
-          "astro",
-          "ux",
-          "frontend"
+          "planning",
+          "phase1",
+          "setup",
+          "style",
+          "gsd"
         ],
         "conflict_detected": false,
-        "content": "Refined the Astro admin console UX by making onboarding snippets full-width readable cards with copy buttons, keeping connection-test and key-lifecycle failures inline instead of redirecting away on 401, and switching the header from a global Setup/Login/Clients button set to contextual per-page navigation. Also updated the frontend API client to surface backend error messages instead of generic status-only errors."
+        "content": "For rental-management-ui, the user clarified that the first implementation focus should be tech stack setup, project scaffold, and project styling before deeper API work. Instead of inserting a pre-Phase-1 decimal phase, the safe planning move was to reframe Phase 1 itself and create 01-CONTEXT plus 01-01/01-02/01-03 plans covering project scaffold/providers, design tokens and shell, then auth pages and protected routing. STATE and .continue-here were updated so the next execution step is 01-01-PLAN.md while Phase 01.1 remains queued for typed API integration."
       },
       {
-        "id": "8cdb753a-8689-4e4f-a6f7-96de1f636444",
-        "title": "Minder MCP onboarding snippets aligned to client-native formats",
+        "id": "55d01ab2-8d3a-4e81-8622-4fc44a265a2c",
+        "title": "Resume state on 2026-04-01",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-mcp-onboarding-snippets-aligned-to-client-native-formats",
+        "canonical_key": "document:resume-state-on-2026-04-01",
         "score": 0.08562499,
         "tags": [
-          "minder",
-          "mcp",
-          "onboarding",
-          "python",
-          "frontend"
+          "resume",
+          "gsd",
+          "state",
+          "phase-01"
         ],
         "conflict_detected": false,
-        "content": "Updated src/minder/application/admin/use_cases.py and related tests/docs so dashboard onboarding now emits official client-native snippets: Codex uses stdio config.toml with MINDER_CLIENT_API_KEY, Copilot CLI uses mcp-config.json with type=sse, Antigravity uses stdio mcp_config.json, and Claude Code uses .mcp.json with type=sse. Also updated dashboard snippet titles and admin onboarding guide."
+        "content": "Resumed rental-management-ui with .planning/STATE.md present, no HANDOFF.json on disk, no interrupted agent, and .continue-here checkpoint in Phase 01. Current recommended next action is execute Plan 01-02 for style system and shell foundations. Working tree is dirty: .planning/PROJECT.md and .planning/STATE.md updated for resume continuity, yarn.lock modified, .planning/HANDOFF.json deleted, and .coder/ is untracked."
       },
       {
-        "id": "401fc8bf-dbe8-4ff3-a140-f5f056534c1b",
-        "title": "Phase 4.1 requirements refined for setup and direct auth",
+        "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
+        "title": "Docs refactor: split progress trackers by phase",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-1-requirements-refined-for-setup-and-direct-auth",
+        "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
         "score": 0.08538462,
         "tags": [
-          "requirements",
-          "phase4",
-          "auth",
-          "onboarding",
-          "dashboard"
+          "minder",
+          "docs",
+          "progress",
+          "tracking",
+          "architecture"
         ],
         "conflict_detected": false,
-        "content": "Reviewed and rewrote docs/requirements/p4_1_dashboard_setup_and_direct_auth.md to align with Minder's actual auth model. Key correction: admin auth remains API-key based, so the requirements now target first-run /setup, admin API-key recovery via CLI, and direct client_api_key parity across transports instead of inventing password auth. The doc now distinguishes current baseline capabilities already present in code (/dashboard/login browser flow, SSE X-Minder-Client-Key, token exchange, onboarding routes) from the remaining gaps to implement. It also preserves token exchange as a supported compatibility path and records open questions around stdio bootstrap shape, session invalidation on recovery, and whether first-admin setup needs an extra deployment secret."
+        "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
+      },
+      {
+        "id": "56f99018-897a-404a-a000-b04ef94e4f9e",
+        "title": "content_template layered refactor",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:content-template-layered-refactor",
+        "score": 0.08515151,
+        "tags": [
+          "packageTourApi",
+          "content_template",
+          "architecture",
+          "refactor",
+          "java"
+        ],
+        "conflict_detected": false,
+        "content": "Refactored module/content_template to follow usecase -\u003e service -\u003e repository. Moved create/update/get/clone/setDefault/delete persistence and company ownership checks into ContentTemplateService/ContentTemplateServiceImpl, updated repository queries to be company-scoped, updated use case signatures to pass companyId, and forced controller list/get/update/delete/clone flows to use path companyId rather than raw template id or filter input alone. Files: content_template/entity/service/ContentTemplateService.java, infrastructure/service/ContentTemplateServiceImpl.java, infrastructure/config/repository/ContentTemplateRepository.java, infrastructure/controller/ContentTemplateController.java, usecase/*.java, infrastructure/usecase/*.java."
       }
     ]
   }

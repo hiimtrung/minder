@@ -1,0 +1,97 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Select from "./ui/Select.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+---
+
+<DashboardLayout
+  title="Workflow Registry · Minder"
+  description="Manage workflow definitions — create, edit, and assign TDD/review workflows to repositories."
+  navTitle="Minder Dashboard"
+  navDescription="Define and manage the step-gated workflows that govern your AI agent's delivery process."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Workflow Registry"
+    title="Manage delivery workflows."
+    description="Create step-gated workflows that control how Minder guides AI agents through your development process. Assign workflows to repositories and track their progress from a single view."
+  />
+
+  <section class="u-grid-sidebar">
+    <!-- Create workflow form -->
+    <aside class="shell-card p-6">
+      <p class="eyebrow">Create Workflow</p>
+      <h2
+        class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+      >
+        New workflow definition
+      </h2>
+      <p class="mt-2 text-sm leading-6 text-stone-600">
+        Define a named sequence of steps with optional gate conditions. Steps
+        are enforced in order; an agent cannot advance until each gate passes.
+      </p>
+
+      <form id="create-workflow-form" class="mt-5 grid gap-4">
+        <Field label="Name" htmlFor="workflow-name">
+          <Input id="workflow-name" placeholder="tdd, review" />
+        </Field>
+        <Field label="Description" htmlFor="workflow-description">
+          <Textarea id="workflow-description" placeholder="Description" />
+        </Field>
+
+        <Field label="Enforcement" htmlFor="workflow-enforcement">
+          <Select id="workflow-enforcement">
+            <option value="strict">Strict — block on gate failure</option>
+            <option value="advisory">Advisory — warn only</option>
+            <option value="off">Off — no enforcement</option>
+          </Select>
+        </Field>
+
+        <div class="grid gap-2 text-sm text-stone-700">
+          <div class="flex items-center justify-between gap-2">
+            <span class="u-field-label mb-0">Steps</span>
+            <Button id="add-step-button" size="sm" variant="ghost">
+              + Add step
+            </Button>
+          </div>
+          <div id="workflow-steps-list" class="grid gap-2">
+            <p class="px-1 text-xs text-stone-400">
+              No steps yet — add the first one above.
+            </p>
+          </div>
+        </div>
+
+        <FormStatus id="create-workflow-status" />
+        <Button type="submit" variant="primary" fullWidth>
+          Create workflow
+        </Button>
+      </form>
+    </aside>
+
+    <!-- Workflow list -->
+    <div class="flex flex-col gap-5">
+      <Toolbar
+        idPrefix="workflow"
+        description="Open any workflow card to edit steps, change enforcement, or review which repositories are using it."
+        searchPlaceholder="Semantic quick search workflows"
+      >
+        <Button slot="leading" href="/dashboard" size="sm">
+          Dashboard home
+        </Button>
+      </Toolbar>
+
+      <div id="workflow-registry" class="grid gap-4 md:grid-cols-2">
+        <article class="u-placeholder-card">Loading workflows...</article>
+      </div>
+    </div>
+  </section>
+
+  <script src="../scripts/workflows-page.ts"></script>
+</DashboardLayout>

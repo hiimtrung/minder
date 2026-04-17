@@ -1,0 +1,55 @@
+---
+/**
+ * Footer — consistent dashboard footer.
+ * Shows version, API health dot, and quick links.
+ *
+ * The API health dot (`#dashboard-api-health-dot`) is opt-in — enabled only
+ * when `sessionControls` is true. `session-header.ts` or other health checks
+ * can toggle `ok | warn | err` on it later; by default it stays neutral.
+ */
+interface Props {
+  version?: string;
+  showHealth?: boolean;
+}
+
+const {
+  version = import.meta.env.PUBLIC_VERSION ?? "0.1.0",
+  showHealth = false,
+} = Astro.props;
+
+const year = new Date().getFullYear();
+---
+
+<footer class="u-dashboard-footer">
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <span>© {year} Minder</span>
+    <span class="text-stone-300" aria-hidden="true">·</span>
+    <span>v{version}</span>
+    {
+      showHealth && (
+        <>
+          <span class="text-stone-300" aria-hidden="true">
+            ·
+          </span>
+          <span class="inline-flex items-center gap-1.5">
+            <span id="dashboard-api-health-dot" class="u-footer-dot" aria-hidden="true" />
+            <span id="dashboard-api-health-label">API</span>
+          </span>
+        </>
+      )
+    }
+  </div>
+  <div class="flex flex-wrap items-center gap-x-4 gap-y-2">
+    <a
+      href="https://github.com/tastech-asia/minder/tree/main/docs"
+      target="_blank"
+      rel="noreferrer noopener"
+    >
+      Docs
+    </a>
+    <span class="text-stone-300" aria-hidden="true">·</span>
+    <a href="https://github.com/tastech-asia/minder" target="_blank" rel="noreferrer noopener">GitHub</a>
+    <span class="text-stone-300" aria-hidden="true">·</span>
+    <a href="/dashboard/observability">Status</a>
+  </div>
+</footer>

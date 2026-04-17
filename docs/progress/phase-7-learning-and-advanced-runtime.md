@@ -1,0 +1,42 @@
+# Phase 7 Tracker — Deferred Learning, Advanced Runtime UX, and Post-CLI Reconciliation
+
+**Goal**: absorb the unfinished Phase 5 learning/runtime backlog plus non-CLI follow-up moved out of Phase 6, so Phase 6 can stay focused on CLI completion and first-release preparation.
+
+## Status
+
+| Area                            | Status    | Notes                                                                                |
+| ------------------------------- | --------- | ------------------------------------------------------------------------------------ |
+| Phase 7                         | `PLANNED` | Created to hold deferred work moved out of Phases 5 and 6                            |
+| Workflow learning backlog       | `BACKLOG` | ML-heavy synthesis and optimization work moved here from Phase 5                     |
+| Advanced runtime and catalog UX | `BACKLOG` | Remaining dashboard/runtime/catalog backlog moved here from Phase 5                  |
+| Post-CLI backend reconciliation | `BACKLOG` | Non-CLI follow-up moved here so Phase 6 remains focused on repo-local CLI completion |
+
+## Scope Note
+
+Phase 7 is a consolidation phase for work that is real but not on the critical path for the first CLI-centered release.
+
+It now owns:
+
+- the unfinished Phase 5 ML learning backlog
+- the remaining Phase 5 skill-catalog and runtime-chat backlog
+- the non-CLI repository-landscape reconciliation that used to sit in Phase 6
+
+## Tasks
+
+| Task        | Owner   | Status        | Summary                                                                                                                                                 | Related Context                                                                                                                                                                                                  |
+| ----------- | ------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `P7-T01`    | `ML`    | `BACKLOG`     | Pattern extractor from successful workflows moved from `P5-T01`                                                                                         | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                                                       |
+| `P7-T02`    | `ML`    | `BACKLOG`     | Skill synthesizer moved from `P5-T02`                                                                                                                   | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                                                       |
+| `P7-T03`    | `ML`    | `BACKLOG`     | Error learner moved from `P5-T03`                                                                                                                       | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                                                       |
+| `P7-T04`    | `ML`    | `BACKLOG`     | Quality optimizer moved from `P5-T04`                                                                                                                   | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                                                       |
+| `P7-T05`    | `ML`    | `BACKLOG`     | Reflection node moved from `P5-T05`                                                                                                                     | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                                                       |
+| `P7-T06`    | `BE`    | `BACKLOG`     | Broader learning follow-up after delivered memory compaction moved from `P5-T06`                                                                        | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/03-data-model-and-tools.md](../plan/03-data-model-and-tools.md)                                                         |
+| `P7-T07`    | `BE`    | `BACKLOG`     | Broader learning follow-up after delivered skill metadata store moved from `P5-T07`                                                                     | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../design/skill_management_and_graph_metadata.md](../design/skill_management_and_graph_metadata.md)                             |
+| `P7-T08`    | `FE/BE` | `BACKLOG`     | Remaining dashboard skill catalog curation, history, and import UX moved from `P5-T07A`                                                                 | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../requirements/skill_management_and_graph_metadata.md](../requirements/skill_management_and_graph_metadata.md)                 |
+| `P7-T09`    | `BE/PE` | `BACKLOG`     | Remaining provider auth and background import orchestration moved from `P5-T07B`                                                                        | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../design/skill_management_and_graph_metadata.md](../design/skill_management_and_graph_metadata.md)                             |
+| `P7-T10`    | `BE`    | `BACKLOG`     | Remaining ingestion MCP registration work moved from `P5-T08`                                                                                           | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/03-data-model-and-tools.md](../plan/03-data-model-and-tools.md)                                                         |
+| `P7-T11`    | `ML/BE` | `BACKLOG`     | Metadata-only graph extraction completion moved from `P5-T08A`                                                                                          | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../design/skill_management_and_graph_metadata.md](../design/skill_management_and_graph_metadata.md)                             |
+| `P7-T12`    | `BE`    | `BACKLOG`     | Remaining admin runtime tool invocation and CRUD-aware orchestration moved from `P5-T09`                                                                | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../plan/03-data-model-and-tools.md](../plan/03-data-model-and-tools.md)                                                         |
+| `P7-T13`    | `FE/BE` | `BACKLOG`     | Remaining multi-turn runtime memory, CRUD intents, and richer chat UX moved from `P5-T09A`                                                              | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../system-design.md](../system-design.md)                                                                                       |
+| `P7-T14`    | `BE`    | `BACKLOG`     | Reconcile inferred branch topology with persisted repository-landscape links and preserve safe fallback to admin-managed overrides, moved from `P6-T02` | [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md); [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md); [../system-design.md](../system-design.md) |
+| `P7-VERIFY` | `ML/BE` | `NOT STARTED` | Acceptance gate for deferred learning backlog, advanced runtime UX, and post-CLI backend reconciliation                                                 | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md)                                                   |

@@ -214,6 +214,62 @@ class TestMongoSkillRepository:
 
 
 # -----------------------------------------------------------------------
+# Prompt CRUD Tests
+# -----------------------------------------------------------------------
+
+
+@requires_mongodb
+class TestMongoPromptRepository:
+    @pytest.mark.asyncio
+    async def test_create_and_list_prompts(self, mongo_store: object) -> None:
+        from minder.store.mongodb.operational_store import MongoOperationalStore
+
+        store: MongoOperationalStore = mongo_store  # type: ignore[assignment]
+        prompt = await store.create_prompt(
+            name="debug_custom",
+            title="Debug Custom",
+            description="Custom debug flow",
+            content_template="Investigate {error}",
+            arguments=["error"],
+        )
+
+        assert prompt.name == "debug_custom"
+        prompts = await store.list_prompts()
+        assert len(prompts) == 1
+        assert prompts[0].name == "debug_custom"
+
+    @pytest.mark.asyncio
+    async def test_get_update_and_delete_prompt(self, mongo_store: object) -> None:
+        from minder.store.mongodb.operational_store import MongoOperationalStore
+
+        store: MongoOperationalStore = mongo_store  # type: ignore[assignment]
+        prompt = await store.create_prompt(
+            name="review_custom",
+            title="Review Custom",
+            description="Custom review flow",
+            content_template="Review {diff}",
+            arguments=["diff"],
+        )
+
+        found = await store.get_prompt_by_name("review_custom")
+        assert found is not None
+        assert found.id == prompt.id
+
+        updated = await store.update_prompt(
+            prompt.id,
+            title="Review Custom V2",
+            arguments=["diff", "context"],
+        )
+        assert updated is not None
+        assert updated.title == "Review Custom V2"
+        assert updated.arguments == ["diff", "context"]
+
+        await store.delete_prompt(prompt.id)
+        gone = await store.get_prompt_by_id(prompt.id)
+        assert gone is None
+
+
+# -----------------------------------------------------------------------
 # Session CRUD Tests
 # -----------------------------------------------------------------------
 
@@ -297,9 +353,7 @@ class TestMongoDocumentRepository:
             source_path="/remove.py",
             project="p",
         )
-        await store.delete_documents_not_in_paths(
-            project="p", keep_paths={"/keep.py"}
-        )
+        await store.delete_documents_not_in_paths(project="p", keep_paths={"/keep.py"})
         remaining = await store.list_documents(project="p")
         assert len(remaining) == 1
         assert remaining[0].source_path == "/keep.py"
@@ -342,3 +396,49 @@ class TestMongoErrorAndHistory:
 
         entries = await store.list_history_for_session(session_id)
         assert len(entries) == 1
+
+
+@requires_mongodb
+class TestMongoAuditRepository:
+    @pytest.mark.asyncio
+    async def test_list_audit_logs_supports_pagination_and_count(
+        self, mongo_store: object
+    ) -> None:
+        from minder.store.mongodb.operational_store import MongoOperationalStore
+
+        store: MongoOperationalStore = mongo_store  # type: ignore[assignment]
+        actor_id = str(uuid.uuid4())
+        other_actor_id = str(uuid.uuid4())
+
+        first = await store.create_audit_log(
+            actor_id=actor_id,
+            event_type="client.created",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+        second = await store.create_audit_log(
+            actor_id=actor_id,
+            event_type="client.updated",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+        await store.create_audit_log(
+            actor_id=other_actor_id,
+            event_type="client.deleted",
+            resource_type="client",
+            resource_id=str(uuid.uuid4()),
+        )
+
+        total = await store.count_audit_logs(actor_id=actor_id)
+        page = await store.list_audit_logs(actor_id=actor_id, limit=1, offset=0)
+        next_page = await store.list_audit_logs(actor_id=actor_id, limit=1, offset=1)
+
+        assert total == 2
+        assert len(page) == 1
+        assert len(next_page) == 1
+        assert {str(page[0].id), str(next_page[0].id)} == {
+            str(first.id),
+            str(second.id),
+        }
+        assert page[0].actor_id == actor_id
+        assert next_page[0].actor_id == actor_id

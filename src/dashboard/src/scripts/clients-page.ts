@@ -1,5 +1,6 @@
 import {
   createClient,
+  type ClientPayload,
   getClientDetail,
   getClientOnboarding,
   listAudit,
@@ -7,10 +8,17 @@ import {
   listTools,
   revokeClientKeys,
   rotateClientKey,
+  searchAdminCatalog,
   testClientConnection,
   updateClient,
   type ToolInfo,
 } from "../lib/api/admin";
+import {
+  createDebouncedHandler,
+  paginateItems,
+  setPagerStatus,
+  updatePagerButtons,
+} from "./catalog-controls";
 
 const registry = document.querySelector("#client-registry");
 const status = document.querySelector("#create-client-status");
@@ -22,16 +30,32 @@ const detailTitle = document.querySelector("#detail-title");
 const detailStatus = document.querySelector("#detail-status");
 const snippets = document.querySelector("#onboarding-snippets");
 const activity = document.querySelector("#activity-feed");
+const quickSearchEl = document.querySelector(
+  "#client-quick-search",
+) as HTMLInputElement | null;
+const paginationStatusEl = document.querySelector("#client-pagination-status");
+const pagePrevButton = document.querySelector("#client-page-prev");
+const pageNextButton = document.querySelector("#client-page-next");
 const rotatedKeyResult = document.querySelector("#rotated-key-result");
 const rotatedKeyValue = document.querySelector("#rotated-key-value");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 let lastSelectedClientName = "";
 let cachedTools: ToolInfo[] = [];
 
+const PAGE_SIZE = 6;
+let allClients: ClientPayload[] = [];
+let visibleClients: ClientPayload[] = [];
+let currentQuery = "";
+let currentPage = 1;
+
 // Edit form elements (detail page only)
 const editClientForm = document.querySelector("#edit-client-form");
-const editClientName = document.querySelector("#edit-client-name") as HTMLInputElement | null;
-const editClientDescription = document.querySelector("#edit-client-description") as HTMLTextAreaElement | null;
+const editClientName = document.querySelector(
+  "#edit-client-name",
+) as HTMLInputElement | null;
+const editClientDescription = document.querySelector(
+  "#edit-client-description",
+) as HTMLTextAreaElement | null;
 const editToolScopes = document.querySelector("#edit-tool-scopes");
 const editClientStatus = document.querySelector("#edit-client-status");
 
@@ -40,6 +64,7 @@ const snippetTitles: Record<string, string> = {
   vscode: "VS Code / GitHub Copilot",
   copilot_cli: "GitHub Copilot CLI",
   antigravity: "Google Antigravity",
+  cursor: "Cursor",
   claude_code: "Claude Code",
 };
 
@@ -90,6 +115,12 @@ const docsByTarget: Record<string, SnippetDoc[]> = {
     {
       label: "Google Antigravity MCP docs",
       href: "https://antigravity.google/docs/mcp",
+    },
+  ],
+  cursor: [
+    {
+      label: "Cursor MCP docs",
+      href: "https://cursor.com/docs/mcp",
     },
   ],
   claude_code: [
@@ -150,6 +181,24 @@ const localSnippetTemplates: Record<string, string> = {
     {
       mcpServers: {
         minder: {
+          command: "uv",
+          args: ["run", "python", "-m", "minder.server"],
+          cwd: "/absolute/path/to/minder",
+          env: {
+            MINDER_SERVER__TRANSPORT: "stdio",
+            MINDER_CLIENT_API_KEY: "<mkc_...>",
+          },
+        },
+      },
+    },
+    null,
+    2,
+  ),
+  cursor: JSON.stringify(
+    {
+      mcpServers: {
+        minder: {
+          type: "stdio",
           command: "uv",
           args: ["run", "python", "-m", "minder.server"],
           cwd: "/absolute/path/to/minder",
@@ -393,6 +442,49 @@ const buildSnippetVariants = (
             "Open the same raw config file in ~/.gemini/antigravity/mcp_config.json.",
             "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
             "Save the config and confirm the server reconnects.",
+          ],
+          docs,
+          template: formattedLocal,
+          copyTargets: buildCopyTargets(
+            formattedLocal,
+            localEntry,
+            "Copy Full File",
+          ),
+        },
+      ];
+    case "cursor":
+      return [
+        {
+          id: "remote",
+          label: "Preferred HTTP",
+          transport: "Remote HTTP",
+          summary:
+            "Use Cursor's remote MCP support with Minder's streamable HTTP endpoint first. Switch to Local stdio only if you want Cursor to launch Minder directly from your machine.",
+          steps: [
+            "Create or edit .cursor/mcp.json in the project, or ~/.cursor/mcp.json for a global setup.",
+            "Replace the minder server entry with this remote configuration.",
+            "Replace <mkc_...> with the client API key shown in this dashboard.",
+            "Save the file, reopen MCP settings if needed, and confirm the minder server appears in Cursor.",
+          ],
+          docs,
+          template: formattedRemote,
+          preferred: true,
+          copyTargets: buildCopyTargets(
+            formattedRemote,
+            remoteEntry,
+            "Copy Full File",
+          ),
+        },
+        {
+          id: "local",
+          label: "Local stdio",
+          transport: "Optional fallback",
+          summary:
+            "Use this when you want Cursor to start Minder locally instead of calling the remote MCP endpoint.",
+          steps: [
+            "Keep the config in .cursor/mcp.json or ~/.cursor/mcp.json.",
+            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
+            "Save the file and verify Cursor reconnects to the local server.",
           ],
           docs,
           template: formattedLocal,
@@ -672,21 +764,27 @@ const renderToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
 const applyEditPreset = (key: string) => {
   if (!editToolScopes) return;
   if (key === "all") {
-    editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
-      cb.checked = true;
-    });
+    editToolScopes
+      .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+      .forEach((cb) => {
+        cb.checked = true;
+      });
     return;
   }
   const selected = editPresets[key] ?? [];
-  editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
-    cb.checked = selected.includes(cb.value);
-  });
+  editToolScopes
+    .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+    .forEach((cb) => {
+      cb.checked = selected.includes(cb.value);
+    });
 };
 
 const getCheckedScopes = (): string[] => {
   if (!editToolScopes) return [];
   return Array.from(
-    editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked"),
+    editToolScopes.querySelectorAll<HTMLInputElement>(
+      "input[type=checkbox]:checked",
+    ),
   ).map((cb) => cb.value);
 };
 
@@ -723,14 +821,26 @@ if (selectedClientId) {
     });
 }
 
-const renderClients = async () => {
+const renderClients = () => {
   if (!registry) return;
-  try {
-    const payload = await listClients();
-    registry.innerHTML = payload.clients.length
-      ? payload.clients
-          .map(
-            (client) => `
+  const slice = paginateItems(visibleClients, currentPage, PAGE_SIZE);
+  currentPage = slice.page;
+  setPagerStatus(paginationStatusEl, {
+    slice,
+    label: "clients",
+    query: currentQuery,
+  });
+  updatePagerButtons(
+    pagePrevButton,
+    pageNextButton,
+    slice.page,
+    slice.pageCount,
+  );
+
+  registry.innerHTML = visibleClients.length
+    ? slice.items
+        .map(
+          (client) => `
               <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
                 <p class="eyebrow">${client.slug}</p>
                 <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
@@ -738,15 +848,59 @@ const renderClients = async () => {
                 <p class="mt-5 text-sm text-stone-500">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
               </a>
             `,
-          )
-          .join("")
-      : `<article class="shell-card p-6 text-sm text-stone-600">No clients yet. Create the first one from this page.</article>`;
+        )
+        .join("")
+    : `<article class="shell-card p-6 text-sm text-stone-600">${currentQuery ? `No clients matched \"${escapeHtml(currentQuery)}\".` : "No clients yet. Create the first one from this page."}</article>`;
+};
+
+const syncVisibleClients = async () => {
+  if (!currentQuery) {
+    visibleClients = allClients;
+    renderClients();
+    return;
+  }
+  const result = await searchAdminCatalog<ClientPayload>(
+    "clients",
+    currentQuery,
+    200,
+    0,
+  );
+  visibleClients = result.items;
+  renderClients();
+};
+
+const refreshClients = async () => {
+  if (!registry) return;
+  registry.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading client registry...</article>`;
+  try {
+    const payload = await listClients();
+    allClients = payload.clients;
+    await syncVisibleClients();
   } catch (error) {
     registry.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${
       error instanceof Error ? error.message : "Unable to load clients."
     }</article>`;
   }
 };
+
+pagePrevButton?.addEventListener("click", () => {
+  currentPage = Math.max(1, currentPage - 1);
+  renderClients();
+});
+
+pageNextButton?.addEventListener("click", () => {
+  currentPage += 1;
+  renderClients();
+});
+
+quickSearchEl?.addEventListener(
+  "input",
+  createDebouncedHandler(async () => {
+    currentQuery = quickSearchEl.value.trim();
+    currentPage = 1;
+    await syncVisibleClients();
+  }),
+);
 
 const renderDetail = async () => {
   if (!detailShell || !detailTitle || !snippets || !activity) {
@@ -779,13 +933,14 @@ const renderDetail = async () => {
 
     // Populate edit form
     if (editClientName) editClientName.value = detail.client.name;
-    if (editClientDescription) editClientDescription.value = detail.client.description;
+    if (editClientDescription)
+      editClientDescription.value = detail.client.description;
     void loadAndRenderTools(detail.client.tool_scopes);
     snippets.innerHTML = Object.entries(onboarding.templates)
       .map(([target, template]) => {
         const title = snippetTitles[target] ?? target.replaceAll("_", " ");
         const variants = buildSnippetVariants(target, template);
-        const isExpandedByDefault = target === "vscode";
+        const isExpandedByDefault = target === "";
         const tabButtons = variants
           .map(
             (variant, index) => `
@@ -902,7 +1057,9 @@ const renderDetail = async () => {
 const getCreateCheckedScopes = (): string[] => {
   if (!createToolScopes) return [];
   return Array.from(
-    createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]:checked"),
+    createToolScopes.querySelectorAll<HTMLInputElement>(
+      "input[type=checkbox]:checked",
+    ),
   ).map((cb) => cb.value);
 };
 
@@ -955,26 +1112,32 @@ document.querySelectorAll("[data-tool-preset]").forEach((button) => {
     const key = button.getAttribute("data-tool-preset") ?? "";
     if (!createToolScopes) return;
     if (key === "all") {
-      createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
-        cb.checked = true;
-      });
+      createToolScopes
+        .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+        .forEach((cb) => {
+          cb.checked = true;
+        });
       return;
     }
     const selected = presets[key] ?? [];
-    createToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
-      cb.checked = selected.includes(cb.value);
-    });
+    createToolScopes
+      .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+      .forEach((cb) => {
+        cb.checked = selected.includes(cb.value);
+      });
   });
 });
 
-document.querySelector("#create-refresh-tools")?.addEventListener("click", async () => {
-  cachedTools = [];
-  if (createToolScopes) {
-    createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
-  }
-  await loadCreateTools();
-  showToast("Tool list refreshed.", "success");
-});
+document
+  .querySelector("#create-refresh-tools")
+  ?.addEventListener("click", async () => {
+    cachedTools = [];
+    if (createToolScopes) {
+      createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
+    }
+    await loadCreateTools();
+    showToast("Tool list refreshed.", "success");
+  });
 
 document
   .querySelector("#create-client-form")
@@ -1022,7 +1185,7 @@ document
       createdResult?.classList.remove("hidden");
       if (status) status.textContent = `Created ${created.client.slug}.`;
       showToast(`Created client ${created.client.slug}.`, "success");
-      await renderClients();
+      await refreshClients();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to create client.";
@@ -1151,21 +1314,25 @@ document.querySelectorAll("[data-edit-preset]").forEach((button) => {
 
 document.querySelector("#edit-select-none")?.addEventListener("click", () => {
   if (!editToolScopes) return;
-  editToolScopes.querySelectorAll<HTMLInputElement>("input[type=checkbox]").forEach((cb) => {
-    cb.checked = false;
-  });
+  editToolScopes
+    .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
+    .forEach((cb) => {
+      cb.checked = false;
+    });
 });
 
 // ─── Edit form — refresh tools button ────────────────────────────────────────
-document.querySelector("#refresh-tools")?.addEventListener("click", async () => {
-  cachedTools = [];
-  const currentScopes = getCheckedScopes();
-  if (editToolScopes) {
-    editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
-  }
-  await loadAndRenderTools(currentScopes);
-  showToast("Tool list refreshed.", "success");
-});
+document
+  .querySelector("#refresh-tools")
+  ?.addEventListener("click", async () => {
+    cachedTools = [];
+    const currentScopes = getCheckedScopes();
+    if (editToolScopes) {
+      editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
+    }
+    await loadAndRenderTools(currentScopes);
+    showToast("Tool list refreshed.", "success");
+  });
 
 // ─── Edit form — submit ───────────────────────────────────────────────────────
 editClientForm?.addEventListener("submit", async (event) => {
@@ -1183,20 +1350,25 @@ editClientForm?.addEventListener("submit", async (event) => {
 
   setEditStatus("Saving changes...");
   try {
-    const result = await updateClient(selectedClientId, { name, description, tool_scopes });
+    const result = await updateClient(selectedClientId, {
+      name,
+      description,
+      tool_scopes,
+    });
     lastSelectedClientName = result.client.name;
     if (detailTitle) detailTitle.textContent = result.client.name;
     document.title = `${result.client.name} · Minder`;
     setEditStatus("Changes saved.", "success");
     showToast(`Saved ${result.client.slug}.`, "success");
-    await renderClients();
+    await refreshClients();
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to save changes.";
+    const message =
+      error instanceof Error ? error.message : "Unable to save changes.";
     setEditStatus(message, "danger");
     showToast(message, "danger");
   }
 });
 
-void renderClients();
+void refreshClients();
 void renderDetail();
 if (createToolScopes) void loadCreateTools();

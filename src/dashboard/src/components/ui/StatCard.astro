@@ -1,0 +1,65 @@
+---
+/**
+ * StatCard — large-number stat tile used on Home and Observability.
+ */
+interface Props {
+  eyebrow: string;
+  valueId?: string;
+  value?: string;
+  subId?: string;
+  sub?: string;
+  href?: string;
+  class?: string;
+}
+
+const {
+  eyebrow,
+  valueId,
+  value = "—",
+  subId,
+  sub,
+  href,
+  class: className = "",
+} = Astro.props;
+---
+
+{
+  href ? (
+    <a
+      href={href}
+      class={`u-stat-card group flex items-center justify-between transition hover:-translate-y-0.5 hover:shadow-lg ${className}`}
+    >
+      <div class="min-w-0 flex-1">
+        <p class="eyebrow">{eyebrow}</p>
+        <p id={valueId} class="u-stat-value">{value}</p>
+        {sub && (
+          <p id={subId} class="u-stat-sub">
+            {sub}
+          </p>
+        )}
+      </div>
+      <span
+        class="text-stone-300 transition group-hover:text-amber-700"
+        aria-hidden="true"
+      >
+        <svg viewBox="0 0 20 20" fill="currentColor" class="h-6 w-6">
+          <path
+            fill-rule="evenodd"
+            d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z"
+            clip-rule="evenodd"
+          />
+        </svg>
+      </span>
+    </a>
+  ) : (
+    <div class={`u-stat-card ${className}`}>
+      <p class="eyebrow">{eyebrow}</p>
+      <p id={valueId} class="u-stat-value">{value}</p>
+      {sub !== undefined && (
+        <p id={subId} class="u-stat-sub">
+          {sub}
+        </p>
+      )}
+    </div>
+  )
+}

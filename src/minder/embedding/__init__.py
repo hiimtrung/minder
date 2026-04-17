@@ -1,9 +1,9 @@
 from .base import EmbeddingProvider
+from .local import LocalEmbeddingProvider
 from .openai import OpenAIEmbeddingProvider
-from .qwen import QwenEmbeddingProvider
 
 __all__ = [
     "EmbeddingProvider",
+    "LocalEmbeddingProvider",
     "OpenAIEmbeddingProvider",
-    "QwenEmbeddingProvider",
 ]

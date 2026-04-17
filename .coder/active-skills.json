@@ -1,39 +1,39 @@
 {
-  "task": "astro dashboard cleanup python lint tests",
+  "task": "fix failing unit test continuity tools",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T11:53:17.793561+07:00",
+  "resolved_at": "2026-04-17T18:06:44.196725+07:00",
   "keep": [],
   "add": [
-    "python-development-python-scaffold",
-    "aws-cost-cleanup",
-    "azure-containerregistry-py"
+    "dispatching-parallel-agents",
+    "e2e-testing-patterns",
+    "playwright-java"
   ],
   "drop": [
-    "ui-styling",
-    "instagram",
-    "grafana-dashboards"
+    "devops-deploy",
+    "speckit-updater",
+    "agents-md"
   ],
   "skills": [
     {
-      "name": "python-development-python-scaffold",
-      "category": "backend",
+      "name": "dispatching-parallel-agents",
+      "category": "general",
       "score": 0.016393442,
-      "chunk_count": 1,
+      "chunk_count": 4,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "aws-cost-cleanup",
+      "name": "e2e-testing-patterns",
       "category": "general",
       "score": 0.016129032,
-      "chunk_count": 5,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "azure-containerregistry-py",
-      "category": "general",
+      "name": "playwright-java",
+      "category": "test-automation",
       "score": 0.015873017,
-      "chunk_count": 1,
+      "chunk_count": 3,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

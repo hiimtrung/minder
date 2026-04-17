@@ -29,6 +29,52 @@ Once a workflow is configured, Minder must:
 - Read repository state back into context for future sessions
 - Suggest the next valid step after each completed step
 - Track step completion and relationships between artifacts
+- Maintain a compact continuity brief so long-running flows survive context-window limits
+- Use local Gemma 4 synthesis to clarify unresolved issues, assumptions, and next actions
+- Generate strict step instructions and enforce them as a hard constraint for the primary LLM
+- Ensure memory/session/skill retrieval is linked to the active workflow step
+
+## Strict Instruction Policy
+
+For any repository with active workflow enforcement:
+
+- Minder must compile a step instruction envelope before each major LLM turn.
+- The primary LLM must follow this envelope absolutely.
+- If LLM output conflicts with workflow policy, the response is rejected or forced into correction flow.
+- Step-skipping behavior is treated as policy violation, not as optional warning.
+
+Minimum instruction envelope:
+
+- active workflow and version
+- current step and next valid step
+- required artifacts for current step
+- blocked actions and forbidden transitions
+- expected output format for this step
+
+## Long-Flow Continuity Process
+
+For large flows, Minder should run a continuity loop at each major transition:
+
+1. Collect the current workflow state, strict instruction envelope, session state, and top memory/skill candidates.
+2. Synthesize a short step-scoped continuity brief with Gemma 4 local.
+3. Validate suggested next actions against workflow gates and required artifacts.
+4. Persist the brief to session state and memory metadata.
+5. Inject both instruction envelope and continuity brief into the next primary LLM prompt with token budgeting.
+
+The loop must prioritize deterministic process constraints first, then free-form suggestions.
+
+## Continuity Brief Requirements
+
+Each generated brief should contain:
+
+- current problem framing
+- confirmed progress and completed artifacts
+- unresolved blockers and open questions
+- risk and confidence signals
+- next valid actions (ordered, process-compliant)
+- source references (session/memory artifact IDs)
+
+This keeps the primary LLM grounded when the original conversation exceeds effective context windows.
 
 ## Repository-Local State Requirement
 

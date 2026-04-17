@@ -390,6 +390,22 @@ lua = [
 ]
 
 [[package]]
+name = "fastapi"
+version = "0.136.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "annotated-doc" },
+    { name = "pydantic" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "typing-inspection" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4e/d9/e66315807e41e69e7f6a1b42a162dada2f249c5f06ad3f1a95f84ab336ef/fastapi-0.136.0.tar.gz", hash = "sha256:cf08e067cc66e106e102d9ba659463abfac245200752f8a5b7b1e813de4ff73e", size = 396607, upload-time = "2026-04-16T11:47:13.623Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/26/a3/0bd5f0cdb0bbc92650e8dc457e9250358411ee5d1b65e42b6632387daf81/fastapi-0.136.0-py3-none-any.whl", hash = "sha256:8793d44ec7378e2be07f8a013cf7f7aa47d6327d0dfe9804862688ec4541a6b4", size = 117556, upload-time = "2026-04-16T11:47:11.922Z" },
+]
+
+[[package]]
 name = "fastuuid"
 version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1033,10 +1049,15 @@ wheels = [
 [[package]]
 name = "minder"
 version = "0.1.0"
-source = { virtual = "." }
+source = { editable = "." }
 dependencies = [
-    { name = "aiosqlite" },
+    { name = "fastapi" },
     { name = "httpx" },
+]
+
+[package.optional-dependencies]
+server = [
+    { name = "aiosqlite" },
     { name = "langgraph" },
     { name = "litellm" },
     { name = "llama-cpp-python" },
@@ -1063,22 +1084,24 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiosqlite", specifier = ">=0.21.0" },
+    { name = "aiosqlite", marker = "extra == 'server'", specifier = ">=0.21.0" },
+    { name = "fastapi", specifier = ">=0.136.0" },
     { name = "httpx", specifier = ">=0.27.0" },
-    { name = "langgraph", specifier = ">=1.1.4" },
-    { name = "litellm", specifier = ">=1.83.1" },
-    { name = "llama-cpp-python", specifier = ">=0.3.20" },
-    { name = "mcp", specifier = ">=1.26.0" },
-    { name = "motor", specifier = ">=3.7.0" },
-    { name = "passlib", extras = ["bcrypt"], specifier = ">=1.7.4" },
-    { name = "prometheus-client", specifier = ">=0.24.1" },
-    { name = "pydantic", specifier = ">=2.12.5" },
-    { name = "pydantic-settings", extras = ["toml"], specifier = ">=2.13.1" },
-    { name = "pyjwt", specifier = ">=2.12.1" },
-    { name = "pymilvus", specifier = ">=2.5.0" },
-    { name = "redis", extras = ["hiredis"], specifier = ">=6.0.0" },
-    { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.48" },
+    { name = "langgraph", marker = "extra == 'server'", specifier = ">=1.1.4" },
+    { name = "litellm", marker = "extra == 'server'", specifier = ">=1.83.1" },
+    { name = "llama-cpp-python", marker = "extra == 'server'", specifier = ">=0.3.20" },
+    { name = "mcp", marker = "extra == 'server'", specifier = ">=1.26.0" },
+    { name = "motor", marker = "extra == 'server'", specifier = ">=3.7.0" },
+    { name = "passlib", extras = ["bcrypt"], marker = "extra == 'server'", specifier = ">=1.7.4" },
+    { name = "prometheus-client", marker = "extra == 'server'", specifier = ">=0.24.1" },
+    { name = "pydantic", marker = "extra == 'server'", specifier = ">=2.12.5" },
+    { name = "pydantic-settings", extras = ["toml"], marker = "extra == 'server'", specifier = ">=2.13.1" },
+    { name = "pyjwt", marker = "extra == 'server'", specifier = ">=2.12.1" },
+    { name = "pymilvus", marker = "extra == 'server'", specifier = ">=2.5.0" },
+    { name = "redis", extras = ["hiredis"], marker = "extra == 'server'", specifier = ">=6.0.0" },
+    { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'server'", specifier = ">=2.0.48" },
 ]
+provides-extras = ["server"]
 
 [package.metadata.requires-dev]
 dev = [

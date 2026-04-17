@@ -35,8 +35,8 @@ This script stores models in:
 Expected files:
 
 ```text
-~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf
-~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
+~/.minder/models/embeddinggemma-300M-Q8_0.gguf
+~/.minder/models/gemma-4-e2b-it-Q8_0.gguf
 ```
 
 ## 1a. Create local env files

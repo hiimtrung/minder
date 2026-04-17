@@ -50,6 +50,14 @@ class DocumentStore:
             result = await sess.execute(stmt)
             return result.scalar_one_or_none()
 
+    async def get_documents_by_ids(self, doc_ids: list[uuid.UUID]) -> list[Document]:
+        if not doc_ids:
+            return []
+        async with self._store._session() as sess:
+            stmt = select(Document).where(Document.id.in_(doc_ids))
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
     async def list_documents(self, project: str | None = None) -> list[Document]:
         async with self._store._session() as sess:
             stmt = select(Document)

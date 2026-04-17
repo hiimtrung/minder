@@ -1,0 +1,120 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import GuideAside from "./ui/GuideAside.astro";
+---
+
+<DashboardLayout
+  title="Memories · Minder"
+  description="Manage continuity memories stored in the Minder runtime."
+  navTitle="Minder Dashboard"
+  navDescription="Capture, refine, and retrieve reusable continuity memory entries without leaving the admin dashboard."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Memory Registry"
+    title="Manage continuity memories."
+    description="Curate reusable memory entries that can be recalled semantically during runtime continuity and review loops."
+  />
+
+  <section class="u-grid-sidebar">
+    <aside class="shell-card p-6">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="eyebrow">Editor</p>
+          <h2
+            class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+          >
+            Memory draft
+          </h2>
+        </div>
+        <Button id="memory-reset-button" size="sm" variant="ghost">
+          New draft
+        </Button>
+      </div>
+
+      <form id="memory-form" class="mt-5 grid gap-4">
+        <input id="memory-id" type="hidden" />
+        <Field label="Title" htmlFor="memory-title">
+          <Input
+            id="memory-title"
+            placeholder="Retry strategy for flaky branch sync"
+          />
+        </Field>
+        <Field label="Language" htmlFor="memory-language">
+          <Input
+            id="memory-language"
+            placeholder="markdown"
+            value="markdown"
+          />
+        </Field>
+        <Field label="Tags" htmlFor="memory-tags">
+          <Input
+            id="memory-tags"
+            placeholder="continuity, retry, branch-sync"
+          />
+        </Field>
+        <Field
+          label="Memory content"
+          htmlFor="memory-content"
+          hint="Memories share the continuity store and are available to semantic recall."
+        >
+          <Textarea
+            id="memory-content"
+            variant="large"
+            placeholder="Describe the memory entry, when to recall it, and what decision it should influence."
+          />
+        </Field>
+
+        <div class="flex flex-wrap gap-3">
+          <Button type="submit" variant="primary" class="flex-1 min-w-[180px]">
+            Save memory
+          </Button>
+        </div>
+        <FormStatus id="memory-editor-status" />
+      </form>
+    </aside>
+
+    <div class="grid gap-5">
+      <Toolbar
+        idPrefix="memory"
+        title="Registry"
+        description="Use semantic quick search to locate the right memory, then load it into the editor to refine or remove it."
+        searchPlaceholder="Semantic quick search memories"
+      >
+        <Button slot="leading" id="memory-refresh-button" size="sm">
+          Refresh list
+        </Button>
+      </Toolbar>
+
+      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="memory-registry" class="grid gap-4">
+          <article class="u-placeholder-card">Loading memories...</article>
+        </div>
+
+        <GuideAside eyebrow="Recall Guide" title="What makes a useful memory">
+          <p>
+            Keep each memory focused on a single operational lesson, decision,
+            or runtime behavior that should be recalled later.
+          </p>
+          <p>
+            Tags improve browseability, while semantic search helps operators
+            recover related memories even when wording changes.
+          </p>
+          <p>
+            Prefer concise, action-oriented content over long narrative notes.
+          </p>
+        </GuideAside>
+      </section>
+    </div>
+  </section>
+
+  <script src="../scripts/memories-page.ts"></script>
+</DashboardLayout>

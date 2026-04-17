@@ -1,92 +1,100 @@
 {
   "mode": "search",
-  "query": "ClientConsoleShell cleanup lint ruff test_phase1_transport",
+  "query": "failing test continuity tools",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-10T11:53:28.17619+07:00",
+  "searched_at": "2026-04-17T18:06:43.939773+07:00",
   "results": [
     {
-      "id": "fc7d00a2-97b4-4241-8f72-8f366acff0ba",
-      "title": "fixed lint regression after subscription consumer updates",
+      "id": "c84d27db-b60f-48f6-b2e4-b66b37942d76",
+      "title": "Fixed lint and type-check errors in transport/admin metrics",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:fixed-lint-regression-after-subscription-consumer-updates",
+      "canonical_key": "document:fixed-lint-and-type-check-errors-in-transport-admin-metrics",
       "score": 0.086393446,
       "tags": [
-        "omi-channel-be",
+        "minder",
         "lint",
-        "subscription-guard"
+        "mypy",
+        "transport",
+        "admin",
+        "metrics"
       ],
       "conflict_detected": false,
-      "content": "Resolved project lint failure by removing unused AuthUserResponseDto import in src/auth/guards/subscription.guard.ts. Verified with yarn lint and yarn build both passing."
+      "content": "Resolved ruff failures by moving admin API imports to the top, removing unused test imports, and returning the computed tool-by-client/tool-by-name metrics instead of leaving dead assignments. Resolved mypy failures in build_transport by normalizing a nullable cache to an LRUCacheProvider fallback before constructing transports that require a non-null ICacheProvider. Verified with env UV_CACHE_DIR=.uv-cache make lint."
     },
     {
-      "id": "079b909f-0464-472d-bbe1-c31533a103c9",
-      "title": "InboxSidebarProvider readability refactor",
+      "id": "8aceb94e-208a-4722-bdae-b51290b1dbe9",
+      "title": "Phase 4.4 continuity contract and envelope",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:inboxsidebarprovider-readability-refactor",
+      "canonical_key": "document:phase-4-4-continuity-contract-and-envelope",
       "score": 0.086129025,
       "tags": [
-        "findtourgo",
-        "inboxes",
-        "refactor",
-        "readability",
-        "maintainability"
+        "minder",
+        "phase4.4",
+        "continuity",
+        "workflow",
+        "memory",
+        "session"
       ],
       "conflict_detected": false,
-      "content": "Improved readability without behavior changes by extracting helper utilities (mergeInboxWithRealtimeTimestamp, upsertAndSortInboxes), reducing duplicated state update logic in socket/detail/update handlers, and introducing completeCurrentDetailInboxRequest to centralize queue cleanup flow. File: src/app/[locale]/(company)/company/[companyId]/inboxes/providers/InboxSidebarProvider.tsx"
+      "content": "Implemented a shared continuity contract in src/minder/continuity.py and wired it into session restore, memory recall, workflow guard, and graph workflow planning/reasoning. Session restore now returns continuity_packet with instruction_envelope + session_brief; memory recall is step-aware; workflow guard reports violations and deterministic envelopes; query workflow planner injects the envelope/brief into reasoning prompts. Verified with uv run pytest tests/unit/test_continuity_tools.py tests/unit/test_nodes.py tests/unit/test_session_client_flow.py tests/integration/test_tools.py."
     },
     {
-      "id": "83e543e5-c64f-461b-aa0c-ade74b4f6358",
-      "title": "Remove deprecated useUrlQueryState hook",
+      "id": "91cf6885-b9d9-4de2-acd1-0fcdc1444396",
+      "title": "Closed Phase 3 with acceptance gate and runtime-safe test fixes",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:remove-deprecated-useurlquerystate-hook",
+      "canonical_key": "document:closed-phase-3-with-acceptance-gate-and-runtime-safe-test-fixes",
       "score": 0.08587302,
       "tags": [
-        "findtourgo",
-        "cleanup",
-        "hooks",
-        "query-state"
+        "minder",
+        "phase3",
+        "acceptance-gate",
+        "retrieval",
+        "graph",
+        "ingest",
+        "server",
+        "testing"
       ],
       "conflict_detected": false,
-      "content": "Deleted src/hooks/common/useUrlQueryState.ts and src/hooks/common/useUrlQueryState.test.ts after migrating inbox filter to useSearchParamsState. Verified no remaining useUrlQueryState references under src and linted related hooks."
+      "content": "Implemented tests/integration/test_phase3_gate.py to close Minder Phase 3. The gate verifies multi-hop cross-references across code and docs, hybrid retrieval MRR improvement, knowledge-graph repo relationships, real local git-repo ingestion, MCP resources/prompts, and graph-enriched workflow guidance. Also fixed a latent mypy issue in code_splitter, changed server runtime_summary to avoid probing llama_cpp at boot, switched stdio startup to FastMCP's async runner, and made SSE round-trip skip when sandbox policy forbids localhost bind. Verified with ruff, mypy, and full pytest: 233 passed, 14 skipped."
     },
     {
-      "id": "b866a920-bf3e-4bae-9efa-9d4c7bcd565c",
-      "title": "Contact merge cache invalidation hook",
+      "id": "5e06e45d-5751-43fb-9eb0-cc466a3d75d1",
+      "title": "Order test suite stale expectations after enum and repository changes",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:contact-merge-cache-invalidation-hook",
+      "canonical_key": "document:order-test-suite-stale-expectations-after-enum-and-repository-changes",
       "score": 0.08562499,
       "tags": [
-        "omi-channel-be",
-        "contact-merge",
-        "cache",
-        "redis",
-        "nestjs"
+        "crm",
+        "test",
+        "order",
+        "enum",
+        "repository"
       ],
       "conflict_detected": false,
-      "content": "Implemented Redis-backed ContactResolutionService.clearResolutionCache and wired MergeContactsUseCase to invalidate master, slave, and flattened contact resolution keys after transaction commit with warning-only failure handling. Added focused specs and verified with yarn lint, yarn build, and yarn test. Files: src/modules/contacts/application/services/contact-resolution.service.ts, src/modules/contacts/application/use-cases/merge-contacts.use-case.ts, src/modules/contacts/application/use-cases/merge-contacts.use-case.spec.ts, src/modules/contacts/application/services/contact-resolution.service.spec.ts, src/modules/contacts/contacts.module.ts, docs/design/contact-merge-progress.md"
+      "content": "Fixed three failing CRM tests caused by stale test expectations, not production regressions. StatusEnumTest now expects the added QUOTE status and total enum count 5. OrderRepositoryImplTest now mocks findByIdAndProviderFtgIdAndDeletedAtIsNull instead of findById, matching the repository's tenant-aware and soft-delete-aware contract for get/update/not-found paths. Verified with targeted order tests and full ./gradlew test."
     },
     {
-      "id": "922da774-0d6f-48bd-b4c2-63364e0841ae",
-      "title": "Deduplicate channel token refresh logic",
+      "id": "170511a6-e189-4d9b-903b-11b52c95b7ec",
+      "title": "Paused Phase 01.1 smoke coverage work",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:deduplicate-channel-token-refresh-logic",
+      "canonical_key": "document:paused-phase-01-1-smoke-coverage-work",
       "score": 0.08538462,
       "tags": [
-        "omi-channel-be",
-        "channels",
-        "refactor",
-        "token-refresh",
-        "dedup"
+        "pause",
+        "gsd",
+        "phase-01.1",
+        "testing",
+        "frontend"
       ],
       "conflict_detected": false,
-      "content": "Extracted duplicated LINE/ZALO token refresh logic into ChannelAccessTokenRefreshService. Service now handles provider-specific refresh operations, disconnect metadata cleanup, mark disconnected with reason, and mark connected after manual refresh. Refactored RefreshLINEAccessTokensUseCase, RefreshZALOAccessTokensUseCase, and RefreshChannelAccessTokenUseCase to reuse shared service methods. Registered service in channels.module providers."
+      "content": "Paused rental-management-ui during Phase 01.1 Plan 01.1-03 after creating a WIP checkpoint commit. Added Vitest as the minimal smoke-test runner, created vitest.config.ts and a yarn test script, drafted shared API/session smoke tests under src/lib/api/__tests__/client.test.ts and src/lib/auth/__tests__/session.test.ts, patched src/lib/api/client.ts so protected 401 responses clear the stored access token, and wrote .planning/HANDOFF.json plus .planning/phases/01.1-api-integration-contract-and-typed-data-layer/.continue-here.md for resume context. The work is intentionally paused before running yarn test, so the next action is to run the new test suite, fix any mocking or assertion failures, then continue with contract-gap TODOs and final lint/build verification."
     }
   ]
 }

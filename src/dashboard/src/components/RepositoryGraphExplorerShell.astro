@@ -1,0 +1,1186 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+
+interface Props {
+  repoId?: string;
+}
+
+const { repoId = "" } = Astro.props;
+---
+
+<DashboardLayout
+  title="Repositories · Minder"
+  description="Repository graph explorer for Minder dashboard."
+  navTitle="Minder Dashboard"
+  navDescription="Inspect synced repository graph state, edit repository metadata, and explore structural impact from the admin dashboard."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <div id="repo-detail-context" data-repo-id={repoId} class="hidden"></div>
+  <section class="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div class="space-y-2">
+      <p class="eyebrow">Repository Detail</p>
+      <h1 class="text-3xl font-semibold tracking-tight text-stone-950">
+        Explore a single repository.
+      </h1>
+      <p class="max-w-3xl text-sm leading-7 text-stone-600">
+        Use the detail route for graph inspection, cross-repo impact, branch
+        state, and repository settings.
+      </p>
+    </div>
+    <a href="/dashboard/repositories" class="action-pill">All repositories</a>
+  </section>
+
+  <!-- ── Single-column layout — sidebar removed; repo picker lives in the command bar ── -->
+  <div id="main-layout-grid" class="grid gap-6">
+    <div class="min-w-0 space-y-5">
+      <!-- ══════════════════════════════════════════
+           COMMAND BAR — unified across every tab
+           Row 1: Repo picker · branch · sync · reload
+           Row 2: Active repo summary line
+           Row 3: Tab navigation
+      ══════════════════════════════════════════ -->
+      <div class="sticky top-4 z-30 shell-card">
+        <!-- Row 1 — picker -->
+        <div
+          class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-stone-200/70"
+        >
+          <div class="flex min-w-0 flex-1 items-center gap-2.5">
+            <p class="eyebrow shrink-0">Repo</p>
+            <div class="relative min-w-0 flex-1 max-w-md">
+              <button
+                id="repo-picker-trigger"
+                type="button"
+                class="flex w-full items-center justify-between gap-3 rounded-full border border-stone-300 bg-white px-4 py-1 text-left shadow-sm transition hover:border-amber-700 focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20"
+                aria-haspopup="dialog"
+                aria-expanded="false"
+              >
+                <span class="min-w-0 flex-1">
+                  <span
+                    id="repo-picker-label"
+                    class="mt-1 block truncate text-sm font-medium text-stone-900"
+                  >
+                    Select a repository…
+                  </span>
+                </span>
+                <svg
+                  class="h-4 w-4 shrink-0 text-stone-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"></path>
+                </svg>
+              </button>
+              <div
+                id="repo-picker-popover"
+                class="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-40 hidden overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-[0_22px_60px_rgba(28,25,23,0.16)]"
+              >
+                <label
+                  for="repo-quick-search"
+                  class="flex items-center gap-2 border-b border-stone-200/80 px-4 py-3"
+                >
+                  <svg
+                    class="h-4 w-4 shrink-0 text-stone-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M8.5 3a5.5 5.5 0 014.378 8.83l3.146 3.146a.75.75 0 11-1.06 1.06l-3.146-3.145A5.5 5.5 0 118.5 3zm-4 5.5a4 4 0 108 0 4 4 0 00-8 0z"
+                      clip-rule="evenodd"></path>
+                  </svg>
+                  <input
+                    id="repo-quick-search"
+                    class="w-full bg-transparent text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none"
+                    placeholder="Search repositories semantically"
+                  />
+                </label>
+                <div
+                  id="repo-picker-results"
+                  class="max-h-80 overflow-y-auto p-2"
+                >
+                  <p class="rounded-2xl px-3 py-2 text-sm text-stone-400">
+                    Loading repositories...
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Branch selector — hidden until a repo with tracked branches is loaded -->
+            <div
+              id="repo-branch-selector-wrap"
+              class="hidden flex items-center gap-2 min-w-0"
+            >
+              <label
+                for="repo-branch-selector"
+                class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400 shrink-0"
+              >
+                Branch
+              </label>
+              <div class="relative">
+                <select
+                  id="repo-branch-selector"
+                  class="appearance-none rounded-full border border-stone-300 bg-white pl-3.5 pr-9 py-2 text-xs font-medium text-stone-800 focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20 cursor-pointer"
+                >
+                </select>
+                <svg
+                  class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  ><path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"></path></svg
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <div
+              id="repo-summary-sync"
+              class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-stone-500"
+            >
+              Waiting
+            </div>
+            <button
+              id="repo-toolbar-refresh"
+              type="button"
+              class="action-pill text-xs"
+              title="Reload repositories"
+            >
+              Refresh
+            </button>
+          </div>
+        </div>
+        <!-- Row 3 — tabs -->
+        <nav
+          class="flex flex-wrap items-center gap-1 px-3 py-2"
+          id="repo-tab-nav"
+        >
+          <div
+            class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5"
+          >
+            <h2
+              id="repo-summary-title"
+              class="text-base font-semibold tracking-tight text-stone-950 truncate"
+            >
+              Select a repository
+            </h2>
+            <p id="repo-summary-meta" class="text-xs text-stone-500 truncate">
+              No repository selected.
+            </p>
+          </div>
+          <button data-tab-btn="overview" class="tab-btn tab-btn-active"
+            >Overview</button
+          >
+          <button data-tab-btn="graph" class="tab-btn">Graph</button>
+          <button data-tab-btn="search" class="tab-btn">Search</button>
+          <button data-tab-btn="impact" class="tab-btn">Impact</button>
+          <button data-tab-btn="settings" class="tab-btn">Settings</button>
+        </nav>
+      </div>
+
+      <!-- Hidden legacy hooks — preserved so existing scripts can still write status text without crashing -->
+      <span id="repositories-status" class="sr-only"></span>
+
+      <!-- ══════════════════════════════════════════
+           TAB: GRAPH
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="graph" class="hidden space-y-5">
+        <!-- tab intro header — consistent pattern across tabs -->
+        <header class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="eyebrow">Graph</p>
+            <h2
+              class="mt-1 text-xl font-semibold tracking-tight text-stone-950"
+            >
+              Repository knowledge graph
+            </h2>
+            <p class="mt-1 text-sm text-stone-600">
+              Explore folders, files, modules, and routes synced from the
+              selected branch.
+            </p>
+          </div>
+          <button
+            id="repo-graph-refresh"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Reload graph
+          </button>
+        </header>
+
+        <!-- graph stats bar -->
+        <div id="repo-graph-summary" class="grid gap-3 sm:grid-cols-4"></div>
+
+        <!-- status line -->
+        <p id="repo-graph-status" class="u-status"></p>
+
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)]">
+          <div class="min-w-0 space-y-4">
+            <!-- ── Dark canvas + controls ── -->
+            <div
+              id="repo-graph-card"
+              class="shell-card overflow-hidden rounded-3xl p-0"
+            >
+              <div
+                id="repo-graph-wrap"
+                class="graph-canvas-wrap relative"
+                style="height: min(62vh, 680px); min-height: 460px; background: radial-gradient(ellipse at 50% 20%, #1a1235 0%, #0d0d14 55%, #090910 100%); border-radius: inherit;"
+              >
+                <div
+                  id="repo-graph-mount"
+                  class="absolute inset-0"
+                  style="border-radius: inherit; overflow: hidden;"
+                >
+                </div>
+
+                <div
+                  id="repo-graph-tooltip"
+                  class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono font-medium backdrop-blur-sm transition-opacity duration-150"
+                  style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"
+                >
+                </div>
+
+                <div
+                  id="repo-graph-legend-overlay"
+                  class="graph-legend-overlay absolute z-20 max-w-[180px] rounded-xl p-3"
+                  style="background: rgba(9,9,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);"
+                >
+                  <p
+                    class="mb-2 text-[10px] font-bold uppercase tracking-widest"
+                    style="color: rgba(255,255,255,0.35);"
+                  >
+                    Legend
+                  </p>
+                  <div id="repo-graph-legend" class="space-y-1"></div>
+                </div>
+
+                <div
+                  id="repo-graph-sim-status"
+                  class="absolute bottom-4 left-4 z-20 hidden items-center gap-2 rounded-full px-3 py-1.5 text-xs font-medium"
+                  style="background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.3); color: #6ee7b7; backdrop-filter: blur(6px);"
+                >
+                  <span
+                    class="h-1.5 w-1.5 animate-ping rounded-full bg-emerald-400"
+                  ></span>
+                  <span>Optimizing layout…</span>
+                </div>
+
+                <div
+                  class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5"
+                >
+                  <button
+                    id="repo-graph-zoom-in"
+                    class="graph-ctrl-btn"
+                    title="Zoom in"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M11 8v6M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="repo-graph-zoom-out"
+                    class="graph-ctrl-btn"
+                    title="Zoom out"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="repo-graph-fit"
+                    class="graph-ctrl-btn"
+                    title="Fit to screen"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                      ></path></svg
+                    >
+                  </button>
+                  <div class="h-px" style="background: rgba(255,255,255,0.1);">
+                  </div>
+                  <button
+                    id="repo-graph-toggle"
+                    class="graph-ctrl-btn"
+                    title="Toggle layout"
+                  >
+                    <svg
+                      id="repo-graph-toggle-icon"
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="6" y="4" width="4" height="16"></rect><rect
+                        x="14"
+                        y="4"
+                        width="4"
+                        height="16"></rect>
+                    </svg>
+                  </button>
+                  <div class="h-px" style="background: rgba(255,255,255,0.1);">
+                  </div>
+                  <button
+                    id="repo-graph-fullscreen"
+                    class="graph-ctrl-btn"
+                    title="Fullscreen"
+                  >
+                    <svg
+                      id="repo-graph-fs-icon"
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"
+                      ></path>
+                    </svg>
+                  </button>
+                </div>
+
+                <aside
+                  id="repo-graph-details-shell"
+                  class="graph-details-overlay"
+                  data-state="empty"
+                >
+                  <div class="graph-details-overlay-content p-2">
+                    <p
+                      class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/70"
+                    >
+                      Graph Details
+                    </p>
+                    <div id="repo-graph-node-empty" class="mt-1">
+                      <p class="text-xs font-semibold text-white">
+                        Select a node
+                      </p>
+                      <p class="mt-0.5 text-[10px] leading-3.5 text-white/70">
+                        Select a node in the canvas to show metadata and
+                        context.
+                      </p>
+                    </div>
+
+                    <div id="repo-graph-node-details" class="hidden mt-1">
+                      <div
+                        class="sticky top-0 z-10 -mx-2 -mt-2 mb-1 flex items-start justify-between gap-1 border-b border-white/10 bg-[rgba(8,8,16,0.85)] px-2 py-1 backdrop-blur-sm"
+                      >
+                        <div class="min-w-0 flex-1">
+                          <p
+                            id="repo-graph-node-type"
+                            class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60"
+                          >
+                            Type
+                          </p>
+                          <h3
+                            id="repo-graph-node-name"
+                            class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                          >
+                            Node
+                          </h3>
+                          <p
+                            id="repo-graph-node-extra"
+                            class="mt-0.5 text-[10px] leading-3.5 text-white/70"
+                          >
+                          </p>
+                        </div>
+                        <button
+                          id="repo-graph-node-close"
+                          class="shrink-0 rounded-full border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] text-white/85 hover:bg-white/12"
+                        >
+                          Close
+                        </button>
+                      </div>
+                      <div
+                        id="repo-graph-node-metadata"
+                        class="grid gap-1 sm:grid-cols-2"
+                      >
+                      </div>
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: OVERVIEW
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="overview" class="space-y-5">
+        <header>
+          <p class="eyebrow">Overview</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Repository snapshot
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Key metrics, routes, TODOs, services, and landscape links for the
+            selected repository branch.
+          </p>
+        </header>
+
+        <div id="repo-summary-cards" class="grid gap-4 sm:grid-cols-4">
+          <article
+            class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-500 col-span-4"
+          >
+            Graph metrics will appear here after selection.
+          </article>
+        </div>
+
+        <div class="grid gap-4 xl:grid-cols-2">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">Routes</p>
+            <div
+              id="repo-routes"
+              class="mt-4 grid gap-3 text-sm text-stone-700"
+            >
+            </div>
+          </article>
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">TODOs</p>
+            <div id="repo-todos" class="mt-4 grid gap-3 text-sm text-stone-700">
+            </div>
+          </article>
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">External Services</p>
+            <div
+              id="repo-services"
+              class="mt-4 grid gap-3 text-sm text-stone-700"
+            >
+            </div>
+          </article>
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">Service Dependencies</p>
+            <div
+              id="repo-dependencies"
+              class="mt-4 grid gap-3 text-sm text-stone-700"
+            >
+            </div>
+          </article>
+        </div>
+
+        <div class="grid gap-4 xl:grid-cols-2">
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">Branch Sync State</p>
+            <div
+              id="repo-branch-state"
+              class="mt-4 grid gap-3 text-sm text-stone-700"
+            >
+              <p class="text-sm text-stone-400 italic">
+                Select a repository branch to inspect sync state.
+              </p>
+            </div>
+          </article>
+          <article class="rounded-3xl border border-stone-200 bg-white p-5">
+            <p class="eyebrow">Landscape Summary</p>
+            <div
+              id="repo-landscape-summary"
+              class="mt-4 grid gap-3 sm:grid-cols-3 text-sm text-stone-700"
+            >
+              <article
+                class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-400 sm:col-span-3"
+              >
+                Repository branch landscape will appear here.
+              </article>
+            </div>
+          </article>
+        </div>
+
+        <article class="rounded-3xl border border-stone-200 bg-white p-5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p class="eyebrow">Cross-Repo Branch Links</p>
+              <p class="mt-1 text-sm leading-6 text-stone-600">
+                Track how the selected repository branch connects to other
+                repository branches for sync, search, and impact context.
+              </p>
+            </div>
+            <p id="repo-branch-links-status" class="u-status"></p>
+          </div>
+          <div
+            id="repo-branch-links-list"
+            class="mt-4 grid gap-3 text-sm text-stone-700"
+          >
+            <p class="text-sm text-stone-400 italic">
+              No branch links loaded yet.
+            </p>
+          </div>
+        </article>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: SEARCH
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="search" class="hidden space-y-5">
+        <header>
+          <p class="eyebrow">Search</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Find nodes across linked repository scopes
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Query symbols, paths, and metadata from the selected branch while
+            surfacing cross-repo results from linked repository branches.
+          </p>
+        </header>
+
+        <div class="grid gap-2 xl:grid-cols-[350px_minmax(0,1fr)]">
+          <div class="space-y-5">
+            <div class="shell-card p-4">
+              <p class="eyebrow">Query</p>
+              <h3
+                class="mt-2 text-base font-semibold tracking-tight text-stone-950"
+              >
+                Search filters
+              </h3>
+              <form id="graph-search-form" class="mt-5 grid gap-4">
+                <input
+                  id="graph-search-query"
+                  class="u-input"
+                  placeholder="Search for route path, file, symbol, or text"
+                />
+                <div class="grid grid-cols-2 gap-2">
+                  <input
+                    id="graph-search-types"
+                    class="u-input"
+                    placeholder="Node types (comma-sep)"
+                  />
+                  <input
+                    id="graph-search-languages"
+                    class="u-input"
+                    placeholder="Languages"
+                  />
+                </div>
+                <input
+                  id="graph-search-states"
+                  class="u-input"
+                  placeholder="States (modified, clean…)"
+                />
+                <div class="flex items-center justify-between gap-3">
+                  <p id="graph-search-status" class="u-status"></p>
+                  <button type="submit" class="primary-pill">Search</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="shell-card p-4">
+              <p class="eyebrow">Search Scope</p>
+              <h3
+                class="mt-2 text-lg font-semibold tracking-tight text-stone-950"
+              >
+                Linked repository coverage
+              </h3>
+              <div id="graph-search-scopes" class="mt-4 grid gap-3 text-sm">
+                <article
+                  class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-400"
+                >
+                  Run a search to inspect repo and branch scopes.
+                </article>
+              </div>
+              <div class="mt-6 border-t border-stone-100 pt-5">
+                <p
+                  class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400"
+                >
+                  Cross-Repo Matches
+                </p>
+                <div
+                  id="graph-search-cross-repo"
+                  class="mt-3 grid gap-3 text-sm"
+                >
+                  <article
+                    class="rounded-2xl border border-dashed border-stone-200 px-4 py-3 text-stone-400"
+                  >
+                    Linked-repo matches will appear here.
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="min-w-0 space-y-5">
+            <!-- Search graph canvas -->
+            <div class="shell-card overflow-hidden rounded-3xl p-0">
+              <div
+                class="graph-canvas-wrap relative"
+                style="height: min(70vh, 760px); min-height: 540px; background: radial-gradient(ellipse at 50% 20%, #18112e 0%, #0c0c13 60%, #080810 100%); border-radius: inherit;"
+              >
+                <div
+                  id="search-graph-mount"
+                  class="absolute inset-0"
+                  style="border-radius: inherit; overflow: hidden;"
+                >
+                </div>
+                <div
+                  id="search-graph-tooltip"
+                  class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono transition-opacity duration-150"
+                  style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"
+                >
+                </div>
+
+                <!-- Legend overlay -->
+                <div
+                  id="search-graph-legend-overlay"
+                  class="graph-legend-overlay absolute z-20 max-w-[180px] rounded-xl p-3"
+                  style="background: rgba(8,8,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);"
+                >
+                  <p
+                    class="mb-2 text-[10px] font-bold uppercase tracking-widest"
+                    style="color: rgba(255,255,255,0.35);"
+                  >
+                    Legend
+                  </p>
+                  <div id="search-graph-legend" class="space-y-1"></div>
+                </div>
+
+                <!-- Controls -->
+                <div
+                  class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5"
+                >
+                  <button
+                    id="search-graph-zoom-in"
+                    class="graph-ctrl-btn"
+                    title="Zoom in"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M11 8v6M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="search-graph-zoom-out"
+                    class="graph-ctrl-btn"
+                    title="Zoom out"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="search-graph-fit"
+                    class="graph-ctrl-btn"
+                    title="Fit to screen"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                      ></path></svg
+                    >
+                  </button>
+                </div>
+
+                <aside
+                  id="search-graph-details-shell"
+                  class="graph-details-overlay hidden"
+                  data-state="details"
+                >
+                  <div class="graph-details-overlay-content p-2">
+                    <div
+                      class="sticky top-0 z-10 -mx-2 -mt-2 mb-1 flex items-start justify-between gap-1 border-b border-white/10 bg-[rgba(8,8,16,0.85)] px-2 py-1 backdrop-blur-sm"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <p
+                          id="search-graph-node-type"
+                          class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60"
+                        >
+                          Type
+                        </p>
+                        <h3
+                          id="search-graph-node-name"
+                          class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                        >
+                          Node
+                        </h3>
+                        <p
+                          id="search-graph-node-extra"
+                          class="mt-0.5 text-[10px] leading-3.5 text-white/70"
+                        >
+                        </p>
+                      </div>
+                      <button
+                        id="search-graph-node-close"
+                        class="shrink-0 rounded-full border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] text-white/85 hover:bg-white/12"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div
+                      id="search-graph-node-metadata"
+                      class="grid gap-1 sm:grid-cols-2"
+                    >
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: IMPACT
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="impact" class="hidden space-y-5">
+        <header>
+          <p class="eyebrow">Impact</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Trace impact across linked repos
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Enter a symbol name or route path to traverse upstream and
+            downstream neighbors, then inspect linked repository branches.
+          </p>
+        </header>
+
+        <div class="grid gap-2 xl:grid-cols-[350px_minmax(0,1fr)]">
+          <div class="space-y-5">
+            <div class="shell-card p-4">
+              <p class="eyebrow">Scan</p>
+              <h3
+                class="mt-2 text-base font-semibold tracking-tight text-stone-950"
+              >
+                Impact parameters
+              </h3>
+              <form id="graph-impact-form" class="mt-5 grid gap-4">
+                <input
+                  id="graph-impact-target"
+                  class="u-input"
+                  placeholder="Target symbol or route path"
+                />
+                <div class="grid grid-cols-2 gap-3">
+                  <label class="grid gap-1.5 text-xs text-stone-500">
+                    Depth (1–6)
+                    <input
+                      id="graph-impact-depth"
+                      type="number"
+                      min="1"
+                      max="6"
+                      value="2"
+                      class="u-input"
+                    />
+                  </label>
+                  <label class="grid gap-1.5 text-xs text-stone-500">
+                    Limit (1–100)
+                    <input
+                      id="graph-impact-limit"
+                      type="number"
+                      min="1"
+                      max="100"
+                      value="25"
+                      class="u-input"
+                    />
+                  </label>
+                </div>
+                <div class="flex items-center justify-between gap-3">
+                  <p id="graph-impact-status" class="u-status"></p>
+                  <button type="submit" class="primary-pill">Analyze</button>
+                </div>
+              </form>
+            </div>
+
+            <div class="shell-card p-4">
+              <p class="eyebrow">Impact Scope</p>
+              <h3
+                class="mt-2 text-lg font-semibold tracking-tight text-stone-950"
+              >
+                Cross-repo traversal results
+              </h3>
+              <div id="graph-impact-scopes" class="mt-4 grid gap-3 text-sm">
+                <article
+                  class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-stone-400"
+                >
+                  Run an impact scan to inspect traversed repo and branch
+                  scopes.
+                </article>
+              </div>
+              <div class="mt-6 border-t border-stone-100 pt-5">
+                <p
+                  class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400"
+                >
+                  Linked Impact Hits
+                </p>
+                <div
+                  id="graph-impact-cross-repo"
+                  class="mt-3 grid gap-3 text-sm"
+                >
+                  <article
+                    class="rounded-2xl border border-dashed border-stone-200 px-4 py-3 text-stone-400"
+                  >
+                    Cross-repo impact results will appear here.
+                  </article>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="min-w-0 space-y-5">
+            <!-- Impact graph canvas -->
+            <div class="shell-card overflow-hidden rounded-3xl p-0">
+              <div
+                class="graph-canvas-wrap relative"
+                style="height: min(70vh, 760px); min-height: 540px; background: radial-gradient(ellipse at 50% 20%, #1a0e2e 0%, #0c0c13 60%, #080810 100%); border-radius: inherit;"
+              >
+                <div
+                  id="impact-graph-mount"
+                  class="absolute inset-0"
+                  style="border-radius: inherit; overflow: hidden;"
+                >
+                </div>
+                <div
+                  id="impact-graph-tooltip"
+                  class="pointer-events-none absolute z-30 rounded-lg border px-3 py-1.5 text-xs font-mono transition-opacity duration-150"
+                  style="opacity:0; border-color: rgba(255,255,255,0.1); background: rgba(13,13,20,0.92); color: #e2e8f0; white-space: nowrap;"
+                >
+                </div>
+
+                <!-- Legend overlay -->
+                <div
+                  id="impact-graph-legend-overlay"
+                  class="graph-legend-overlay absolute z-20 max-w-[180px] rounded-xl p-3"
+                  style="background: rgba(8,8,16,0.75); border: 1px solid rgba(255,255,255,0.07); backdrop-filter: blur(8px);"
+                >
+                  <p
+                    class="mb-2 text-[10px] font-bold uppercase tracking-widest"
+                    style="color: rgba(255,255,255,0.35);"
+                  >
+                    Legend
+                  </p>
+                  <div id="impact-graph-legend" class="space-y-1"></div>
+                </div>
+
+                <!-- Controls -->
+                <div
+                  class="absolute bottom-4 right-4 z-20 flex flex-col gap-1.5"
+                >
+                  <button
+                    id="impact-graph-zoom-in"
+                    class="graph-ctrl-btn"
+                    title="Zoom in"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M11 8v6M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="impact-graph-zoom-out"
+                    class="graph-ctrl-btn"
+                    title="Zoom out"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><circle cx="11" cy="11" r="8"></circle><path
+                        d="M21 21l-4.35-4.35M8 11h6"></path></svg
+                    >
+                  </button>
+                  <button
+                    id="impact-graph-fit"
+                    class="graph-ctrl-btn"
+                    title="Fit to screen"
+                  >
+                    <svg
+                      class="h-4 w-4"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      ><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"
+                      ></path></svg
+                    >
+                  </button>
+                </div>
+
+                <aside
+                  id="impact-graph-details-shell"
+                  class="graph-details-overlay hidden"
+                  data-state="details"
+                >
+                  <div class="graph-details-overlay-content p-2">
+                    <div
+                      class="sticky top-0 z-10 -mx-2 -mt-2 mb-1 flex items-start justify-between gap-1 border-b border-white/10 bg-[rgba(8,8,16,0.85)] px-2 py-1 backdrop-blur-sm"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <p
+                          id="impact-graph-node-type"
+                          class="text-[10px] font-bold uppercase tracking-[0.18em] text-white/60"
+                        >
+                          Type
+                        </p>
+                        <h3
+                          id="impact-graph-node-name"
+                          class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                        >
+                          Node
+                        </h3>
+                        <p
+                          id="impact-graph-node-extra"
+                          class="mt-0.5 text-[10px] leading-3.5 text-white/70"
+                        >
+                        </p>
+                      </div>
+                      <button
+                        id="impact-graph-node-close"
+                        class="shrink-0 rounded-full border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] text-white/85 hover:bg-white/12"
+                      >
+                        Close
+                      </button>
+                    </div>
+                    <div
+                      id="impact-graph-node-metadata"
+                      class="grid gap-1 sm:grid-cols-2"
+                    >
+                    </div>
+                  </div>
+                </aside>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══════════════════════════════════════════
+           TAB: SETTINGS
+      ══════════════════════════════════════════ -->
+      <div data-tab-panel="settings" class="hidden space-y-3">
+        <header>
+          <p class="eyebrow">Settings</p>
+          <h2
+            class="mt-0.5 text-lg font-semibold tracking-tight text-stone-950"
+          >
+            Repository configuration
+          </h2>
+          <p class="mt-0.5 text-sm text-stone-600">
+            Update metadata, manage tracked branches, and link branches across
+            repositories.
+          </p>
+        </header>
+
+        <div class="shell-card p-5">
+          <p class="eyebrow">Core Metadata</p>
+          <h3 class="mt-1 text-sm font-semibold tracking-tight text-stone-950">
+            Edit or delete this repository
+          </h3>
+          <p class="mt-1 text-sm leading-5 text-stone-600">
+            Update the repository name, remote URL, default branch, or local
+            path.
+          </p>
+          <form id="repo-settings-form" class="mt-3 grid w-full gap-2.5">
+            <div class="grid xl:grid-cols-4 grid-cols-2 w-full gap-2">
+              <label class="grid gap-1 text-sm text-stone-700">
+                Name
+                <input id="repo-settings-name" class="u-input" />
+              </label>
+              <label class="grid gap-1 text-sm text-stone-700">
+                Remote URL
+                <input id="repo-settings-remote" class="u-input" />
+              </label>
+              <label class="grid gap-1 text-sm text-stone-700">
+                Default Branch
+                <input id="repo-settings-branch" class="u-input" />
+              </label>
+              <label class="grid gap-1 text-sm text-stone-700">
+                State Path
+                <input id="repo-settings-path" class="u-input" />
+              </label>
+            </div>
+            <p id="repo-settings-status" class="u-status"></p>
+            <div class="flex flex-wrap gap-2">
+              <button type="submit" class="primary-pill u-btn-sm"
+                >Save Changes</button
+              >
+              <button
+                id="repo-settings-delete"
+                type="button"
+                class="u-btn-danger u-btn-sm"
+              >
+                Delete Repository
+              </button>
+            </div>
+          </form>
+
+          <!-- ── Tracked Branches ── -->
+          <div class="mt-5 border-t border-stone-100 pt-4">
+            <p class="eyebrow">Tracked Branches</p>
+            <h3
+              class="mt-1 text-sm font-semibold tracking-tight text-stone-950"
+            >
+              Manage synced branches
+            </h3>
+            <p class="mt-1 text-sm leading-5 text-stone-600">
+              Add branches you want to track separately. On next sync for a
+              branch, Minder performs an incremental delta sync — not a full
+              re-scan. The default branch is always tracked and cannot be
+              removed.
+            </p>
+
+            <!-- Existing tracked branches list -->
+            <div
+              id="repo-branches-list"
+              class="mt-3 grid grid-cols-3 gap-1.5 w-full"
+            >
+              <p class="text-sm text-stone-400 italic">
+                No repository selected.
+              </p>
+            </div>
+
+            <!-- Add branch row -->
+            <div class="mt-2.5 flex w-full items-center gap-2">
+              <input
+                id="repo-branch-add-input"
+                type="text"
+                placeholder="Branch name (e.g. feat/my-feature)"
+                class="u-input min-w-0 flex-1"
+              />
+              <button
+                id="repo-branch-add-btn"
+                type="button"
+                class="shrink-0 inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-40"
+              >
+                Add branch
+              </button>
+            </div>
+            <p id="repo-branches-status" class="u-status mt-1.5"></p>
+          </div>
+
+          <div class="mt-5 border-t border-stone-100 pt-4">
+            <p class="eyebrow">Cross-Repo Branch Links</p>
+            <h3
+              class="mt-1 text-sm font-semibold tracking-tight text-stone-950"
+            >
+              Link branches across repositories
+            </h3>
+            <p class="mt-1 text-sm leading-5 text-stone-600">
+              Model how one repository branch depends on or references another
+              branch so Minder can carry that topology into graph search and
+              impact analysis.
+            </p>
+
+            <form id="repo-branch-link-form" class="mt-3 grid w-full gap-2.5">
+              <div class="grid gap-2 md:grid-cols-2">
+                <label class="grid gap-1 text-sm text-stone-700">
+                  Source Branch
+                  <input
+                    id="repo-branch-link-source"
+                    class="u-input"
+                    placeholder="feature/a1"
+                  />
+                </label>
+                <label class="grid gap-1 text-sm text-stone-700">
+                  Target Repository
+                  <select id="repo-branch-link-target-repo" class="u-select">
+                    <option value="">Select a repository</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="grid gap-2 md:grid-cols-4">
+                <label class="grid gap-1 text-sm text-stone-700 md:col-span-2">
+                  Target Branch
+                  <input
+                    id="repo-branch-link-target-branch"
+                    class="u-input"
+                    placeholder="feature/b1"
+                  />
+                </label>
+                <label class="grid gap-1 text-sm text-stone-700">
+                  Relation
+                  <select id="repo-branch-link-relation" class="u-select">
+                    <option value="depends_on">depends_on</option>
+                    <option value="calls">calls</option>
+                    <option value="imports">imports</option>
+                    <option value="shares_contracts">shares_contracts</option>
+                  </select>
+                </label>
+                <label class="grid gap-1 text-sm text-stone-700">
+                  Direction
+                  <select id="repo-branch-link-direction" class="u-select">
+                    <option value="outbound">outbound</option>
+                    <option value="bidirectional">bidirectional</option>
+                    <option value="inbound">inbound</option>
+                  </select>
+                </label>
+              </div>
+
+              <label class="grid gap-1 text-sm text-stone-700">
+                Notes
+                <input
+                  id="repo-branch-link-notes"
+                  class="u-input"
+                  placeholder="Optional context for why these branches are linked"
+                />
+              </label>
+
+              <div class="flex flex-wrap items-center gap-2">
+                <button
+                  id="repo-branch-link-submit"
+                  type="submit"
+                  class="primary-pill u-btn-sm">Save Link</button
+                >
+                <p id="repo-branch-link-status" class="u-status"></p>
+              </div>
+            </form>
+
+            <div
+              id="repo-branch-link-admin-list"
+              class="mt-3 grid w-full gap-2 text-sm text-stone-700"
+            >
+              <p class="text-sm text-stone-400 italic">
+                No branch links configured yet.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- end right content -->
+  </div>
+  <!-- end grid -->
+
+  <script src="../scripts/repositories-page.ts"></script>
+</DashboardLayout>

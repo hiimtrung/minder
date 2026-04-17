@@ -29,8 +29,8 @@ Use this `PLAN` index and the `docs/plan/*` files for:
 | Target users           | Team, shared server, multi-user                     |
 | Authentication         | API key plus JWT with RBAC                          |
 | Transport              | SSE from Phase 1, stdio for local dev               |
-| Local embedding model  | `Qwen/Qwen3-Embedding-0.6B` quantized GGUF          |
-| Local LLM              | `Qwen3.5-0.8B` quantized GGUF                       |
+| Local embedding model  | `ggml-org/embeddinggemma-300M-GGUF` quantized GGUF  |
+| Local LLM              | `ggml-org/gemma-4-E2B-it-GGUF` quantized GGUF       |
 | Runtime                | `llama.cpp` via `llama-cpp-python`                  |
 | Verification           | Docker sandbox in production                        |
 | Workflow governance    | Required                                            |

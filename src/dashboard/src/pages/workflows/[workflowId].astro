@@ -1,0 +1,9 @@
+---
+import WorkflowDetailShell from "../../components/WorkflowDetailShell.astro";
+
+export const prerender = false;
+
+const { workflowId } = Astro.params;
+---
+
+<WorkflowDetailShell workflowId={workflowId} />

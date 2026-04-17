@@ -20,7 +20,7 @@ Minder is a Model Context Protocol server that provides Agentic RAG with a multi
 | Network model  | Offline-first with mandatory local models; OpenAI fallback when available    |
 | Transport      | SSE from Phase 1, stdio for local development                                |
 | Verification   | Docker sandbox is mandatory in production; subprocess is allowed in dev mode |
-| Skill seeding  | Initial skill import from an external GitHub repository                      |
+| Skill seeding  | Initial skill import from external Git repositories such as GitHub or GitLab |
 | CI/CD          | GitHub Actions, GitHub Releases, and GitHub Packages from Phase 1            |
 
 ## Why build this as an MCP server?
@@ -60,18 +60,24 @@ This makes Minder both a knowledge system and a process orchestration layer for 
 
 ## Confirmed Decisions
 
-| #   | Topic                | Decision                                                                   |
-| --- | -------------------- | -------------------------------------------------------------------------- |
-| 1   | Target users         | Team, shared server, multi-user                                            |
-| 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback               |
-| 3   | Model priority       | `Qwen/Qwen3-Embedding-0.6B` GGUF and `Qwen3.5-0.8B` GGUF are mandatory     |
-| 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                      |
-| 5   | Knowledge graph      | Included in Phase 3                                                        |
-| 6   | Verification sandbox | Docker is mandatory in production                                          |
-| 7   | Existing data        | Skills seeded from an external GitHub repository                           |
-| 8   | Performance target   | Reasonable responsiveness, not ultra-low-latency at the expense of quality |
-| 9   | Concurrent users     | Multi-user with identity from email and Git username                       |
-| 10  | CI/CD                | Required from Phase 1 with GitHub Actions, Releases, and Packages          |
-| 11  | Workflow governance  | Required; Minder must enforce configured engineering workflows             |
-| 12  | Repository state     | Required; workflow state and context must be persisted in each repository  |
-| 13  | Dashboard            | Required for workflow configuration and governance                         |
+| #   | Topic                | Decision                                                                                    |
+| --- | -------------------- | ------------------------------------------------------------------------------------------- |
+| 1   | Target users         | Team, shared server, multi-user                                                             |
+| 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback                                |
+| 3   | Model priority       | `ggml-org/embeddinggemma-300M-GGUF` and `ggml-org/gemma-4-E2B-it-GGUF` are mandatory        |
+| 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                                       |
+| 5   | Knowledge graph      | Included in Phase 3                                                                         |
+| 6   | Verification sandbox | Docker is mandatory in production                                                           |
+| 7   | Existing data        | Skills may be seeded or imported from external Git repositories including GitHub and GitLab |
+| 8   | Performance target   | Reasonable responsiveness, not ultra-low-latency at the expense of quality                  |
+| 9   | Concurrent users     | Multi-user with identity from email and Git username                                        |
+| 10  | CI/CD                | Required from Phase 1 with GitHub Actions, Releases, and Packages                           |
+| 11  | Workflow governance  | Required; Minder must enforce configured engineering workflows                              |
+| 12  | Repository state     | Required; workflow state and context must be persisted in each repository                   |
+| 13  | Dashboard            | Required for workflow configuration, governance, and direct skill catalog management        |
+
+## Product Direction Update — 2026-04-15
+
+- Skill lifecycle is now a product capability: operators must be able to import and manage skills directly from the Dashboard.
+- External skill sources must be treated as Git-provider-agnostic, not GitHub-only.
+- Repository graph intelligence is metadata-first: file/function/controller/message-flow metadata is the durable asset, while full-source storage is explicitly discouraged.

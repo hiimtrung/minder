@@ -1,11 +1,13 @@
 from minder.config import Settings
+from minder.bootstrap.providers import build_graph_store
+from minder.store.graph import KnowledgeGraphStore
 
 
 def test_default_config_loading():
     settings = Settings(_env_file=None)
     assert settings.server.name == "minder"
     assert settings.auth.enabled is True
-    assert settings.embedding.dimensions == 1024
+    assert settings.embedding.dimensions == 768
     assert settings.dashboard.dev_server_url in {None, ""}
     assert settings.dashboard.api_url in {None, ""}
 
@@ -42,3 +44,21 @@ def test_dotenv_file_override(tmp_path, monkeypatch):
     assert settings.server.port == 7777
     assert settings.redis.uri == "redis://example:6379/7"
     assert settings.vector_store.provider == "milvus"
+
+
+def test_graph_store_defaults_to_auto_sqlite_fallback_for_mongodb() -> None:
+    settings = Settings(_env_file=None)
+
+    graph_store = build_graph_store(settings)
+
+    assert isinstance(graph_store, KnowledgeGraphStore)
+
+
+def test_graph_store_env_override(monkeypatch) -> None:
+    monkeypatch.setenv("MINDER_GRAPH_STORE__PROVIDER", "postgresql")
+    monkeypatch.setenv("MINDER_GRAPH_STORE__URI", "postgresql+asyncpg://localhost/custom_graph")
+
+    settings = Settings(_env_file=None)
+
+    assert settings.graph_store.provider == "postgresql"
+    assert settings.graph_store.uri == "postgresql+asyncpg://localhost/custom_graph"

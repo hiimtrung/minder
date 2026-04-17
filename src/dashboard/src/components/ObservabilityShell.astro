@@ -1,0 +1,240 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import StatCard from "./ui/StatCard.astro";
+import Button from "./ui/Button.astro";
+import Select from "./ui/Select.astro";
+import Input from "./ui/Input.astro";
+import Card from "./ui/Card.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
+---
+
+<DashboardLayout
+  title="Observability · Minder"
+  description="Runtime metrics, audit log, and system health for the Minder deployment."
+  navTitle="Minder Dashboard"
+  navDescription="Live metrics, auth events, and a full audit trail for every admin and client action."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Observability"
+    title="Runtime metrics & audit trail."
+    description="Live counters for tool calls, auth events, and HTTP traffic alongside a paginated audit log. All metric values reflect the current process lifetime — restart resets counters; the audit log is persistent."
+  >
+    <label
+      slot="actions"
+      class="flex items-center gap-2 text-sm text-stone-600"
+    >
+      <input
+        type="checkbox"
+        id="auto-refresh-toggle"
+        class="accent-amber-700"
+      />
+      Auto-refresh (30s)
+    </label>
+    <Button slot="actions" id="refresh-observability" size="sm">
+      Refresh now
+    </Button>
+  </PageHero>
+
+  <!-- Metric stat cards -->
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatCard
+      eyebrow="Sessions"
+      valueId="stat-sessions"
+      sub="Active client sessions"
+    />
+    <StatCard
+      eyebrow="Tool calls"
+      valueId="stat-tool-calls"
+      subId="stat-tool-calls-sub"
+      sub="Since process start"
+    />
+    <StatCard
+      eyebrow="Auth events"
+      valueId="stat-auth-events"
+      subId="stat-auth-events-sub"
+      sub="Login + token exchange"
+    />
+    <StatCard
+      eyebrow="HTTP requests"
+      valueId="stat-http-requests"
+      subId="stat-http-sub"
+      sub="Total handled"
+    />
+  </section>
+
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <StatCard
+      eyebrow="Continuity packets"
+      valueId="stat-continuity-packets"
+      subId="stat-continuity-packets-sub"
+      sub="Session, guard, and query packets"
+    />
+    <StatCard
+      eyebrow="Continuity recalls"
+      valueId="stat-continuity-recalls"
+      subId="stat-continuity-recalls-sub"
+      sub="Memory + skill synthesis activity"
+    />
+    <StatCard
+      eyebrow="Step compatibility"
+      valueId="stat-step-compatibility"
+      subId="stat-step-compatibility-sub"
+      sub="Average recall alignment"
+    />
+    <StatCard
+      eyebrow="Correction retries"
+      valueId="stat-correction-retries"
+      subId="stat-correction-retries-sub"
+      sub="Workflow contract retries"
+    />
+  </section>
+
+  <!-- Metric breakdown charts -->
+  <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <Card padding="sm">
+      <p class="eyebrow mb-3">Tool calls by outcome</p>
+      <div id="chart-tool-outcomes" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+
+    <Card padding="sm">
+      <p class="eyebrow mb-3">Auth events by type</p>
+      <div id="chart-auth-types" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+
+    <Card padding="sm">
+      <p class="eyebrow mb-3">HTTP by status code</p>
+      <div id="chart-http-status" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+
+    <Card padding="sm">
+      <p class="eyebrow mb-3">Admin ops by outcome</p>
+      <div id="chart-admin-ops" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+  </section>
+
+  <section class="mb-6 grid gap-4 sm:grid-cols-2">
+    <Card padding="sm">
+      <p class="eyebrow mb-3">Query prompts by source</p>
+      <div id="chart-continuity-prompts" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+
+    <Card padding="sm">
+      <p class="eyebrow mb-3">Continuity gates by outcome</p>
+      <div id="chart-continuity-gates" class="flex justify-center">
+        <p class="py-4 text-sm text-stone-400">Loading...</p>
+      </div>
+    </Card>
+  </section>
+
+  <!-- Audit log section -->
+  <section class="grid gap-5">
+    <!-- Audit log header + filters -->
+    <Card padding="md">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <SectionHeader
+            title="Audit log"
+            description="Every admin and client action recorded with actor, outcome, and timestamp."
+            class="mb-0"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <Select id="audit-event-type-filter" class="min-w-36">
+            <option value="">All event types</option>
+            <option value="client_key_issued">Key issued</option>
+            <option value="client_key_revoked">Key revoked</option>
+            <option value="token_exchange">Token exchange</option>
+            <option value="admin_login">Admin login</option>
+            <option value="client_created">Client created</option>
+            <option value="client_updated">Client updated</option>
+            <option value="user_created">User created</option>
+            <option value="user_updated">User updated</option>
+          </Select>
+          <Select id="audit-outcome-filter" class="min-w-32">
+            <option value="">All outcomes</option>
+            <option value="success">Success</option>
+            <option value="failure">Failure</option>
+            <option value="denied">Denied</option>
+            <option value="error">Error</option>
+          </Select>
+          <Input
+            id="audit-actor-filter"
+            placeholder="Actor ID (optional)…"
+            class="min-w-44"
+          />
+          <Button id="audit-filter-apply" size="sm">Apply</Button>
+          <Button id="audit-filter-clear" size="sm" variant="ghost">
+            Clear
+          </Button>
+        </div>
+      </div>
+
+      <!-- Active filter pills -->
+      <div
+        id="active-filter-pills"
+        class="mt-3 flex flex-wrap gap-2 empty:hidden"
+      >
+      </div>
+    </Card>
+
+    <!-- Pagination bar -->
+    <div
+      class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white/95 px-4 py-3 text-sm"
+    >
+      <div class="flex items-center gap-3">
+        <span id="audit-pagination-info" class="text-stone-500">—</span>
+        <Select id="audit-page-size" class="py-1.5 text-sm">
+          <option value="25" selected>25 / page</option>
+          <option value="50">50 / page</option>
+          <option value="100">100 / page</option>
+        </Select>
+      </div>
+      <div class="flex items-center gap-2">
+        <Button id="audit-prev" size="sm" disabled>← Prev</Button>
+        <Button id="audit-next" size="sm" disabled>Next →</Button>
+      </div>
+    </div>
+
+    <!-- Audit table -->
+    <div
+      id="audit-log-container"
+      class="overflow-hidden rounded-2xl border border-stone-200/80 bg-white"
+    >
+      <table class="w-full text-sm">
+        <thead>
+          <tr
+            class="border-b border-stone-100 bg-stone-50/80 text-left text-xs font-semibold uppercase tracking-widest text-stone-500"
+          >
+            <th class="px-4 py-3">Event</th>
+            <th class="px-4 py-3">Actor</th>
+            <th class="px-4 py-3">Resource</th>
+            <th class="px-4 py-3">Outcome</th>
+            <th class="px-4 py-3 whitespace-nowrap">When</th>
+          </tr>
+        </thead>
+        <tbody id="audit-log-body">
+          <tr>
+            <td colspan="5" class="px-4 py-6 text-center text-sm text-stone-400"
+              >Loading audit log...</td
+            >
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="../scripts/observability-page.ts"></script>
+</DashboardLayout>

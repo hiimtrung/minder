@@ -3,7 +3,7 @@ Milvus Collections — schema definitions.
 """
 from pymilvus import CollectionSchema, DataType, FieldSchema  # type: ignore[import-untyped]
 
-def get_document_schema(dimensions: int = 1024) -> CollectionSchema:
+def get_document_schema(dimensions: int = 768) -> CollectionSchema:
     fields = [
         FieldSchema(name="id", dtype=DataType.VARCHAR, max_length=64, is_primary=True),
         FieldSchema(name="embedding", dtype=DataType.FLOAT_VECTOR, dim=dimensions),

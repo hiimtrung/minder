@@ -62,20 +62,29 @@ class InternalGraphExecutor:
                     "fallback_used": state.metadata.get("fallback_used", False),
                 }
             )
-            if edge != "verification_failed" or attempt >= max_attempts:
+            if (
+                edge not in {"verification_failed", "guard_failed"}
+                or attempt >= max_attempts
+            ):
                 break
+            retry_reason = (
+                "; ".join(
+                    str(reason)
+                    for reason in state.guard_result.get("reasons", [])
+                    if reason
+                )
+                if edge == "guard_failed"
+                else state.verification_result.get("stderr", "verification failed")
+            )
             state.metadata["attempt_failures"].append(
                 {
                     "attempt": attempt,
-                    "reason": state.verification_result.get(
-                        "stderr", "verification failed"
-                    ),
+                    "reason": retry_reason,
                     "provider": state.llm_output.get("provider"),
+                    "edge": edge,
                 }
             )
-            state.metadata["retry_reason"] = state.verification_result.get(
-                "stderr", "verification failed"
-            )
+            state.metadata["retry_reason"] = retry_reason
 
         state = self._nodes.evaluator.run(state)
         state.metadata["edge"] = determine_next_edge(state)
@@ -107,7 +116,9 @@ class LangGraphExecutorAdapter:
     def _build_compiled_graph(self):
         state_graph_cls = load_langgraph_state_graph()
         if state_graph_cls is None:
-            raise RuntimeError("LangGraph runtime requested but StateGraph is unavailable")
+            raise RuntimeError(
+                "LangGraph runtime requested but StateGraph is unavailable"
+            )
 
         workflow = state_graph_cls(GraphState)
         workflow.add_node("internal_executor", self._internal.run)

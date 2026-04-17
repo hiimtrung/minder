@@ -1,0 +1,1339 @@
+"""Integration tests for P4-T07 — user, workflow, and repository admin API endpoints.
+
+These tests use an in-memory SQLite store (same pattern as the existing
+test_phase4_http_admin.py) to validate the new HTTP routes end-to-end
+without requiring a running Minder server.
+"""
+
+from __future__ import annotations
+
+import uuid
+from typing import Any
+
+import pytest
+import pytest_asyncio
+from starlette.testclient import TestClient
+
+from minder.auth.service import AuthService, UserRole
+from minder.cache.providers import LRUCacheProvider
+from minder.config import MinderConfig
+from minder.presentation.http.admin.routes import build_http_app
+from minder.store.relational import RelationalStore
+from minder.store.graph import KnowledgeGraphStore
+
+IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
+
+
+@pytest_asyncio.fixture
+async def store() -> RelationalStore:
+    backend = RelationalStore(IN_MEMORY_URL)
+    await backend.init_db()
+    yield backend
+    await backend.dispose()
+
+
+@pytest.fixture
+def config() -> MinderConfig:
+    return MinderConfig()
+
+
+@pytest.fixture
+def cache() -> LRUCacheProvider:
+    return LRUCacheProvider()
+
+
+@pytest.fixture
+def graph_store_db_url(tmp_path) -> str:  # noqa: ANN001
+    return f"sqlite+aiosqlite:///{tmp_path / 'graph.db'}"
+
+
+@pytest_asyncio.fixture
+async def graph_store(graph_store_db_url: str) -> KnowledgeGraphStore:
+    backend = KnowledgeGraphStore(graph_store_db_url)
+    await backend.init_db()
+    yield backend
+    await backend.dispose()
+
+
+@pytest.fixture
+def app(
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> Any:
+    return build_http_app(
+        config=config, store=store, graph_store=graph_store, cache=cache
+    )
+
+
+@pytest_asyncio.fixture
+async def admin_client(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    app: Any,
+) -> TestClient:
+    """Return a TestClient with an active admin session cookie."""
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, api_key = await auth.register_user(
+        email="expansion-admin@example.com",
+        username="expansion_admin",
+        display_name="Expansion Admin",
+        role=UserRole.ADMIN,
+    )
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.post("/v1/admin/login", json={"api_key": api_key})
+    assert resp.status_code == 200, f"Login failed: {resp.text}"
+    return client
+
+
+# ---------------------------------------------------------------------------
+# User management
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_can_list_users(admin_client: TestClient) -> None:
+    resp = admin_client.get("/v1/admin/users")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "users" in data
+    assert isinstance(data["users"], list)
+    assert len(data["users"]) >= 1
+    # All returned users have required fields
+    for u in data["users"]:
+        for field in ("id", "username", "email", "role", "is_active"):
+            assert field in u, f"Missing field {field!r} in user payload"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_user(admin_client: TestClient) -> None:
+    resp = admin_client.post(
+        "/v1/admin/users",
+        json={
+            "username": "created_admin",
+            "email": "created-admin@example.com",
+            "display_name": "Created Admin",
+            "role": "admin",
+            "password": "secret-pass",
+        },
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["user"]["username"] == "created_admin"
+    assert data["user"]["role"] == "admin"
+    assert data["api_key"].startswith("mk_")
+
+
+@pytest.mark.asyncio
+async def test_admin_can_get_user_detail(
+    admin_client: TestClient,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    user, _ = await auth.register_user(
+        email="detail-user@example.com",
+        username="detail_user",
+        display_name="Detail User",
+    )
+    resp = admin_client.get(f"/v1/admin/users/{user.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user"]["username"] == "detail_user"
+    assert data["user"]["email"] == "detail-user@example.com"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_user_display_name(
+    admin_client: TestClient,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    user, _ = await auth.register_user(
+        email="patch-user@example.com",
+        username="patch_user",
+        display_name="Original Name",
+    )
+    resp = admin_client.patch(
+        f"/v1/admin/users/{user.id}",
+        json={"display_name": "Updated Name"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user"]["display_name"] == "Updated Name"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_deactivate_user(
+    admin_client: TestClient,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    user, _ = await auth.register_user(
+        email="deactivate-user@example.com",
+        username="deactivate_user",
+        display_name="To Be Deactivated",
+    )
+    resp = admin_client.delete(f"/v1/admin/users/{user.id}")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["user"]["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_user_detail_404_for_unknown_id(admin_client: TestClient) -> None:
+    resp = admin_client.get(f"/v1/admin/users/{uuid.uuid4()}")
+    assert resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_user_endpoints_require_auth(app: Any) -> None:
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.get("/v1/admin/users")
+    assert resp.status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_client_can_resolve_and_create_repository(
+    app: Any,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="resolve-admin@example.com",
+        username="resolve_admin",
+        display_name="Resolve Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_key = await auth.register_client(
+        name="Resolve Client",
+        slug="resolve-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["*"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.post(
+        "/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": "minder",
+            "repo_path": "/workspace/minder",
+            "repo_url": "git@github.com:example/minder.git",
+            "default_branch": "develop",
+        },
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["created"] is True
+    assert data["repository"]["name"] == "minder"
+    assert data["repository"]["path"] == "/workspace/minder/.minder"
+    assert data["repository"]["remote_url"] == "git@github.com:example/minder.git"
+
+    repositories = await store.list_repositories()
+    assert len(repositories) == 1
+    assert repositories[0].repo_name == "minder"
+    assert repositories[0].default_branch == "develop"
+    assert repositories[0].repo_url == "git@github.com:example/minder.git"
+
+
+@pytest.mark.asyncio
+async def test_client_repository_resolve_enforces_repo_scope(
+    app: Any,
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="scoped-admin@example.com",
+        username="scoped_admin",
+        display_name="Scoped Admin",
+        role=UserRole.ADMIN,
+    )
+    _, client_key = await auth.register_client(
+        name="Scoped Client",
+        slug="scoped-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["git@github.com:example/allowed.git"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    resp = client.post(
+        "/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": "minder",
+            "repo_path": "/workspace/blocked/minder",
+            "repo_url": "git@github.com:example/minder.git",
+            "default_branch": "develop",
+        },
+    )
+
+    assert resp.status_code == 403
+
+
+# ---------------------------------------------------------------------------
+# Workflow management
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_can_list_workflows_empty(admin_client: TestClient) -> None:
+    resp = admin_client.get("/v1/admin/workflows")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "workflows" in data
+    assert isinstance(data["workflows"], list)
+
+
+@pytest.mark.asyncio
+async def test_admin_can_create_workflow(admin_client: TestClient) -> None:
+    payload = {
+        "name": "tdd",
+        "description": "Test-driven development workflow",
+        "enforcement": "strict",
+        "steps": [
+            {"name": "write_test", "description": "Write a failing test", "gate": None},
+            {"name": "implement", "description": "Make the test pass", "gate": None},
+            {"name": "refactor", "description": "Clean up", "gate": None},
+        ],
+    }
+    resp = admin_client.post("/v1/admin/workflows", json=payload)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["workflow"]["name"] == "tdd"
+    assert data["workflow"]["enforcement"] == "strict"
+    assert len(data["workflow"]["steps"]) == 3
+    assert "id" in data["workflow"]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_get_workflow_detail(admin_client: TestClient) -> None:
+    create_resp = admin_client.post(
+        "/v1/admin/workflows",
+        json={"name": "review-flow", "description": "Code review flow"},
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["workflow"]["id"]
+
+    detail_resp = admin_client.get(f"/v1/admin/workflows/{workflow_id}")
+    assert detail_resp.status_code == 200
+    assert detail_resp.json()["workflow"]["name"] == "review-flow"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_workflow(admin_client: TestClient) -> None:
+    create_resp = admin_client.post(
+        "/v1/admin/workflows",
+        json={"name": "update-target", "enforcement": "strict"},
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["workflow"]["id"]
+
+    patch_resp = admin_client.patch(
+        f"/v1/admin/workflows/{workflow_id}",
+        json={"enforcement": "advisory", "description": "Patched"},
+    )
+    assert patch_resp.status_code == 200
+    data = patch_resp.json()
+    assert data["workflow"]["enforcement"] == "advisory"
+    assert data["workflow"]["description"] == "Patched"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_workflow(admin_client: TestClient) -> None:
+    create_resp = admin_client.post(
+        "/v1/admin/workflows",
+        json={"name": "to-delete"},
+    )
+    assert create_resp.status_code == 201
+    workflow_id = create_resp.json()["workflow"]["id"]
+
+    del_resp = admin_client.delete(f"/v1/admin/workflows/{workflow_id}")
+    assert del_resp.status_code == 200
+    assert del_resp.json()["deleted"] is True
+
+    # Confirm it's gone
+    get_resp = admin_client.get(f"/v1/admin/workflows/{workflow_id}")
+    assert get_resp.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_workflow_create_requires_name(admin_client: TestClient) -> None:
+    resp = admin_client.post("/v1/admin/workflows", json={"description": "no name"})
+    assert resp.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_workflow_endpoints_require_auth(app: Any) -> None:
+    client = TestClient(app, raise_server_exceptions=True)
+    assert client.get("/v1/admin/workflows").status_code in (401, 403)
+    assert client.post("/v1/admin/workflows", json={"name": "x"}).status_code in (
+        401,
+        403,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Repository management
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_admin_can_list_repositories_empty(admin_client: TestClient) -> None:
+    resp = admin_client.get("/v1/admin/repositories")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "repositories" in data
+    assert isinstance(data["repositories"], list)
+
+
+@pytest.mark.asyncio
+async def test_repositories_endpoint_requires_auth(app: Any) -> None:
+    client = TestClient(app, raise_server_exceptions=True)
+    assert client.get("/v1/admin/repositories").status_code in (401, 403)
+
+
+@pytest.mark.asyncio
+async def test_admin_can_update_repository(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="old-name",
+        repo_url="https://example.com/old-name",
+        default_branch="main",
+        state_path="/workspace/old-name/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    response = admin_client.patch(
+        f"/v1/admin/repositories/{repository.id}",
+        json={
+            "name": "new-name",
+            "remote_url": "git@github.com:acme/new-name.git",
+            "default_branch": "develop",
+            "path": "/workspace/new-name/.minder",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()["repository"]
+    assert payload["name"] == "new-name"
+    assert payload["remote_url"] == "git@github.com:acme/new-name.git"
+    assert payload["default_branch"] == "develop"
+    assert payload["path"] == "/workspace/new-name/.minder"
+
+
+@pytest.mark.asyncio
+async def test_admin_can_delete_repository(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="delete-me",
+        repo_url="https://example.com/delete-me",
+        default_branch="main",
+        state_path="/workspace/delete-me/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    response = admin_client.delete(f"/v1/admin/repositories/{repository.id}")
+
+    assert response.status_code == 200
+    assert response.json()["deleted"] is True
+    assert await store.get_repository_by_id(repository.id) is None
+
+
+@pytest.mark.asyncio
+async def test_admin_can_get_repository_graph_map(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="graph-map-repo",
+        repo_url="https://example.com/graph-map-repo",
+        default_branch="main",
+        state_path="/workspace/graph-map-repo/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    file_node = await graph_store.upsert_node(
+        "file",
+        "src/app.py",
+        metadata={
+            "repo_id": str(repository.id),
+            "repository_name": "graph-map-repo",
+            "path": "src/app.py",
+        },
+        repo_id=str(repository.id),
+        branch="main",
+    )
+    function_node = await graph_store.upsert_node(
+        "function",
+        "src/app.py::build_app",
+        metadata={
+            "repo_id": str(repository.id),
+            "repository_name": "graph-map-repo",
+            "path": "src/app.py",
+            "language": "python",
+        },
+        repo_id=str(repository.id),
+        branch="main",
+    )
+    edge = await graph_store.upsert_edge(
+        file_node.id,
+        function_node.id,
+        "contains",
+        weight=1.0,
+        repo_id=str(repository.id),
+    )
+
+    response = admin_client.get(f"/v1/admin/repositories/{repository.id}/graph-map")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["graph_available"] is True
+    assert payload["summary"]["node_count"] == 2
+    assert payload["summary"]["edge_count"] == 1
+    assert {node["name"] for node in payload["nodes"]} == {
+        "src/app.py",
+        "src/app.py::build_app",
+    }
+    assert payload["edges"] == [
+        {
+            "id": str(edge.id),
+            "source_id": str(file_node.id),
+            "target_id": str(function_node.id),
+            "relation": "contains",
+            "weight": 1.0,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_admin_can_sync_repository_graph(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="sync-target",
+        repo_url="https://example.com/sync-target",
+        default_branch="main",
+        state_path="/workspace/sync-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "source": "minder-cli",
+            "repo_path": "/workspace/sync-target",
+            "branch": "feature/fast-sync",
+            "diff_base": "origin/main",
+            "sync_metadata": {"trigger": "manual-test"},
+            "nodes": [
+                {
+                    "node_type": "file",
+                    "name": "src/app.py",
+                    "metadata": {"language": "python"},
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/app.py::build_app",
+                    "metadata": {"signature": "build_app() -> App"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {"node_type": "file", "name": "src/app.py"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::build_app",
+                    },
+                    "relation": "contains",
+                    "weight": 1.0,
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["repo_id"] == str(repository.id)
+    assert payload["repository_name"] == "sync-target"
+    assert payload["nodes_upserted"] == 2
+    assert payload["edges_upserted"] == 1
+
+    file_node = await graph_store.get_node_by_name(
+        "file",
+        "src/app.py",
+        repo_id=str(repository.id),
+        branch="feature/fast-sync",
+    )
+    function_node = await graph_store.get_node_by_name(
+        "function",
+        "src/app.py::build_app",
+        repo_id=str(repository.id),
+        branch="feature/fast-sync",
+    )
+    assert file_node is not None
+    assert function_node is not None
+    assert file_node.node_metadata["repo_id"] == str(repository.id)
+    assert file_node.node_metadata["branch"] == "feature/fast-sync"
+
+    neighbors = await graph_store.get_neighbors(
+        file_node.id, direction="out", relation="contains"
+    )
+    neighbor_names = {node.name for node in neighbors}
+    assert "src/app.py::build_app" in neighbor_names
+
+    updated_repo = await store.get_repository_by_id(repository.id)
+    assert updated_repo is not None
+    assert updated_repo.relationships["graph_sync"]["payload_version"] == "2026-04-15"
+    assert (
+        updated_repo.relationships["graph_sync"]["branches"]["feature/fast-sync"][
+            "accepted_at"
+        ]
+        == payload["accepted_at"]
+    )
+
+
+@pytest.mark.asyncio
+async def test_repository_graph_sync_returns_404_for_unknown_repo(
+    admin_client: TestClient,
+) -> None:
+    response = admin_client.post(
+        f"/v1/admin/repositories/{uuid.uuid4()}/graph-sync",
+        json={"payload_version": "2026-04-15", "nodes": [], "edges": []},
+    )
+    assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_client_can_sync_repository_graph_with_client_key(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    graph_store: KnowledgeGraphStore,
+    app: Any,
+) -> None:
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="client-sync-admin@example.com",
+        username="client_sync_admin",
+        display_name="Client Sync Admin",
+        role=UserRole.ADMIN,
+    )
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="client-sync-target",
+        repo_url="https://example.com/client-sync-target",
+        default_branch="main",
+        state_path="/workspace/client-sync-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    _, client_api_key = await auth.register_client(
+        name="Sync Client",
+        slug="sync-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["git@example.com:client-sync-target.git"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    response = client.post(
+        f"/v1/client/repositories/{repository.id}/graph-sync",
+        headers={"X-Minder-Client-Key": client_api_key},
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/client-sync-target",
+            "sync_metadata": {"repo_remote": "git@example.com:client-sync-target.git"},
+            "nodes": [
+                {
+                    "node_type": "controller",
+                    "name": "src/api/controller.py::HealthController",
+                    "metadata": {"language": "python"},
+                },
+                {
+                    "node_type": "route",
+                    "name": "GET /health",
+                    "metadata": {"path": "/health", "method": "GET"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {
+                        "node_type": "controller",
+                        "name": "src/api/controller.py::HealthController",
+                    },
+                    "target": {"node_type": "route", "name": "GET /health"},
+                    "relation": "exposes_route",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 202
+    route_node = await graph_store.get_node_by_name(
+        "route",
+        "GET /health",
+        repo_id=str(repository.id),
+        branch="main",
+    )
+    assert route_node is not None
+
+
+@pytest.mark.asyncio
+async def test_client_graph_sync_rejects_repository_outside_scope(
+    store: RelationalStore,
+    config: MinderConfig,
+    cache: LRUCacheProvider,
+    graph_store: KnowledgeGraphStore,
+    app: Any,
+) -> None:
+    del graph_store
+    auth = AuthService(store=store, config=config, cache=cache)
+    admin, _ = await auth.register_user(
+        email="scope-sync-admin@example.com",
+        username="scope_sync_admin",
+        display_name="Scope Sync Admin",
+        role=UserRole.ADMIN,
+    )
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="forbidden-sync-target",
+        repo_url="https://example.com/forbidden-sync-target",
+        default_branch="main",
+        state_path="/workspace/forbidden-sync-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    _, client_api_key = await auth.register_client(
+        name="Scoped Sync Client",
+        slug="scoped-sync-client",
+        created_by_user_id=admin.id,
+        repo_scopes=["git@example.com:other-repo.git"],
+    )
+
+    client = TestClient(app, raise_server_exceptions=True)
+    response = client.post(
+        f"/v1/client/repositories/{repository.id}/graph-sync",
+        headers={"X-Minder-Client-Key": client_api_key},
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/forbidden-sync-target",
+            "sync_metadata": {
+                "repo_remote": "git@example.com:forbidden-sync-target.git"
+            },
+            "nodes": [],
+            "edges": [],
+        },
+    )
+
+    assert response.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_graph_sync_deletes_nodes_for_deleted_files(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="delete-target",
+        repo_url="https://example.com/delete-target",
+        default_branch="main",
+        state_path="/workspace/delete-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    initial_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/delete-target",
+            "branch": "main",
+            "nodes": [
+                {
+                    "node_type": "file",
+                    "name": "src/legacy.py",
+                    "metadata": {"path": "src/legacy.py", "language": "python"},
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/legacy.py::build_legacy",
+                    "metadata": {"path": "src/legacy.py"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {"node_type": "file", "name": "src/legacy.py"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/legacy.py::build_legacy",
+                    },
+                    "relation": "contains",
+                }
+            ],
+        },
+    )
+
+    assert initial_response.status_code == 202
+    assert (
+        await graph_store.get_node_by_name(
+            "file",
+            "src/legacy.py",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/legacy.py::build_legacy",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
+
+    delete_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/delete-target",
+            "branch": "main",
+            "deleted_files": ["src/legacy.py"],
+            "nodes": [],
+            "edges": [],
+        },
+    )
+
+    assert delete_response.status_code == 202
+    assert delete_response.json()["deleted_nodes"] == 2
+    assert (
+        await graph_store.get_node_by_name(
+            "file",
+            "src/legacy.py",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/legacy.py::build_legacy",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
+
+
+@pytest.mark.asyncio
+async def test_graph_sync_refresh_prunes_stale_nodes_for_changed_files(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="refresh-target",
+        repo_url="https://example.com/refresh-target",
+        default_branch="main",
+        state_path="/workspace/refresh-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    initial_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/refresh-target",
+            "branch": "main",
+            "sync_metadata": {"changed_files": ["src/app.py"]},
+            "nodes": [
+                {
+                    "node_type": "file",
+                    "name": "src/app.py",
+                    "metadata": {"path": "src/app.py", "language": "python"},
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/app.py::old_handler",
+                    "metadata": {"path": "src/app.py"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {"node_type": "file", "name": "src/app.py"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::old_handler",
+                    },
+                    "relation": "contains",
+                }
+            ],
+        },
+    )
+
+    assert initial_response.status_code == 202
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::old_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
+
+    refresh_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/refresh-target",
+            "branch": "main",
+            "sync_metadata": {"changed_files": ["src/app.py"]},
+            "nodes": [
+                {
+                    "node_type": "file",
+                    "name": "src/app.py",
+                    "metadata": {"path": "src/app.py", "language": "python"},
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/app.py::new_handler",
+                    "metadata": {"path": "src/app.py"},
+                },
+            ],
+            "edges": [
+                {
+                    "source": {"node_type": "file", "name": "src/app.py"},
+                    "target": {
+                        "node_type": "function",
+                        "name": "src/app.py::new_handler",
+                    },
+                    "relation": "contains",
+                }
+            ],
+        },
+    )
+
+    assert refresh_response.status_code == 202
+    assert refresh_response.json()["deleted_nodes"] == 2
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::old_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is None
+    )
+    assert (
+        await graph_store.get_node_by_name(
+            "function",
+            "src/app.py::new_handler",
+            repo_id=str(repository.id),
+            branch="main",
+        )
+        is not None
+    )
+
+
+@pytest.mark.asyncio
+async def test_admin_can_read_repository_graph_explorer_endpoints(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="graph-read-target",
+        repo_url="https://example.com/graph-read-target",
+        default_branch="main",
+        state_path="/workspace/graph-read-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    sync_response = admin_client.post(
+        f"/v1/admin/repositories/{repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-15",
+            "repo_path": "/workspace/graph-read-target",
+            "branch": "main",
+            "sync_metadata": {"changed_files": ["src/service.py"]},
+            "nodes": [
+                {
+                    "node_type": "service",
+                    "name": "src/service.py::BillingService",
+                    "metadata": {
+                        "path": "src/service.py",
+                        "language": "python",
+                        "last_state": "clean",
+                    },
+                },
+                {
+                    "node_type": "route",
+                    "name": "GET /billing/health",
+                    "metadata": {
+                        "path": "src/http.py",
+                        "route_path": "/billing/health",
+                        "language": "python",
+                        "last_state": "clean",
+                    },
+                },
+                {
+                    "node_type": "todo",
+                    "name": "TODO: add retry policy",
+                    "metadata": {
+                        "path": "src/service.py",
+                        "text": "add retry policy",
+                        "language": "python",
+                        "last_state": "modified",
+                    },
+                },
+                {
+                    "node_type": "external_service_api",
+                    "name": "Stripe API",
+                    "metadata": {
+                        "path": "src/service.py",
+                        "language": "python",
+                        "last_state": "modified",
+                    },
+                },
+                {
+                    "node_type": "function",
+                    "name": "src/service.py::charge_customer",
+                    "metadata": {
+                        "path": "src/service.py",
+                        "symbol": "charge_customer",
+                        "language": "python",
+                        "last_state": "modified",
+                        "last_commit_summary": "tighten charge_customer retry behavior",
+                        "history_summary": "Current state: modified. Last touch for charge_customer: add retry policy and backoff.",
+                        "recent_commits": [
+                            {
+                                "sha": "abc12345",
+                                "committed_at": "2026-04-14T08:30:00+00:00",
+                                "summary": "tighten charge_customer retry behavior",
+                            }
+                        ],
+                    },
+                },
+            ],
+            "edges": [
+                {
+                    "source": {
+                        "node_type": "service",
+                        "name": "src/service.py::BillingService",
+                    },
+                    "target": {
+                        "node_type": "external_service_api",
+                        "name": "Stripe API",
+                    },
+                    "relation": "depends_on",
+                },
+                {
+                    "source": {
+                        "node_type": "function",
+                        "name": "src/service.py::charge_customer",
+                    },
+                    "target": {
+                        "node_type": "service",
+                        "name": "src/service.py::BillingService",
+                    },
+                    "relation": "calls",
+                },
+            ],
+        },
+    )
+
+    assert sync_response.status_code == 202
+
+    summary_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-summary"
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["repository"]["id"] == str(repository.id)
+    assert summary["graph_available"] is True
+    assert summary["active_branch"] == "main"
+    assert summary["branch_state"]["branch"] == "main"
+    assert summary["node_count"] >= 5
+    assert summary["counts_by_type"]["service"] >= 1
+    assert summary["routes"][0]["name"] == "GET /billing/health"
+    assert summary["dependencies"][0]["service"] == "src/service.py::BillingService"
+
+    search_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-search?query=retry&node_type=function&language=python&last_state=modified"
+    )
+    assert search_response.status_code == 200
+    search = search_response.json()
+    assert search["count"] == 1
+    assert search["results"][0]["name"] == "src/service.py::charge_customer"
+    assert search["filters"]["languages"] == ["python"]
+    assert search["filters"]["last_states"] == ["modified"]
+
+    impact_response = admin_client.get(
+        f"/v1/admin/repositories/{repository.id}/graph-impact?target=charge_customer&depth=2&limit=10"
+    )
+    assert impact_response.status_code == 200
+    impact = impact_response.json()
+    assert impact["matches"][0]["name"] == "src/service.py::charge_customer"
+    impacted_names = {item["name"] for item in impact["impacted"]}
+    assert "src/service.py::BillingService" in impacted_names
+    assert impact["active_branch"] == "main"
+
+
+@pytest.mark.asyncio
+async def test_admin_graph_search_and_impact_include_linked_repo_results(
+    admin_client: TestClient,
+    store: RelationalStore,
+    graph_store: KnowledgeGraphStore,
+) -> None:
+    source_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="impact-source",
+        repo_url="https://example.com/impact-source",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path="/workspace/impact-source/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    target_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="impact-target",
+        repo_url="https://example.com/impact-target",
+        default_branch="main",
+        tracked_branches=["main"],
+        state_path="/workspace/impact-target/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    await store.update_repository(
+        source_repository.id,
+        relationships={
+            "cross_repo_branches": [
+                {
+                    "id": "impact-source-main-target-main",
+                    "source_repo_id": str(source_repository.id),
+                    "source_repo_name": source_repository.repo_name,
+                    "source_branch": "main",
+                    "target_repo_id": str(target_repository.id),
+                    "target_repo_name": target_repository.repo_name,
+                    "target_branch": "main",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                }
+            ]
+        },
+    )
+
+    source_function = await graph_store.upsert_node(
+        node_type="function",
+        name="src/orders.py::checkout",
+        metadata={"project": "impact-source", "path": "src/orders.py"},
+        repo_id=str(source_repository.id),
+        branch="main",
+    )
+    linked_function = await graph_store.upsert_node(
+        node_type="function",
+        name="src/payments.py::checkout_consumer",
+        metadata={"project": "impact-target", "path": "src/payments.py"},
+        repo_id=str(target_repository.id),
+        branch="main",
+    )
+    linked_route = await graph_store.upsert_node(
+        node_type="route",
+        name="POST /payments/checkout",
+        metadata={
+            "project": "impact-target",
+            "path": "src/payments.py",
+            "route_path": "/payments/checkout",
+        },
+        repo_id=str(target_repository.id),
+        branch="main",
+    )
+    await graph_store.upsert_edge(linked_function.id, linked_route.id, "exposes_route")
+    await graph_store.upsert_edge(
+        source_function.id, linked_function.id, "cross_repo_calls"
+    )
+
+    search_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-search?query=checkout&node_type=function&limit=10"
+    )
+    assert search_response.status_code == 200
+    search = search_response.json()
+    assert search["scope_count"] == 2
+    assert {scope["repo_name"] for scope in search["searched_scopes"]} == {
+        "impact-source",
+        "impact-target",
+    }
+    assert {item["repo_name"] for item in search["results"]} == {
+        "impact-source",
+        "impact-target",
+    }
+
+    impact_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-impact?target=checkout&depth=2&limit=10"
+    )
+    assert impact_response.status_code == 200
+    impact = impact_response.json()
+    assert len(impact["searched_scopes"]) == 2
+    assert impact["summary"]["scope_count"] == 2
+    linked_names = {item["name"] for item in impact["matches"]} | {
+        item["name"] for item in impact["impacted"]
+    }
+    assert "POST /payments/checkout" in linked_names
+    assert any(item["repo_name"] == "impact-target" for item in impact["matches"])
+
+
+@pytest.mark.asyncio
+async def test_admin_can_manage_repository_branch_links_and_landscape(
+    admin_client: TestClient,
+    store: RelationalStore,
+) -> None:
+    source_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="repo-a",
+        repo_url="git@github.com:example/repo-a.git",
+        default_branch="main",
+        tracked_branches=["feature/a1"],
+        state_path="/workspace/repo-a/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+    target_repository = await store.create_repository(
+        id=uuid.uuid4(),
+        repo_name="repo-b",
+        repo_url="git@github.com:example/repo-b.git",
+        default_branch="develop",
+        tracked_branches=["feature/b1"],
+        state_path="/workspace/repo-b/.minder",
+        context_snapshot={},
+        relationships={},
+    )
+
+    upsert_response = admin_client.post(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links",
+        json={
+            "source_branch": "feature/a1",
+            "target_repo_id": str(target_repository.id),
+            "target_branch": "feature/b1",
+            "relation": "depends_on",
+            "direction": "outbound",
+            "confidence": 0.9,
+            "metadata": {"reason": "shared contract"},
+        },
+    )
+
+    assert upsert_response.status_code == 201
+    links_payload = upsert_response.json()
+    assert links_payload["repo_id"] == str(source_repository.id)
+    assert len(links_payload["links"]) == 1
+    link = links_payload["links"][0]
+    assert link["source_branch"] == "feature/a1"
+    assert link["target_repo_id"] == str(target_repository.id)
+    assert link["target_branch"] == "feature/b1"
+    assert link["metadata"]["reason"] == "shared contract"
+
+    graph_sync_response = admin_client.post(
+        f"/v1/admin/repositories/{source_repository.id}/graph-sync",
+        json={
+            "payload_version": "2026-04-16",
+            "repo_path": "/workspace/repo-a",
+            "branch": "feature/a1",
+            "nodes": [],
+            "edges": [],
+            "branch_relationships": [
+                {
+                    "source_branch": "feature/a1",
+                    "target_repo_id": str(target_repository.id),
+                    "target_repo_name": "repo-b",
+                    "target_branch": "feature/b1",
+                    "relation": "depends_on",
+                    "direction": "outbound",
+                    "confidence": 1.0,
+                    "metadata": {"discovered_by": "sync"},
+                }
+            ],
+        },
+    )
+    assert graph_sync_response.status_code == 202
+
+    branch_links_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links?branch=feature/a1"
+    )
+    assert branch_links_response.status_code == 200
+    branch_links = branch_links_response.json()
+    assert len(branch_links["links"]) == 1
+    assert branch_links["links"][0]["target_repo_name"] == "repo-b"
+
+    summary_response = admin_client.get(
+        f"/v1/admin/repositories/{source_repository.id}/graph-summary?branch=feature/a1"
+    )
+    assert summary_response.status_code == 200
+    summary = summary_response.json()
+    assert summary["active_branch"] == "feature/a1"
+    assert summary["branch_state"]["branch"] == "feature/a1"
+    assert len(summary["branch_links"]) == 1
+
+    landscape_response = admin_client.get("/v1/admin/repositories/landscape")
+    assert landscape_response.status_code == 200
+    landscape = landscape_response.json()
+    assert landscape["summary"]["repo_count"] >= 2
+    assert landscape["summary"]["branch_count"] >= 4
+    assert landscape["summary"]["link_count"] >= 1
+    edge = landscape["edges"][0]
+    assert edge["relation"] == "depends_on"
+    source_node = next(
+        node
+        for node in landscape["nodes"]
+        if node["repo_id"] == str(source_repository.id)
+        and node["branch"] == "feature/a1"
+    )
+    target_node = next(
+        node
+        for node in landscape["nodes"]
+        if node["repo_id"] == str(target_repository.id)
+        and node["branch"] == "feature/b1"
+    )
+    assert edge["source_id"] == source_node["id"]
+    assert edge["target_id"] == target_node["id"]
+
+    delete_response = admin_client.delete(
+        f"/v1/admin/repositories/{source_repository.id}/branch-links/{link['id']}?branch=feature/a1"
+    )
+    assert delete_response.status_code == 200
+    assert delete_response.json()["links"] == []

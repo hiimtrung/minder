@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Generator
 from typing import Any
 
 from minder.graph.state import GraphState
@@ -39,6 +40,15 @@ class OpenAIFallbackLLM:
             "runtime": self.runtime,
             "stream": [text],
         }
+
+    def stream_generate(
+        self, state: GraphState
+    ) -> Generator[dict[str, object], None, None]:
+        result = self.generate(state)
+        text = str(result.get("text", ""))
+        if text:
+            yield {"type": "chunk", "delta": text}
+        yield {"type": "result", "result": result}
 
     def _generate_with_litellm(self, state: GraphState, *, fallback: str) -> str:
         completion = self._litellm_completion()

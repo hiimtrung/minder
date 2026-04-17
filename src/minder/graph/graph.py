@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from time import perf_counter
 
 from minder.config import MinderConfig
-from minder.embedding.qwen import QwenEmbeddingProvider
-from minder.graph.executor import GraphNodes, InternalGraphExecutor, LangGraphExecutorAdapter
+from minder.embedding.local import LocalEmbeddingProvider
+from minder.graph.edges import determine_next_edge
+from minder.graph.executor import (
+    GraphNodes,
+    InternalGraphExecutor,
+    LangGraphExecutorAdapter,
+)
 from minder.graph.nodes import (
     EvaluatorNode,
     GuardNode,
@@ -17,9 +23,13 @@ from minder.graph.nodes import (
     WorkflowPlannerNode,
 )
 from minder.graph.state import GraphState
+from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
-from minder.llm.qwen import QwenLocalLLM
-from minder.store.interfaces import IOperationalStore, IErrorRepository, IHistoryRepository
+from minder.store.interfaces import (
+    IOperationalStore,
+    IErrorRepository,
+    IHistoryRepository,
+)
 
 
 class MinderGraph:
@@ -41,12 +51,13 @@ class MinderGraph:
         error_store: IErrorRepository | None = None,
     ) -> None:
         from minder.store.vector import VectorStore
+
         self._store = store
         self._config = config
         self._workflow_planner = workflow_planner or WorkflowPlannerNode(store)
         self._planning = planning or PlanningNode()
         vector_store = VectorStore(store, store)
-        embedder = QwenEmbeddingProvider(
+        embedder = LocalEmbeddingProvider(
             config.embedding.model_path,
             dimensions=config.embedding.dimensions,
             runtime="auto",
@@ -60,7 +71,11 @@ class MinderGraph:
         self._reranker = reranker  # None by default; pass RerankerNode(...) to activate
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
-            primary=QwenLocalLLM(config.llm.model_path, runtime="auto"),
+            primary=LocalModelLLM(
+                config.llm.model_path,
+                runtime="auto",
+                context_length=config.llm.context_length,
+            ),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key,
                 config.llm.openai_model,
@@ -96,6 +111,76 @@ class MinderGraph:
         await self._advance_workflow_if_needed(state)
         return state
 
+    async def stream(
+        self, state: GraphState
+    ) -> AsyncGenerator[dict[str, object], None]:
+        max_attempts = int(state.metadata.get("max_attempts", 1))
+        state.metadata.setdefault("attempt_failures", [])
+        state.metadata["orchestration_runtime"] = "internal"
+        state = await self._nodes.workflow_planner.run(state)
+        state = self._nodes.planning.run(state)
+        state = await self._nodes.retriever.run(state)
+        if self._nodes.reranker is not None:
+            state = await self._nodes.reranker.run(state)
+
+        attempt = 0
+        while True:
+            attempt += 1
+            state.retry_count = attempt - 1
+            state = self._nodes.reasoning.run(state)
+            yield {"type": "attempt", "attempt": attempt}
+            for event in self._nodes.llm.stream(state):
+                if str(event.get("type")) == "result":
+                    continue
+                yield {**event, "attempt": attempt}
+            state = self._nodes.guard.run(state)
+            state = self._nodes.verification.run(state)
+            edge = determine_next_edge(state)
+            state.transition_log.append(
+                {
+                    "attempt": attempt,
+                    "edge": edge,
+                    "provider": state.llm_output.get("provider"),
+                    "fallback_used": state.metadata.get("fallback_used", False),
+                }
+            )
+            if (
+                edge not in {"verification_failed", "guard_failed"}
+                or attempt >= max_attempts
+            ):
+                break
+            retry_reason = (
+                "; ".join(
+                    str(reason)
+                    for reason in state.guard_result.get("reasons", [])
+                    if reason
+                )
+                if edge == "guard_failed"
+                else state.verification_result.get("stderr", "verification failed")
+            )
+            state.metadata["attempt_failures"].append(
+                {
+                    "attempt": attempt,
+                    "reason": retry_reason,
+                    "provider": state.llm_output.get("provider"),
+                    "edge": edge,
+                }
+            )
+            state.metadata["retry_reason"] = retry_reason
+            yield {
+                "type": "retry",
+                "attempt": attempt,
+                "reason": retry_reason,
+                "edge": edge,
+            }
+
+        state = self._nodes.evaluator.run(state)
+        state.metadata["edge"] = determine_next_edge(state)
+        await self._persist_history(state)
+        await self._persist_error_if_needed(state)
+        await self._advance_workflow_if_needed(state)
+        yield {"type": "final", "state": state}
+
     def _select_executor(self) -> InternalGraphExecutor | LangGraphExecutorAdapter:
         if self._config.workflow.orchestration_runtime == "langgraph":
             return LangGraphExecutorAdapter(self._nodes)
@@ -130,7 +215,9 @@ class MinderGraph:
     async def _persist_error_if_needed(self, state: GraphState) -> None:
         reasons = list(state.guard_result.get("reasons", []))
         if state.verification_result.get("passed") is False:
-            reasons.append(str(state.verification_result.get("stderr", "verification failed")))
+            reasons.append(
+                str(state.verification_result.get("stderr", "verification failed"))
+            )
         for attempt_failure in state.metadata.get("attempt_failures", []):
             reasons.append(str(attempt_failure.get("reason", "attempt failed")))
         if not reasons:

@@ -6,11 +6,12 @@ on:
       - "v*"
 
 jobs:
-  release:
+  build-dist:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
-      packages: write
+      contents: read
+    outputs:
+      release_tag: ${{ steps.release_meta.outputs.release_tag }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -24,13 +25,53 @@ jobs:
         uses: astral-sh/setup-uv@v6
 
       - name: Sync dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra server
 
       - name: Run quality gates
         run: |
           uv run ruff check .
           uv run mypy src
           uv run pytest
+
+      - name: Build Python distributions
+        run: uv build
+
+      - name: Validate Python distributions
+        run: uv run twine check dist/*
+
+      - name: Compute release metadata
+        id: release_meta
+        run: echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Python distribution artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: dist/*
+
+  release:
+    needs: build-dist
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      contents: write
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Python distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+
+      - name: Publish Python distributions to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          skip-existing: true
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -48,6 +89,8 @@ jobs:
           context: .
           file: docker/Dockerfile.api
           platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=minder-api
+          cache-to: type=gha,mode=max,scope=minder-api
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/minder-api:${{ github.ref_name }}
 
@@ -57,6 +100,8 @@ jobs:
           context: .
           file: docker/Dockerfile.dashboard
           platforms: linux/amd64,linux/arm64
+          cache-from: type=gha,scope=minder-dashboard
+          cache-to: type=gha,mode=max,scope=minder-dashboard
           push: true
           tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}
 
@@ -68,26 +113,40 @@ jobs:
           sed \
             -e 's|__REPO_OWNER__|${{ github.repository_owner }}|g' \
             -e 's|__REPO_NAME__|${{ github.event.repository.name }}|g' \
-            -e 's|__RELEASE_TAG__|${{ github.ref_name }}|g' \
-            scripts/release/install-minder-release.sh > dist/release/install-minder-${{ github.ref_name }}.sh
-          chmod +x dist/release/install-minder-${{ github.ref_name }}.sh
+            -e 's|__RELEASE_TAG__|${{ needs.build-dist.outputs.release_tag }}|g' \
+            scripts/release/install-minder-release.sh > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
+          chmod +x dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
 
           cat > dist/release/release-notes.md <<EOF
           ## Quick Start
 
+          Install or upgrade the CLI from PyPI:
+
+          ```bash
+          uv tool install --upgrade minder
+          # or: pipx install minder
+          ```
+
+          Bootstrap the current repository for local IDE usage:
+
+          ```bash
+          minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+          minder install-ide --target vscode --target claude-code
+          ```
+
           One command install from this release:
 
           ```bash
-          curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/install-minder-${{ github.ref_name }}.sh | bash
+          curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh | bash
           ```
 
           This installer will:
 
-          - create a self-contained deployment directory under \`~/.minder/releases/${{ github.ref_name }}\`
+          - create a self-contained deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
           - fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
           - write a local \`.env\` with the release image tags
-          - pull \`ghcr.io/${{ github.repository_owner }}/minder-api:${{ github.ref_name }}\`
-          - pull \`ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}\`
+          - pull \`ghcr.io/${{ github.repository_owner }}/minder-api:${{ needs.build-dist.outputs.release_tag }}\`
+          - pull \`ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
           - start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
 
           Requirements:
@@ -97,8 +156,8 @@ jobs:
 
           Manual compose usage is still available with:
 
-          - \`MINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:${{ github.ref_name }}\`
-          - \`MINDER_DASHBOARD_IMAGE=ghcr.io/hiimtrung/minder-dashboard:${{ github.ref_name }}\`
+          - \`MINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:${{ needs.build-dist.outputs.release_tag }}\`
+          - \`MINDER_DASHBOARD_IMAGE=ghcr.io/hiimtrung/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
           - \`MINDER_MODELS_DIR=~/.minder/models\`
           - \`docker compose -f docker/docker-compose.yml up -d\`
           EOF
@@ -109,7 +168,9 @@ jobs:
           body_path: dist/release/release-notes.md
           append_body: true
           files: |
+            dist/*.whl
+            dist/*.tar.gz
             dist/release/docker-compose.yml
             dist/release/Caddyfile
-            dist/release/install-minder-${{ github.ref_name }}.sh
+            dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
           generate_release_notes: true

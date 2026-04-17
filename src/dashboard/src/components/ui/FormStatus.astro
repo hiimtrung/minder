@@ -1,0 +1,24 @@
+---
+/**
+ * FormStatus — inline form status line with consistent min-height.
+ * Scripts update `textContent` to show success/error messages.
+ */
+interface Props {
+  id: string;
+  tone?: "neutral" | "success" | "warning" | "danger";
+  class?: string;
+}
+
+const { id, tone = "neutral", class: className = "" } = Astro.props;
+
+const toneClass =
+  tone === "success"
+    ? "u-status-success"
+    : tone === "warning"
+      ? "u-status-warning"
+      : tone === "danger"
+        ? "u-status-danger"
+        : "";
+---
+
+<p id={id} class={`u-status ${toneClass} ${className}`}></p>

@@ -1,40 +1,36 @@
 {
-  "task": "prioritize sse onboarding snippets with optional stdio tabs and richer dashboard copy UX",
+  "task": "prompt management crud",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-10T09:31:52.600055+07:00",
-  "keep": [],
-  "add": [
-    "dx-optimizer",
-    "bash-pro",
-    "shadcn"
+  "resolved_at": "2026-04-17T09:26:08.03711+07:00",
+  "keep": [
+    "cqrs-implementation",
+    "python-fastapi-development",
+    "context-manager"
   ],
-  "drop": [
-    "copilot-sdk",
-    "skill-creator",
-    "wiki-onboarding"
-  ],
+  "add": [],
+  "drop": null,
   "skills": [
     {
-      "name": "dx-optimizer",
+      "name": "cqrs-implementation",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 2,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "chunk_count": 1,
+      "reason": "kept active: still relevant after re-resolve"
     },
     {
-      "name": "bash-pro",
-      "category": "general",
+      "name": "python-fastapi-development",
+      "category": "granular-workflow-bundle",
+      "score": 0.016393442,
+      "chunk_count": 1,
+      "reason": "kept active: still relevant after re-resolve"
+    },
+    {
+      "name": "context-manager",
+      "category": "backend",
       "score": 0.016129032,
       "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "shadcn",
-      "category": "frontend",
-      "score": 0.015873017,
-      "chunk_count": 2,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "reason": "kept active: still relevant after re-resolve"
     }
   ]
 }

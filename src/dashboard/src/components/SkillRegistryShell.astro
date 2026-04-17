@@ -1,0 +1,225 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Select from "./ui/Select.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import GuideAside from "./ui/GuideAside.astro";
+---
+
+<DashboardLayout
+  title="Skills · Minder"
+  description="Ingest, curate, and manage reusable workflow-aware skills for the Minder runtime."
+  navTitle="Minder Dashboard"
+  navDescription="Create, ingest, and maintain workflow-aware skills that can be recalled by the continuity layer at runtime."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Skill Registry"
+    title="Ingest and manage skills."
+    description="Capture reusable workflow knowledge with step tags, artifact tags, provenance, and quality signals so the runtime can recall better context."
+  />
+
+  <section class="u-grid-sidebar">
+    <div class="grid gap-5">
+      <aside class="shell-card p-6">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="eyebrow">Editor</p>
+            <h2
+              class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+            >
+              Skill draft
+            </h2>
+          </div>
+          <Button id="skill-reset-button" size="sm" variant="ghost">
+            New draft
+          </Button>
+        </div>
+
+        <form id="skill-form" class="mt-5 grid gap-4">
+          <input id="skill-id" type="hidden" />
+          <Field label="Title" htmlFor="skill-title">
+            <Input id="skill-title" placeholder="Test plan drafting pattern" />
+          </Field>
+          <Field label="Language" htmlFor="skill-language">
+            <Input
+              id="skill-language"
+              placeholder="markdown"
+              value="markdown"
+            />
+          </Field>
+          <Field label="Tags" htmlFor="skill-tags">
+            <Input id="skill-tags" placeholder="tdd, regression, continuity" />
+          </Field>
+          <Field label="Workflow steps" htmlFor="skill-workflow-steps">
+            <Input
+              id="skill-workflow-steps"
+              placeholder="Test Writing, Implementation"
+            />
+          </Field>
+          <Field label="Artifact types" htmlFor="skill-artifact-types">
+            <Input
+              id="skill-artifact-types"
+              placeholder="test_plan, implementation_notes"
+            />
+          </Field>
+
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Provenance" htmlFor="skill-provenance">
+              <Input id="skill-provenance" placeholder="dashboard_manual" />
+            </Field>
+            <Field label="Excerpt kind" htmlFor="skill-excerpt-kind">
+              <Select id="skill-excerpt-kind">
+                <option value="none">none</option>
+                <option value="reusable_excerpt">reusable_excerpt</option>
+              </Select>
+            </Field>
+          </div>
+
+          <Field label="Quality score" htmlFor="skill-quality-score">
+            <Input
+              id="skill-quality-score"
+              type="number"
+              min={0}
+              max={1}
+              step={0.1}
+              value={0.7}
+            />
+          </Field>
+
+          <div
+            id="skill-source-summary"
+            class="hidden rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+          >
+          </div>
+
+          <Field
+            label="Skill content"
+            htmlFor="skill-content"
+            hint="Saving this form ingests the skill into the continuity store."
+          >
+            <Textarea
+              id="skill-content"
+              variant="large"
+              placeholder="Describe the reusable workflow pattern, expected artifacts, and common pitfalls."
+            />
+          </Field>
+
+          <div class="flex flex-wrap gap-3">
+            <Button
+              type="submit"
+              variant="primary"
+              class="flex-1 min-w-[180px]"
+            >
+              Save and ingest skill
+            </Button>
+          </div>
+          <FormStatus id="skill-editor-status" />
+        </form>
+      </aside>
+
+      <aside class="shell-card p-6">
+        <p class="eyebrow">Import</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Import skill pack from Git
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Pull supported markdown, text, or JSON skill documents from GitHub,
+          GitLab, or a generic Git source and upsert them into the registry.
+        </p>
+
+        <form id="skill-import-form" class="mt-5 grid gap-4">
+          <Field label="Repository URL" htmlFor="skill-import-repo-url">
+            <Input
+              id="skill-import-repo-url"
+              type="url"
+              placeholder="https://github.com/org/skills.git"
+            />
+          </Field>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Path" htmlFor="skill-import-path">
+              <Input id="skill-import-path" value="skills" />
+            </Field>
+            <Field
+              label="Ref"
+              htmlFor="skill-import-ref"
+              hint="Optional branch or tag"
+            >
+              <Input id="skill-import-ref" placeholder="main" />
+            </Field>
+          </div>
+          <div class="grid gap-4 sm:grid-cols-2">
+            <Field label="Provider" htmlFor="skill-import-provider">
+              <Select id="skill-import-provider">
+                <option value="">Auto detect</option>
+                <option value="github">github</option>
+                <option value="gitlab">gitlab</option>
+                <option value="generic_git">generic_git</option>
+              </Select>
+            </Field>
+            <Field label="Excerpt kind" htmlFor="skill-import-excerpt-kind">
+              <Select id="skill-import-excerpt-kind">
+                <option value="none">none</option>
+                <option value="reusable_excerpt">reusable_excerpt</option>
+              </Select>
+            </Field>
+          </div>
+
+          <Button type="submit" variant="primary" fullWidth>
+            Import skill pack
+          </Button>
+          <FormStatus id="skill-import-status" />
+        </form>
+      </aside>
+    </div>
+
+    <div class="grid gap-5">
+      <Toolbar
+        idPrefix="skill"
+        title="Registry"
+        description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
+        searchPlaceholder="Semantic quick search skills"
+      >
+        <Button slot="leading" id="skill-refresh-button" size="sm">
+          Refresh list
+        </Button>
+      </Toolbar>
+
+      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="skill-registry" class="grid gap-4">
+          <article class="u-placeholder-card">Loading skills...</article>
+        </div>
+
+        <GuideAside eyebrow="Ingest Guide" title="What makes a good skill">
+          <p>
+            Write a single reusable pattern per skill. Keep it operational and
+            specific to a workflow step or artifact outcome.
+          </p>
+          <p>
+            Use workflow steps to guide recall ranking, artifact types to bind
+            the skill to expected outputs, and provenance to show where it came
+            from.
+          </p>
+          <p>
+            Quality score is a soft confidence signal. Higher values push the
+            skill up when semantic similarity is close.
+          </p>
+          <p>
+            Imported skill packs upsert by source metadata so rerunning an
+            import updates the same skill set instead of multiplying duplicates.
+          </p>
+        </GuideAside>
+      </section>
+    </div>
+  </section>
+
+  <script src="../scripts/skills-page.ts"></script>
+</DashboardLayout>

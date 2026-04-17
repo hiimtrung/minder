@@ -1,0 +1,53 @@
+---
+/**
+ * DetailHeader — used on detail pages (client detail, workflow detail, etc.)
+ * Breadcrumb + eyebrow + display title + description + back actions.
+ */
+import Breadcrumb from "./Breadcrumb.astro";
+
+interface BreadcrumbItem {
+  href?: string;
+  label: string;
+}
+
+interface Props {
+  breadcrumb: BreadcrumbItem[];
+  eyebrow?: string;
+  title: string;
+  titleId?: string;
+  description?: string;
+  class?: string;
+}
+
+const {
+  breadcrumb,
+  eyebrow,
+  title,
+  titleId,
+  description,
+  class: className = "",
+} = Astro.props;
+---
+
+<section class={`u-detail-hero ${className}`}>
+  <Breadcrumb items={breadcrumb} />
+
+  <div class="flex flex-wrap items-end justify-between gap-4">
+    <div class="min-w-0 flex-1 space-y-2">
+      {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+      <h1 id={titleId} class="u-detail-hero-title">{title}</h1>
+      {
+        description && (
+          <p class="max-w-3xl text-sm leading-7 text-stone-600">{description}</p>
+        )
+      }
+    </div>
+    {
+      Astro.slots.has("actions") && (
+        <div class="flex flex-wrap items-center gap-2">
+          <slot name="actions" />
+        </div>
+      )
+    }
+  </div>
+</section>

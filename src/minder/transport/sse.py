@@ -19,7 +19,12 @@ from minder.auth.context import set_current_principal
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.presentation.http.admin.routes import dashboard_dev_origin
-from minder.store.interfaces import ICacheProvider
+from minder.observability.logging import (
+    AccessLogMiddleware,
+    CorrelationIdMiddleware,
+    GlobalExceptionMiddleware,
+)
+from minder.store.interfaces import ICacheProvider, IOperationalStore
 from minder.transport.base import BaseTransport
 
 logger = logging.getLogger(__name__)
@@ -54,7 +59,9 @@ class MCPCompatApp:
             return
 
         if path == "/sse" and method in {"POST", "DELETE", "OPTIONS"}:
-            await self._streamable_http_app(self._rewrite_path(scope, "/mcp"), receive, send)
+            await self._streamable_http_app(
+                self._rewrite_path(scope, "/mcp"), receive, send
+            )
             return
 
         await self._streamable_http_app(scope, receive, send)
@@ -72,13 +79,15 @@ class SSEAuthMiddleware:
         headers = dict(scope.get("headers", []))
         auth_header = headers.get(b"authorization")
         client_key_header = headers.get(b"x-minder-client-key")
-        
-        # If we have an auth header and it's a POST, 
+
+        # If we have an auth header and it's a POST,
         # we'll intercept the body to inject the authorization token as a hidden param.
         if (auth_header or client_key_header) and scope["method"] == "POST":
             auth_token = auth_header.decode("utf-8") if auth_header else None
-            client_key = client_key_header.decode("utf-8") if client_key_header else None
-             
+            client_key = (
+                client_key_header.decode("utf-8") if client_key_header else None
+            )
+
             async def wrapped_receive() -> Any:
                 message = await receive()
                 if message["type"] == "http.request":
@@ -87,7 +96,10 @@ class SSEAuthMiddleware:
                         try:
                             # Attempt to inject _authorization into the JSON-RPC arguments
                             data = json.loads(body)
-                            if isinstance(data, dict) and data.get("method") == "tools/call":
+                            if (
+                                isinstance(data, dict)
+                                and data.get("method") == "tools/call"
+                            ):
                                 params = data.setdefault("params", {})
                                 args = params.setdefault("arguments", {})
                                 # Only inject if not already present
@@ -98,13 +110,15 @@ class SSEAuthMiddleware:
                                 new_body = json.dumps(data).encode("utf-8")
                                 message["body"] = new_body
                         except Exception:
-                            pass # Fallback to original body if parsing fails
+                            pass  # Fallback to original body if parsing fails
                 return message
-             
+
             # Also set the context var just in case it can propagate
             try:
                 if client_key:
-                    principal = await self.auth_service.get_principal_from_client_key(client_key)
+                    principal = await self.auth_service.get_principal_from_client_key(
+                        client_key
+                    )
                 else:
                     assert auth_token is not None
                     token = auth_token.strip()
@@ -127,14 +141,23 @@ class SSETransport(BaseTransport):
         self,
         *,
         config: MinderConfig,
+        store: IOperationalStore | None = None,
         auth_service: AuthService | None = None,
         extra_routes: list[BaseRoute] | None = None,
-        cache_provider: ICacheProvider | None = None,
+        cache_provider: ICacheProvider,
     ) -> None:
-        super().__init__(config=config, auth_service=auth_service, cache_provider=cache_provider)
+        super().__init__(
+            config=config,
+            auth_service=auth_service,
+            cache_provider=cache_provider,
+            store=store,
+        )
         self._extra_routes = list(extra_routes or [])
         self._legacy_sse_app: Starlette | None = None
         self._streamable_http_app: Starlette | None = None
+
+    def extend_routes(self, routes: list[BaseRoute]) -> None:
+        self._extra_routes.extend(routes)
 
     @staticmethod
     async def _oauth_protected_resource_metadata(request: Request) -> JSONResponse:
@@ -156,7 +179,9 @@ class SSETransport(BaseTransport):
                 )
             if self._streamable_http_app is not None:
                 await stack.enter_async_context(
-                    self._streamable_http_app.router.lifespan_context(self._streamable_http_app)
+                    self._streamable_http_app.router.lifespan_context(
+                        self._streamable_http_app
+                    )
                 )
             yield
 
@@ -171,6 +196,8 @@ class SSETransport(BaseTransport):
         )
 
         app = Starlette(debug=True, lifespan=self._app_lifespan)
+        app.state.store = self._store
+        app.state.config = self._config
         dev_origin = dashboard_dev_origin(self._config)
         if dev_origin:
             app.add_middleware(
@@ -180,6 +207,12 @@ class SSETransport(BaseTransport):
                 allow_methods=["*"],
                 allow_headers=["*"],
             )
+
+        # Observability middleware
+        app.add_middleware(GlobalExceptionMiddleware)
+        app.add_middleware(CorrelationIdMiddleware)
+        app.add_middleware(AccessLogMiddleware)
+
         if self._middleware and self._middleware._auth:
             app.add_middleware(SSEAuthMiddleware, auth_service=self._middleware._auth)
 
@@ -210,10 +243,10 @@ class SSETransport(BaseTransport):
         app = self.build_starlette_app()
 
         config = uvicorn.Config(
-            app, 
-            host=self._config.server.host, 
+            app,
+            host=self._config.server.host,
             port=self._config.server.port,
-            log_level="info"
+            log_level="info",
         )
         server = uvicorn.Server(config)
         await server.serve()

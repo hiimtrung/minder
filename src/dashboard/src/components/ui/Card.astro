@@ -1,0 +1,32 @@
+---
+/**
+ * Card — uses the legacy `shell-card` class so scripts-injected markup
+ * keeps rendering identically. Prefer this component in templates.
+ */
+interface Props {
+  as?: "section" | "article" | "aside" | "div";
+  padding?: "none" | "sm" | "md" | "lg";
+  class?: string;
+  id?: string;
+}
+
+const {
+  as: Tag = "section",
+  padding = "md",
+  class: className = "",
+  id,
+} = Astro.props;
+
+const padClass =
+  padding === "none"
+    ? ""
+    : padding === "sm"
+      ? "p-4"
+      : padding === "lg"
+        ? "p-7"
+        : "p-6";
+---
+
+<Tag id={id} class={`shell-card ${padClass} ${className}`}>
+  <slot />
+</Tag>

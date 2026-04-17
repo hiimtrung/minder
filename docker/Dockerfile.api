@@ -1,20 +1,39 @@
-FROM python:3.14-slim
+FROM python:3.14-slim AS api-builder
 
 ENV UV_LINK_MODE=copy
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential cmake curl ca-certificates \
+    && apt-get install -y --no-install-recommends build-essential cmake ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir uv
 
 COPY pyproject.toml uv.lock README.md minder.toml /app/
-RUN uv sync --frozen
+RUN uv sync --frozen --extra server --no-dev --no-install-project
 
+FROM python:3.14-slim
+
+ENV UV_LINK_MODE=copy
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/src
+ENV PATH=/app/.venv/bin:$PATH
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir uv
+
+COPY --from=api-builder /app/.venv /app/.venv
+COPY pyproject.toml uv.lock README.md minder.toml /app/
 COPY src /app/src
 COPY scripts /app/scripts
 

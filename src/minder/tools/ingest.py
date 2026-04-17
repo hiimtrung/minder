@@ -32,21 +32,50 @@ class IngestTools:
 
     async def minder_ingest_file(self, path: str, *, project: str | None = None) -> dict[str, object]:
         file_path = Path(path)
-        content = file_path.read_text(encoding="utf-8")
         doc_type = self._doc_type_for_suffix(file_path.suffix)
         target_project = project or file_path.parent.name
+        file_stat = file_path.stat()
+        existing = await self._document_store.get_document_by_path(
+            str(file_path),
+            project=target_project,
+        )
+        vector_enabled = bool(self._vector_store and hasattr(self._vector_store, "upsert_document"))
+
+        if existing is not None and self._is_current_file_document(
+            existing,
+            title=file_path.name,
+            doc_type=doc_type,
+            project=target_project,
+            file_size=file_stat.st_size,
+            mtime_ns=file_stat.st_mtime_ns,
+            vector_enabled=vector_enabled,
+        ):
+            return {
+                "document_id": existing.id,
+                "path": str(file_path),
+                "project": target_project,
+                "doc_type": doc_type,
+            }
+
+        content = file_path.read_text(encoding="utf-8")
         embedding = self._embedding_provider.embed(content)
+        chunks = {
+            "size": len(content),
+            "file_size": file_stat.st_size,
+            "mtime_ns": file_stat.st_mtime_ns,
+            "vector_indexed": not vector_enabled,
+        }
         document = await self._document_store.upsert_document(
             title=file_path.name,
             content=content,
             doc_type=doc_type,
             source_path=str(file_path),
             project=target_project,
-            chunks={"size": len(content)},
+            chunks=chunks,
             embedding=embedding,
         )
         
-        if self._vector_store and hasattr(self._vector_store, "upsert_document") and embedding:
+        if self._vector_store and vector_enabled and embedding:
             await self._vector_store.upsert_document(
                 doc_id=document.id,
                 embedding=embedding,
@@ -57,6 +86,16 @@ class IngestTools:
                     "source_path": str(file_path),
                     "project": target_project,
                 }
+            )
+            chunks["vector_indexed"] = True
+            document = await self._document_store.upsert_document(
+                title=file_path.name,
+                content=content,
+                doc_type=doc_type,
+                source_path=str(file_path),
+                project=target_project,
+                chunks=chunks,
+                embedding=embedding,
             )
             
         return {
@@ -284,3 +323,31 @@ class IngestTools:
         if suffix in {".json", ".toml", ".yml", ".yaml"}:
             return "config"
         return "markdown"
+
+    @staticmethod
+    def _is_current_file_document(
+        document: Any,
+        *,
+        title: str,
+        doc_type: str,
+        project: str,
+        file_size: int,
+        mtime_ns: int,
+        vector_enabled: bool,
+    ) -> bool:
+        chunks = getattr(document, "chunks", {})
+        if not isinstance(chunks, dict):
+            return False
+        if getattr(document, "title", None) != title:
+            return False
+        if getattr(document, "doc_type", None) != doc_type:
+            return False
+        if getattr(document, "project", None) != project:
+            return False
+        if chunks.get("file_size") != file_size:
+            return False
+        if chunks.get("mtime_ns") != mtime_ns:
+            return False
+        if vector_enabled and chunks.get("vector_indexed") is not True:
+            return False
+        return True

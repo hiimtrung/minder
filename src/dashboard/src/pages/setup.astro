@@ -1,5 +1,12 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import Card from "../components/ui/Card.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import Field from "../components/ui/Field.astro";
+import Input from "../components/ui/Input.astro";
+import Button from "../components/ui/Button.astro";
+import FormStatus from "../components/ui/FormStatus.astro";
+import ResultCallout from "../components/ui/ResultCallout.astro";
 ---
 
 <DashboardLayout
@@ -10,44 +17,87 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   navLinks={[
     { href: "/dashboard/login", label: "Admin Login", tone: "secondary" },
   ]}
+  showPageIntro={false}
 >
-  <section class="grid gap-8 lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
-    <div class="shell-card p-8">
-      <p class="eyebrow">First-Run Setup</p>
-      <h1 class="mt-3 text-4xl font-semibold tracking-tight text-stone-950">Create the first Minder admin</h1>
-      <p class="mt-4 text-base leading-7 text-stone-700">
-        This is the browser-first bootstrap flow for a fresh Minder deployment. It creates the
-        first admin and reveals the bootstrap API key exactly once.
-      </p>
+  <section class="u-split-hero lg:grid-cols-[0.95fr_1.05fr] lg:items-start">
+    <Card padding="lg" class="u-page-shell">
+      <PageHero
+        eyebrow="First-Run Setup"
+        title="Create the first Minder admin"
+        description="This is the browser-first bootstrap flow for a fresh Minder deployment. It creates the first admin and reveals the bootstrap API key exactly once."
+        class="mb-0"
+      />
       <ul class="mt-6 space-y-3 text-sm leading-6 text-stone-700">
         <li>Creates the first admin only when no admin exists yet.</li>
+        <li>
+          Set a password here so you can sign in with
+          <strong>username&nbsp;+ password</strong> going forward.
+        </li>
         <li>Reveals the bootstrap API key exactly once after creation.</li>
-        <li>Redirects future visits back to the login flow once setup is complete.</li>
+        <li>
+          Redirects future visits back to the login flow once setup is complete.
+        </li>
       </ul>
-    </div>
+    </Card>
 
-    <div class="shell-card p-8">
+    <Card as="section" padding="lg">
       <form id="setup-form" class="grid gap-5">
-        <label class="block">
-          <span class="mb-2 block text-sm font-medium text-stone-800">Username</span>
-          <input id="setup-username" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="admin" />
-        </label>
-        <label class="block">
-          <span class="mb-2 block text-sm font-medium text-stone-800">Email</span>
-          <input id="setup-email" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="admin@example.com" />
-        </label>
-        <label class="block">
-          <span class="mb-2 block text-sm font-medium text-stone-800">Display name</span>
-          <input id="setup-display-name" class="w-full rounded-2xl border border-stone-300 bg-white px-4 py-3" placeholder="Platform Admin" />
-        </label>
-        <p id="setup-status" class="min-h-6 text-sm text-stone-600"></p>
-        <button type="submit" class="primary-pill w-full">Create initial admin</button>
+        <Field label="Username" htmlFor="setup-username">
+          <Input id="setup-username" placeholder="admin" />
+        </Field>
+        <Field label="Email" htmlFor="setup-email">
+          <Input
+            id="setup-email"
+            type="email"
+            placeholder="admin@example.com"
+          />
+        </Field>
+        <Field label="Display name" htmlFor="setup-display-name">
+          <Input id="setup-display-name" placeholder="Platform Admin" />
+        </Field>
+        <Field label="Password" htmlFor="setup-password">
+          <Input
+            id="setup-password"
+            type="password"
+            placeholder="Min. 8 characters"
+          />
+        </Field>
+        <Field label="Confirm password" htmlFor="setup-password-confirm">
+          <Input
+            id="setup-password-confirm"
+            type="password"
+            placeholder="Repeat password"
+          />
+        </Field>
+        <FormStatus id="setup-status" />
+        <Button type="submit" variant="primary" fullWidth>
+          Create initial admin
+        </Button>
       </form>
-      <div id="setup-result" class="mt-6 hidden rounded-3xl border border-amber-200 bg-amber-50 p-4">
-        <p class="eyebrow">Bootstrap API Key</p>
-        <code id="setup-api-key" class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"></code>
-      </div>
-    </div>
+      <ResultCallout
+        id="setup-result"
+        tone="amber"
+        eyebrow="Bootstrap API Key"
+        class="mt-6"
+      >
+        <p class="mt-2 text-sm text-stone-600">
+          You can also sign in with your username + password. Keep this key as a
+          recovery fallback.
+        </p>
+        <code
+          id="setup-api-key"
+          class="mt-3 block overflow-x-auto rounded-2xl bg-white px-4 py-3 text-sm text-stone-800"
+        ></code>
+        <Button
+          href="/dashboard/login"
+          variant="primary"
+          fullWidth
+          class="mt-5 text-center"
+        >
+          Go to login →
+        </Button>
+      </ResultCallout>
+    </Card>
   </section>
   <script src="../scripts/setup-page.ts"></script>
 </DashboardLayout>

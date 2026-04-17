@@ -14,7 +14,7 @@ class DocumentSchema(BaseModelMeta):
     doc_type: str  # enum: markdown, code, api_spec, config
     source_path: str
     chunks: Dict[str, Any] = Field(default_factory=dict)  # JSON list of chunks
-    embedding: Optional[List[float]] = None  # vector(1024) stored as JSON list
+    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
     project: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

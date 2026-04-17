@@ -3,20 +3,31 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
+from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.observability.metrics import (
+    record_continuity_gate,
+    record_continuity_packet,
+)
 from minder.store.interfaces import IOperationalStore
 from minder.store.repo_state import RepoStateStore
 
 
 class WorkflowTools:
-    def __init__(self, store: IOperationalStore, repo_state_store: RepoStateStore) -> None:
+    def __init__(
+        self, store: IOperationalStore, repo_state_store: RepoStateStore
+    ) -> None:
         self._store = store
         self._repo_state = repo_state_store
 
-    async def minder_workflow_get(self, *, repo_id: uuid.UUID, repo_path: str) -> dict[str, Any]:
+    async def minder_workflow_get(
+        self, *, repo_id: uuid.UUID, repo_path: str
+    ) -> dict[str, Any]:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
         state = await self._store.get_workflow_state_by_repo(repo_id)
-        relationships = dict(repo.relationships) if isinstance(repo.relationships, dict) else {}
+        relationships = (
+            dict(repo.relationships) if isinstance(repo.relationships, dict) else {}
+        )
         await self._repo_state.write_relationships(repo_path, relationships)
         if state is not None:
             await self._repo_state.write_workflow_state(
@@ -37,13 +48,21 @@ class WorkflowTools:
             }
         }
 
-    async def minder_workflow_step(self, *, repo_id: uuid.UUID, repo_path: str) -> dict[str, Any]:
+    async def minder_workflow_step(
+        self, *, repo_id: uuid.UUID, repo_path: str
+    ) -> dict[str, Any]:
+        repo = await self._require_repo(repo_id)
+        workflow = await self._require_workflow(repo.workflow_id)
         state = await self._require_workflow_state(repo_id)
         payload = {
             "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
             "blocked_by": list(state.blocked_by),
             "next_step": state.next_step,
+            "instruction_envelope": build_instruction_envelope(
+                workflow=workflow,
+                workflow_state=state,
+            ),
         }
         await self._repo_state.write_workflow_state(repo_path, payload)
         return payload
@@ -60,7 +79,11 @@ class WorkflowTools:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
         state = await self._require_workflow_state(repo_id)
-        step_names = [step["name"] for step in workflow.steps if isinstance(step, dict) and "name" in step]
+        step_names = [
+            step["name"]
+            for step in workflow.steps
+            if isinstance(step, dict) and "name" in step
+        ]
         completed_steps = list(state.completed_steps)
         if completed_step not in completed_steps:
             completed_steps.append(completed_step)
@@ -68,7 +91,9 @@ class WorkflowTools:
         artifacts = dict(state.artifacts)
         if artifact_name and artifact_content is not None:
             artifacts[artifact_name] = artifact_content
-            await self._repo_state.write_artifact(repo_path, artifact_name, artifact_content)
+            await self._repo_state.write_artifact(
+                repo_path, artifact_name, artifact_content
+            )
         updated = await self._store.update_workflow_state(
             state.id,
             completed_steps=completed_steps,
@@ -103,15 +128,60 @@ class WorkflowTools:
         *,
         repo_id: uuid.UUID,
         requested_step: str,
+        action: str | None = None,
     ) -> dict[str, Any]:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
         state = await self._require_workflow_state(repo_id)
-        step_names = [step["name"] for step in workflow.steps if isinstance(step, dict) and "name" in step]
+        step_names = [
+            step["name"]
+            for step in workflow.steps
+            if isinstance(step, dict) and "name" in step
+        ]
         expected_next = self._next_step(state.current_step, step_names)
-        allowed = requested_step == state.current_step or requested_step == expected_next and state.current_step in state.completed_steps
-        reason = None if allowed else f"Requested step '{requested_step}' is not allowed from '{state.current_step}'"
-        return {"allowed": allowed, "reason": reason, "expected_next": expected_next}
+        allowed = requested_step == state.current_step or (
+            requested_step == expected_next
+            and state.current_step in list(state.completed_steps)
+            and not list(state.blocked_by)
+        )
+        violations: list[str] = []
+        if list(state.blocked_by):
+            violations.append("workflow_blocked")
+        if requested_step not in {state.current_step, expected_next}:
+            violations.append("step_skip_detected")
+        if action and requested_step != state.current_step:
+            violations.append("action_outside_current_step")
+        reason = (
+            None
+            if allowed
+            else f"Requested step '{requested_step}' is not allowed from '{state.current_step}'"
+        )
+        record_continuity_gate("passed" if allowed else "blocked")
+        record_continuity_packet("workflow_guard")
+        return {
+            "allowed": allowed,
+            "reason": reason,
+            "expected_next": expected_next,
+            "violations": violations,
+            "instruction_envelope": build_instruction_envelope(
+                workflow=workflow,
+                workflow_state=state,
+            ),
+            "continuity_brief": build_continuity_brief(
+                session=type(
+                    "WorkflowSessionView",
+                    (),
+                    {
+                        "id": getattr(state, "session_id", ""),
+                        "state": {},
+                        "project_context": {},
+                        "active_skills": {},
+                    },
+                )(),
+                workflow_state=state,
+                workflow=workflow,
+            ),
+        }
 
     async def _require_repo(self, repo_id: uuid.UUID):  # noqa: ANN202
         repo = await self._store.get_repository_by_id(repo_id)

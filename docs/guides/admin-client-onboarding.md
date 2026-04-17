@@ -144,13 +144,14 @@ This returns templates for:
 - `codex`
 - `copilot`
 - `antigravity`
+- `cursor`
 - `claude_code`
 
 Remote templates default to the transport each client expects:
 
 ```text
 Codex / Copilot / Claude Code -> http://localhost:8800/sse
-Antigravity -> http://localhost:8800/mcp
+Antigravity / Cursor -> http://localhost:8800/mcp
 ```
 
 ## 6. Choose a client auth mode
@@ -164,7 +165,7 @@ Use this when the MCP client can send either:
 - `X-Minder-Client-Key: mkc_...` over `SSE`
 - `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
 
-This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity.
+This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity and Cursor.
 
 ### Option B: Token exchange
 
@@ -197,7 +198,7 @@ Expected response:
 
 ## 8. Connect an MCP client
 
-Minder currently exposes remote MCP over `SSE` and local MCP over `stdio`. That means:
+Minder currently exposes remote MCP over both `SSE` and streamable HTTP, plus local MCP over `stdio`. That means:
 
 - start with the remote endpoint first for every client snippet below
 - fall back to local `stdio` only when the client or your environment needs a local process
@@ -315,6 +316,45 @@ Optional local stdio fallback:
 }
 ```
 
+### Cursor .cursor/mcp.json snippet
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "url": "http://localhost:8800/mcp",
+      "headers": {
+        "X-Minder-Client-Key": "mkc_..."
+      }
+    }
+  }
+}
+```
+
+You can place this in either:
+
+- project config: `.cursor/mcp.json`
+- global config: `~/.cursor/mcp.json`
+
+Optional local stdio fallback:
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "type": "stdio",
+      "command": "uv",
+      "args": ["run", "python", "-m", "minder.server"],
+      "cwd": "/absolute/path/to/minder",
+      "env": {
+        "MINDER_SERVER__TRANSPORT": "stdio",
+        "MINDER_CLIENT_API_KEY": "mkc_..."
+      }
+    }
+  }
+}
+```
+
 ### Claude Code .mcp.json snippet
 
 ```json
@@ -377,6 +417,123 @@ After revocation:
 - stdio direct auth with the old `mkc_...` key fails
 - token exchange with the old `mkc_...` key fails
 
+## 11. LLM Session Management — Cross-Environment Context Continuity
+
+Minder sessions are the server-side checkpoint for an LLM work context.  Because
+sessions are stored in MongoDB (not in the client process), the same LLM can
+resume exactly where it left off from **any machine** using the same client API key.
+
+### Why this matters
+
+Large LLM tasks often span multiple days, machines, and `/compact` cycles.
+Without a session checkpoint the LLM loses:
+
+- the current task phase and decisions already made
+- files modified and open
+- planned next steps
+- architectural constraints and patterns discovered so far
+
+With Minder sessions, the LLM externalises all of this to the server and
+rehydrates it on demand.
+
+### Session tool reference
+
+| Tool                     | Always available | Description                                    |
+| ------------------------ | ---------------- | ---------------------------------------------- |
+| `minder_session_create`  | ✅               | Create a named session                         |
+| `minder_session_find`    | ✅               | Find session by name — primary recovery tool   |
+| `minder_session_list`    | ✅               | List all sessions for the current client       |
+| `minder_session_save`    | ✅               | Checkpoint state after each wave               |
+| `minder_session_restore` | ✅               | Load session by UUID                           |
+| `minder_session_context` | ✅               | Update branch and open-file context            |
+
+All session tools are **always available** to any authenticated principal — no
+`tool_scopes` grant is needed.
+
+### Recommended LLM session workflow
+
+#### 1. Start of a new project
+
+```
+minder_session_create(
+  name   = "my-project-phase3",   ← stable slug, memorable across machines
+  project_context = {
+    "task":        "Implement Phase 3 data pipeline",
+    "repo":        "/Users/dev/my-project",
+    "phase":       "design",
+  }
+)
+→ { session_id: "a1b2c3d4-...", name: "my-project-phase3" }
+```
+
+Save the `session_id` in your active context.  The `name` is the durable key
+across environments.
+
+#### 2. After each wave of work (before `/compact`)
+
+```
+minder_session_save(
+  session_id = "a1b2c3d4-...",
+  state = {
+    "current_task":    "Implement data model migration",
+    "completed":       ["schema design", "interface update"],
+    "in_progress":     ["MongoDB store implementation"],
+    "next_steps":      ["update relational store", "write tests"],
+    "key_decisions":   ["user_id nullable", "name field for cross-env"],
+    "open_questions":  ["how to handle TTL expiry in MongoDB?"],
+  },
+  active_skills = {
+    "pattern": "MongoDB async upsert with _id remapping",
+  }
+)
+```
+
+#### 3. After `/compact` or machine switch
+
+```
+minder_session_find(name="my-project-phase3")
+→ {
+    session_id:      "a1b2c3d4-...",
+    state:           { current_task: "...", next_steps: [...], ... },
+    active_skills:   { pattern: "..." },
+    project_context: { task: "...", repo: "...", phase: "..." },
+  }
+```
+
+The LLM immediately knows:
+- what was done
+- what is in progress  
+- what to do next
+- key architectural decisions already taken
+
+No need to re-read files or re-derive context from scratch.
+
+#### 4. Branch or file context update
+
+```
+minder_session_context(
+  session_id = "a1b2c3d4-...",
+  branch     = "feat/phase3-data-model",
+  open_files = [
+    "src/minder/models/session.py",
+    "src/minder/store/mongodb/operational_store.py",
+    "src/minder/tools/session.py",
+  ]
+)
+```
+
+### Cross-machine guarantee
+
+The `mkc_...` client API key resolves to the same `client_id` UUID on any
+machine.  Sessions owned by that `client_id` are stored in shared MongoDB.
+`minder_session_find(name=...)` filters by `client_id` automatically, so only
+sessions belonging to the calling client are returned.
+
+A different client with a different `mkc_...` key cannot access your sessions
+even if it knows the session name.
+
+---
+
 ## Recommended Operator Flow
 
 1. Start the Docker stack.
@@ -387,3 +544,4 @@ After revocation:
 6. Prefer direct client-key auth for local `SSE` and `stdio` integrations.
 7. Use onboarding templates from the admin API, not handwritten config.
 8. Rotate or revoke client keys when a workstation or integration changes ownership.
+9. LLM agents: always create a named session at project start and save state after each wave.

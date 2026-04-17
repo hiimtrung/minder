@@ -36,7 +36,7 @@ At runtime:
 ## Prerequisites
 
 - Docker Engine or Docker Desktop
-- local Qwen GGUF files under `~/.minder/models`
+- local EmbeddingGemma and Gemma GGUF files under `~/.minder/models`
 - enough memory for MongoDB, Redis, Milvus, and local inference
 - `Bun 1.2.21` for local dashboard work
 - `Node 22.12+` only if you run frontend tooling outside Bun
@@ -44,8 +44,8 @@ At runtime:
 Expected local model files:
 
 ```text
-~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf
-~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf
+~/.minder/models/embeddinggemma-300M-Q8_0.gguf
+~/.minder/models/gemma-4-e2b-it-Q8_0.gguf
 ```
 
 ## 1. Recommended Release Install
@@ -57,6 +57,25 @@ curl -fsSL https://github.com/<owner>/<repo>/releases/download/<tag>/install-min
 ```
 
 That script creates a deployment directory, downloads `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, writes a local `.env` with the release image tags, and starts the full stack.
+
+If you also want the repo-local sync CLI on operator or developer machines, install it separately from PyPI:
+
+```bash
+uv tool install minder
+```
+
+Or:
+
+```bash
+pipx install minder
+```
+
+After a client key is provisioned, the same machine can run:
+
+```bash
+minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+minder sync --repo-id <repository-uuid>
+```
 
 ## 2. Manual Compose Install
 
@@ -168,6 +187,28 @@ export MINDER_MODELS_DIR=~/.minder/models
 docker compose -f docker/docker-compose.yml pull
 docker compose -f docker/docker-compose.yml up -d
 ```
+
+Upgrade the CLI independently with:
+
+```bash
+uv tool upgrade minder
+```
+
+Or use Minder's unified update surface:
+
+```bash
+minder check-update
+minder self-update --component cli
+```
+
+Check and upgrade the deployed server release in place:
+
+```bash
+minder check-update --component server --install-dir ~/.minder/current
+minder self-update --component server --install-dir ~/.minder/current
+```
+
+The release installer now keeps a stable `~/.minder/current` link and writes release metadata into each deployment directory so the CLI can resolve the current server version before applying an upgrade.
 
 ## Health Checks
 

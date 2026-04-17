@@ -32,17 +32,17 @@ class AuthConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     provider: str = "llamacpp"
-    model_name: str = "Qwen/Qwen3-Embedding-0.6B"
-    model_path: str = "~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf"
-    dimensions: int = 1024
+    model_name: str = "ggml-org/embeddinggemma-300M-GGUF"
+    model_path: str = "~/.minder/models/embeddinggemma-300M-Q8_0.gguf"
+    dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
 
 
 class LLMConfig(BaseModel):
     provider: str = "llamacpp"
-    model_name: str = "Qwen3.5-0.8B"
-    model_path: str = "~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+    model_name: str = "ggml-org/gemma-4-E2B-it-GGUF"
+    model_path: str = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
     context_length: int = 4096
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
@@ -57,8 +57,16 @@ class VectorStoreConfig(BaseModel):
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "sqlite"  # "sqlite" | "mongodb"
-    db_path: str = "~/.minder/data/minder.db"  # used by sqlite only
+    provider: str = "mongodb"  # "mongodb" | "sqlite" | "postgresql"
+    db_path: str = "minder.db"  # used by sqlite
+    uri: str = "postgresql+asyncpg://localhost/minder"  # used by postgresql
+
+
+class GraphStoreConfig(BaseModel):
+    enabled: bool = True
+    provider: str = "auto"  # "auto" | "sqlite" | "postgresql"
+    db_path: str = "~/.minder/data/graph.db"  # used by sqlite
+    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # used by postgresql
 
 
 class MongoDBConfig(BaseModel):
@@ -84,8 +92,8 @@ class RetrievalConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     enabled: bool = True
-    provider: str = "lru"  # "lru" | "redis"
-    max_size: int = 1000  # used by lru only
+    provider: str = "redis"  # "redis" is the only supported runtime backend
+    max_size: int = 1000  # unused; kept for backwards-compat with any existing .env files
     ttl_seconds: int = 3600
 
 
@@ -127,6 +135,7 @@ class Settings(BaseSettings):
     llm: LLMConfig = Field(default_factory=LLMConfig)
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
     relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
+    graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
     mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)

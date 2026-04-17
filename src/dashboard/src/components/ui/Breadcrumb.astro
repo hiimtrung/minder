@@ -1,0 +1,38 @@
+---
+/**
+ * Breadcrumb — navigation list. Last item is rendered as current.
+ */
+interface Item {
+  href?: string;
+  label: string;
+}
+
+interface Props {
+  items: Item[];
+  class?: string;
+}
+
+const { items, class: className = "" } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class={`u-breadcrumb ${className}`}>
+  {
+    items.map((item, idx) => {
+      const isLast = idx === items.length - 1;
+      return (
+        <>
+          {idx > 0 && (
+            <span class="u-breadcrumb-sep" aria-hidden="true">
+              /
+            </span>
+          )}
+          {isLast || !item.href ? (
+            <span class="u-breadcrumb-current">{item.label}</span>
+          ) : (
+            <a href={item.href}>{item.label}</a>
+          )}
+        </>
+      );
+    })
+  }
+</nav>

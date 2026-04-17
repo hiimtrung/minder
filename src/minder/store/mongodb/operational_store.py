@@ -11,7 +11,7 @@ from __future__ import annotations
 import math
 import uuid
 from collections import Counter
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from motor.motor_asyncio import AsyncIOMotorDatabase
@@ -32,6 +32,14 @@ def _str_to_uuid(value: str) -> uuid.UUID:
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)
 
 
 class _MongoDoc:
@@ -96,6 +104,50 @@ class MongoOperationalStore:
         await self._client.close()
 
     # ------------------------------------------------------------------
+    # Prompts
+    # ------------------------------------------------------------------
+
+    async def create_prompt(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        kwargs.setdefault("company_id", "default")
+        kwargs.setdefault("arguments", [])
+        kwargs.setdefault("created_at", _now())
+        kwargs.setdefault("updated_at", _now())
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.prompts.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def get_prompt_by_id(self, prompt_id: uuid.UUID) -> _MongoDoc | None:
+        doc = await self._db.prompts.find_one({"_id": _uuid_to_str(prompt_id)})
+        return _to_doc(doc) if doc else None
+
+    async def get_prompt_by_name(self, name: str) -> _MongoDoc | None:
+        doc = await self._db.prompts.find_one({"name": name})
+        return _to_doc(doc) if doc else None
+
+    async def list_prompts(self) -> list[_MongoDoc]:
+        cursor = self._db.prompts.find().sort("name", 1)
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def update_prompt(
+        self, prompt_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
+        if not kwargs:
+            return await self.get_prompt_by_id(prompt_id)
+        kwargs["updated_at"] = _now()
+        await self._db.prompts.update_one(
+            {"_id": _uuid_to_str(prompt_id)},
+            {"$set": kwargs},
+        )
+        return await self.get_prompt_by_id(prompt_id)
+
+    async def delete_prompt(self, prompt_id: uuid.UUID) -> None:
+        await self._db.prompts.delete_one({"_id": _uuid_to_str(prompt_id)})
+
+    # ------------------------------------------------------------------
     # User
     # ------------------------------------------------------------------
 
@@ -157,7 +209,9 @@ class MongoOperationalStore:
             kwargs["id"] = _uuid_to_str(uuid.uuid4())
         else:
             kwargs["id"] = _uuid_to_str(kwargs["id"])
-        if "created_by_user_id" in kwargs and isinstance(kwargs["created_by_user_id"], uuid.UUID):
+        if "created_by_user_id" in kwargs and isinstance(
+            kwargs["created_by_user_id"], uuid.UUID
+        ):
             kwargs["created_by_user_id"] = _uuid_to_str(kwargs["created_by_user_id"])
         kwargs.setdefault("description", "")
         kwargs.setdefault("status", "active")
@@ -184,7 +238,9 @@ class MongoOperationalStore:
         cursor = self._db.clients.find()
         return [_to_doc(doc) async for doc in cursor]
 
-    async def update_client(self, client_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def update_client(
+        self, client_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
             return await self.get_client_by_id(client_id)
         kwargs["updated_at"] = _now()
@@ -215,7 +271,9 @@ class MongoOperationalStore:
         cursor = self._db.client_api_keys.find({"client_id": _uuid_to_str(client_id)})
         return [_to_doc(doc) async for doc in cursor]
 
-    async def update_client_api_key(self, key_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def update_client_api_key(
+        self, key_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
             doc = await self._db.client_api_keys.find_one({"_id": _uuid_to_str(key_id)})
             return _to_doc(doc) if doc else None
@@ -246,9 +304,13 @@ class MongoOperationalStore:
         doc = await self._db.client_sessions.find_one({"access_token_id": token_id})
         return _to_doc(doc) if doc else None
 
-    async def update_client_session(self, session_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def update_client_session(
+        self, session_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
-            doc = await self._db.client_sessions.find_one({"_id": _uuid_to_str(session_id)})
+            doc = await self._db.client_sessions.find_one(
+                {"_id": _uuid_to_str(session_id)}
+            )
             return _to_doc(doc) if doc else None
         await self._db.client_sessions.update_one(
             {"_id": _uuid_to_str(session_id)},
@@ -256,6 +318,11 @@ class MongoOperationalStore:
         )
         doc = await self._db.client_sessions.find_one({"_id": _uuid_to_str(session_id)})
         return _to_doc(doc) if doc else None
+
+    async def count_active_client_sessions(self) -> int:
+        now = _now()
+        query = {"status": "active", "expires_at": {"$gt": now}}
+        return int(await self._db.client_sessions.count_documents(query))
 
     async def create_audit_log(self, **kwargs: Any) -> _MongoDoc:
         if "id" not in kwargs:
@@ -268,12 +335,71 @@ class MongoOperationalStore:
         await self._db.audit_logs.insert_one(kwargs)
         return _to_doc(kwargs)
 
-    async def list_audit_logs(self, *, actor_id: str | None = None) -> list[_MongoDoc]:
+    async def list_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[_MongoDoc]:
         query: dict[str, Any] = {}
         if actor_id is not None:
             query["actor_id"] = actor_id
-        cursor = self._db.audit_logs.find(query)
+        if event_type is not None:
+            query["event_type"] = event_type
+        if outcome is not None:
+            query["outcome"] = outcome
+        cursor = self._db.audit_logs.find(query).sort("created_at", -1).skip(offset)
+        if limit is not None:
+            cursor = cursor.limit(limit)
         return [_to_doc(doc) async for doc in cursor]
+
+    async def count_audit_logs(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+    ) -> int:
+        query: dict[str, Any] = {}
+        if actor_id is not None:
+            query["actor_id"] = actor_id
+        if event_type is not None:
+            query["event_type"] = event_type
+        if outcome is not None:
+            query["outcome"] = outcome
+        return int(await self._db.audit_logs.count_documents(query))
+
+    async def get_audit_summary(
+        self,
+        *,
+        actor_id: str | None = None,
+        event_type: str | None = None,
+        outcome: str | None = None,
+        group_by: str = "event_type",
+    ) -> dict[str, int]:
+        match_query: dict[str, Any] = {}
+        if actor_id is not None:
+            match_query["actor_id"] = actor_id
+        if event_type is not None:
+            match_query["event_type"] = event_type
+        if outcome is not None:
+            match_query["outcome"] = outcome
+
+        pipeline = []
+        if match_query:
+            pipeline.append({"$match": match_query})
+
+        pipeline.append({"$group": {"_id": f"${group_by}", "count": {"$sum": 1}}})
+
+        cursor = self._db.audit_logs.aggregate(pipeline)
+        result: dict[str, int] = {}
+        async for doc in cursor:
+            label = doc["_id"] or "unknown"
+            result[label] = doc["count"]
+        return result
 
     # ------------------------------------------------------------------
     # Skill
@@ -289,6 +415,8 @@ class MongoOperationalStore:
         kwargs.setdefault("quality_score", 0.0)
         kwargs.setdefault("tags", [])
         kwargs.setdefault("embedding", None)
+        kwargs.setdefault("source_metadata", None)
+        kwargs.setdefault("excerpt_kind", "none")
         kwargs.setdefault("created_at", _now())
         kwargs.setdefault("updated_at", _now())
         kwargs["_id"] = kwargs.pop("id")
@@ -303,6 +431,18 @@ class MongoOperationalStore:
         cursor = self._db.skills.find()
         return [_to_doc(doc) async for doc in cursor]
 
+    async def update_skill(
+        self, skill_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
+        if not kwargs:
+            return await self.get_skill_by_id(skill_id)
+        kwargs["updated_at"] = _now()
+        await self._db.skills.update_one(
+            {"_id": _uuid_to_str(skill_id)},
+            {"$set": kwargs},
+        )
+        return await self.get_skill_by_id(skill_id)
+
     async def delete_skill(self, skill_id: uuid.UUID) -> None:
         await self._db.skills.delete_one({"_id": _uuid_to_str(skill_id)})
 
@@ -316,13 +456,14 @@ class MongoOperationalStore:
         else:
             kwargs["id"] = _uuid_to_str(kwargs["id"])
         kwargs.setdefault("company_id", "default")
-        for uuid_field in ("user_id", "repo_id"):
+        for uuid_field in ("user_id", "client_id", "repo_id"):
             if uuid_field in kwargs and isinstance(kwargs[uuid_field], uuid.UUID):
                 kwargs[uuid_field] = _uuid_to_str(kwargs[uuid_field])
+        kwargs.setdefault("name", None)
         kwargs.setdefault("project_context", {})
         kwargs.setdefault("active_skills", {})
         kwargs.setdefault("state", {})
-        kwargs.setdefault("ttl", 3600)
+        kwargs.setdefault("ttl", 86400)
         kwargs.setdefault("created_at", _now())
         kwargs.setdefault("last_active", _now())
         kwargs["_id"] = kwargs.pop("id")
@@ -334,10 +475,35 @@ class MongoOperationalStore:
         return _to_doc(doc) if doc else None
 
     async def get_sessions_by_user(self, user_id: uuid.UUID) -> list[_MongoDoc]:
-        cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)})
+        cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)}).sort(
+            "last_active", -1
+        )
         return [_to_doc(doc) async for doc in cursor]
 
-    async def update_session(self, session_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def get_sessions_by_client(self, client_id: uuid.UUID) -> list[_MongoDoc]:
+        cursor = self._db.sessions.find({"client_id": _uuid_to_str(client_id)}).sort(
+            "last_active", -1
+        )
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def find_session_by_name(
+        self,
+        name: str,
+        *,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> _MongoDoc | None:
+        query: dict[str, Any] = {"name": name}
+        if client_id is not None:
+            query["client_id"] = _uuid_to_str(client_id)
+        elif user_id is not None:
+            query["user_id"] = _uuid_to_str(user_id)
+        doc = await self._db.sessions.find_one(query, sort=[("last_active", -1)])
+        return _to_doc(doc) if doc else None
+
+    async def update_session(
+        self, session_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
             return await self.get_session_by_id(session_id)
         kwargs["last_active"] = _now()
@@ -348,6 +514,46 @@ class MongoOperationalStore:
 
     async def delete_session(self, session_id: uuid.UUID) -> None:
         await self._db.sessions.delete_one({"_id": _uuid_to_str(session_id)})
+
+    async def cleanup_expired_sessions(
+        self,
+        *,
+        now: datetime | None = None,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+    ) -> dict[str, int]:
+        reference_time = _normalize_datetime(now) or _now()
+        query: dict[str, Any] = {}
+        if user_id is not None:
+            query["user_id"] = _uuid_to_str(user_id)
+        if client_id is not None:
+            query["client_id"] = _uuid_to_str(client_id)
+
+        cursor = self._db.sessions.find(query)
+        expired_session_ids: list[str] = []
+        async for session in cursor:
+            ttl = int(session.get("ttl", 0) or 0)
+            if ttl <= 0:
+                continue
+            base = _normalize_datetime(
+                session.get("last_active") or session.get("created_at")
+            )
+            if base is not None and base + timedelta(seconds=ttl) <= reference_time:
+                expired_session_ids.append(str(session["_id"]))
+
+        if not expired_session_ids:
+            return {"deleted_sessions": 0, "deleted_history": 0}
+
+        history_result = await self._db.history.delete_many(
+            {"session_id": {"$in": expired_session_ids}}
+        )
+        session_result = await self._db.sessions.delete_many(
+            {"_id": {"$in": expired_session_ids}}
+        )
+        return {
+            "deleted_sessions": int(session_result.deleted_count),
+            "deleted_history": int(history_result.deleted_count),
+        }
 
     # ------------------------------------------------------------------
     # Workflow
@@ -381,7 +587,9 @@ class MongoOperationalStore:
         cursor = self._db.workflows.find()
         return [_to_doc(doc) async for doc in cursor]
 
-    async def update_workflow(self, workflow_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def update_workflow(
+        self, workflow_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
             return await self.get_workflow_by_id(workflow_id)
         kwargs["updated_at"] = _now()
@@ -427,7 +635,9 @@ class MongoOperationalStore:
         cursor = self._db.repositories.find()
         return [_to_doc(doc) async for doc in cursor]
 
-    async def update_repository(self, repo_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+    async def update_repository(
+        self, repo_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
         if not kwargs:
             return await self.get_repository_by_id(repo_id)
         kwargs["updated_at"] = _now()
@@ -528,6 +738,14 @@ class MongoOperationalStore:
         doc = await self._db.documents.find_one(query)
         return _to_doc(doc) if doc else None
 
+    async def get_documents_by_ids(self, doc_ids: list[uuid.UUID]) -> list[_MongoDoc]:
+        if not doc_ids:
+            return []
+        cursor = self._db.documents.find(
+            {"_id": {"$in": [_uuid_to_str(doc_id) for doc_id in doc_ids]}}
+        )
+        return [_to_doc(doc) async for doc in cursor]
+
     async def list_documents(self, project: str | None = None) -> list[_MongoDoc]:
         query: dict[str, Any] = {}
         if project is not None:
@@ -618,14 +836,18 @@ class MongoOperationalStore:
     async def list_history_for_user(self, user_id: uuid.UUID) -> list[_MongoDoc]:
         # Get all session IDs for this user, then get history for those sessions
         user_id_str = _uuid_to_str(user_id)
-        session_cursor = self._db.sessions.find(
-            {"user_id": user_id_str}, {"_id": 1}
-        )
+        session_cursor = self._db.sessions.find({"user_id": user_id_str}, {"_id": 1})
         session_ids = [doc["_id"] async for doc in session_cursor]
         if not session_ids:
             return []
         cursor = self._db.history.find({"session_id": {"$in": session_ids}})
         return [_to_doc(doc) async for doc in cursor]
+
+    async def delete_history_for_session(self, session_id: uuid.UUID) -> int:
+        result = await self._db.history.delete_many(
+            {"session_id": _uuid_to_str(session_id)}
+        )
+        return int(result.deleted_count)
 
     # ------------------------------------------------------------------
     # Error

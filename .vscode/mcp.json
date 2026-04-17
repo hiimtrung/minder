@@ -4,7 +4,7 @@
       "url": "http://localhost:8801/sse",
       "type": "sse",
       "headers": {
-        "X-Minder-Client-Key": "mkc_4_MDoRtZbqaakRaGaEXLjX5kSkTBmRtn1KhcR3i1rwE"
+        "X-Minder-Client-Key": "mkc_IlghyX3KpyLHyB1WCf9qXiyPM_eDPgAtjUJJ09NMzvY"
       }
     }
   },

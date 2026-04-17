@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
+from minder.cache.providers import RedisCacheProvider
 from minder.config import MinderConfig
-from minder.store.interfaces import ICacheProvider, IOperationalStore, IVectorStore
-from minder.store.relational import RelationalStore
+from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore, IVectorStore
 from minder.store.vector import VectorStore
+
+
+def _sqlite_db_url(raw_path: str) -> str:
+    db_path = Path(raw_path).expanduser()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite+aiosqlite:///{db_path}"
 
 
 def build_store(config: MinderConfig) -> IOperationalStore:
@@ -24,26 +29,35 @@ def build_store(config: MinderConfig) -> IOperationalStore:
         )
         return MongoOperationalStore(client)  # type: ignore[return-value]
 
-    db_path = config.relational_store.db_path
-    if db_path.startswith(("sqlite+", "postgresql+", "postgres://")):
-        db_url = db_path
-    else:
-        expanded = Path(db_path).expanduser()
-        expanded.parent.mkdir(parents=True, exist_ok=True)
-        db_url = f"sqlite+aiosqlite:///{expanded}"
-    return RelationalStore(db_url)  # type: ignore[return-value]
+    if provider in ("sqlite", "postgresql"):
+        from minder.store.relational import RelationalStore
+
+        if provider == "sqlite":
+            db_url = _sqlite_db_url(config.relational_store.db_path)
+        else:
+            db_url = config.relational_store.uri
+
+        return RelationalStore(db_url)  # type: ignore[return-value]
+
+    raise ValueError(
+        f"Unsupported relational_store.provider '{provider}'. "
+        "Supported: 'mongodb', 'sqlite', 'postgresql'."
+    )
 
 
 def build_cache(config: MinderConfig) -> ICacheProvider:
-    if config.cache.provider == "redis":
+    provider = config.cache.provider
+
+    if provider == "redis":
         return RedisCacheProvider(
             uri=config.redis.uri,
             prefix=config.redis.prefix,
             default_ttl=config.redis.cache_ttl,
         )
-    return LRUCacheProvider(
-        max_size=config.cache.max_size,
-        default_ttl=config.cache.ttl_seconds,
+
+    raise ValueError(
+        f"Unsupported cache.provider '{provider}'. "
+        "Only 'redis' is supported. Set [cache] provider = \"redis\" in minder.toml."
     )
 
 
@@ -53,6 +67,43 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
         from minder.store.milvus.vector_store import MilvusVectorStore
 
         client = MilvusClient(uri=config.vector_store.uri)
-        return MilvusVectorStore(client, prefix=config.vector_store.collection_prefix)
+        return MilvusVectorStore(
+            client,
+            store,
+            prefix=config.vector_store.collection_prefix,
+            dimensions=config.embedding.dimensions,
+        )
 
     return VectorStore(store, store)
+
+
+def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
+    if not config.graph_store.enabled:
+        return None
+
+    provider = config.graph_store.provider
+    if provider == "auto":
+        provider = config.relational_store.provider
+        if provider == "mongodb":
+            provider = "sqlite"
+
+    if provider in ("sqlite", "postgresql"):
+        from minder.store.graph import KnowledgeGraphStore
+
+        if provider == "sqlite":
+            if config.graph_store.provider == "auto" and config.relational_store.provider == "sqlite":
+                db_url = _sqlite_db_url(config.relational_store.db_path)
+            else:
+                db_url = _sqlite_db_url(config.graph_store.db_path)
+        else:
+            if config.graph_store.provider == "auto" and config.relational_store.provider == "postgresql":
+                db_url = config.relational_store.uri
+            else:
+                db_url = config.graph_store.uri
+
+        return KnowledgeGraphStore(db_url)
+
+    raise ValueError(
+        f"Unsupported graph_store.provider '{provider}'. "
+        "Supported: 'auto', 'sqlite', 'postgresql'."
+    )

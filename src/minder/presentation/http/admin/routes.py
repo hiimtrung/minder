@@ -3,18 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from starlette.applications import Starlette
+from fastapi import FastAPI
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse, PlainTextResponse, RedirectResponse
 from starlette.routing import BaseRoute, Route
 
 from minder.config import MinderConfig
-from minder.store.interfaces import ICacheProvider, IOperationalStore
+from minder.observability.logging import AccessLogMiddleware, CorrelationIdMiddleware
+from minder.observability.metrics import metrics_endpoint
+from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore
 
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
+from .memories import build_memories_routes
+from .prompts import build_prompts_routes
+from .runtime import build_runtime_routes
+from .search import build_search_routes
+from .skills import build_skills_routes
 
 
 DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
@@ -38,9 +45,20 @@ def build_http_routes(
     *,
     config: MinderConfig,
     store: IOperationalStore,
+    graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
+    prompt_sync_hook=None,
 ) -> list[BaseRoute]:
-    context = AdminRouteContext.build(config=config, store=store, cache=cache)
+    context = AdminRouteContext.build(
+        config=config,
+        store=store,
+        graph_store=graph_store,
+        cache=cache,
+        prompt_sync_hook=prompt_sync_hook,
+    )
+
+    async def health(_request) -> PlainTextResponse:
+        return PlainTextResponse("ok", status_code=200)
 
     async def favicon_png(_request) -> FileResponse | PlainTextResponse:
         favicon = _favicon_path()
@@ -52,9 +70,16 @@ def build_http_routes(
         return RedirectResponse(url="/favicon.png", status_code=308)
 
     return [
+        Route("/health", health, methods=["GET"]),
         Route("/favicon.ico", favicon_ico, methods=["GET"]),
         Route("/favicon.png", favicon_png, methods=["GET"]),
+        Route("/metrics", metrics_endpoint, methods=["GET"]),
         *build_admin_api_routes(context),
+        *build_prompts_routes(context),
+        *build_skills_routes(context),
+        *build_memories_routes(context),
+        *build_runtime_routes(context),
+        *build_search_routes(context),
         *build_dashboard_routes(context),
     ]
 
@@ -63,9 +88,15 @@ def build_http_app(
     *,
     config: MinderConfig,
     store: IOperationalStore,
+    graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
-) -> Starlette:
+) -> FastAPI:
     middleware: list[Middleware] = []
+
+    # Observability middleware (innermost first — applied outermost-last)
+    middleware.append(Middleware(CorrelationIdMiddleware))
+    middleware.append(Middleware(AccessLogMiddleware))
+
     dev_origin = dashboard_dev_origin(config)
     if dev_origin:
         middleware.append(
@@ -77,7 +108,15 @@ def build_http_app(
                 allow_headers=["*"],
             )
         )
-    return Starlette(
-        routes=build_http_routes(config=config, store=store, cache=cache),
+    app = FastAPI(
+        routes=build_http_routes(
+            config=config,
+            store=store,
+            graph_store=graph_store,
+            cache=cache,
+        ),
         middleware=middleware,
     )
+    app.state.store = store
+    app.state.config = config
+    return app

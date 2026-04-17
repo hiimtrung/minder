@@ -1,0 +1,116 @@
+---
+/**
+ * Toolbar — "Navigator" bar used on registry list pages.
+ *
+ * Renders a two-row layout:
+ *   Row 1: title + description + leading/trailing action slots
+ *   Row 2: quick-search input + pagination status + prev/next buttons
+ *
+ * IDs are preserved via the `idPrefix` prop:
+ *   <prefix>-quick-search
+ *   <prefix>-pagination-status
+ *   <prefix>-page-prev
+ *   <prefix>-page-next
+ *
+ * Existing page scripts (clients-page, skills-page, memories-page, prompts-page,
+ * workflows-page, repositories-list-page) reference these IDs directly.
+ *
+ * Pass `searchId`, `statusId`, `prevId`, `nextId` to override individual IDs
+ * when a page uses a non-standard scheme (e.g. `repo-list-*`).
+ */
+interface Props {
+  title?: string;
+  description?: string;
+  idPrefix?: string;
+  searchId?: string;
+  statusId?: string;
+  prevId?: string;
+  nextId?: string;
+  searchPlaceholder?: string;
+  showSearch?: boolean;
+  showPagination?: boolean;
+  class?: string;
+}
+
+const {
+  title = "Navigator",
+  description,
+  idPrefix,
+  searchId,
+  statusId,
+  prevId,
+  nextId,
+  searchPlaceholder = "Semantic quick search",
+  showSearch = true,
+  showPagination = true,
+  class: className = "",
+} = Astro.props;
+
+const resolvedSearchId = searchId ?? (idPrefix ? `${idPrefix}-quick-search` : undefined);
+const resolvedStatusId = statusId ?? (idPrefix ? `${idPrefix}-pagination-status` : undefined);
+const resolvedPrevId = prevId ?? (idPrefix ? `${idPrefix}-page-prev` : undefined);
+const resolvedNextId = nextId ?? (idPrefix ? `${idPrefix}-page-next` : undefined);
+---
+
+<section class={`u-toolbar ${className}`}>
+  <div class="u-toolbar-row">
+    <div class="min-w-0 flex-1">
+      <p class="text-sm font-medium text-stone-900">{title}</p>
+      {description && <p class="mt-1 text-sm text-stone-600">{description}</p>}
+    </div>
+    {
+      Astro.slots.has("leading") && (
+        <div class="flex flex-wrap items-center gap-2">
+          <slot name="leading" />
+        </div>
+      )
+    }
+    {
+      Astro.slots.has("trailing") && (
+        <div class="flex flex-wrap items-center gap-2">
+          <slot name="trailing" />
+        </div>
+      )
+    }
+  </div>
+
+  {
+    (showSearch || showPagination) && (
+      <div class="u-toolbar-row">
+        {showSearch && resolvedSearchId && (
+          <input
+            id={resolvedSearchId}
+            class="u-input min-w-[260px] flex-1"
+            placeholder={searchPlaceholder}
+          />
+        )}
+        {showPagination && (
+          <div class="flex items-center gap-3">
+            {resolvedStatusId && (
+              <span id={resolvedStatusId} class="text-xs text-stone-500" />
+            )}
+            {resolvedPrevId && (
+              <button
+                id={resolvedPrevId}
+                type="button"
+                class="action-pill u-btn-sm"
+              >
+                Prev
+              </button>
+            )}
+            {resolvedNextId && (
+              <button
+                id={resolvedNextId}
+                type="button"
+                class="action-pill u-btn-sm"
+              >
+                Next
+              </button>
+            )}
+          </div>
+        )}
+        <slot name="pagination-extra" />
+      </div>
+    )
+  }
+</section>

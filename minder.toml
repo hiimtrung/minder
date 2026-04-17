@@ -21,16 +21,16 @@ default_admin_email = "admin@example.com"
 
 [embedding]
 provider = "llamacpp"
-model_name = "Qwen/Qwen3-Embedding-0.6B"
-model_path = "~/.minder/models/qwen3-embedding-0.6b.Q8_0.gguf"
-dimensions = 1024
+model_name = "ggml-org/embeddinggemma-300M-GGUF"
+model_path = "~/.minder/models/embeddinggemma-300M-Q8_0.gguf"
+dimensions = 768
 openai_api_key = ""
 openai_model = "text-embedding-3-small"
 
 [llm]
 provider = "llamacpp"
-model_name = "Qwen3.5-0.8B"
-model_path = "~/.minder/models/qwen3.5-0.8b-instruct.Q4_K_M.gguf"
+model_name = "ggml-org/gemma-4-E2B-it-GGUF"
+model_path = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
 context_length = 4096
 temperature = 0.1
 openai_api_key = ""
@@ -43,8 +43,7 @@ uri = "http://localhost:19530"
 collection_prefix = "minder_"
 
 [relational_store]
-provider = "sqlite"
-db_path = "~/.minder/data/minder.db"
+provider = "mongodb"
 
 [mongodb]
 uri = "mongodb://localhost:27017"
@@ -66,8 +65,7 @@ hybrid_alpha = 0.7
 
 [cache]
 enabled = true
-provider = "lru"
-max_size = 1000
+provider = "redis"
 ttl_seconds = 3600
 
 [verification]

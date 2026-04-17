@@ -1,0 +1,31 @@
+---
+/**
+ * Select — unified dropdown.
+ * Pass <option> elements via default slot.
+ */
+interface Props {
+  id?: string;
+  name?: string;
+  required?: boolean;
+  disabled?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  name,
+  required = false,
+  disabled = false,
+  class: className = "",
+} = Astro.props;
+---
+
+<select
+  id={id}
+  name={name}
+  required={required}
+  disabled={disabled}
+  class={`u-select ${className}`}
+>
+  <slot />
+</select>

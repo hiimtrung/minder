@@ -1,0 +1,130 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import DetailHeader from "./ui/DetailHeader.astro";
+import Card from "./ui/Card.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Select from "./ui/Select.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+---
+
+<DashboardLayout
+  title="Workflow Detail · Minder"
+  description="Edit a workflow definition — steps, enforcement, and gate conditions."
+  navTitle="Minder Dashboard"
+  navDescription="Operate one workflow definition with full step editor and enforcement controls."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <DetailHeader
+    breadcrumb={[
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/dashboard/workflows", label: "Workflows" },
+      { label: "Workflow Detail" },
+    ]}
+    eyebrow="Workflow Detail"
+    title="Loading workflow..."
+    titleId="workflow-detail-title"
+    description="Edit the step sequence, gate conditions, and enforcement level for this workflow. Changes take effect immediately for any repository that has this workflow assigned."
+  >
+    <Button slot="actions" href="/dashboard/workflows" size="sm">
+      Back to registry
+    </Button>
+    <Button slot="actions" href="/dashboard" size="sm">Dashboard home</Button>
+  </DetailHeader>
+
+  <section class="u-grid-sidebar">
+    <!-- Edit panel -->
+    <aside class="space-y-5">
+      <Card padding="lg">
+        <p class="eyebrow">Edit Workflow</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Name, description &amp; enforcement
+        </h2>
+
+        <form id="edit-workflow-form" class="mt-5 grid gap-4">
+          <Field label="Name" htmlFor="edit-workflow-name">
+            <Input id="edit-workflow-name" placeholder="Workflow name" />
+          </Field>
+          <Field label="Description" htmlFor="edit-workflow-description">
+            <Textarea
+              id="edit-workflow-description"
+              placeholder="Short description of this workflow's purpose"
+            />
+          </Field>
+          <Field label="Enforcement" htmlFor="edit-workflow-enforcement">
+            <Select id="edit-workflow-enforcement">
+              <option value="strict">Strict — block on gate failure</option>
+              <option value="advisory">Advisory — warn only</option>
+              <option value="off">Off — no enforcement</option>
+            </Select>
+          </Field>
+
+          <FormStatus id="edit-workflow-status" />
+          <Button type="submit" variant="primary" fullWidth>
+            Save changes
+          </Button>
+        </form>
+      </Card>
+
+      <!-- Danger zone -->
+      <Card padding="lg">
+        <p class="eyebrow">Danger Zone</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Delete workflow
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Permanently remove this workflow definition. Any repositories that
+          reference it will lose their workflow assignment.
+        </p>
+        <Button
+          id="delete-workflow-button"
+          variant="danger"
+          fullWidth
+          class="mt-4"
+        >
+          Delete this workflow
+        </Button>
+        <FormStatus id="delete-workflow-status" tone="danger" class="mt-3" />
+      </Card>
+    </aside>
+
+    <!-- Steps editor -->
+    <div class="grid gap-5">
+      <Card padding="lg">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="eyebrow">Steps</p>
+            <h2
+              class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+            >
+              Step sequence editor
+            </h2>
+          </div>
+          <Button id="add-step-detail-button" size="sm" variant="ghost">
+            + Add step
+          </Button>
+        </div>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Steps execute in order. Each step can optionally declare a gate
+          condition that must pass before the agent advances.
+        </p>
+        <div id="step-editor-list" class="mt-5 grid gap-3">
+          <div class="u-placeholder-card">Loading steps...</div>
+        </div>
+        <div class="mt-4 flex justify-end">
+          <Button id="save-steps-button" variant="primary">Save steps</Button>
+        </div>
+        <FormStatus id="steps-status" class="mt-3" />
+      </Card>
+    </div>
+  </section>
+
+  <script src="../scripts/workflows-page.ts"></script>
+</DashboardLayout>

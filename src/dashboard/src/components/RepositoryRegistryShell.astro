@@ -1,0 +1,43 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Button from "./ui/Button.astro";
+---
+
+<DashboardLayout
+  title="Repositories · Minder"
+  description="Browse repositories registered in the Minder dashboard."
+  navTitle="Minder Dashboard"
+  navDescription="Browse repositories, filter semantically, and open a dedicated detail route for graph exploration and settings."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Repository Registry"
+    title="Browse repositories."
+    description="Use semantic search to find the right repository, then open a dedicated detail screen for graph exploration, impact analysis, and settings."
+  />
+
+  <section class="grid gap-5">
+    <Toolbar
+      searchId="repo-list-quick-search"
+      statusId="repo-list-pagination-status"
+      prevId="repo-list-page-prev"
+      nextId="repo-list-page-next"
+      description="Search by repository name, branch, remote, workflow, or path and move into a focused detail route when you are ready to inspect it."
+      searchPlaceholder="Semantic quick search repositories"
+    >
+      <Button slot="leading" href="/dashboard" size="sm">Dashboard home</Button>
+      <Button slot="leading" id="repo-list-refresh" size="sm">
+        Refresh list
+      </Button>
+    </Toolbar>
+
+    <div id="repo-list-registry" class="grid gap-4 xl:grid-cols-2">
+      <article class="u-placeholder-card">Loading repositories...</article>
+    </div>
+  </section>
+
+  <script src="../scripts/repositories-list-page.ts"></script>
+</DashboardLayout>

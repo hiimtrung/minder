@@ -1,11 +1,13 @@
 ---
 import "../styles/global.css";
+import Footer from "../components/ui/Footer.astro";
 
 interface Props {
   title: string;
   description?: string;
   navTitle?: string;
   navDescription?: string;
+  showPageIntro?: boolean;
   navLinks?: Array<{
     href: string;
     label: string;
@@ -18,11 +20,43 @@ interface Props {
 const {
   title,
   description = "Minder dashboard shell",
-  navTitle = "Minder Console",
+  navTitle = "Minder Dashboard",
   navDescription = "Admin setup, login, client management, and onboarding on one port.",
+  showPageIntro = true,
   navLinks = [],
   sessionControls = false,
 } = Astro.props;
+
+const DEFAULT_NAV = [
+  { href: "/dashboard", label: "Home" },
+  { href: "/dashboard/clients", label: "Clients" },
+  { href: "/dashboard/repositories", label: "Repositories" },
+  { href: "/dashboard/chat", label: "Chat" },
+  { href: "/dashboard/skills", label: "Skills" },
+  { href: "/dashboard/memories", label: "Memories" },
+  { href: "/dashboard/prompts", label: "Prompts" },
+  { href: "/dashboard/workflows", label: "Workflows" },
+  { href: "/dashboard/users", label: "Users" },
+  { href: "/dashboard/observability", label: "Observability" },
+];
+
+const effectiveNav = navLinks.length > 0 ? navLinks : DEFAULT_NAV;
+const currentPath = Astro.url.pathname;
+
+const isLinkActive = (href: string, currentDetail?: boolean) => {
+  if (currentDetail) return true;
+
+  // Normalize path by stripping backend-injected prefixes (e.g. /v1/admin)
+  // to ensure active state detection works both in dev and prod/backend mounts.
+  const normalizedPath = currentPath.replace(/^\/v[0-9]+\/admin/, "") || "/";
+  const path = normalizedPath.replace(/\/$/, "") || "/";
+  const target = href.replace(/\/$/, "") || "/";
+
+  if (target === "/dashboard") {
+    return path === "/dashboard" || path === "/dashboard/index.html";
+  }
+  return path.startsWith(target);
+};
 ---
 
 <!doctype html>
@@ -33,64 +67,117 @@ const {
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href="/dashboard/favicon.png" />
+
+    <!-- Design system fonts: Fraunces (display) + Inter (body) + JetBrains Mono (code) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    />
   </head>
   <body>
-    <div class="min-h-screen">
-      <header class="mx-auto max-w-6xl px-6 py-6">
-        <div
-          class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-4"
-        >
-          <div class="space-y-1">
-            <a
-              href="/dashboard"
-              class="text-lg font-semibold tracking-tight text-stone-900"
-              >{navTitle}</a
-            >
-            <p class="text-sm text-stone-600">{navDescription}</p>
-          </div>
-          <div class="flex flex-wrap items-center gap-3">
+    <div class="flex min-h-screen flex-col">
+      <header class="pt-4 pb-2">
+        <div class="u-page-container">
+          <div
+            class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-3 md:px-6"
+          >
+            <a href="/dashboard" class="group flex min-w-0 items-center gap-3">
+              <div
+                class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-800 text-white shadow-md transition-transform group-hover:scale-105"
+              >
+                <span class="font-display text-lg font-bold">M</span>
+              </div>
+              <div class="flex min-w-0 flex-col">
+                <span
+                  class="font-display truncate text-base font-semibold tracking-tight text-stone-900"
+                >
+                  {navTitle}
+                </span>
+                <span
+                  class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase"
+                >
+                  Control Plane
+                </span>
+              </div>
+            </a>
+
+            {
+              effectiveNav.length > 0 && (
+                <nav class="hidden flex-wrap items-center gap-1 md:flex">
+                  {effectiveNav.map((link: any) => (
+                    <a
+                      href={link.href}
+                      class="nav-link"
+                      data-active={
+                        isLinkActive(link.href, link.currentDetail)
+                          ? "true"
+                          : "false"
+                      }
+                    >
+                      {link.label}
+                    </a>
+                  ))}
+                </nav>
+              )
+            }
+
             {
               sessionControls && (
-                <div class="flex items-center gap-2">
-                  <span
-                    id="dashboard-session-badge"
-                    class="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-emerald-800 uppercase"
-                  >
-                    Checking Session
+                <div class="flex items-center gap-3">
+                  <span id="dashboard-session-badge" class="session-badge">
+                    Checking...
                   </span>
                   <button
                     id="dashboard-logout-button"
                     type="button"
-                    class="action-pill"
+                    class="action-pill u-btn-sm"
                   >
                     Logout
                   </button>
                 </div>
               )
             }
-            <nav class="flex flex-wrap items-center gap-2 text-sm">
-              {
-                navLinks.map((link) => (
+          </div>
+
+          {
+            effectiveNav.length > 0 && (
+              <nav class="mt-3 flex flex-wrap items-center gap-2 md:hidden">
+                {effectiveNav.map((link: any) => (
                   <a
                     href={link.href}
-                    data-current-detail-link={
-                      link.currentDetail ? "true" : undefined
-                    }
                     class={
-                      link.tone === "primary" ? "primary-pill" : "action-pill"
+                      isLinkActive(link.href, link.currentDetail)
+                        ? "primary-pill u-btn-sm"
+                        : "action-pill u-btn-sm"
                     }
                   >
                     {link.label}
                   </a>
-                ))
-              }
-            </nav>
-          </div>
+                ))}
+              </nav>
+            )
+          }
         </div>
       </header>
-      <main class="mx-auto max-w-6xl px-6 pb-16">
-        <slot />
+
+      <main class="flex-1">
+        <div class="u-page-container u-page-stack">
+          {
+            showPageIntro && (
+              <div class="mb-8 flex flex-col gap-2">
+                <h1 class="u-page-hero-title">{title}</h1>
+                <p class="u-page-hero-sub">{navDescription}</p>
+              </div>
+            )
+          }
+          <slot />
+        </div>
       </main>
+
+      <Footer showHealth={sessionControls} />
+
       <div
         id="dashboard-toast-region"
         class="pointer-events-none fixed right-6 bottom-6 z-50 flex max-w-sm flex-col gap-3"

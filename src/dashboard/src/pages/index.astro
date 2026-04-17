@@ -1,22 +1,230 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "../components/ui/PageHero.astro";
+import StatCard from "../components/ui/StatCard.astro";
+import Button from "../components/ui/Button.astro";
+import Card from "../components/ui/Card.astro";
+import SectionHeader from "../components/ui/SectionHeader.astro";
 ---
 
 <DashboardLayout
-  title="Minder Dashboard"
-  description="Resolve setup, login, or client registry entry for the Astro dashboard."
+  title="Home · Minder Dashboard"
+  description="System health and usage overview for the Minder control plane."
   navTitle="Minder Dashboard"
-  navDescription="Resolving the correct dashboard entrypoint for this browser session."
-  navLinks={[]}
+  navDescription="System health, resource inventory, and recent activity across the Minder deployment."
+  sessionControls={true}
+  showPageIntro={false}
 >
-  <section class="shell-card mx-auto max-w-2xl p-8 text-center">
-    <p class="eyebrow">Dashboard Entry</p>
-    <h1 class="mt-3 text-4xl font-semibold tracking-tight text-stone-950">
-      Resolving dashboard state
+  <!-- While we verify the admin session client-side. Auth-redirect path hides this page. -->
+  <Card
+    id="home-bootstrap"
+    padding="lg"
+    class="mx-auto max-w-xl text-center"
+  >
+    <p class="eyebrow">Dashboard</p>
+    <h1
+      class="font-display mt-2 text-2xl font-semibold tracking-tight text-stone-950"
+    >
+      Resolving dashboard state…
     </h1>
-    <p id="dashboard-entry-status" class="mt-4 text-sm text-stone-600">
-      Checking admin setup and browser session...
+    <p id="home-bootstrap-status" class="mt-2 text-sm text-stone-600">
+      Checking admin session.
     </p>
-  </section>
-  <script src="../scripts/dashboard-entry.ts"></script>
+  </Card>
+
+  <!-- ══════════════════════════════════════════
+       HOME DASHBOARD — hidden until session confirmed
+  ══════════════════════════════════════════ -->
+  <div id="home-content" class="hidden space-y-6">
+    <PageHero
+      eyebrow="Home"
+      title="System overview"
+      description="Snapshot of Minder deployment health, resource inventory, and recent activity. Counters reset when the process restarts; audit log is persistent."
+    >
+      <label
+        slot="actions"
+        class="flex items-center gap-2 text-sm text-stone-600"
+      >
+        <input
+          type="checkbox"
+          id="home-auto-refresh"
+          class="accent-amber-700"
+        />
+        Auto-refresh (30s)
+      </label>
+      <Button slot="actions" id="home-refresh" size="sm">Refresh now</Button>
+    </PageHero>
+
+    <!-- ── Health strip ── -->
+    <section
+      class="shell-card flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4"
+    >
+      <div class="flex items-center gap-3">
+        <span
+          id="home-health-dot"
+          class="inline-flex h-2.5 w-2.5 rounded-full bg-stone-300"
+          aria-hidden="true"></span>
+        <div>
+          <p
+            class="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
+          >
+            API Health
+          </p>
+          <p id="home-health-label" class="text-sm font-medium text-stone-800">
+            Checking…
+          </p>
+        </div>
+      </div>
+
+      <div class="hidden h-8 w-px bg-stone-200 md:block"></div>
+
+      <div>
+        <p
+          class="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
+        >
+          Signed in
+        </p>
+        <p id="home-admin-label" class="text-sm font-medium text-stone-800">
+          —
+        </p>
+      </div>
+
+      <div class="hidden h-8 w-px bg-stone-200 md:block"></div>
+
+      <div>
+        <p
+          class="text-[11px] font-semibold uppercase tracking-widest text-stone-400"
+        >
+          Last refreshed
+        </p>
+        <p id="home-last-updated" class="text-sm font-medium text-stone-800">
+          —
+        </p>
+      </div>
+
+      <p
+        id="home-error"
+        class="ml-auto hidden text-sm font-medium text-rose-700"
+      >
+      </p>
+    </section>
+
+    <!-- ── Inventory KPIs ── -->
+    <section>
+      <SectionHeader eyebrow="Inventory" title="Registered resources" />
+
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+        <StatCard
+          href="/dashboard/clients"
+          eyebrow="Clients"
+          valueId="home-count-clients"
+          sub="Registered MCP clients"
+        />
+        <StatCard
+          href="/dashboard/repositories"
+          eyebrow="Repositories"
+          valueId="home-count-repos"
+          sub="Synced code repos"
+        />
+        <StatCard
+          href="/dashboard/workflows"
+          eyebrow="Workflows"
+          valueId="home-count-workflows"
+          sub="Enforcement pipelines"
+        />
+        <StatCard
+          href="/dashboard/skills"
+          eyebrow="Skills"
+          valueId="home-count-skills"
+          sub="Reusable recall skills"
+        />
+        <StatCard
+          href="/dashboard/users"
+          eyebrow="Users"
+          valueId="home-count-users"
+          subId="home-count-users-sub"
+          sub="Admin + operator accounts"
+        />
+      </div>
+    </section>
+
+    <!-- ── Usage metrics ── -->
+    <section>
+      <SectionHeader eyebrow="Usage" title="Live counters (since process start)">
+        <a
+          slot="actions"
+          href="/dashboard/observability"
+          class="text-sm font-medium text-amber-800 hover:text-amber-900"
+        >
+          Open observability →
+        </a>
+      </SectionHeader>
+
+      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          eyebrow="Active sessions"
+          valueId="home-sessions"
+          sub="Client sessions right now"
+        />
+        <StatCard
+          eyebrow="Tool calls"
+          valueId="home-tool-calls"
+          subId="home-tool-calls-sub"
+          sub="—"
+        />
+        <StatCard
+          eyebrow="HTTP requests"
+          valueId="home-http"
+          subId="home-http-sub"
+          sub="—"
+        />
+        <StatCard
+          eyebrow="Auth events"
+          valueId="home-auth"
+          subId="home-auth-sub"
+          sub="—"
+        />
+      </div>
+    </section>
+
+    <!-- ── Recent activity ── -->
+    <section>
+      <SectionHeader eyebrow="Recent activity" title="Last 8 audit events">
+        <a
+          slot="actions"
+          href="/dashboard/observability"
+          class="text-sm font-medium text-amber-800 hover:text-amber-900"
+        >
+          Full audit log →
+        </a>
+      </SectionHeader>
+
+      <div class="shell-card overflow-hidden" id="home-recent-wrap">
+        <table class="w-full text-sm">
+          <thead>
+            <tr
+              class="border-b border-stone-200 bg-stone-50/80 text-left text-[11px] font-semibold uppercase tracking-widest text-stone-500"
+            >
+              <th class="px-5 py-3">Event</th>
+              <th class="px-5 py-3">Actor</th>
+              <th class="px-5 py-3">Resource</th>
+              <th class="px-5 py-3">Outcome</th>
+              <th class="px-5 py-3 whitespace-nowrap">When</th>
+            </tr>
+          </thead>
+          <tbody id="home-recent-body">
+            <tr>
+              <td
+                colspan="5"
+                class="px-5 py-8 text-center text-sm text-stone-400"
+                >Loading recent activity…</td
+              >
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script src="../scripts/dashboard-home.ts"></script>
 </DashboardLayout>

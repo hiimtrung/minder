@@ -11,7 +11,6 @@ from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.prompts.formatter import PromptDraft, polish_prompt_draft
 from minder.prompts import PromptRegistry
-from minder.store.interfaces import IOperationalStore
 from .context import AdminRouteContext
 
 logger = logging.getLogger(__name__)

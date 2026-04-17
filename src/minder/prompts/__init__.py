@@ -250,7 +250,7 @@ class PromptRegistry:
     def _optional_arguments(name: str) -> list[PromptArgument]:
         definition = PromptRegistry._BUILTIN_DEFINITIONS[name]
         return [
-            PromptArgument(name=argument_name, required=False)
+            PromptArgument(name=argument_name, required=False, description=f"{argument_name} argument")
             for argument_name in definition["arguments"]
         ]
 
@@ -261,11 +261,12 @@ class PromptRegistry:
 
     @staticmethod
     def builtin_prompt_models() -> list[SimpleNamespace]:
-        return [
-            PromptRegistry.get_builtin_prompt_model(name)
-            for name in PromptRegistry._BUILTIN_DEFINITIONS
-            if PromptRegistry.get_builtin_prompt_model(name) is not None
-        ]
+        models: list[SimpleNamespace] = []
+        for name in PromptRegistry._BUILTIN_DEFINITIONS:
+            model = PromptRegistry.get_builtin_prompt_model(name)
+            if model is not None:
+                models.append(model)
+        return models
 
     @staticmethod
     def _normalize_argument_names(raw_arguments: Any) -> list[str]:
@@ -614,7 +615,7 @@ class PromptRegistry:
                 description=str(prompt_model.description),
             )
             dynamic_prompt.arguments = [
-                PromptArgument(name=name, required=False) for name in argument_names
+                PromptArgument(name=name, required=False, description=f"{name} argument") for name in argument_names
             ]
             PromptRegistry._upsert_prompt(app, dynamic_prompt)
             dynamic_names.add(str(prompt_model.name))

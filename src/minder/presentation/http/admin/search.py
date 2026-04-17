@@ -64,11 +64,11 @@ def _lexical_score(query: str, candidate: str) -> float:
 
 def _rank_serialized_items(
     *,
-    items: list[dict[str, Any]],
+    items: list[Any],
     query: str,
-    text_builder: Callable[[dict[str, Any]], str],
+    text_builder: Callable[[Any], str],
     config: MinderConfig,
-) -> list[dict[str, Any]]:
+) -> list[Any]:
     if not query.strip():
         return items
 
@@ -78,7 +78,7 @@ def _rank_serialized_items(
         runtime="auto",
     )
     query_embedding = embedder.embed(query)
-    ranked: list[dict[str, Any]] = []
+    ranked: list[Any] = []
     for item in items:
         candidate_text = text_builder(item).strip()
         if not candidate_text:
@@ -99,7 +99,7 @@ def _rank_serialized_items(
 
 
 def _slice_items(
-    items: list[dict[str, Any]],
+    items: list[Any],
     *,
     limit: int,
     offset: int,
@@ -155,10 +155,12 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
         config = _config_from_request(request)
 
+        ranked: list[Any] = []
+
         if resource == "clients":
-            items = (await context.use_cases.list_clients())["clients"]
+            client_items = (await context.use_cases.list_clients())["clients"]
             ranked = _rank_serialized_items(
-                items=items,
+                items=client_items,
                 query=query,
                 text_builder=lambda item: " ".join(
                     [
@@ -173,9 +175,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 config=config,
             )
         elif resource == "repositories":
-            items = (await context.use_cases.list_repositories())["repositories"]
+            repo_items = (await context.use_cases.list_repositories())["repositories"]
             ranked = _rank_serialized_items(
-                items=items,
+                items=repo_items,
                 query=query,
                 text_builder=lambda item: " ".join(
                     [
@@ -192,9 +194,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 config=config,
             )
         elif resource == "workflows":
-            items = (await context.use_cases.list_workflows())["workflows"]
+            workflow_items = (await context.use_cases.list_workflows())["workflows"]
             ranked = _rank_serialized_items(
-                items=items,
+                items=workflow_items,
                 query=query,
                 text_builder=lambda item: " ".join(
                     [
@@ -216,9 +218,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 config=config,
             )
         elif resource == "prompts":
-            items = await _prompt_items(context)
+            prompt_items = await _prompt_items(context)
             ranked = _rank_serialized_items(
-                items=items,
+                items=prompt_items,
                 query=query,
                 text_builder=lambda item: " ".join(
                     [
@@ -232,16 +234,16 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 config=config,
             )
         elif resource == "skills":
-            tools = SkillTools(context.store, config)
-            all_items = await tools.minder_skill_list()
+            skill_tools = SkillTools(context.store, config)
+            all_skill_items = await skill_tools.minder_skill_list()
             ranked = (
-                await tools.minder_skill_recall(query, limit=max(len(all_items), 1))
+                await skill_tools.minder_skill_recall(query, limit=max(len(all_skill_items), 1))
                 if query
-                else all_items
+                else all_skill_items
             )
         elif resource == "memories":
-            tools = MemoryTools(context.store, config)
-            all_items = [
+            memory_tools = MemoryTools(context.store, config)
+            all_memory_items = [
                 _serialize_memory(skill)
                 for skill in sorted(
                     await context.store.list_skills(),
@@ -249,9 +251,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 )
             ]
             ranked = (
-                await tools.minder_memory_recall(query, limit=max(len(all_items), 1))
+                await memory_tools.minder_memory_recall(query, limit=max(len(all_memory_items), 1))
                 if query
-                else all_items
+                else all_memory_items
             )
         else:
             return JSONResponse({"error": "Unsupported resource"}, status_code=404)

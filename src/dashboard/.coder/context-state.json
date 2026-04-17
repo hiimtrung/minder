@@ -1,143 +1,133 @@
 {
-  "updated_at": "2026-04-17T08:40:25.045403+07:00",
+  "updated_at": "2026-04-17T09:26:08.269321+07:00",
   "skills": {
-    "task": "dashboard system status metrics",
+    "task": "prompt management crud",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-17T08:40:22.125659+07:00",
-    "keep": [],
-    "add": [
-      "grafana-dashboards",
-      "kpi-dashboard-design",
-      "observability-monitoring-monitor-setup"
+    "resolved_at": "2026-04-17T09:26:08.03711+07:00",
+    "keep": [
+      "cqrs-implementation",
+      "python-fastapi-development",
+      "context-manager"
     ],
-    "drop": [
-      "claude-d3js-skill",
-      "plotly",
-      "networkx"
-    ],
+    "add": [],
+    "drop": null,
     "skills": [
       {
-        "name": "grafana-dashboards",
-        "category": "frontend",
-        "score": 0.016393442,
-        "chunk_count": 11,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "kpi-dashboard-design",
-        "category": "frontend",
-        "score": 0.016129032,
-        "chunk_count": 8,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "observability-monitoring-monitor-setup",
+        "name": "cqrs-implementation",
         "category": "general",
-        "score": 0.014705882,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
+        "score": 0.016393442,
+        "chunk_count": 1,
+        "reason": "kept active: still relevant after re-resolve"
+      },
+      {
+        "name": "python-fastapi-development",
+        "category": "granular-workflow-bundle",
+        "score": 0.016393442,
+        "chunk_count": 1,
+        "reason": "kept active: still relevant after re-resolve"
+      },
+      {
+        "name": "context-manager",
+        "category": "backend",
+        "score": 0.016129032,
+        "chunk_count": 1,
+        "reason": "kept active: still relevant after re-resolve"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "minder dashboard observability metrics",
+    "query": "prompt management crud",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-17T08:40:25.044637+07:00",
+    "searched_at": "2026-04-17T09:26:08.26721+07:00",
     "results": [
       {
-        "id": "0633f679-9b83-4236-8820-c593ce83fe2a",
-        "title": "Minder project architecture plan",
+        "id": "079b909f-0464-472d-bbe1-c31533a103c9",
+        "title": "Conflict detected: InboxSidebarProvider readability refactor",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-project-architecture-plan",
+        "canonical_key": "document:inboxsidebarprovider-readability-refactor",
         "score": 0.086393446,
         "tags": [
-          "minder",
-          "architecture",
-          "rag",
-          "mcp",
-          "langgraph",
-          "plan"
+          "findtourgo",
+          "inboxes",
+          "refactor",
+          "readability",
+          "maintainability"
         ],
-        "conflict_detected": false,
-        "content": "Minder is a Full Agentic RAG MCP Server built with Python + LangGraph + Milvus + NV-Embed-v2 + Nemotron-3 Nano-4B GGUF. Architecture: MCP Transport Layer → LangGraph Orchestrator (Planning, Retriever, Reranker, Reasoning, LLM, Guard, Verification, Evaluator nodes) → Multi-tier Data Layer (Vector/Milvus, Relational/SQLite, Document/JSONL, Graph, Cache). 8 memory stores: Skill, History, Error, Session, Metadata, Document, Rule, Feedback. 5 implementation phases: Foundation → Agentic Pipeline → Advanced Retrieval + Knowledge Graph → Scale + Production → Self-Improvement. Plan stored at docs/PLAN.md."
+        "conflict_detected": true,
+        "conflict_count": 2,
+        "content": "Multiple active memories disagree for document:inboxsidebarprovider-readability-refactor. Candidates: [079b909f] InboxSidebarProvider readability refactor; [706815de] InboxSidebarProvider readability refactor. Inspect history before relying on this memory."
       },
       {
-        "id": "8131aeee-d209-4d66-a5a2-b81863775cf3",
-        "title": "Minder onboarding now prefers remote snippets with optional local tabs",
+        "id": "32b041a0-c8c5-4cd2-b024-59e969eca609",
+        "title": "Phase 1 setup-first planning refinement",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:minder-onboarding-now-prefers-remote-snippets-with-optional-local-tabs",
-        "score": 0.086129025,
-        "tags": [
-          "minder",
-          "mcp",
-          "onboarding",
-          "frontend",
-          "auth",
-          "docs"
-        ],
-        "conflict_detected": false,
-        "content": "Updated Minder onboarding so API templates are remote-first for all supported clients, with Codex using a remote config.toml URL/header block and Antigravity using serverUrl plus headers. The dashboard client detail UI now renders each integration as a collapsible card with preferred remote and optional local stdio tabs, dynamic Expand/Collapse labels, and richer copy actions including full-file and server-entry copies where applicable. Docs were updated to explain remote-first setup with local stdio fallback. Files changed: src/minder/application/admin/use_cases.py, src/dashboard/src/scripts/clients-page.ts, src/dashboard/src/components/ClientDetailShell.astro, docs/guides/admin-client-onboarding.md, and related tests."
-      },
-      {
-        "id": "440d41ec-9ae1-495d-910a-7dc025972a18",
-        "title": "Phase 4.3 Wave 1 bootstrap and presentation extraction",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:phase-4-3-wave-1-bootstrap-and-presentation-extraction",
+        "canonical_key": "document:phase-1-setup-first-planning-refinement",
         "score": 0.08587302,
         "tags": [
-          "phase4",
-          "architecture",
-          "server",
-          "dashboard",
-          "refactor"
+          "planning",
+          "phase1",
+          "setup",
+          "style",
+          "gsd"
         ],
         "conflict_detected": false,
-        "content": "Implemented Phase 4.3 Wave 1 without creating a commit. Added minder.bootstrap.providers and minder.bootstrap.transport, moved admin HTTP/dashboard route factory into minder.presentation.http.admin.routes, and reduced minder.server to a thin entrypoint plus runtime summary. Added unit architecture coverage asserting server builders are now re-exported from the new modules while existing dashboard/admin tests remain green."
+        "content": "For rental-management-ui, the user clarified that the first implementation focus should be tech stack setup, project scaffold, and project styling before deeper API work. Instead of inserting a pre-Phase-1 decimal phase, the safe planning move was to reframe Phase 1 itself and create 01-CONTEXT plus 01-01/01-02/01-03 plans covering project scaffold/providers, design tokens and shell, then auth pages and protected routing. STATE and .continue-here were updated so the next execution step is 01-01-PLAN.md while Phase 01.1 remains queued for typed API integration."
       },
       {
-        "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
-        "title": "Compose runtime activation uses auto runtimes with safe fallback",
+        "id": "55d01ab2-8d3a-4e81-8622-4fc44a265a2c",
+        "title": "Resume state on 2026-04-01",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+        "canonical_key": "document:resume-state-on-2026-04-01",
         "score": 0.08562499,
         "tags": [
-          "minder",
-          "phase1",
-          "phase2",
-          "compose",
-          "runtime",
-          "llama-cpp",
-          "langgraph",
-          "litellm"
+          "resume",
+          "gsd",
+          "state",
+          "phase-01"
         ],
         "conflict_detected": false,
-        "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
+        "content": "Resumed rental-management-ui with .planning/STATE.md present, no HANDOFF.json on disk, no interrupted agent, and .continue-here checkpoint in Phase 01. Current recommended next action is execute Plan 01-02 for style system and shell foundations. Working tree is dirty: .planning/PROJECT.md and .planning/STATE.md updated for resume continuity, yarn.lock modified, .planning/HANDOFF.json deleted, and .coder/ is untracked."
       },
       {
-        "id": "4e1786d6-096c-438b-a679-8c7ae43ba1c0",
-        "title": "Architecture transition: CLI edge extraction roadmap",
+        "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
+        "title": "Docs refactor: split progress trackers by phase",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:architecture-transition-cli-edge-extraction-roadmap",
+        "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
         "score": 0.08538462,
         "tags": [
           "minder",
-          "architecture",
           "docs",
-          "graph",
-          "cli",
-          "progress"
+          "progress",
+          "tracking",
+          "architecture"
         ],
         "conflict_detected": false,
-        "content": "Added a transition design and tracker for replacing slow server-centric graph refresh with minder-cli Tree-sitter delta sync. Updated docs/system-design.md, docs/plan/03-data-model-and-tools.md, docs/plan/05-implementation-phases.md, docs/PROJECT_PROGRESS.md, docs/TASK_BREAKDOWN.md, and docs/progress/* to document the three-pillar CLI/server/dashboard model. Corrected architecture language so Gemma 4 is the reasoning model while embeddings stay on a dedicated embedding provider."
+        "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
+      },
+      {
+        "id": "56f99018-897a-404a-a000-b04ef94e4f9e",
+        "title": "content_template layered refactor",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:content-template-layered-refactor",
+        "score": 0.08515151,
+        "tags": [
+          "packageTourApi",
+          "content_template",
+          "architecture",
+          "refactor",
+          "java"
+        ],
+        "conflict_detected": false,
+        "content": "Refactored module/content_template to follow usecase -\u003e service -\u003e repository. Moved create/update/get/clone/setDefault/delete persistence and company ownership checks into ContentTemplateService/ContentTemplateServiceImpl, updated repository queries to be company-scoped, updated use case signatures to pass companyId, and forced controller list/get/update/delete/clone flows to use path companyId rather than raw template id or filter input alone. Files: content_template/entity/service/ContentTemplateService.java, infrastructure/service/ContentTemplateServiceImpl.java, infrastructure/config/repository/ContentTemplateRepository.java, infrastructure/controller/ContentTemplateController.java, usecase/*.java, infrastructure/usecase/*.java."
       }
     ]
   }

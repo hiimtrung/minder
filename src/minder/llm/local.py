@@ -24,7 +24,11 @@ class LocalModelLLM:
         runtime = self._runtime
         model_exists = Path(self._model_path).expanduser().exists()
         if runtime == "auto":
-            return "llama_cpp" if model_exists and module_available("llama_cpp") else "mock"
+            return (
+                "llama_cpp"
+                if model_exists and module_available("llama_cpp")
+                else "mock"
+            )
         return runtime
 
     def generate(self, state: GraphState) -> dict[str, object]:
@@ -54,22 +58,47 @@ class LocalModelLLM:
             "stream": [line for line in text.splitlines() if line],
         }
 
-    def _generate_with_llama_cpp(self, state: GraphState, *, fallback: str) -> str:
+    def complete_text(
+        self,
+        prompt: str,
+        *,
+        max_tokens: int = 512,
+        temperature: float = 0.1,
+        fallback: str = "",
+    ) -> str:
+        if self._fail:
+            raise RuntimeError("Local model unavailable")
+
+        if self.runtime != "llama_cpp":
+            return fallback
+
         client = self._llama_client()
         if client is None:
             return fallback
 
-        reasoning_output = getattr(state, "reasoning_output", {}) or {}
-        prompt = reasoning_output.get("prompt") or state.query
-        response = client.create_completion(
-            prompt=str(prompt),
-            max_tokens=256,
-            temperature=0.1,
-        )
+        try:
+            response = client.create_completion(
+                prompt=prompt,
+                max_tokens=max_tokens,
+                temperature=temperature,
+            )
+        except Exception:
+            return fallback
+
         choices = response.get("choices", [])
         if not choices:
             return fallback
         return str(choices[0].get("text", fallback)).strip() or fallback
+
+    def _generate_with_llama_cpp(self, state: GraphState, *, fallback: str) -> str:
+        reasoning_output = getattr(state, "reasoning_output", {}) or {}
+        prompt = reasoning_output.get("prompt") or state.query
+        return self.complete_text(
+            str(prompt),
+            max_tokens=256,
+            temperature=0.1,
+            fallback=fallback,
+        )
 
     def _llama_client(self) -> Any | None:
         if self._client is not None:
@@ -78,7 +107,9 @@ class LocalModelLLM:
         if llama_cls is None:
             return None
         try:
-            self._client = llama_cls(model_path=str(Path(self._model_path).expanduser()))
+            self._client = llama_cls(
+                model_path=str(Path(self._model_path).expanduser())
+            )
         except Exception:
             return None
         return self._client

@@ -88,6 +88,8 @@ __all__ = [
     "RepositoryWorkflowStateSchema",
     "Rule",
     "RuleSchema",
+    "Prompt",
+    "PromptSchema",
     "Session",
     "SessionSchema",
     "Skill",
@@ -97,3 +99,6 @@ __all__ = [
     "Workflow",
     "WorkflowSchema",
 ]
+
+# Prompts
+from .prompt import Prompt as Prompt, PromptSchema as PromptSchema

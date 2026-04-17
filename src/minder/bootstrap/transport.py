@@ -67,13 +67,21 @@ def build_transport(
             config=config,
             store=store,
             auth_service=auth_service,
-            extra_routes=build_http_routes(
+            extra_routes=[],
+            cache_provider=cache_provider,
+        )
+
+        async def sync_prompts() -> None:
+            await PromptRegistry.sync(transport.app, store)
+
+        transport.extend_routes(
+            build_http_routes(
                 config=config,
                 store=store,
                 graph_store=graph_store,
                 cache=cache,
-            ),
-            cache_provider=cache_provider,
+                prompt_sync_hook=sync_prompts,
+            )
         )
 
     def ensure_client_repo_access(

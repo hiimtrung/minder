@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Awaitable, Callable
 
 from minder.application.admin.use_cases import AdminConsoleUseCases
 from minder.auth.principal import ClientPrincipal, Principal
@@ -23,6 +23,7 @@ class AdminRouteContext:
     auth_service: AuthService
     middleware: AuthMiddleware
     use_cases: AdminConsoleUseCases
+    prompt_sync_hook: Callable[[], Awaitable[None]] | None = None
 
     @classmethod
     def build(
@@ -32,6 +33,7 @@ class AdminRouteContext:
         store: IOperationalStore,
         graph_store: IGraphRepository | None = None,
         cache: ICacheProvider | None = None,
+        prompt_sync_hook: Callable[[], Awaitable[None]] | None = None,
     ) -> "AdminRouteContext":
         auth_service = AuthService(store, config, cache=cache)
         middleware = AuthMiddleware(auth_service)
@@ -49,6 +51,7 @@ class AdminRouteContext:
             auth_service=auth_service,
             middleware=middleware,
             use_cases=use_cases,
+            prompt_sync_hook=prompt_sync_hook,
         )
 
     def request_token(self, request: Request) -> str | None:

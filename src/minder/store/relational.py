@@ -37,6 +37,7 @@ from minder.models import (
     Rule,
     Session,
     Skill,
+    Prompt,
     User,
     Workflow,
 )
@@ -55,6 +56,7 @@ _REGISTERED_MODELS = (
     Rule,
     Session,
     Skill,
+    Prompt,
     User,
     Workflow,
 )
@@ -94,6 +96,50 @@ class RelationalStore:
             except Exception:
                 await sess.rollback()
                 raise
+
+    # ------------------------------------------------------------------
+    # Prompts
+    # ------------------------------------------------------------------
+
+    async def create_prompt(self, **kwargs: Any) -> Prompt:
+        async with self._session() as sess:
+            item = Prompt(**kwargs)
+            sess.add(item)
+            await sess.flush()
+            await sess.refresh(item)
+            return item
+
+    async def get_prompt_by_id(self, prompt_id: uuid.UUID) -> Optional[Prompt]:
+        async with self._session() as sess:
+            return await sess.get(Prompt, prompt_id)
+
+    async def get_prompt_by_name(self, name: str) -> Optional[Prompt]:
+        async with self._session() as sess:
+            stmt = select(Prompt).where(Prompt.name == name)
+            res = await sess.execute(stmt)
+            return res.scalar_one_or_none()
+
+    async def list_prompts(self) -> List[Prompt]:
+        async with self._session() as sess:
+            stmt = select(Prompt).order_by(Prompt.name)
+            res = await sess.execute(stmt)
+            return list(res.scalars().all())
+
+    async def update_prompt(self, prompt_id: uuid.UUID, **kwargs: Any) -> Optional[Prompt]:
+        async with self._session() as sess:
+            item = await sess.get(Prompt, prompt_id)
+            if not item:
+                return None
+            for k, v in kwargs.items():
+                setattr(item, k, v)
+            await sess.flush()
+            await sess.refresh(item)
+            return item
+
+    async def delete_prompt(self, prompt_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            stmt = delete(Prompt).where(Prompt.id == prompt_id)
+            await sess.execute(stmt)
 
     # ------------------------------------------------------------------
     # User

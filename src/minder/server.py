@@ -4,7 +4,12 @@ import asyncio
 import sys
 from pathlib import Path
 
-from minder.bootstrap.providers import build_cache, build_graph_store, build_store, build_vector_store
+from minder.bootstrap.providers import (
+    build_cache,
+    build_graph_store,
+    build_store,
+    build_vector_store,
+)
 from minder.bootstrap.transport import build_transport
 from minder.config import Settings
 from minder.embedding.local import LocalEmbeddingProvider
@@ -33,13 +38,17 @@ def runtime_summary(config: Settings) -> dict[str, object]:
         dimensions=config.embedding.dimensions,
         runtime="auto",
     )
-    fallback = OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model, runtime="auto")
+    fallback = OpenAIFallbackLLM(
+        config.llm.openai_api_key, config.llm.openai_model, runtime="auto"
+    )
     return {
         "transport": config.server.transport,
         "host": config.server.host,
         "port": config.server.port,
         "orchestration_runtime_requested": config.workflow.orchestration_runtime,
-        "orchestration_runtime_effective": graph_runtime_name(config.workflow.orchestration_runtime),
+        "orchestration_runtime_effective": graph_runtime_name(
+            config.workflow.orchestration_runtime
+        ),
         "llm_model_path": str(Path(config.llm.model_path).expanduser()),
         "llm_runtime_effective": llm.runtime,
         "embedding_model_path": str(Path(config.embedding.model_path).expanduser()),
@@ -55,6 +64,7 @@ async def _async_run() -> None:
 
     # Initialise structured JSON logging and tracing before anything else
     from minder.observability import configure_json_logging, configure_tracing
+
     configure_json_logging(level=config.server.log_level)
     configure_tracing(
         service_name=config.server.name,
@@ -83,19 +93,30 @@ async def _async_run() -> None:
         graph_store=graph_store,
         cache=cache,
     )
+
+    from minder.prompts import PromptRegistry
+
+    await PromptRegistry.sync(transport.app, store)
+
     print(
         f"Minder store={config.relational_store.provider} cache={config.cache.provider} "
         f"transport={transport.transport_name} host={config.server.host}:{config.server.port}",
         file=sys.stderr,
         flush=True,
     )
-    print("Minder runtime summary:", runtime_summary(config), file=sys.stderr, flush=True)
+    print(
+        "Minder runtime summary:", runtime_summary(config), file=sys.stderr, flush=True
+    )
 
     try:
         if transport.transport_name == "stdio":
             await transport.app.run_stdio_async()
         else:
-            print(f"Starting SSE on {config.server.host}:{config.server.port}", file=sys.stderr, flush=True)
+            print(
+                f"Starting SSE on {config.server.host}:{config.server.port}",
+                file=sys.stderr,
+                flush=True,
+            )
             if hasattr(transport, "run"):
                 await transport.run()
             else:

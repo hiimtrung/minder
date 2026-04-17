@@ -1,94 +1,92 @@
 {
   "mode": "search",
-  "query": "dashboard repository explorer tab layout graph sidebar overview default",
+  "query": "prompt registry params sample json default prompt arguments",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-16T17:30:12.939064+07:00",
+  "searched_at": "2026-04-17T10:30:00.679187+07:00",
   "results": [
     {
-      "id": "2c598507-5f77-42e5-a88e-8ba6dbe4df4f",
-      "title": "GitNexus-style structural graph canvas",
+      "id": "226cb6ba-cbfc-4dc5-a550-6ed7ab97754b",
+      "title": "Phase 4.4 prompt CRUD completed end-to-end",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:gitnexus-style-structural-graph-canvas",
+      "canonical_key": "document:phase-4-4-prompt-crud-completed-end-to-end",
       "score": 0.086393446,
       "tags": [
         "minder",
+        "prompts",
+        "phase4.4",
         "dashboard",
-        "graph-ui",
-        "gitnexus"
+        "llm"
       ],
       "conflict_detected": false,
-      "content": "Refactored dashboard graph canvases to feel closer to GitNexus by adding repository/folder/file context nodes, hierarchy-aware placement, GitNexus-inspired node size/color mapping, relation-styled edges, and larger structural graph canvases for both search and impact views. Files: src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, docs/progress/architecture-transition-cli-edge-sync.md"
+      "content": "Completed P4.4-T00 with real dynamic MCP prompt sync against FastMCP prompt manager, admin prompt CRUD routes on the SSE/admin surface, a new /dashboard/prompts Astro UI, and local Gemma 4-backed prompt polishing via minder/prompts/formatter.py and LocalModelLLM.complete_text. Verified with uv run pytest tests/unit/test_api_prompts.py tests/unit/test_prompt_registry.py and cd src/dashboard \u0026\u0026 bun check."
     },
     {
-      "id": "dc374af1-030b-4af6-b3b8-3f800f6a4a1b",
-      "title": "Repository-first graph explorer and repo CRUD",
+      "id": "f95f56ec-9712-4961-a082-b4765a716abe",
+      "title": "Mongo prompt CRUD adapter parity",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:repository-first-graph-explorer-and-repo-crud",
+      "canonical_key": "document:mongo-prompt-crud-adapter-parity",
       "score": 0.086129025,
       "tags": [
         "minder",
-        "dashboard",
-        "graph",
-        "repository-crud",
-        "admin-api"
+        "mongodb",
+        "prompts",
+        "bugfix"
       ],
       "conflict_detected": false,
-      "content": "Added admin repository detail/update/delete plus graph-map payloads so the dashboard can render a full repo graph by default. Backend files: src/minder/application/admin/dto.py, src/minder/application/admin/use_cases.py, src/minder/presentation/http/admin/api.py, src/minder/store/interfaces.py, src/minder/store/graph.py, src/minder/tools/graph.py, tests/integration/test_http_admin_expansion.py. Frontend files: src/dashboard/src/lib/api/admin.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/scripts/repositories-page.ts. Validation: pytest integration, ruff, mypy, bun check."
+      "content": "Fixed MongoOperationalStore missing prompt repository methods by adding create_prompt/get_prompt_by_id/get_prompt_by_name/list_prompts/update_prompt/delete_prompt plus Mongo indexes for prompts.name and prompts.company_id. Verified with uv run pytest tests/unit/test_mongo_repos.py -k prompt."
     },
     {
-      "id": "09b5f075-5007-43a2-87e4-9732df63d73c",
-      "title": "Components docs page uses left content and sticky right menu",
+      "id": "b0198c24-8935-46c7-a1ec-8d94ac8e17af",
+      "title": "Skill retrieval timing and markdown injection",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:components-docs-page-uses-left-content-and-sticky-right-menu",
+      "canonical_key": "document:skill-retrieval-timing-and-markdown-injection",
       "score": 0.08587302,
       "tags": [
-        "planTourUI",
-        "docs-layout",
-        "right-menu",
-        "sticky-sidebar",
-        "components-page"
+        "skills",
+        "retrieval",
+        "prompting",
+        "markdown"
       ],
       "conflict_detected": false,
-      "content": "Updated src/app/components/page.tsx into a documentation-style layout with main content on the left and a sticky 'On this page' navigation menu on the right. The right menu tracks active sections via IntersectionObserver, and the main content currently wraps the Combobox demo and API notes as a reusable docs-page pattern."
+      "content": "Skill retrieval should not be locked at user submit time because clarification can change the actual task. Use an initial retrieval only as hints, then rerun skill retrieval after intent is clarified and again before major tool execution when the concrete subtask changes. The skill parser preserves markdown content, but the human-oriented coder skill search CLI output flattens formatting for terminal display; prompt injection should use raw chunk markdown or JSON instead of terminal-formatted stdout."
     },
     {
-      "id": "9165aef9-2a0a-4159-bbb7-6a336f756328",
-      "title": "Repository graph explorer flow",
+      "id": "8c8e6384-6cf7-44d2-8cce-488f1ed9fc37",
+      "title": "Dynamic Prompt CRUD via FastAPI",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:repository-graph-explorer-flow",
+      "canonical_key": "document:dynamic-prompt-crud-via-fastapi",
       "score": 0.08562499,
       "tags": [
-        "minder",
-        "dashboard",
-        "graph",
-        "admin-api",
-        "astro"
+        "fastapi",
+        "mcp",
+        "prompts",
+        "crud"
       ],
       "conflict_detected": false,
-      "content": "Added admin repository graph read APIs and Astro dashboard explorer for synced repo graphs. Backend: src/minder/application/admin/use_cases.py adds summary/search/impact methods backed by GraphTools; src/minder/presentation/http/admin/api.py exposes /v1/admin/repositories/{repo_id}/graph-summary, graph-search, and graph-impact. Frontend: src/dashboard/src/lib/api/admin.ts adds typed graph client calls; src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/pages/repositories/index.astro, and src/dashboard/src/scripts/repositories-page.ts add the repository explorer UI. Validation: uv run pytest tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy ..., cd src/dashboard \u0026\u0026 bun run check."
+      "content": "Added FastAPI APIRouter at src/minder/api/routers/prompts.py exposing Prompt model CRUD operations. Upgraded build_http_app in presentation/http/admin/routes.py from Starlette to FastAPI to register the router. Added PromptRegistry.register_dynamic in src/minder/prompts/__init__.py to inject DB prompts into FastMCP async during startup in server.py."
     },
     {
-      "id": "26e6bb58-6d6a-4f99-a89f-4adce7b9b54a",
-      "title": "Repository-first dashboard entry and unified header",
+      "id": "fa8d32f4-2434-4dca-9bc1-54fe2c4e1472",
+      "title": "Configuration configJson uses registry-based typing",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:repository-first-dashboard-entry-and-unified-header",
+      "canonical_key": "document:configuration-configjson-uses-registry-based-typing",
       "score": 0.08538462,
       "tags": [
-        "minder",
-        "dashboard",
-        "navigation",
-        "ui",
-        "docs"
+        "omi-channel-be",
+        "nestjs",
+        "configurations",
+        "typescript",
+        "typing"
       ],
       "conflict_detected": false,
-      "content": "Made /dashboard and post-login browser flow land on /dashboard/repositories instead of /dashboard/clients. Updated src/minder/presentation/http/admin/dashboard.py, src/dashboard/src/scripts/dashboard-entry.ts, and src/dashboard/src/scripts/login-page.ts to keep server-side and client-side redirects aligned. Refactored src/dashboard/src/layouts/DashboardLayout.astro with showPageIntro so pages with their own hero sections do not render a duplicate title block, and enabled that mode across the registry/detail/dashboard shells. Updated transition trackers to mark the delivered transition phases DONE and moved remaining enhancements into backlog language. Validation: bun run check, uv run pytest tests/integration/test_setup_dashboard_gate.py tests/integration/test_http_admin_expansion.py, uv run ruff check ..., uv run mypy src/minder/presentation/http/admin/dashboard.py."
+      "content": "Replaced broad configJson typing with a registry-based type map in configurations so entity/DTO types are derived from feature+configKey definitions instead of Record\u003cstring, unknown\u003e | unknown[] or a hand-maintained union. Files: src/modules/configurations/domain/types/configuration-json.types.ts, src/modules/configurations/domain/entities/configuration.orm-entity.ts, src/modules/configurations/presentation/responses/configuration-response.dto.ts"
     }
   ]
 }

@@ -1,37 +1,37 @@
 {
-  "task": "frontend dashboard repository explorer tab layout sticky graph sidebar",
+  "task": "prompt registry dashboard params python astro",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-16T17:30:12.591157+07:00",
+  "resolved_at": "2026-04-17T10:30:00.365968+07:00",
   "keep": [],
   "add": [
-    "algorithmic-art",
-    "frontend-ui-dark-ts",
-    "ui-styling"
+    "task-intelligence",
+    "image-studio",
+    "ai-studio-image"
   ],
   "drop": [
-    "github-automation",
-    "oss-hunter",
-    "wiki-architect"
+    "pydantic-models-py",
+    "advanced-evaluation",
+    "azure-containerregistry-py"
   ],
   "skills": [
     {
-      "name": "algorithmic-art",
+      "name": "task-intelligence",
       "category": "general",
       "score": 0.016393442,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "frontend-ui-dark-ts",
-      "category": "frontend",
+      "name": "image-studio",
+      "category": "general",
       "score": 0.016129032,
-      "chunk_count": 2,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "ui-styling",
-      "category": "frontend",
+      "name": "ai-studio-image",
+      "category": "general",
       "score": 0.015873017,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"

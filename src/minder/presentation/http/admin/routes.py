@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from starlette.applications import Starlette
+from fastapi import FastAPI
 from starlette.middleware import Middleware
 from starlette.middleware.cors import CORSMiddleware
 from starlette.responses import FileResponse, PlainTextResponse, RedirectResponse
@@ -17,6 +17,7 @@ from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperation
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
+from .prompts import build_prompts_routes
 
 
 DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
@@ -42,12 +43,14 @@ def build_http_routes(
     store: IOperationalStore,
     graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
+    prompt_sync_hook=None,
 ) -> list[BaseRoute]:
     context = AdminRouteContext.build(
         config=config,
         store=store,
         graph_store=graph_store,
         cache=cache,
+        prompt_sync_hook=prompt_sync_hook,
     )
 
     async def health(_request) -> PlainTextResponse:
@@ -68,6 +71,7 @@ def build_http_routes(
         Route("/favicon.png", favicon_png, methods=["GET"]),
         Route("/metrics", metrics_endpoint, methods=["GET"]),
         *build_admin_api_routes(context),
+        *build_prompts_routes(context),
         *build_dashboard_routes(context),
     ]
 
@@ -78,7 +82,7 @@ def build_http_app(
     store: IOperationalStore,
     graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
-) -> Starlette:
+) -> FastAPI:
     middleware: list[Middleware] = []
 
     # Observability middleware (innermost first — applied outermost-last)
@@ -96,7 +100,7 @@ def build_http_app(
                 allow_headers=["*"],
             )
         )
-    return Starlette(
+    app = FastAPI(
         routes=build_http_routes(
             config=config,
             store=store,
@@ -105,3 +109,6 @@ def build_http_app(
         ),
         middleware=middleware,
     )
+    app.state.store = store
+    app.state.config = config
+    return app

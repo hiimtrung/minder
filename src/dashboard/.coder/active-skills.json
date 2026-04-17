@@ -1,40 +1,36 @@
 {
-  "task": "dashboard system status metrics",
+  "task": "prompt management crud",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T08:40:22.125659+07:00",
-  "keep": [],
-  "add": [
-    "grafana-dashboards",
-    "kpi-dashboard-design",
-    "observability-monitoring-monitor-setup"
+  "resolved_at": "2026-04-17T09:26:08.03711+07:00",
+  "keep": [
+    "cqrs-implementation",
+    "python-fastapi-development",
+    "context-manager"
   ],
-  "drop": [
-    "claude-d3js-skill",
-    "plotly",
-    "networkx"
-  ],
+  "add": [],
+  "drop": null,
   "skills": [
     {
-      "name": "grafana-dashboards",
-      "category": "frontend",
-      "score": 0.016393442,
-      "chunk_count": 11,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "kpi-dashboard-design",
-      "category": "frontend",
-      "score": 0.016129032,
-      "chunk_count": 8,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "observability-monitoring-monitor-setup",
+      "name": "cqrs-implementation",
       "category": "general",
-      "score": 0.014705882,
-      "chunk_count": 2,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "score": 0.016393442,
+      "chunk_count": 1,
+      "reason": "kept active: still relevant after re-resolve"
+    },
+    {
+      "name": "python-fastapi-development",
+      "category": "granular-workflow-bundle",
+      "score": 0.016393442,
+      "chunk_count": 1,
+      "reason": "kept active: still relevant after re-resolve"
+    },
+    {
+      "name": "context-manager",
+      "category": "backend",
+      "score": 0.016129032,
+      "chunk_count": 1,
+      "reason": "kept active: still relevant after re-resolve"
     }
   ]
 }

@@ -406,6 +406,88 @@ export type WorkflowPayload = {
 export type WorkflowListPayload = { workflows: WorkflowPayload[] };
 export type WorkflowDetailPayload = { workflow: WorkflowPayload };
 
+// ---------------------------------------------------------------------------
+// Prompt management
+// ---------------------------------------------------------------------------
+
+export type PromptPayload = {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments: string[];
+  created_at: string | null;
+  updated_at: string | null;
+  is_builtin: boolean;
+};
+
+export type PromptPolishPayload = {
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments: string[];
+  llm: {
+    provider: string;
+    model: string;
+    runtime: string;
+  };
+};
+
+export async function listPrompts(): Promise<PromptPayload[]> {
+  return requestJson<PromptPayload[]>("/api/v1/prompts");
+}
+
+export async function createPrompt(payload: {
+  name: string;
+  title: string;
+  description: string;
+  content_template: string;
+  arguments?: string[];
+}): Promise<PromptPayload> {
+  return requestJson<PromptPayload>("/api/v1/prompts", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updatePrompt(
+  promptId: string,
+  payload: {
+    name?: string;
+    title?: string;
+    description?: string;
+    content_template?: string;
+    arguments?: string[];
+  },
+): Promise<PromptPayload> {
+  return requestJson<PromptPayload>(`/api/v1/prompts/${promptId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deletePrompt(promptId: string): Promise<void> {
+  await requestJson(`/api/v1/prompts/${promptId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function polishPromptDraft(payload: {
+  name: string;
+  title?: string;
+  description?: string;
+  content_template?: string;
+  arguments?: string[];
+}): Promise<PromptPolishPayload> {
+  return requestJson<PromptPolishPayload>("/api/v1/prompts/polish", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function listWorkflows(): Promise<WorkflowListPayload> {
   return requestJson<WorkflowListPayload>("/v1/admin/workflows");
 }

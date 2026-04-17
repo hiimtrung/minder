@@ -35,6 +35,22 @@ class IUserRepository(Protocol):
 
 
 @runtime_checkable
+
+# ---------------------------------------------------------------------------
+# Prompt Repository
+# ---------------------------------------------------------------------------
+
+@runtime_checkable
+class IPromptRepository(Protocol):
+    async def create_prompt(self, **kwargs: Any) -> Any: ...
+    async def get_prompt_by_id(self, prompt_id: uuid.UUID) -> Any | None: ...
+    async def get_prompt_by_name(self, name: str) -> Any | None: ...
+    async def list_prompts(self) -> list[Any]: ...
+    async def update_prompt(self, prompt_id: uuid.UUID, **kwargs: Any) -> Any | None: ...
+    async def delete_prompt(self, prompt_id: uuid.UUID) -> None: ...
+
+
+@runtime_checkable
 class ISkillRepository(Protocol):
     async def create_skill(self, **kwargs: Any) -> Any: ...
     async def get_skill_by_id(self, skill_id: uuid.UUID) -> Any | None: ...
@@ -417,6 +433,7 @@ class IVectorStore(Protocol):
 class IOperationalStore(
     IUserRepository,
     ISkillRepository,
+    IPromptRepository,
     ISessionRepository,
     IWorkflowRepository,
     IRepositoryRepo,

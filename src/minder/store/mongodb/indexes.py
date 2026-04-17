@@ -40,6 +40,11 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:  # type: ignore[type
     await skills.create_index([("title", ASCENDING)])
     await skills.create_index([("language", ASCENDING)])
 
+    # Prompts
+    prompts = db["prompts"]
+    await prompts.create_index([("company_id", ASCENDING)])
+    await prompts.create_index([("name", ASCENDING)], unique=True)
+
     # Sessions
     sessions = db["sessions"]
     await sessions.create_index([("company_id", ASCENDING)])

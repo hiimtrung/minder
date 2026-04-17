@@ -885,3 +885,33 @@ export async function getMetricsSummary(
     : "/v1/admin/metrics-summary";
   return requestJson<MetricsSummaryPayload>(path);
 }
+
+// ---------------------------------------------------------------------------
+// Service health
+// ---------------------------------------------------------------------------
+
+export type HealthStatus = {
+  ok: boolean;
+  status: number;
+  latencyMs: number;
+};
+
+/** Pings the server /health endpoint. No auth required. */
+export async function getServiceHealth(): Promise<HealthStatus> {
+  const started = performance.now();
+  try {
+    const response = await fetch(apiUrl("/health"), {
+      credentials: "include",
+      // Small timeout-like safeguard — browsers don't expose true timeouts, but this is cheap.
+    });
+    const latencyMs = Math.round(performance.now() - started);
+    return {
+      ok: response.ok,
+      status: response.status,
+      latencyMs,
+    };
+  } catch {
+    const latencyMs = Math.round(performance.now() - started);
+    return { ok: false, status: 0, latencyMs };
+  }
+}

@@ -1,39 +1,39 @@
 {
-  "task": "frontend d3 graph visualization",
+  "task": "dashboard system status metrics",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-16T08:25:07.323877+07:00",
+  "resolved_at": "2026-04-17T08:40:22.125659+07:00",
   "keep": [],
   "add": [
+    "grafana-dashboards",
+    "kpi-dashboard-design",
+    "observability-monitoring-monitor-setup"
+  ],
+  "drop": [
     "claude-d3js-skill",
     "plotly",
     "networkx"
   ],
-  "drop": [
-    "dx-optimizer",
-    "bash-pro",
-    "shadcn"
-  ],
   "skills": [
     {
-      "name": "claude-d3js-skill",
-      "category": "general",
+      "name": "grafana-dashboards",
+      "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 24,
+      "chunk_count": 11,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "plotly",
-      "category": "general",
-      "score": 0.015151516,
-      "chunk_count": 4,
+      "name": "kpi-dashboard-design",
+      "category": "frontend",
+      "score": 0.016129032,
+      "chunk_count": 8,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "networkx",
+      "name": "observability-monitoring-monitor-setup",
       "category": "general",
-      "score": 0.014285714,
-      "chunk_count": 1,
+      "score": 0.014705882,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

@@ -1,136 +1,143 @@
 {
-  "updated_at": "2026-04-16T08:25:07.45098+07:00",
+  "updated_at": "2026-04-17T08:40:25.045403+07:00",
   "skills": {
-    "task": "frontend d3 graph visualization",
+    "task": "dashboard system status metrics",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-16T08:25:07.323877+07:00",
+    "resolved_at": "2026-04-17T08:40:22.125659+07:00",
     "keep": [],
     "add": [
+      "grafana-dashboards",
+      "kpi-dashboard-design",
+      "observability-monitoring-monitor-setup"
+    ],
+    "drop": [
       "claude-d3js-skill",
       "plotly",
       "networkx"
     ],
-    "drop": [
-      "dx-optimizer",
-      "bash-pro",
-      "shadcn"
-    ],
     "skills": [
       {
-        "name": "claude-d3js-skill",
-        "category": "general",
+        "name": "grafana-dashboards",
+        "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 24,
+        "chunk_count": 11,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "plotly",
-        "category": "general",
-        "score": 0.015151516,
-        "chunk_count": 4,
+        "name": "kpi-dashboard-design",
+        "category": "frontend",
+        "score": 0.016129032,
+        "chunk_count": 8,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "networkx",
+        "name": "observability-monitoring-monitor-setup",
         "category": "general",
-        "score": 0.014285714,
-        "chunk_count": 1,
+        "score": 0.014705882,
+        "chunk_count": 2,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "repository graph d3 sigma visualization",
+    "query": "minder dashboard observability metrics",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-16T08:25:07.450319+07:00",
+    "searched_at": "2026-04-17T08:40:25.044637+07:00",
     "results": [
       {
-        "id": "2c598507-5f77-42e5-a88e-8ba6dbe4df4f",
-        "title": "GitNexus-style structural graph canvas",
+        "id": "0633f679-9b83-4236-8820-c593ce83fe2a",
+        "title": "Minder project architecture plan",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:gitnexus-style-structural-graph-canvas",
+        "canonical_key": "document:minder-project-architecture-plan",
         "score": 0.086393446,
         "tags": [
           "minder",
-          "dashboard",
-          "graph-ui",
-          "gitnexus"
+          "architecture",
+          "rag",
+          "mcp",
+          "langgraph",
+          "plan"
         ],
         "conflict_detected": false,
-        "content": "Refactored dashboard graph canvases to feel closer to GitNexus by adding repository/folder/file context nodes, hierarchy-aware placement, GitNexus-inspired node size/color mapping, relation-styled edges, and larger structural graph canvases for both search and impact views. Files: src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, docs/progress/architecture-transition-cli-edge-sync.md"
+        "content": "Minder is a Full Agentic RAG MCP Server built with Python + LangGraph + Milvus + NV-Embed-v2 + Nemotron-3 Nano-4B GGUF. Architecture: MCP Transport Layer → LangGraph Orchestrator (Planning, Retriever, Reranker, Reasoning, LLM, Guard, Verification, Evaluator nodes) → Multi-tier Data Layer (Vector/Milvus, Relational/SQLite, Document/JSONL, Graph, Cache). 8 memory stores: Skill, History, Error, Session, Metadata, Document, Rule, Feedback. 5 implementation phases: Foundation → Agentic Pipeline → Advanced Retrieval + Knowledge Graph → Scale + Production → Self-Improvement. Plan stored at docs/PLAN.md."
       },
       {
-        "id": "183d2ae1-59c5-4298-a338-440c251926cd",
-        "title": "Graph explorer filters and symbol history heuristics",
+        "id": "8131aeee-d209-4d66-a5a2-b81863775cf3",
+        "title": "Minder onboarding now prefers remote snippets with optional local tabs",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:graph-explorer-filters-and-symbol-history-heuristics",
+        "canonical_key": "document:minder-onboarding-now-prefers-remote-snippets-with-optional-local-tabs",
         "score": 0.086129025,
         "tags": [
           "minder",
-          "graph",
-          "git-history",
-          "filters",
-          "dashboard"
-        ],
-        "conflict_detected": false,
-        "content": "Added graph search filters for language and last_state, made graph query scoring match git history metadata, added canvas cues for node state/history freshness, and enriched RepoScanner nodes with symbol/line-level git last-touch heuristics from blame while preserving file-level history context. Files: src/minder/tools/repo_scanner.py, src/minder/tools/graph.py, src/minder/application/admin/use_cases.py, src/minder/presentation/http/admin/api.py, src/dashboard/src/components/RepositoryGraphExplorerShell.astro, src/dashboard/src/scripts/repositories-page.ts, src/dashboard/src/lib/api/admin.ts, tests/unit/test_ingest.py, tests/integration/test_http_admin_expansion.py, docs/progress/architecture-transition-cli-edge-sync.md"
-      },
-      {
-        "id": "c6ecb913-4708-477c-9204-a8d612bea6f9",
-        "title": "Delete-aware CLI graph sync tombstones",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:delete-aware-cli-graph-sync-tombstones",
-        "score": 0.08587302,
-        "tags": [
-          "minder",
-          "python",
-          "cli",
-          "graph-sync",
-          "delete-sync"
-        ],
-        "conflict_detected": false,
-        "content": "Extended graph sync to carry deleted_files through src/minder/cli.py, src/minder/tools/repo_scanner.py, and src/minder/application/admin/dto.py. AdminConsoleUseCases.sync_repository_graph now prunes repo-scoped graph nodes whose metadata.path matches deleted files using IGraphRepository.list_nodes and KnowledgeGraphStore.list_nodes. Added integration coverage in tests/integration/test_http_admin_expansion.py and updated progress docs."
-      },
-      {
-        "id": "7e19507e-6439-43a8-b7ad-5fd4fd2a0d41",
-        "title": "Graph node git state metadata",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:graph-node-git-state-metadata",
-        "score": 0.08562499,
-        "tags": [
-          "minder",
-          "graph",
-          "git-history",
-          "dashboard"
-        ],
-        "conflict_detected": false,
-        "content": "Enriched RepoScanner file-scoped node metadata with language, last_state, last_commit summary/timestamp, history_summary, and recent_commits; dashboard node details now render these fields without changing graph storage schema. Files: src/minder/tools/repo_scanner.py, tests/unit/test_ingest.py, src/dashboard/src/scripts/repositories-page.ts, docs/progress/architecture-transition-cli-edge-sync.md"
-      },
-      {
-        "id": "f75c9be7-7fe4-4ade-b925-947d8ccc5555",
-        "title": "MCP graph search and symbol inventory",
-        "type": "document",
-        "status": "active",
-        "canonical_key": "document:mcp-graph-search-and-symbol-inventory",
-        "score": 0.08538462,
-        "tags": [
-          "minder",
-          "python",
           "mcp",
-          "graph",
-          "search",
+          "onboarding",
+          "frontend",
+          "auth",
           "docs"
         ],
         "conflict_detected": false,
-        "content": "Continued the Phase 3 transition by adding a repo-scoped minder_search_graph MCP tool backed by graph node metadata matching, plus the minder://repos/{repo_name}/symbols resource. The transport enforces repo_scope for this tool the same way it does for other repo-path MCP tools. Updated transition docs and validated with focused pytest, ruff, and mypy."
+        "content": "Updated Minder onboarding so API templates are remote-first for all supported clients, with Codex using a remote config.toml URL/header block and Antigravity using serverUrl plus headers. The dashboard client detail UI now renders each integration as a collapsible card with preferred remote and optional local stdio tabs, dynamic Expand/Collapse labels, and richer copy actions including full-file and server-entry copies where applicable. Docs were updated to explain remote-first setup with local stdio fallback. Files changed: src/minder/application/admin/use_cases.py, src/dashboard/src/scripts/clients-page.ts, src/dashboard/src/components/ClientDetailShell.astro, docs/guides/admin-client-onboarding.md, and related tests."
+      },
+      {
+        "id": "440d41ec-9ae1-495d-910a-7dc025972a18",
+        "title": "Phase 4.3 Wave 1 bootstrap and presentation extraction",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:phase-4-3-wave-1-bootstrap-and-presentation-extraction",
+        "score": 0.08587302,
+        "tags": [
+          "phase4",
+          "architecture",
+          "server",
+          "dashboard",
+          "refactor"
+        ],
+        "conflict_detected": false,
+        "content": "Implemented Phase 4.3 Wave 1 without creating a commit. Added minder.bootstrap.providers and minder.bootstrap.transport, moved admin HTTP/dashboard route factory into minder.presentation.http.admin.routes, and reduced minder.server to a thin entrypoint plus runtime summary. Added unit architecture coverage asserting server builders are now re-exported from the new modules while existing dashboard/admin tests remain green."
+      },
+      {
+        "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
+        "title": "Compose runtime activation uses auto runtimes with safe fallback",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
+        "score": 0.08562499,
+        "tags": [
+          "minder",
+          "phase1",
+          "phase2",
+          "compose",
+          "runtime",
+          "llama-cpp",
+          "langgraph",
+          "litellm"
+        ],
+        "conflict_detected": false,
+        "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
+      },
+      {
+        "id": "4e1786d6-096c-438b-a679-8c7ae43ba1c0",
+        "title": "Architecture transition: CLI edge extraction roadmap",
+        "type": "document",
+        "status": "active",
+        "canonical_key": "document:architecture-transition-cli-edge-extraction-roadmap",
+        "score": 0.08538462,
+        "tags": [
+          "minder",
+          "architecture",
+          "docs",
+          "graph",
+          "cli",
+          "progress"
+        ],
+        "conflict_detected": false,
+        "content": "Added a transition design and tracker for replacing slow server-centric graph refresh with minder-cli Tree-sitter delta sync. Updated docs/system-design.md, docs/plan/03-data-model-and-tools.md, docs/plan/05-implementation-phases.md, docs/PROJECT_PROGRESS.md, docs/TASK_BREAKDOWN.md, and docs/progress/* to document the three-pillar CLI/server/dashboard model. Corrected architecture language so Gemma 4 is the reasoning model while embeddings stay on a dedicated embedding provider."
       }
     ]
   }

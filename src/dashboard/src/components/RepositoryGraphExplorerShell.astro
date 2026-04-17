@@ -10,133 +10,148 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
   sessionControls={true}
   showPageIntro={false}
 >
-  <!-- ── Page header ── -->
-  <section class="mb-2 flex flex-wrap items-end justify-between gap-4">
-    <p class="eyebrow">Repository Explorer</p>
-  </section>
-
-  <!-- ── Two-column layout: sidebar | content ── -->
-  <div
-    id="main-layout-grid"
-    class="grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]"
-  >
-    <!-- ════ LEFT SIDEBAR ════ -->
-    <aside id="repo-sidebar" class="shell-card p-6">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="eyebrow">Repositories</p>
-          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
-            Select a repo
-          </h2>
-        </div>
-        <button
-          id="repositories-refresh"
-          type="button"
-          class="action-pill text-xs"
+  <!-- ── Single-column layout — sidebar removed; repo picker lives in the command bar ── -->
+  <div id="main-layout-grid" class="grid gap-6">
+    <div class="min-w-0 space-y-5">
+      <!-- ══════════════════════════════════════════
+           COMMAND BAR — unified across every tab
+           Row 1: Repo picker · branch · sync · reload
+           Row 2: Active repo summary line
+           Row 3: Tab navigation
+      ══════════════════════════════════════════ -->
+      <div class="sticky top-4 z-30 shell-card">
+        <!-- Row 1 — picker -->
+        <div
+          class="flex flex-wrap items-center gap-3 px-4 py-3 border-b border-stone-200/70"
         >
-          Refresh
-        </button>
-      </div>
-      <div id="repositories-status" class="mt-3 min-h-5 text-xs text-stone-500">
-      </div>
-      <div id="repositories-list" class="mt-3 grid gap-2">
-        <article
-          class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-500"
-        >
-          Loading repositories…
-        </article>
-      </div>
-    </aside>
+          <div class="flex min-w-0 flex-1 items-center gap-2.5">
+            <p class="eyebrow shrink-0">Repo</p>
+            <div class="relative min-w-0 flex-1 max-w-md">
+              <select
+                id="repo-quick-switch"
+                class="peer w-full appearance-none rounded-full border border-stone-300 bg-white pl-4 pr-10 py-2 text-sm font-medium text-stone-900 shadow-sm transition focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20 disabled:bg-stone-50 disabled:text-stone-400"
+              >
+                <option value="">Select a repository…</option>
+              </select>
+              <svg
+                class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-stone-400 peer-focus:text-amber-700"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                ><path
+                  fill-rule="evenodd"
+                  d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                  clip-rule="evenodd"></path></svg
+              >
+            </div>
 
-    <!-- ════ RIGHT CONTENT ════ -->
-    <div class="min-w-0 space-y-4">
-      <!-- ── Tab bar ── -->
-      <div class="sticky top-4 z-30 shell-card px-3 py-3">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <nav class="flex flex-wrap items-center gap-1" id="repo-tab-nav">
-            <button data-tab-btn="overview" class="tab-btn tab-btn-active"
-              >Overview</button
+            <!-- Branch selector — hidden until a repo with tracked branches is loaded -->
+            <div
+              id="repo-branch-selector-wrap"
+              class="hidden flex items-center gap-2 min-w-0"
             >
-            <button data-tab-btn="graph" class="tab-btn">Graph</button>
-            <button data-tab-btn="search" class="tab-btn">Search</button>
-            <button data-tab-btn="impact" class="tab-btn">Impact</button>
-            <button data-tab-btn="settings" class="tab-btn">Settings</button>
-          </nav>
-          <div class="flex flex-wrap items-center gap-2">
-            <label
-              for="repo-quick-switch"
-              class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400"
+              <label
+                for="repo-branch-selector"
+                class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-400 shrink-0"
+              >
+                Branch
+              </label>
+              <div class="relative">
+                <select
+                  id="repo-branch-selector"
+                  class="appearance-none rounded-full border border-stone-300 bg-white pl-3.5 pr-9 py-2 text-xs font-medium text-stone-800 focus:border-amber-700 focus:outline-none focus:ring-2 focus:ring-amber-700/20 cursor-pointer"
+                >
+                </select>
+                <svg
+                  class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-stone-400"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  ><path
+                    fill-rule="evenodd"
+                    d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
+                    clip-rule="evenodd"></path></svg
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2 shrink-0">
+            <div
+              id="repo-summary-sync"
+              class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-widest text-stone-500"
             >
-              Repository
-            </label>
-            <select
-              id="repo-quick-switch"
-              class="min-w-[220px] rounded-2xl border border-stone-300 bg-white px-4 py-2 text-sm text-stone-800 focus:border-amber-700 focus:outline-none"
-            >
-              <option value="">Select a repository</option>
-            </select>
+              Waiting
+            </div>
             <button
               id="repo-toolbar-refresh"
               type="button"
               class="action-pill text-xs"
+              title="Reload repositories"
             >
               Refresh
             </button>
           </div>
         </div>
+
+        <!-- Row 2 — active repo summary line -->
+        <div
+          class="flex flex-wrap items-baseline gap-x-3 gap-y-1 px-4 py-2.5 border-b border-stone-200/70"
+        >
+          <h2
+            id="repo-summary-title"
+            class="text-base font-semibold tracking-tight text-stone-950 truncate"
+          >
+            Select a repository
+          </h2>
+          <p id="repo-summary-meta" class="text-xs text-stone-500 truncate">
+            No repository selected.
+          </p>
+        </div>
+
+        <!-- Row 3 — tabs -->
+        <nav
+          class="flex flex-wrap items-center gap-1 px-3 py-2"
+          id="repo-tab-nav"
+        >
+          <button data-tab-btn="overview" class="tab-btn tab-btn-active"
+            >Overview</button
+          >
+          <button data-tab-btn="graph" class="tab-btn">Graph</button>
+          <button data-tab-btn="search" class="tab-btn">Search</button>
+          <button data-tab-btn="impact" class="tab-btn">Impact</button>
+          <button data-tab-btn="settings" class="tab-btn">Settings</button>
+        </nav>
       </div>
+
+      <!-- Hidden legacy hooks — preserved so existing scripts can still write status text without crashing -->
+      <span id="repositories-status" class="sr-only"></span>
+      <span id="repositories-list" class="sr-only"></span>
 
       <!-- ══════════════════════════════════════════
            TAB: GRAPH
       ══════════════════════════════════════════ -->
-      <div data-tab-panel="graph" class="hidden space-y-4">
-        <!-- header row -->
-        <div class="flex flex-wrap items-center justify-between gap-3">
+      <div data-tab-panel="graph" class="hidden space-y-5">
+        <!-- tab intro header — consistent pattern across tabs -->
+        <header class="flex flex-wrap items-end justify-between gap-3">
           <div>
+            <p class="eyebrow">Graph</p>
             <h2
-              id="repo-summary-title"
-              class="text-2xl font-semibold tracking-tight text-stone-950"
+              class="mt-1 text-xl font-semibold tracking-tight text-stone-950"
             >
-              Select a repository
+              Repository knowledge graph
             </h2>
-            <p id="repo-summary-meta" class="mt-1 text-sm text-stone-500">
-              No repository selected.
+            <p class="mt-1 text-sm text-stone-600">
+              Explore folders, files, modules, and routes synced from the
+              selected branch.
             </p>
           </div>
-          <div class="flex flex-wrap items-center gap-3">
-            <!-- Branch selector — hidden until a repo with tracked branches is loaded -->
-            <div
-              id="repo-branch-selector-wrap"
-              class="hidden flex items-center gap-2"
-            >
-              <label
-                for="repo-branch-selector"
-                class="text-xs font-medium text-stone-500 whitespace-nowrap"
-              >
-                Branch
-              </label>
-              <select
-                id="repo-branch-selector"
-                class="rounded-xl border border-stone-300 bg-white px-3 py-1.5 text-xs text-stone-800 focus:border-amber-700 focus:outline-none cursor-pointer"
-              >
-              </select>
-            </div>
-
-            <div
-              id="repo-summary-sync"
-              class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1.5 text-xs font-semibold uppercase tracking-widest text-stone-500"
-            >
-              Waiting
-            </div>
-            <button
-              id="repo-graph-refresh"
-              type="button"
-              class="action-pill text-xs"
-            >
-              Reload graph
-            </button>
-          </div>
-        </div>
+          <button
+            id="repo-graph-refresh"
+            type="button"
+            class="action-pill text-xs"
+          >
+            Reload graph
+          </button>
+        </header>
 
         <!-- graph stats bar -->
         <div id="repo-graph-summary" class="grid gap-3 sm:grid-cols-4"></div>
@@ -338,6 +353,17 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
            TAB: OVERVIEW
       ══════════════════════════════════════════ -->
       <div data-tab-panel="overview" class="space-y-5">
+        <header>
+          <p class="eyebrow">Overview</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Repository snapshot
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Key metrics, routes, TODOs, services, and landscape links for the
+            selected repository branch.
+          </p>
+        </header>
+
         <div id="repo-summary-cards" class="grid gap-4 sm:grid-cols-4">
           <article
             class="rounded-3xl border border-stone-200 bg-stone-50 px-5 py-4 text-sm text-stone-500 col-span-4"
@@ -435,20 +461,26 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
            TAB: SEARCH
       ══════════════════════════════════════════ -->
       <div data-tab-panel="search" class="hidden space-y-5">
+        <header>
+          <p class="eyebrow">Search</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Find nodes across linked repository scopes
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Query symbols, paths, and metadata from the selected branch while
+            surfacing cross-repo results from linked repository branches.
+          </p>
+        </header>
+
         <div class="grid gap-5 2xl:grid-cols-[360px_minmax(0,1fr)]">
           <div class="space-y-5">
             <div class="shell-card p-6">
-              <p class="eyebrow">Search Graph</p>
-              <h2
-                class="mt-2 text-xl font-semibold tracking-tight text-stone-950"
+              <p class="eyebrow">Query</p>
+              <h3
+                class="mt-2 text-base font-semibold tracking-tight text-stone-950"
               >
-                Find nodes across linked repository scopes
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-stone-600">
-                Query symbols, paths, and metadata from the selected branch
-                while surfacing AT-T11 cross-repo results from linked repository
-                branches.
-              </p>
+                Search filters
+              </h3>
               <form id="graph-search-form" class="mt-5 grid gap-4">
                 <input
                   id="graph-search-query"
@@ -643,20 +675,26 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
            TAB: IMPACT
       ══════════════════════════════════════════ -->
       <div data-tab-panel="impact" class="hidden space-y-5">
+        <header>
+          <p class="eyebrow">Impact</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Trace impact across linked repos
+          </h2>
+          <p class="mt-1 text-sm text-stone-600">
+            Enter a symbol name or route path to traverse upstream and
+            downstream neighbors, then inspect linked repository branches.
+          </p>
+        </header>
+
         <div class="grid gap-5 2xl:grid-cols-[360px_minmax(0,1fr)]">
           <div class="space-y-5">
             <div class="shell-card p-6">
-              <p class="eyebrow">Impact Scan</p>
-              <h2
-                class="mt-2 text-xl font-semibold tracking-tight text-stone-950"
+              <p class="eyebrow">Scan</p>
+              <h3
+                class="mt-2 text-base font-semibold tracking-tight text-stone-950"
               >
-                Trace impact across linked repos
-              </h2>
-              <p class="mt-2 text-sm leading-6 text-stone-600">
-                Enter a symbol name or route path to traverse upstream and
-                downstream neighbors, then inspect linked repository branches
-                included by AT-T11.
-              </p>
+                Impact parameters
+              </h3>
               <form id="graph-impact-form" class="mt-5 grid gap-4">
                 <input
                   id="graph-impact-target"
@@ -863,13 +901,24 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
       <!-- ══════════════════════════════════════════
            TAB: SETTINGS
       ══════════════════════════════════════════ -->
-      <div data-tab-panel="settings" class="hidden">
-        <div class="shell-card p-7">
-          <p class="eyebrow">Repository Settings</p>
-          <h2 class="mt-2 text-xl font-semibold tracking-tight text-stone-950">
-            Edit or delete this repository
+      <div data-tab-panel="settings" class="hidden space-y-5">
+        <header>
+          <p class="eyebrow">Settings</p>
+          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
+            Repository configuration
           </h2>
-          <p class="mt-2 text-sm leading-6 text-stone-600">
+          <p class="mt-1 text-sm text-stone-600">
+            Update metadata, manage tracked branches, and link branches across
+            repositories.
+          </p>
+        </header>
+
+        <div class="shell-card p-7">
+          <p class="eyebrow">Core Metadata</p>
+          <h3 class="mt-2 text-base font-semibold tracking-tight text-stone-950">
+            Edit or delete this repository
+          </h3>
+          <p class="mt-1.5 text-sm leading-6 text-stone-600">
             Update the repository name, remote URL, default branch, or local
             path.
           </p>

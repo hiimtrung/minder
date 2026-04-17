@@ -95,7 +95,9 @@ async def _seed_context(
 
 
 @pytest.mark.asyncio
-async def test_repo_state_store_round_trip(repo_state_store: RepoStateStore, tmp_path: Path) -> None:
+async def test_repo_state_store_round_trip(
+    repo_state_store: RepoStateStore, tmp_path: Path
+) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()
 
@@ -175,11 +177,20 @@ async def test_phase1_tool_modules_round_trip(
 
     restored = await session_tools.minder_session_restore(session_id)
     assert restored["state"]["checkpoint"] == "wave2"
+    assert (
+        restored["continuity_packet"]["instruction_envelope"]["current_step"]
+        == "Test Writing"
+    )
+    assert "next_valid_actions" in restored["continuity_packet"]["session_brief"]
 
-    workflow = await workflow_tools.minder_workflow_get(repo_id=repo_id, repo_path=str(repo_path))
+    workflow = await workflow_tools.minder_workflow_get(
+        repo_id=repo_id, repo_path=str(repo_path)
+    )
     assert workflow["workflow"]["name"] == "tdd"
 
-    step = await workflow_tools.minder_workflow_step(repo_id=repo_id, repo_path=str(repo_path))
+    step = await workflow_tools.minder_workflow_step(
+        repo_id=repo_id, repo_path=str(repo_path)
+    )
     assert step["current_step"] == "Test Writing"
 
     guard = await workflow_tools.minder_workflow_guard(
@@ -187,6 +198,8 @@ async def test_phase1_tool_modules_round_trip(
         requested_step="Implementation",
     )
     assert guard["allowed"] is False
+    assert guard["instruction_envelope"]["current_step"] == "Test Writing"
+    assert "workflow_blocked" not in guard["violations"]
 
     updated = await workflow_tools.minder_workflow_update(
         repo_id=repo_id,
@@ -205,9 +218,14 @@ async def test_phase1_tool_modules_round_trip(
     )
     assert memory_entry["title"] == "TDD note"
 
-    recalled = await memory_tools.minder_memory_recall("tests before implementation")
+    recalled = await memory_tools.minder_memory_recall(
+        "tests before implementation",
+        current_step="Test Writing",
+        artifact_type="test_plan",
+    )
     assert recalled
     assert recalled[0]["title"] == "TDD note"
+    assert recalled[0]["step_compatibility"] > 0
 
     listed = await memory_tools.minder_memory_list()
     assert listed

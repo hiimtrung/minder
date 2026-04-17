@@ -25,12 +25,14 @@ server validates existence but does not re-check ownership on every call.
 ``minder_session_find`` enforces ownership by filtering on the caller's
 principal_id automatically.
 """
+
 from __future__ import annotations
 
 import uuid
 from datetime import UTC, datetime
 from typing import Any
 
+from minder.continuity import build_continuity_brief, build_instruction_envelope
 from minder.store.interfaces import IOperationalStore
 
 
@@ -196,13 +198,39 @@ class SessionTools:
         session = await self._store.get_session_by_id(session_id)
         if session is None:
             raise ValueError(f"Session not found: {session_id}")
-        return {
+
+        continuity_packet: dict[str, Any] | None = None
+        if session.repo_id is not None:
+            repo = await self._store.get_repository_by_id(session.repo_id)
+            workflow_state = await self._store.get_workflow_state_by_repo(
+                session.repo_id
+            )
+            workflow = None
+            if repo is not None and repo.workflow_id is not None:
+                workflow = await self._store.get_workflow_by_id(repo.workflow_id)
+            if workflow is not None and workflow_state is not None:
+                continuity_packet = {
+                    "instruction_envelope": build_instruction_envelope(
+                        workflow=workflow,
+                        workflow_state=workflow_state,
+                    ),
+                    "session_brief": build_continuity_brief(
+                        session=session,
+                        workflow_state=workflow_state,
+                        workflow=workflow,
+                    ),
+                }
+
+        payload = {
             "session_id": str(session.id),
             "name": session.name,
             "state": session.state,
             "active_skills": session.active_skills,
             "project_context": session.project_context,
         }
+        if continuity_packet is not None:
+            payload["continuity_packet"] = continuity_packet
+        return payload
 
     async def minder_session_context(
         self,
@@ -221,7 +249,9 @@ class SessionTools:
             raise ValueError(f"Session not found: {session_id}")
         project_context = dict(session.project_context)
         project_context.update({"branch": branch, "open_files": open_files})
-        updated = await self._store.update_session(session_id, project_context=project_context)
+        updated = await self._store.update_session(
+            session_id, project_context=project_context
+        )
         if updated is None:
             raise ValueError(f"Session not found: {session_id}")
         return {

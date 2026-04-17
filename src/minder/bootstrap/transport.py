@@ -309,12 +309,13 @@ def build_transport(
         )
 
     async def minder_workflow_guard(
-        *, user=None, repo_id: str, requested_step: str
+        *, user=None, repo_id: str, requested_step: str, action: str | None = None
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_guard(
             repo_id=uuid.UUID(repo_id),
             requested_step=requested_step,
+            action=action,
         )
 
     async def minder_memory_store(
@@ -334,10 +335,20 @@ def build_transport(
         )
 
     async def minder_memory_recall(
-        *, user=None, query: str, limit: int = 5
+        *,
+        user=None,
+        query: str,
+        limit: int = 5,
+        current_step: str | None = None,
+        artifact_type: str | None = None,
     ) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
-        return await memory_tools.minder_memory_recall(query, limit=limit)
+        return await memory_tools.minder_memory_recall(
+            query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+        )
 
     async def minder_memory_list(*, user=None) -> list[dict[str, Any]]:  # noqa: ANN001
         del user

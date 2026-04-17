@@ -84,11 +84,19 @@ class TestAlwaysAvailableSet:
             "minder_session_restore",
             "minder_session_context",
         ):
-            assert tool in ALWAYS_AVAILABLE_FOR_CLIENTS, f"{tool} should be always_available"
+            assert (
+                tool in ALWAYS_AVAILABLE_FOR_CLIENTS
+            ), f"{tool} should be always_available"
 
     def test_admin_tools_not_always_available(self) -> None:
-        for tool in ("minder_auth_manage", "minder_auth_create_client", "minder_memory_store"):
-            assert tool not in ALWAYS_AVAILABLE_FOR_CLIENTS, f"{tool} must NOT be always_available"
+        for tool in (
+            "minder_auth_manage",
+            "minder_auth_create_client",
+            "minder_memory_store",
+        ):
+            assert (
+                tool not in ALWAYS_AVAILABLE_FOR_CLIENTS
+            ), f"{tool} must NOT be always_available"
 
 
 # ---------------------------------------------------------------------------
@@ -135,15 +143,23 @@ class TestClientSessionList:
         # session for a different client — should NOT appear
         await session_tools.minder_session_create(client_id=uuid.uuid4())
 
-        result = await session_tools.minder_session_list(client_id=client_principal.client_id)
+        result = await session_tools.minder_session_list(
+            client_id=client_principal.client_id
+        )
         assert len(result["sessions"]) == 2
 
     async def test_list_sorted_newest_first(
         self, session_tools: SessionTools, client_principal: ClientPrincipal
     ) -> None:
-        r1 = await session_tools.minder_session_create(client_id=client_principal.client_id)
-        r2 = await session_tools.minder_session_create(client_id=client_principal.client_id)
-        result = await session_tools.minder_session_list(client_id=client_principal.client_id)
+        r1 = await session_tools.minder_session_create(
+            client_id=client_principal.client_id
+        )
+        r2 = await session_tools.minder_session_create(
+            client_id=client_principal.client_id
+        )
+        result = await session_tools.minder_session_list(
+            client_id=client_principal.client_id
+        )
         ids = {s["session_id"] for s in result["sessions"]}
         # Both sessions must be present for the calling client
         assert r1["session_id"] in ids
@@ -156,7 +172,9 @@ class TestClientSessionSaveRestore:
     async def test_save_and_restore_state(
         self, session_tools: SessionTools, client_principal: ClientPrincipal
     ) -> None:
-        create = await session_tools.minder_session_create(client_id=client_principal.client_id)
+        create = await session_tools.minder_session_create(
+            client_id=client_principal.client_id
+        )
         sid = uuid.UUID(create["session_id"])
 
         state = {"phase": "implementation", "wave": 3}
@@ -166,6 +184,7 @@ class TestClientSessionSaveRestore:
         restored = await session_tools.minder_session_restore(sid)
         assert restored["state"] == state
         assert restored["active_skills"] == skills
+        assert restored.get("continuity_packet") is None
 
     async def test_restore_unknown_session_raises(
         self, session_tools: SessionTools
@@ -178,11 +197,15 @@ class TestClientSessionContext:
     async def test_update_branch_and_files(
         self, session_tools: SessionTools, client_principal: ClientPrincipal
     ) -> None:
-        create = await session_tools.minder_session_create(client_id=client_principal.client_id)
+        create = await session_tools.minder_session_create(
+            client_id=client_principal.client_id
+        )
         sid = uuid.UUID(create["session_id"])
 
         result = await session_tools.minder_session_context(
-            sid, branch="feature/session-fix", open_files=["src/minder/tools/session.py"]
+            sid,
+            branch="feature/session-fix",
+            open_files=["src/minder/tools/session.py"],
         )
         assert result["branch"] == "feature/session-fix"
         assert result["open_files"] == ["src/minder/tools/session.py"]

@@ -68,3 +68,29 @@ async def test_builtin_tdd_prompt_renders_without_required_arguments() -> None:
     rendered = await tdd_prompt.render({})
 
     assert "Current Workflow Step: Test Writing" in str(rendered[0])
+
+
+@pytest.mark.asyncio
+async def test_builtin_query_reasoning_prompt_renders_with_defaults() -> None:
+    app = FastMCP(name="test-prompts")
+
+    PromptRegistry.register(app)
+
+    query_prompt = app._prompt_manager.get_prompt("query_reasoning")
+    rendered = await query_prompt.render({})
+
+    assert "Continuity packet:" in str(rendered[0])
+    assert "Summarize the current repository state." in str(rendered[0])
+
+
+@pytest.mark.asyncio
+async def test_resolve_prompt_model_prefers_database_override() -> None:
+    store = AsyncMock(spec=IOperationalStore)
+    store.get_prompt_by_name.return_value = _dynamic_prompt(
+        "query_reasoning",
+        "Custom {user_query}",
+    )
+
+    prompt_model = await PromptRegistry.resolve_prompt_model("query_reasoning", store)
+
+    assert prompt_model.content_template == "Custom {user_query}"

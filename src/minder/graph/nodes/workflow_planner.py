@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
+from minder.continuity import build_continuity_brief, build_instruction_envelope
 from minder.graph.state import GraphState
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 
@@ -71,6 +72,33 @@ class WorkflowPlannerNode:
 
         next_step = self._next_step(current_step, workflow_steps)
         guidance = self._guidance_for_step(current_step)
+        instruction_envelope: dict[str, Any] | None = None
+        continuity_brief: dict[str, Any] | None = None
+        session = None
+        if state.session_id is not None:
+            session = await self._store.get_session_by_id(state.session_id)
+        elif (
+            workflow_state is not None
+            and getattr(workflow_state, "session_id", None) is not None
+        ):
+            session = await self._store.get_session_by_id(workflow_state.session_id)
+
+        if workflow is not None and workflow_state is not None:
+            instruction_envelope = build_instruction_envelope(
+                workflow=workflow,
+                workflow_state=workflow_state,
+            )
+            if session is not None:
+                continuity_brief = build_continuity_brief(
+                    session=session,
+                    workflow_state=workflow_state,
+                    workflow=workflow,
+                )
+            guidance = self._format_guidance(
+                guidance,
+                instruction_envelope=instruction_envelope,
+                continuity_brief=continuity_brief,
+            )
 
         # ------------------------------------------------------------------
         # Graph-enriched guidance (P3-T12)
@@ -98,6 +126,8 @@ class WorkflowPlannerNode:
                 "blocked_by": blocked_by,
                 "artifacts": artifacts,
                 "guidance": guidance,
+                "instruction_envelope": instruction_envelope or {},
+                "continuity_brief": continuity_brief or {},
             }
         )
         return state
@@ -192,3 +222,16 @@ class WorkflowPlannerNode:
                 "Current step: Review. Focus on correctness, regressions, and coverage."
             )
         return f"Current step: {current_step}. Follow the workflow and do not skip prerequisites."
+
+    @staticmethod
+    def _format_guidance(
+        base_guidance: str,
+        *,
+        instruction_envelope: dict[str, Any],
+        continuity_brief: dict[str, Any] | None,
+    ) -> str:
+        sections = [base_guidance]
+        sections.append(f"Instruction envelope: {instruction_envelope}")
+        if continuity_brief:
+            sections.append(f"Continuity brief: {continuity_brief}")
+        return "\n\n".join(sections)

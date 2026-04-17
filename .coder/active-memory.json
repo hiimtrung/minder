@@ -1,92 +1,96 @@
 {
   "mode": "search",
-  "query": "prompt registry params sample json default prompt arguments",
+  "query": "phase 4.4 observability skill tool continuity gate",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-17T10:30:00.679187+07:00",
+  "searched_at": "2026-04-17T11:03:19.630089+07:00",
   "results": [
     {
-      "id": "226cb6ba-cbfc-4dc5-a550-6ed7ab97754b",
-      "title": "Phase 4.4 prompt CRUD completed end-to-end",
+      "id": "6f80fcaf-f824-4797-9a44-aa6a18b55511",
+      "title": "Minder planning reprioritization non-scale Phase 4",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-4-4-prompt-crud-completed-end-to-end",
+      "canonical_key": "document:minder-planning-reprioritization-non-scale-phase-4",
       "score": 0.086393446,
       "tags": [
         "minder",
-        "prompts",
-        "phase4.4",
-        "dashboard",
-        "llm"
+        "planning",
+        "phase4",
+        "docs",
+        "prioritization"
       ],
       "conflict_detected": false,
-      "content": "Completed P4.4-T00 with real dynamic MCP prompt sync against FastMCP prompt manager, admin prompt CRUD routes on the SSE/admin surface, a new /dashboard/prompts Astro UI, and local Gemma 4-backed prompt polishing via minder/prompts/formatter.py and LocalModelLLM.complete_text. Verified with uv run pytest tests/unit/test_api_prompts.py tests/unit/test_prompt_registry.py and cd src/dashboard \u0026\u0026 bun check."
+      "content": "Updated planning docs so completed phases through P4.3 are marked done, current next steps are observability plus admin/dashboard expansion, and cluster/scale work is explicitly deferred for now. Synced TASK_BREAKDOWN, PROJECT_PROGRESS, and PLAN to treat PROJECT_PROGRESS as the canonical status board and to keep P4-T01/T02/T03/T06/T11 and full scale gate deferred until needed."
     },
     {
-      "id": "f95f56ec-9712-4961-a082-b4765a716abe",
-      "title": "Mongo prompt CRUD adapter parity",
+      "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
+      "title": "Phase 4.3 completed with console serving seam",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:mongo-prompt-crud-adapter-parity",
+      "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
       "score": 0.086129025,
       "tags": [
-        "minder",
-        "mongodb",
-        "prompts",
-        "bugfix"
+        "phase4",
+        "dashboard",
+        "astro",
+        "console",
+        "parity"
       ],
       "conflict_detected": false,
-      "content": "Fixed MongoOperationalStore missing prompt repository methods by adding create_prompt/get_prompt_by_id/get_prompt_by_name/list_prompts/update_prompt/delete_prompt plus Mongo indexes for prompts.name and prompts.company_id. Verified with uv run pytest tests/unit/test_mongo_repos.py -k prompt."
+      "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
     },
     {
-      "id": "b0198c24-8935-46c7-a1ec-8d94ac8e17af",
-      "title": "Skill retrieval timing and markdown injection",
+      "id": "4afc0856-b7df-486c-9b27-f7558344e932",
+      "title": "Close Phase 4 docs after observability UI landed",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:skill-retrieval-timing-and-markdown-injection",
+      "canonical_key": "document:close-phase-4-docs-after-observability-ui-landed",
       "score": 0.08587302,
       "tags": [
-        "skills",
-        "retrieval",
-        "prompting",
-        "markdown"
+        "minder",
+        "docs",
+        "phase4",
+        "tracking",
+        "planning"
       ],
       "conflict_detected": false,
-      "content": "Skill retrieval should not be locked at user submit time because clarification can change the actual task. Use an initial retrieval only as hints, then rerun skill retrieval after intent is clarified and again before major tool execution when the concrete subtask changes. The skill parser preserves markdown content, but the human-oriented coder skill search CLI output flattens formatting for terminal display; prompt injection should use raw chunk markdown or JSON instead of terminal-formatted stdout."
+      "content": "Updated TASK_BREAKDOWN and PROJECT_PROGRESS to reflect that the current non-scale Phase 4 product scope is closed. Marked P4-T10 done based on the shipped /dashboard/observability page and script, kept P4-T12 and P4-VERIFY deferred due missing formal security-review artifact, and reordered Phase 4 wave tracking to match implementation sequence."
     },
     {
-      "id": "8c8e6384-6cf7-44d2-8cce-488f1ed9fc37",
-      "title": "Dynamic Prompt CRUD via FastAPI",
+      "id": "ea5c29ee-7faf-48b1-8e35-0bdb4760ecac",
+      "title": "Phase 4.2 dashboard client management closed",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:dynamic-prompt-crud-via-fastapi",
+      "canonical_key": "document:phase-4-2-dashboard-client-management-closed",
       "score": 0.08562499,
       "tags": [
-        "fastapi",
-        "mcp",
-        "prompts",
-        "crud"
+        "phase-4.2",
+        "dashboard",
+        "verify",
+        "onboarding",
+        "client-management"
       ],
       "conflict_detected": false,
-      "content": "Added FastAPI APIRouter at src/minder/api/routers/prompts.py exposing Prompt model CRUD operations. Upgraded build_http_app in presentation/http/admin/routes.py from Starlette to FastAPI to register the router. Added PromptRegistry.register_dynamic in src/minder/prompts/__init__.py to inject DB prompts into FastMCP async during startup in server.py."
+      "content": "Closed P4.2 by adding tests/e2e/test_phase4_2_dashboard_gate.py as a browser-only acceptance gate covering admin browser login, dashboard client creation, detail view, onboarding snippets, browser connection test, key rotation, revoke, recent activity visibility, and post-revoke denial. Updated README.md, docs/guides/admin-client-onboarding.md, and docs/PROJECT_PROGRESS.md to mark P4.2-VERIFY done and note that broader Phase 4 now returns to observability/production/security backlog. Verified with pytest, mypy, and ruff. Commit: adf1eb8."
     },
     {
-      "id": "fa8d32f4-2434-4dca-9bc1-54fe2c4e1472",
-      "title": "Configuration configJson uses registry-based typing",
+      "id": "8aceb94e-208a-4722-bdae-b51290b1dbe9",
+      "title": "Phase 4.4 continuity contract and envelope",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:configuration-configjson-uses-registry-based-typing",
+      "canonical_key": "document:phase-4-4-continuity-contract-and-envelope",
       "score": 0.08538462,
       "tags": [
-        "omi-channel-be",
-        "nestjs",
-        "configurations",
-        "typescript",
-        "typing"
+        "minder",
+        "phase4.4",
+        "continuity",
+        "workflow",
+        "memory",
+        "session"
       ],
       "conflict_detected": false,
-      "content": "Replaced broad configJson typing with a registry-based type map in configurations so entity/DTO types are derived from feature+configKey definitions instead of Record\u003cstring, unknown\u003e | unknown[] or a hand-maintained union. Files: src/modules/configurations/domain/types/configuration-json.types.ts, src/modules/configurations/domain/entities/configuration.orm-entity.ts, src/modules/configurations/presentation/responses/configuration-response.dto.ts"
+      "content": "Implemented a shared continuity contract in src/minder/continuity.py and wired it into session restore, memory recall, workflow guard, and graph workflow planning/reasoning. Session restore now returns continuity_packet with instruction_envelope + session_brief; memory recall is step-aware; workflow guard reports violations and deterministic envelopes; query workflow planner injects the envelope/brief into reasoning prompts. Verified with uv run pytest tests/unit/test_continuity_tools.py tests/unit/test_nodes.py tests/unit/test_session_client_flow.py tests/integration/test_tools.py."
     }
   ]
 }

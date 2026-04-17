@@ -1,39 +1,39 @@
 {
-  "task": "prompt registry dashboard params python astro",
+  "task": "phase 4.4 observability skill tool continuity gate python",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T10:30:00.365968+07:00",
+  "resolved_at": "2026-04-17T11:03:19.302359+07:00",
   "keep": [],
   "add": [
-    "task-intelligence",
-    "image-studio",
-    "ai-studio-image"
+    "ai-ml",
+    "observability-monitoring-monitor-setup",
+    "backend-development-feature-development"
   ],
   "drop": [
-    "pydantic-models-py",
-    "advanced-evaluation",
-    "azure-containerregistry-py"
+    "skill-creator",
+    "api-security-testing",
+    "llm-app-patterns"
   ],
   "skills": [
     {
-      "name": "task-intelligence",
-      "category": "general",
+      "name": "ai-ml",
+      "category": "workflow-bundle",
       "score": 0.016393442,
-      "chunk_count": 1,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "image-studio",
+      "name": "observability-monitoring-monitor-setup",
       "category": "general",
       "score": 0.016129032,
-      "chunk_count": 1,
+      "chunk_count": 3,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "ai-studio-image",
+      "name": "backend-development-feature-development",
       "category": "general",
       "score": 0.015873017,
-      "chunk_count": 1,
+      "chunk_count": 2,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

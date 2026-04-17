@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from minder.graph.state import GraphState
+from minder.prompts import PromptRegistry
 
 
 class ReasoningNode:
@@ -15,18 +18,62 @@ class ReasoningNode:
             snippets.append(f"Source: {doc['path']}\n{content[:240]}")
 
         guidance = state.workflow_context.get("guidance", "")
-        prompt = "\n\n".join(
-            [
-                guidance,
-                f"User query: {state.query}",
-                "Retrieved context:",
-                "\n\n".join(snippets) if snippets else "No repository context found.",
-                "Respond with grounded reasoning and cite source paths.",
-            ]
+        instruction_envelope = state.workflow_context.get("instruction_envelope", {})
+        continuity_brief = state.workflow_context.get("continuity_brief", {})
+        retry_reason = str(state.metadata.get("retry_reason", "") or "").strip()
+        continuity_packet = continuity_brief or {}
+        prompt_template = str(
+            state.metadata.get("query_prompt_template")
+            or (PromptRegistry.get_builtin_definition("query_reasoning") or {}).get(
+                "content_template", ""
+            )
+        )
+        prompt_defaults = dict(state.metadata.get("query_prompt_defaults", {}) or {})
+        prompt = PromptRegistry.render_content_template(
+            prompt_template,
+            {
+                "workflow_instruction": guidance,
+                "instruction_envelope": (
+                    json.dumps(
+                        instruction_envelope,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    if instruction_envelope
+                    else "{}"
+                ),
+                "continuity_brief": (
+                    json.dumps(
+                        continuity_brief,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    if continuity_brief
+                    else "{}"
+                ),
+                "continuity_packet": (
+                    json.dumps(
+                        continuity_packet,
+                        indent=2,
+                        sort_keys=True,
+                    )
+                    if continuity_packet
+                    else "{}"
+                ),
+                "user_query": state.query,
+                "retrieved_context": (
+                    "\n\n".join(snippets)
+                    if snippets
+                    else "No repository context found."
+                ),
+                "correction_required": retry_reason,
+            },
+            defaults=prompt_defaults,
         )
         state.reasoning_output = {
             "prompt": prompt,
             "sources": sources,
             "workflow_instruction": guidance,
+            "prompt_name": state.metadata.get("query_prompt_name", "query_reasoning"),
         }
         return state

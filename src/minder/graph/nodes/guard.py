@@ -45,5 +45,20 @@ class GuardNode:
                 passed = False
                 reasons.append(f"hallucinated source: {source}")
 
+        instruction_envelope = dict(
+            state.workflow_context.get("instruction_envelope", {}) or {}
+        )
+        output_contract = dict(instruction_envelope.get("output_contract", {}) or {})
+        required_markers = [
+            str(marker).strip().lower().replace("_", " ")
+            for marker in list(output_contract.get("must_include", []) or [])
+            if str(marker).strip()
+        ]
+        normalized_text = lowered.replace("_", " ")
+        for marker in required_markers:
+            if marker not in normalized_text:
+                passed = False
+                reasons.append(f"workflow output contract missing: {marker}")
+
         state.guard_result = {"passed": passed, "reasons": reasons}
         return state

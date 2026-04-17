@@ -51,9 +51,10 @@ def test_list_prompts_returns_serialized_rows() -> None:
 
     assert response.status_code == 200
     data = response.json()
-    assert [prompt["name"] for prompt in data[:4]] == [
+    assert [prompt["name"] for prompt in data[:5]] == [
         "debug",
         "explain",
+        "query_reasoning",
         "review",
         "tdd_step",
     ]

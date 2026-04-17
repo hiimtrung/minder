@@ -8,6 +8,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
+from minder.prompts import PromptRegistry
 from minder.store.interfaces import IOperationalStore, IVectorStore
 from minder.tools.graph import GraphTools
 from minder.tools.ingest import IngestTools
@@ -73,6 +74,10 @@ class QueryTools:
                 workflow_context["cross_repo_context"] = cross_repo_context
             if cross_repo_graph is not None:
                 workflow_context["cross_repo_graph"] = cross_repo_graph
+        query_prompt = await PromptRegistry.resolve_prompt_model(
+            "query_reasoning",
+            self._store,
+        )
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -84,6 +89,16 @@ class QueryTools:
                 "verification_payload": verification_payload,
                 "max_attempts": max_attempts,
                 "project_name": Path(repo_path).name,
+                "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
+                "query_prompt_template": getattr(query_prompt, "content_template", ""),
+                "query_prompt_defaults": dict(
+                    getattr(query_prompt, "defaults", {}) or {}
+                ),
+                "query_prompt_source": (
+                    "builtin"
+                    if bool(getattr(query_prompt, "is_builtin", False))
+                    else "custom"
+                ),
             },
         )
         result = await self._graph.run(state)

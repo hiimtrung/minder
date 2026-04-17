@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 class PromptRegistry:
     """Registers all Minder MCP prompts onto a :class:`FastMCP` app."""
 
-    _BUILTIN_NAMES = {"debug", "review", "explain", "tdd_step"}
+    _BUILTIN_NAMES = {"debug", "review", "explain", "tdd_step", "query_reasoning"}
     _BUILTIN_DEFINITIONS: dict[str, dict[str, Any]] = {
         "debug": {
             "title": "Debug Assistant",
@@ -110,7 +110,99 @@ class PromptRegistry:
                 ]
             ),
         },
+        "query_reasoning": {
+            "title": "Query Reasoning",
+            "description": (
+                "Primary query reasoning prompt that injects workflow instruction, "
+                "continuity packet, retrieved context, and corrective retry guidance."
+            ),
+            "arguments": [
+                "workflow_instruction",
+                "instruction_envelope",
+                "continuity_brief",
+                "continuity_packet",
+                "user_query",
+                "retrieved_context",
+                "correction_required",
+            ],
+            "defaults": {
+                "workflow_instruction": "",
+                "instruction_envelope": "{}",
+                "continuity_brief": "{}",
+                "continuity_packet": "{}",
+                "user_query": "Summarize the current repository state.",
+                "retrieved_context": "No repository context found.",
+                "correction_required": "",
+            },
+            "content_template": "\n\n".join(
+                [
+                    "Workflow instruction:\n{workflow_instruction}",
+                    "Instruction envelope:\n{instruction_envelope}",
+                    "Continuity packet:\n{continuity_packet}",
+                    "User query:\n{user_query}",
+                    "Retrieved context:\n{retrieved_context}",
+                    "Correction required:\n{correction_required}",
+                    "Respond with grounded reasoning and cite source paths.",
+                ]
+            ),
+        },
     }
+
+    @staticmethod
+    def get_builtin_definition(name: str) -> dict[str, Any] | None:
+        definition = PromptRegistry._BUILTIN_DEFINITIONS.get(name)
+        if definition is None:
+            return None
+        return {
+            "title": definition["title"],
+            "description": definition["description"],
+            "arguments": list(definition["arguments"]),
+            "defaults": dict(definition.get("defaults", {})),
+            "content_template": str(definition["content_template"]),
+        }
+
+    @staticmethod
+    def get_builtin_prompt_model(name: str) -> SimpleNamespace | None:
+        definition = PromptRegistry.get_builtin_definition(name)
+        if definition is None:
+            return None
+        return SimpleNamespace(
+            id=f"builtin:{name}",
+            name=name,
+            title=definition["title"],
+            description=definition["description"],
+            content_template=definition["content_template"],
+            arguments=list(definition["arguments"]),
+            defaults=dict(definition.get("defaults", {})),
+            created_at=None,
+            updated_at=None,
+            is_builtin=True,
+        )
+
+    @staticmethod
+    async def resolve_prompt_model(
+        name: str,
+        store: IOperationalStore | None = None,
+    ) -> Any | None:
+        if store is not None:
+            prompt = await store.get_prompt_by_name(name)
+            if prompt is not None:
+                return prompt
+        return PromptRegistry.get_builtin_prompt_model(name)
+
+    @staticmethod
+    def render_content_template(
+        content_template: str,
+        arguments: dict[str, Any],
+        *,
+        defaults: dict[str, Any] | None = None,
+    ) -> str:
+        rendered = str(content_template)
+        merged_arguments = dict(defaults or {})
+        merged_arguments.update(arguments)
+        for arg_name, arg_val in merged_arguments.items():
+            rendered = rendered.replace("{" + str(arg_name) + "}", str(arg_val or ""))
+        return rendered
 
     @staticmethod
     def _prompt_manager(app: FastMCP) -> Any:
@@ -150,18 +242,9 @@ class PromptRegistry:
     @staticmethod
     def builtin_prompt_models() -> list[SimpleNamespace]:
         return [
-            SimpleNamespace(
-                id=f"builtin:{name}",
-                name=name,
-                title=definition["title"],
-                description=definition["description"],
-                content_template=definition["content_template"],
-                arguments=list(definition["arguments"]),
-                created_at=None,
-                updated_at=None,
-                is_builtin=True,
-            )
-            for name, definition in PromptRegistry._BUILTIN_DEFINITIONS.items()
+            PromptRegistry.get_builtin_prompt_model(name)
+            for name in PromptRegistry._BUILTIN_DEFINITIONS
+            if PromptRegistry.get_builtin_prompt_model(name) is not None
         ]
 
     @staticmethod
@@ -211,9 +294,11 @@ class PromptRegistry:
             except Exception:
                 pass
 
-            content = str(prompt_model.content_template)
-            for arg_name, arg_val in kwargs.items():
-                content = content.replace("{" + arg_name + "}", str(arg_val))
+            content = PromptRegistry.render_content_template(
+                str(prompt_model.content_template),
+                kwargs,
+                defaults=dict(getattr(prompt_model, "defaults", {}) or {}),
+            )
             return [{"role": "user", "content": content}]
 
         dynamic_handler.__name__ = f"prompt_{prompt_model.name}"
@@ -227,6 +312,9 @@ class PromptRegistry:
         review_defaults = PromptRegistry._BUILTIN_DEFINITIONS["review"]["defaults"]
         explain_defaults = PromptRegistry._BUILTIN_DEFINITIONS["explain"]["defaults"]
         tdd_step_defaults = PromptRegistry._BUILTIN_DEFINITIONS["tdd_step"]["defaults"]
+        query_reasoning_defaults = PromptRegistry._BUILTIN_DEFINITIONS[
+            "query_reasoning"
+        ]["defaults"]
 
         async def _log_prompt(name: str):
             if store is not None:
@@ -380,6 +468,41 @@ class PromptRegistry:
 
             return [{"role": "user", "content": "\n\n".join(parts)}]
 
+        async def query_reasoning_prompt(
+            workflow_instruction: str = str(
+                query_reasoning_defaults["workflow_instruction"]
+            ),
+            instruction_envelope: str = str(
+                query_reasoning_defaults["instruction_envelope"]
+            ),
+            continuity_brief: str = str(query_reasoning_defaults["continuity_brief"]),
+            continuity_packet: str = str(query_reasoning_defaults["continuity_packet"]),
+            user_query: str = str(query_reasoning_defaults["user_query"]),
+            retrieved_context: str = str(query_reasoning_defaults["retrieved_context"]),
+            correction_required: str = str(
+                query_reasoning_defaults["correction_required"]
+            ),
+        ) -> list[dict[str, str]]:
+            await _log_prompt("query_reasoning")
+            content = PromptRegistry.render_content_template(
+                str(
+                    PromptRegistry._BUILTIN_DEFINITIONS["query_reasoning"][
+                        "content_template"
+                    ]
+                ),
+                {
+                    "workflow_instruction": workflow_instruction,
+                    "instruction_envelope": instruction_envelope,
+                    "continuity_brief": continuity_brief,
+                    "continuity_packet": continuity_packet,
+                    "user_query": user_query,
+                    "retrieved_context": retrieved_context,
+                    "correction_required": correction_required,
+                },
+                defaults=query_reasoning_defaults,
+            )
+            return [{"role": "user", "content": content}]
+
         PromptRegistry._upsert_prompt(
             app,
             PromptRegistry._configure_builtin_prompt(
@@ -427,6 +550,21 @@ class PromptRegistry:
                     name="tdd_step",
                     title=PromptRegistry._BUILTIN_DEFINITIONS["tdd_step"]["title"],
                     description=PromptRegistry._BUILTIN_DEFINITIONS["tdd_step"][
+                        "description"
+                    ],
+                )
+            ),
+        )
+        PromptRegistry._upsert_prompt(
+            app,
+            PromptRegistry._configure_builtin_prompt(
+                Prompt.from_function(
+                    query_reasoning_prompt,
+                    name="query_reasoning",
+                    title=PromptRegistry._BUILTIN_DEFINITIONS["query_reasoning"][
+                        "title"
+                    ],
+                    description=PromptRegistry._BUILTIN_DEFINITIONS["query_reasoning"][
                         "description"
                     ],
                 )

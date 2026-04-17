@@ -1,94 +1,101 @@
 {
   "mode": "search",
-  "query": "d3 transform NaN and vite outdated optimize dep",
+  "query": "phase 5 dashboard local llm chat shell",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-17T16:29:50.442048+07:00",
+  "searched_at": "2026-04-17T16:42:49.546515+07:00",
   "results": [
     {
-      "id": "2b9d30d6-3104-44ad-a66f-d5e1b9e5717c",
-      "title": "D3.js Graph Explorer Refactor",
+      "id": "b310ff38-e468-4689-84a8-510d6a16651f",
+      "title": "Phase 5 and 6 roadmap expanded for local chat and IDE bootstrap",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:d3-js-graph-explorer-refactor",
+      "canonical_key": "document:phase-5-and-6-roadmap-expanded-for-local-chat-and-ide-bootstrap",
       "score": 0.086393446,
       "tags": [
         "minder",
+        "roadmap",
+        "phase5",
+        "phase6",
+        "docs",
+        "cli",
         "dashboard",
-        "d3",
-        "graph",
-        "frontend",
-        "refactor"
+        "mcp"
       ],
       "conflict_detected": false,
-      "content": "Replaced static Canvas graph on minder/src/dashboard with D3.js v7 force-directed renderer. Pattern: D3GraphRenderer class (extends d3.SimulationNodeDatum/SimulationLinkDatum), forceManyBody+forceLink+forceCollide+forceCenter, d3.zoom for pan/zoom, SVG glow filter for selected nodes, drag-to-pin. Tab nav: Graph|Overview|Search|Impact|Settings. Dark canvas (radial-gradient dark navy). Legend overlay, tooltip, zoom controls overlay. Three renderer instances: repoRenderer (eager), searchRenderer/impactRenderer (lazy on first use). bun add d3 @types/d3. CSS classes (tab-btn, tab-btn-active, graph-ctrl-btn) in global.css — NOT Astro scoped style (Tailwind v4 @apply breaks in scoped blocks). Build: astro build passes."
+      "content": "Expanded planning docs so Phase 5 now includes a dashboard-native local LLM chat surface that can use the full MCP toolset for Q\u0026A and CRUD. Expanded Phase 6 from branch topology only into a broader post-Phase-5 CLI/IDE automation track covering repo-local MCP/instruction/agent installation per repository, version-aware updates, secret-safe MCP config handling with .gitignore or indirection, cross-platform quick-install scripts for Minder server and CLI, and GitHub Release packaging/docs. Updated progress trackers, implementation phases, project progress, progress index, and task breakdown to keep the roadmap consistent."
     },
     {
-      "id": "2221385d-cec2-4a8a-a0fe-02d64661df1b",
-      "title": "Quote form guests changed to number input with min 2",
+      "id": "36cf6c9c-bcb1-4ce8-883d-aa36774c679e",
+      "title": "LiveChat wizard shared-shell implementation",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:quote-form-guests-changed-to-number-input-with-min-2",
+      "canonical_key": "document:livechat-wizard-shared-shell-implementation",
       "score": 0.086129025,
       "tags": [
-        "wordpress",
-        "plugin",
-        "quote-form",
-        "validation",
-        "ui"
+        "findtourgo",
+        "omni-channel",
+        "live-chat",
+        "frontend",
+        "ui-ux"
       ],
       "conflict_detected": false,
-      "content": "Updated plugins/ski-price-calculator/includes/class-spcu-shortcode.php: replaced quote_guests select with input type=number min=2 step=1 default=2. Added number input styling, JS initialization validation to reset invalid/low values to 2, input+change listeners for live recalculation, and runtime clamp in calculatePrice so guests is always \u003e=2."
+      "content": "Implemented LiveChat channel UX alignment with the shared connect wizard. Added a dedicated liveChat theme preset in shared channelThemes, centralized LiveChat step/guidance/section metadata in LiveChatConnect/types.ts, updated LiveChatConnect to use shared step pills, icon, guidance panel, and shared theme, refactored create/install steps to use ChannelGuideSection, and added matching i18n keys in en/vi/id/ja/zh. Also tightened edit-mode gating so the wizard does not advance before live chat details load. Verified with npx tsc --noEmit and JSON parsing for touched locale files."
     },
     {
-      "id": "45aa38d1-9aba-4c61-87a2-8beb63e6100f",
-      "title": "ReactSelect safe optimization and style cleanup",
+      "id": "f4a5e1c7-331e-45f7-8053-07f110ccc92c",
+      "title": "User inbox live chat integration",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:reactselect-safe-optimization-and-style-cleanup",
+      "canonical_key": "document:user-inbox-live-chat-integration",
       "score": 0.08587302,
       "tags": [
-        "findtourgo",
-        "reactselect",
-        "optimization",
-        "performance",
-        "ui"
+        "findtourgoUI",
+        "omi-channel-be",
+        "frontend",
+        "backend",
+        "live-chat",
+        "inboxes"
       ],
       "conflict_detected": false,
-      "content": "Optimized src/components/atoms/ReactSelect/ReactSelect.tsx without changing logic: memoized customStyles with useMemo, memoized merged components to avoid recreating LoadingMessage/LoadingIndicator config each render, removed redundant formatOptionLabel prop pass-through (already included in spread props), and kept existing color/size/error behavior intact."
+      "content": "Integrated UserInboxesPage with live-chats/me list, authenticated widget messages, and live-chat websocket. Added externalCompanyId to omi-channel-be live chat me response so frontend can fetch thread messages and media uploads per company. Updated findtourgoUI provider/sidebar/panel to use real queries, selection, optimistic send, socket join, and attachment uploads via LIVE_CHAT default channel."
     },
     {
-      "id": "95a2fb4e-da16-4530-a017-b731a6acbd0e",
-      "title": "useSearchParamsState immutable+no-op",
+      "id": "02f9c077-c246-4a76-b771-c24913cbc023",
+      "title": "Live chats me controller clean-architecture refactor",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:usesearchparamsstate-immutable-no-op",
+      "canonical_key": "document:live-chats-me-controller-clean-architecture-refactor",
       "score": 0.08562499,
       "tags": [
-        "findtourgo",
-        "hook",
-        "query"
+        "omi-channel-be",
+        "nestjs",
+        "live-chats",
+        "clean-architecture",
+        "controller"
       ],
       "conflict_detected": false,
-      "content": "Applied immutable merge and query-equality guard before router.replace in useSearchParamsState."
+      "content": "Moved authenticated user live chats listing from LiveChatsController to presentation/live-chat-user.controller.ts with GET companies/:companyId/live-chats/me. Refactored GetMyLiveChatsUseCase and ILiveChatUserRepository to use application-layer response types plus tenant-aware input { companyId, externalIds[] } so repository filters by liveChat.companyId and auth user identifiers instead of presentation DTO coupling. Updated live-chats.module.ts to register LiveChatUserController."
     },
     {
-      "id": "b79b7381-89b1-46e8-ba9d-b9739e9d98b0",
-      "title": "Git branch for recaptcha locale patch",
+      "id": "44f08599-56eb-4090-826e-875505ba7831",
+      "title": "Zalo guided setup wizard with optional video sidebar",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:git-branch-for-recaptcha-locale-patch",
+      "canonical_key": "document:zalo-guided-setup-wizard-with-optional-video-sidebar",
       "score": 0.08538462,
       "tags": [
-        "findtourgo",
-        "git",
-        "branch",
-        "commit",
-        "recaptcha"
+        "findtourgoUI",
+        "channels",
+        "wizard",
+        "zalo",
+        "ux",
+        "video-sidebar",
+        "i18n"
       ],
       "conflict_detected": false,
-      "content": "Created branch codex/recaptcha-locale and committed the GoogleRecaptcha locale propagation change as d4c070d4 with message Pass locale into GoogleRecaptcha. Pre-commit ran lint-staged with prettier and eslint --fix successfully before commit."
+      "content": "Implemented a reusable 2-column channel wizard shell for connect flows: ChannelWizardLayout now supports optional step items, desktop guidance sidebar, and mobile collapsible guidance panel. Added shared ChannelGuidancePanel, ChannelGuideSection, and channelWizard.types. Refactored ZaloConnect to keep the existing 4-step flow while grouping inputs by instruction: step 1 collects channel name + OA ID under register/verify OA, step 2 groups app credentials and tokens, step 3 handles domain verification, step 4 handles webhook enablement. Added per-step guidance config and i18n keys in en/vi/ja/zh/id for guide panel copy and step navigation. Validation: targeted eslint clean; npx tsc --noEmit is blocked by unrelated existing .next validator missing page modules under live_chats/settings/channels."
     }
   ]
 }

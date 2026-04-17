@@ -31,6 +31,7 @@ const DEFAULT_NAV = [
   { href: "/dashboard", label: "Home" },
   { href: "/dashboard/clients", label: "Clients" },
   { href: "/dashboard/repositories", label: "Repositories" },
+  { href: "/dashboard/chat", label: "Chat" },
   { href: "/dashboard/skills", label: "Skills" },
   { href: "/dashboard/memories", label: "Memories" },
   { href: "/dashboard/prompts", label: "Prompts" },
@@ -79,7 +80,9 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
     <div class="flex min-h-screen flex-col">
       <header class="pt-4 pb-2">
         <div class="u-page-container">
-          <div class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-3 md:px-6">
+          <div
+            class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-3 md:px-6"
+          >
             <a href="/dashboard" class="group flex min-w-0 items-center gap-3">
               <div
                 class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-800 text-white shadow-md transition-transform group-hover:scale-105"
@@ -159,7 +162,7 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
         </div>
       </header>
 
-      <main class="flex-1 pb-10">
+      <main class="flex-1">
         <div class="u-page-container u-page-stack">
           {
             showPageIntro && (

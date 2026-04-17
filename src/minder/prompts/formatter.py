@@ -88,7 +88,11 @@ def polish_prompt_draft(
     from minder.llm.local import LocalModelLLM
 
     polished = _heuristic_polish(draft)
-    llm = LocalModelLLM(config.llm.model_path, runtime="auto")
+    llm = LocalModelLLM(
+        config.llm.model_path,
+        runtime="auto",
+        context_length=config.llm.context_length,
+    )
     runtime = llm.runtime
 
     instruction = """You are polishing an MCP prompt template for an engineering assistant.

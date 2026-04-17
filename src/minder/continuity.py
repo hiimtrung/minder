@@ -271,7 +271,11 @@ class ContinuitySynthesizer:
         from minder.llm.local import LocalModelLLM
 
         self._config = config
-        self._llm = LocalModelLLM(config.llm.model_path, runtime="auto")
+        self._llm = LocalModelLLM(
+            config.llm.model_path,
+            runtime="auto",
+            context_length=config.llm.context_length,
+        )
 
     def synthesize_memory_hits(
         self,

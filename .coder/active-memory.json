@@ -1,65 +1,65 @@
 {
   "mode": "search",
-  "query": "phase 5 dashboard local llm chat shell",
+  "query": "optional repository dashboard chat runtime query",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-17T16:42:49.546515+07:00",
+  "searched_at": "2026-04-17T17:27:51.093064+07:00",
   "results": [
     {
-      "id": "b310ff38-e468-4689-84a8-510d6a16651f",
-      "title": "Phase 5 and 6 roadmap expanded for local chat and IDE bootstrap",
+      "id": "5addfa6b-14b6-4de8-992c-c0420a5fed2a",
+      "title": "Phase 5 dashboard local runtime chat shell",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-5-and-6-roadmap-expanded-for-local-chat-and-ide-bootstrap",
+      "canonical_key": "document:phase-5-dashboard-local-runtime-chat-shell",
       "score": 0.086393446,
       "tags": [
         "minder",
-        "roadmap",
         "phase5",
-        "phase6",
-        "docs",
-        "cli",
         "dashboard",
-        "mcp"
+        "chat",
+        "local-llm",
+        "admin-runtime",
+        "astro",
+        "tests"
       ],
       "conflict_detected": false,
-      "content": "Expanded planning docs so Phase 5 now includes a dashboard-native local LLM chat surface that can use the full MCP toolset for Q\u0026A and CRUD. Expanded Phase 6 from branch topology only into a broader post-Phase-5 CLI/IDE automation track covering repo-local MCP/instruction/agent installation per repository, version-aware updates, secret-safe MCP config handling with .gitignore or indirection, cross-platform quick-install scripts for Minder server and CLI, and GitHub Release packaging/docs. Updated progress trackers, implementation phases, project progress, progress index, and task breakdown to keep the roadmap consistent."
+      "content": "Added a first dashboard chat slice backed by a real admin runtime query endpoint. Introduced src/minder/presentation/http/admin/runtime.py with /api/v1/runtime/query wrapping QueryTools.minder_query for managed repositories, added a new /dashboard/chat page with RuntimeChatShell and runtime-chat-page.ts, extended the dashboard nav and admin API client, and updated Phase 5 progress docs to mark dashboard local chat in progress. Verified with uv run pytest tests/unit/test_api_runtime.py -q (1 passed), bun run check (0 errors, 1 existing Card.astro hint), and bun run build in src/dashboard."
     },
     {
-      "id": "36cf6c9c-bcb1-4ce8-883d-aa36774c679e",
-      "title": "LiveChat wizard shared-shell implementation",
+      "id": "d2f77825-2356-4d92-a871-3b1557957ccf",
+      "title": "Dashboard runtime chat streaming",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:livechat-wizard-shared-shell-implementation",
+      "canonical_key": "document:dashboard-runtime-chat-streaming",
       "score": 0.086129025,
       "tags": [
-        "findtourgo",
-        "omni-channel",
-        "live-chat",
-        "frontend",
-        "ui-ux"
+        "minder",
+        "dashboard",
+        "chat",
+        "streaming",
+        "llm",
+        "runtime"
       ],
       "conflict_detected": false,
-      "content": "Implemented LiveChat channel UX alignment with the shared connect wizard. Added a dedicated liveChat theme preset in shared channelThemes, centralized LiveChat step/guidance/section metadata in LiveChatConnect/types.ts, updated LiveChatConnect to use shared step pills, icon, guidance panel, and shared theme, refactored create/install steps to use ChannelGuideSection, and added matching i18n keys in en/vi/id/ja/zh. Also tightened edit-mode gating so the wizard does not advance before live chat details load. Verified with npx tsc --noEmit and JSON parsing for touched locale files."
+      "content": "Implemented incremental dashboard chat streaming for local runtime queries. Added stream_generate support to local/openai LLM clients and LLMNode, added MinderGraph.stream and QueryTools.minder_query_stream, exposed POST /api/v1/runtime/query/stream as NDJSON from admin runtime routes, and updated runtime-chat-page.ts plus admin API helpers to append assistant text live while chunks arrive. Verified with uv run pytest tests/unit/test_api_runtime.py tests/unit/test_runtime_detection.py -q (14 passed), bun run check, and bun run build."
     },
     {
-      "id": "f4a5e1c7-331e-45f7-8053-07f110ccc92c",
-      "title": "User inbox live chat integration",
+      "id": "c7ed8901-04b4-4c2f-9424-7cede79e7a17",
+      "title": "Dashboard chat prompt-echo cleanup",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:user-inbox-live-chat-integration",
+      "canonical_key": "document:dashboard-chat-prompt-echo-cleanup",
       "score": 0.08587302,
       "tags": [
-        "findtourgoUI",
-        "omi-channel-be",
-        "frontend",
-        "backend",
-        "live-chat",
-        "inboxes"
+        "minder",
+        "phase-5",
+        "dashboard",
+        "chat",
+        "runtime"
       ],
       "conflict_detected": false,
-      "content": "Integrated UserInboxesPage with live-chats/me list, authenticated widget messages, and live-chat websocket. Added externalCompanyId to omi-channel-be live chat me response so frontend can fetch thread messages and media uploads per company. Updated findtourgoUI provider/sidebar/panel to use real queries, selection, optimistic send, socket join, and attachment uploads via LIVE_CHAT default channel."
+      "content": "Sanitized admin runtime answers when prompt markers like Instruction envelope leak from model output, and refactored dashboard chat into a threaded conversation shell with side insights instead of a raw debug panel. Files: src/minder/presentation/http/admin/runtime.py, src/dashboard/src/components/RuntimeChatShell.astro, src/dashboard/src/scripts/runtime-chat-page.ts, src/dashboard/src/styles/global.css."
     },
     {
       "id": "02f9c077-c246-4a76-b771-c24913cbc023",
@@ -79,23 +79,21 @@
       "content": "Moved authenticated user live chats listing from LiveChatsController to presentation/live-chat-user.controller.ts with GET companies/:companyId/live-chats/me. Refactored GetMyLiveChatsUseCase and ILiveChatUserRepository to use application-layer response types plus tenant-aware input { companyId, externalIds[] } so repository filters by liveChat.companyId and auth user identifiers instead of presentation DTO coupling. Updated live-chats.module.ts to register LiveChatUserController."
     },
     {
-      "id": "44f08599-56eb-4090-826e-875505ba7831",
-      "title": "Zalo guided setup wizard with optional video sidebar",
+      "id": "faac0689-a17c-4321-a712-b7f3db69daad",
+      "title": "Live chats me uses shared PageResponseDto",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:zalo-guided-setup-wizard-with-optional-video-sidebar",
+      "canonical_key": "document:live-chats-me-uses-shared-pageresponsedto",
       "score": 0.08538462,
       "tags": [
-        "findtourgoUI",
-        "channels",
-        "wizard",
-        "zalo",
-        "ux",
-        "video-sidebar",
-        "i18n"
+        "omi-channel-be",
+        "nestjs",
+        "live-chats",
+        "pagination",
+        "dto"
       ],
       "conflict_detected": false,
-      "content": "Implemented a reusable 2-column channel wizard shell for connect flows: ChannelWizardLayout now supports optional step items, desktop guidance sidebar, and mobile collapsible guidance panel. Added shared ChannelGuidancePanel, ChannelGuideSection, and channelWizard.types. Refactored ZaloConnect to keep the existing 4-step flow while grouping inputs by instruction: step 1 collects channel name + OA ID under register/verify OA, step 2 groups app credentials and tokens, step 3 handles domain verification, step 4 handles webhook enablement. Added per-step guidance config and i18n keys in en/vi/ja/zh/id for guide panel copy and step navigation. Validation: targeted eslint clean; npx tsc --noEmit is blocked by unrelated existing .next validator missing page modules under live_chats/settings/channels."
+      "content": "Updated live-chats/me response mapping to extend shared PageResponseDto. FindLiveChatUsersByExternalIdResult now carries skip and take from repository normalization, LiveChatUserMapper includes those pagination fields, and GetMyLiveChatsResponseDto maps result.items to data with total/skip/take/hasMore so the API matches the common paginated response contract."
     }
   ]
 }

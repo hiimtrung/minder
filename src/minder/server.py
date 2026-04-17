@@ -32,7 +32,11 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    llm = LocalModelLLM(config.llm.model_path, runtime="auto")
+    llm = LocalModelLLM(
+        config.llm.model_path,
+        runtime="auto",
+        context_length=config.llm.context_length,
+    )
     embedder = LocalEmbeddingProvider(
         config.embedding.model_path,
         dimensions=config.embedding.dimensions,
@@ -51,6 +55,7 @@ def runtime_summary(config: Settings) -> dict[str, object]:
         ),
         "llm_model_path": str(Path(config.llm.model_path).expanduser()),
         "llm_runtime_effective": llm.runtime,
+        "llm_context_length": config.llm.context_length,
         "embedding_model_path": str(Path(config.embedding.model_path).expanduser()),
         "embedding_runtime_effective": embedder.runtime,
         "openai_fallback_configured": fallback.available(),

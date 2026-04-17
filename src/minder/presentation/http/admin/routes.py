@@ -19,6 +19,7 @@ from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
 from .memories import build_memories_routes
 from .prompts import build_prompts_routes
+from .runtime import build_runtime_routes
 from .search import build_search_routes
 from .skills import build_skills_routes
 
@@ -77,6 +78,7 @@ def build_http_routes(
         *build_prompts_routes(context),
         *build_skills_routes(context),
         *build_memories_routes(context),
+        *build_runtime_routes(context),
         *build_search_routes(context),
         *build_dashboard_routes(context),
     ]

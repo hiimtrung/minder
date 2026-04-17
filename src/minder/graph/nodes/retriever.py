@@ -25,6 +25,12 @@ class RetrieverNode:
 
     async def run(self, state: GraphState) -> GraphState:
         project = state.metadata.get("project_name")
+        if state.repo_path is None and not isinstance(project, str):
+            state.retrieved_docs = []
+            state.reranked_docs = []
+            state.metadata["retrieval_mode"] = "none"
+            return state
+
         if self._embedding_provider is not None and self._vector_store is not None:
             embedded = self._embedding_provider.embed(state.query)
             semantic_hits = await self._vector_store.search_documents(

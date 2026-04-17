@@ -86,6 +86,59 @@ export type ToolListPayload = {
   tools: ToolInfo[];
 };
 
+export type RuntimeQueryPayload = {
+  query: string;
+  repository: {
+    id: string | null;
+    name: string | null;
+    path: string | null;
+  };
+  answer: string;
+  answer_sanitized: boolean;
+  answer_warning: string | null;
+  sources: Array<Record<string, unknown>>;
+  workflow: Record<string, unknown>;
+  guard_result: Record<string, unknown> | null;
+  verification_result: Record<string, unknown> | null;
+  evaluation: Record<string, unknown> | null;
+  provider: string | null;
+  model: string | null;
+  runtime: string | null;
+  orchestration_runtime: string | null;
+  transition_log: Array<Record<string, unknown>>;
+  edge: string | null;
+  cross_repo_graph: Record<string, unknown> | null;
+};
+
+export type RuntimeQueryStreamEvent =
+  | {
+      type: "meta";
+      repository: RuntimeQueryPayload["repository"];
+    }
+  | {
+      type: "attempt";
+      attempt: number;
+    }
+  | {
+      type: "chunk";
+      attempt: number;
+      delta: string;
+    }
+  | {
+      type: "retry";
+      attempt: number;
+      reason: string;
+      edge: string;
+    }
+  | {
+      type: "final";
+      payload: RuntimeQueryPayload;
+    }
+  | {
+      type: "error";
+      error: string;
+    };
+
 const API_BASE_URL = (import.meta.env.PUBLIC_API_URL ?? "")
   .trim()
   .replace(/\/$/, "");
@@ -282,6 +335,81 @@ export async function testClientConnection(client_api_key: string): Promise<{
 
 export async function listTools(): Promise<ToolListPayload> {
   return requestJson<ToolListPayload>("/v1/admin/tools");
+}
+
+export async function queryRuntime(payload: {
+  query: string;
+  repo_id?: string;
+  workflow_name?: string;
+  max_attempts?: number;
+}): Promise<RuntimeQueryPayload> {
+  return requestJson<RuntimeQueryPayload>("/api/v1/runtime/query", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function queryRuntimeStream(
+  payload: {
+    query: string;
+    repo_id?: string;
+    workflow_name?: string;
+    max_attempts?: number;
+  },
+  onEvent: (event: RuntimeQueryStreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(apiUrl("/api/v1/runtime/query/stream"), {
+    method: "POST",
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    let message = `Request failed: ${response.status}`;
+    try {
+      const payload = (await response.json()) as { error?: string };
+      if (payload.error) {
+        message = payload.error;
+      }
+    } catch {
+      // Ignore parse failures.
+    }
+    throw new Error(message);
+  }
+
+  const reader = response.body?.getReader();
+  if (!reader) {
+    throw new Error("Streaming is not available in this browser.");
+  }
+
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+    let newlineIndex = buffer.indexOf("\n");
+    while (newlineIndex >= 0) {
+      const line = buffer.slice(0, newlineIndex).trim();
+      buffer = buffer.slice(newlineIndex + 1);
+      if (line) {
+        onEvent(JSON.parse(line) as RuntimeQueryStreamEvent);
+      }
+      newlineIndex = buffer.indexOf("\n");
+    }
+
+    if (done) {
+      const finalLine = buffer.trim();
+      if (finalLine) {
+        onEvent(JSON.parse(finalLine) as RuntimeQueryStreamEvent);
+      }
+      break;
+    }
+  }
 }
 
 export async function updateClient(

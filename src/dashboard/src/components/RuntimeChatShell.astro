@@ -1,0 +1,199 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import Field from "./ui/Field.astro";
+import Select from "./ui/Select.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+import GuideAside from "./ui/GuideAside.astro";
+---
+
+<DashboardLayout
+  title="Chat · Minder"
+  description="Ask the local Minder runtime questions from the dashboard and inspect the answer path."
+  navTitle="Minder Dashboard"
+  navDescription="Use the local LLM runtime against managed repositories with the same reasoning path and tool seams used by the product runtime."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <form id="runtime-chat-form" class="runtime-chat-layout">
+    <section class="shell-card runtime-chat-shell p-0">
+      <header
+        class="runtime-chat-header border-b border-stone-200/80 px-6 py-5"
+      >
+        <div class="min-w-0">
+          <p class="eyebrow">Conversation</p>
+          <h2
+            class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+          >
+            Local runtime conversation
+          </h2>
+          <p class="mt-2 text-sm leading-6 text-stone-600">
+            Ask concise repository questions and get a readable answer first,
+            with debug traces tucked into the side rail.
+          </p>
+        </div>
+        <div class="runtime-chat-header-meta">
+          <div
+            id="runtime-chat-engine"
+            class="text-right text-xs text-stone-500"
+          >
+          </div>
+        </div>
+      </header>
+
+      <div id="runtime-chat-thread" class="runtime-chat-thread">
+        <article id="runtime-chat-empty" class="runtime-chat-empty-state">
+          <p class="font-medium text-stone-900">
+            Start with one repository-scoped question.
+          </p>
+          <p class="mt-2 text-sm leading-6 text-stone-600">
+            The chat keeps the latest responses in a conversational thread and
+            pushes raw execution details into the insights panel.
+          </p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="action-pill u-btn-sm"
+              data-runtime-chat-suggestion="What routes mutate repository branch links, and which files should I inspect first?"
+              >Branch links</button
+            >
+            <button
+              type="button"
+              class="action-pill u-btn-sm"
+              data-runtime-chat-suggestion="Summarize the most important graph search and impact endpoints in this repository."
+              >Graph endpoints</button
+            >
+            <button
+              type="button"
+              class="action-pill u-btn-sm"
+              data-runtime-chat-suggestion="Which admin files should I read to understand dashboard runtime chat flow?"
+              >Chat flow</button
+            >
+          </div>
+        </article>
+      </div>
+
+      <footer class="runtime-chat-composer px-5 my-3">
+        <Field
+          label="Question"
+          htmlFor="runtime-chat-query"
+          hint="Use Enter for a new line. Use Cmd/Ctrl + Enter to send."
+        >
+          <Textarea
+            id="runtime-chat-query"
+            rows={2}
+            placeholder="Ask about routes, symbols, workflows, repository state, or where to start reading the code."
+            class="runtime-chat-textarea"
+          />
+        </Field>
+        <FormStatus
+          id="runtime-chat-status"
+          class="runtime-chat-composer-status"
+        />
+        <div class="mt-2 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-xs text-stone-500">
+            The dashboard cleans prompt-envelope leakage before rendering the
+            visible answer.
+          </p>
+          <Button
+            id="runtime-chat-submit"
+            type="submit"
+            variant="primary"
+            class="min-w-[180px]"
+          >
+            Ask local runtime
+          </Button>
+        </div>
+      </footer>
+    </section>
+
+    <div class="runtime-chat-sidebar">
+      <aside class="shell-card runtime-side-block p-3.5">
+        <p class="eyebrow">Session</p>
+        <h2 class="mt-0.5 text-sm font-semibold tracking-tight text-stone-950">
+          Query settings
+        </h2>
+
+        <div class="mt-2.5 grid gap-2">
+          <Field label="Repository" htmlFor="runtime-chat-repository">
+            <Select id="runtime-chat-repository">
+              <option value="">Select a repository</option>
+            </Select>
+          </Field>
+
+          <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+            <Field label="Workflow name" htmlFor="runtime-chat-workflow">
+              <input
+                id="runtime-chat-workflow"
+                class="u-input"
+                placeholder="Optional workflow override"
+              />
+            </Field>
+            <Field label="Max attempts" htmlFor="runtime-chat-max-attempts">
+              <Select id="runtime-chat-max-attempts">
+                <option value="1">1</option>
+                <option value="2" selected>2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </Select>
+            </Field>
+          </div>
+        </div>
+      </aside>
+
+      <GuideAside
+        eyebrow="Insights"
+        title="Latest answer context"
+        class="runtime-side-block p-3.5"
+      >
+        <div
+          id="runtime-chat-warning"
+          class="hidden rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+        >
+        </div>
+        <div id="runtime-chat-summary" class="runtime-side-scroll grid gap-2">
+        </div>
+      </GuideAside>
+
+      <aside class="shell-card runtime-side-block p-3.5">
+        <p class="eyebrow">Sources</p>
+        <div
+          id="runtime-chat-sources"
+          class="runtime-side-scroll mt-2.5 grid gap-2"
+        >
+          <div class="text-sm text-stone-500">No sources yet.</div>
+        </div>
+      </aside>
+
+      <aside class="shell-card runtime-side-block p-3.5">
+        <p class="eyebrow">Execution trace</p>
+        <div
+          id="runtime-chat-transitions"
+          class="runtime-side-scroll mt-2.5 grid gap-2"
+        >
+          <div class="text-sm text-stone-500">No transition log yet.</div>
+        </div>
+      </aside>
+
+      <aside class="shell-card runtime-side-block p-3.5">
+        <p class="eyebrow">Tools</p>
+        <h2 class="mt-0.5 text-sm font-semibold tracking-tight text-stone-950">
+          Available MCP surface
+        </h2>
+        <p class="mt-1 text-xs leading-5 text-stone-600">
+          The current shell queries through the standard runtime path and
+          surfaces the broader tool catalog for operator context.
+        </p>
+        <div
+          id="runtime-chat-tools"
+          class="runtime-side-scroll mt-2.5 grid gap-2"
+        >
+          <div class="u-placeholder-card">Loading tool surface...</div>
+        </div>
+      </aside>
+    </div>
+  </form>
+
+  <script src="../scripts/runtime-chat-page.ts"></script>
+</DashboardLayout>

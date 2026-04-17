@@ -5,7 +5,15 @@
 interface Props {
   id?: string;
   name?: string;
-  type?: string;
+  type?:
+    | "text"
+    | "email"
+    | "number"
+    | "password"
+    | "search"
+    | "url"
+    | "tel"
+    | "hidden";
   value?: string | number;
   placeholder?: string;
   min?: string | number;

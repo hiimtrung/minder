@@ -1,39 +1,39 @@
 {
-  "task": "astro tailwind v4 design tokens components",
+  "task": "d3 transform NaN and vite outdated optimize dep",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T14:07:46.956682+07:00",
+  "resolved_at": "2026-04-17T16:29:50.63201+07:00",
   "keep": [],
   "add": [
-    "tailwind-design-system",
-    "figma-automation",
-    "ui-styling"
+    "threejs-shaders",
+    "shader-programming-glsl",
+    "claude-d3js-skill"
   ],
   "drop": [
-    "skill-creator",
-    "ai-ml",
-    "mcp-builder-ms"
+    "advanced-evaluation",
+    "conductor-status",
+    "ui-ux-pro-max"
   ],
   "skills": [
     {
-      "name": "tailwind-design-system",
+      "name": "threejs-shaders",
       "category": "frontend",
       "score": 0.016393442,
-      "chunk_count": 2,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "figma-automation",
+      "name": "shader-programming-glsl",
       "category": "frontend",
       "score": 0.016129032,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "ui-styling",
-      "category": "frontend",
+      "name": "claude-d3js-skill",
+      "category": "general",
       "score": 0.015873017,
-      "chunk_count": 9,
+      "chunk_count": 10,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

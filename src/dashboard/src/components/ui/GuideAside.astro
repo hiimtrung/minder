@@ -12,7 +12,7 @@ interface Props {
 const { eyebrow, title, class: className = "" } = Astro.props;
 ---
 
-<aside class={`shell-card p-6 ${className}`}>
+<aside class={`u-guide-aside ${className}`}>
   {eyebrow && <p class="eyebrow">{eyebrow}</p>}
   <h2 class="mt-2 text-lg font-semibold tracking-tight text-stone-950">
     {title}

@@ -5,6 +5,8 @@ import StatCard from "./ui/StatCard.astro";
 import Button from "./ui/Button.astro";
 import Select from "./ui/Select.astro";
 import Input from "./ui/Input.astro";
+import Card from "./ui/Card.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
 ---
 
 <DashboardLayout
@@ -92,62 +94,62 @@ import Input from "./ui/Input.astro";
 
   <!-- Metric breakdown charts -->
   <section class="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">Tool calls by outcome</p>
       <div id="chart-tool-outcomes" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
 
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">Auth events by type</p>
       <div id="chart-auth-types" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
 
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">HTTP by status code</p>
       <div id="chart-http-status" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
 
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">Admin ops by outcome</p>
       <div id="chart-admin-ops" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
   </section>
 
   <section class="mb-6 grid gap-4 sm:grid-cols-2">
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">Query prompts by source</p>
       <div id="chart-continuity-prompts" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
 
-    <div class="shell-card p-5">
+    <Card padding="sm">
       <p class="eyebrow mb-3">Continuity gates by outcome</p>
       <div id="chart-continuity-gates" class="flex justify-center">
         <p class="py-4 text-sm text-stone-400">Loading...</p>
       </div>
-    </div>
+    </Card>
   </section>
 
   <!-- Audit log section -->
   <section class="grid gap-5">
     <!-- Audit log header + filters -->
-    <div class="shell-card px-6 py-5">
+    <Card padding="md">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p class="text-sm font-medium text-stone-900">Audit log</p>
-          <p class="mt-1 text-sm text-stone-600">
-            Every admin and client action recorded with actor, outcome, and
-            timestamp.
-          </p>
+          <SectionHeader
+            title="Audit log"
+            description="Every admin and client action recorded with actor, outcome, and timestamp."
+            class="mb-0"
+          />
         </div>
         <div class="flex flex-wrap items-center gap-2">
           <Select id="audit-event-type-filter" class="min-w-36">
@@ -186,7 +188,7 @@ import Input from "./ui/Input.astro";
         class="mt-3 flex flex-wrap gap-2 empty:hidden"
       >
       </div>
-    </div>
+    </Card>
 
     <!-- Pagination bar -->
     <div

@@ -3,6 +3,8 @@ import DashboardLayout from "../layouts/DashboardLayout.astro";
 import PageHero from "../components/ui/PageHero.astro";
 import StatCard from "../components/ui/StatCard.astro";
 import Button from "../components/ui/Button.astro";
+import Card from "../components/ui/Card.astro";
+import SectionHeader from "../components/ui/SectionHeader.astro";
 ---
 
 <DashboardLayout
@@ -14,7 +16,11 @@ import Button from "../components/ui/Button.astro";
   showPageIntro={false}
 >
   <!-- While we verify the admin session client-side. Auth-redirect path hides this page. -->
-  <div id="home-bootstrap" class="shell-card mx-auto max-w-xl p-8 text-center">
+  <Card
+    id="home-bootstrap"
+    padding="lg"
+    class="mx-auto max-w-xl text-center"
+  >
     <p class="eyebrow">Dashboard</p>
     <h1
       class="font-display mt-2 text-2xl font-semibold tracking-tight text-stone-950"
@@ -24,7 +30,7 @@ import Button from "../components/ui/Button.astro";
     <p id="home-bootstrap-status" class="mt-2 text-sm text-stone-600">
       Checking admin session.
     </p>
-  </div>
+  </Card>
 
   <!-- ══════════════════════════════════════════
        HOME DASHBOARD — hidden until session confirmed
@@ -105,14 +111,7 @@ import Button from "../components/ui/Button.astro";
 
     <!-- ── Inventory KPIs ── -->
     <section>
-      <div class="mb-3 flex items-end justify-between">
-        <div>
-          <p class="eyebrow">Inventory</p>
-          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
-            Registered resources
-          </h2>
-        </div>
-      </div>
+      <SectionHeader eyebrow="Inventory" title="Registered resources" />
 
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard
@@ -151,20 +150,15 @@ import Button from "../components/ui/Button.astro";
 
     <!-- ── Usage metrics ── -->
     <section>
-      <div class="mb-3 flex items-end justify-between">
-        <div>
-          <p class="eyebrow">Usage</p>
-          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
-            Live counters (since process start)
-          </h2>
-        </div>
+      <SectionHeader eyebrow="Usage" title="Live counters (since process start)">
         <a
+          slot="actions"
           href="/dashboard/observability"
           class="text-sm font-medium text-amber-800 hover:text-amber-900"
         >
           Open observability →
         </a>
-      </div>
+      </SectionHeader>
 
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
@@ -195,20 +189,15 @@ import Button from "../components/ui/Button.astro";
 
     <!-- ── Recent activity ── -->
     <section>
-      <div class="mb-3 flex items-end justify-between">
-        <div>
-          <p class="eyebrow">Recent activity</p>
-          <h2 class="mt-1 text-xl font-semibold tracking-tight text-stone-950">
-            Last 8 audit events
-          </h2>
-        </div>
+      <SectionHeader eyebrow="Recent activity" title="Last 8 audit events">
         <a
+          slot="actions"
           href="/dashboard/observability"
           class="text-sm font-medium text-amber-800 hover:text-amber-900"
         >
           Full audit log →
         </a>
-      </div>
+      </SectionHeader>
 
       <div class="shell-card overflow-hidden" id="home-recent-wrap">
         <table class="w-full text-sm">

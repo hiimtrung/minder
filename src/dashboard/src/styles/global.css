@@ -39,7 +39,7 @@
 
   /* Layout */
   --layout-max: 1440px;
-  --sidebar-w: 380px;
+  --sidebar-w: 360px;
   --section-gap: 1.5rem;
 
   /* Palette tokens (from stone/amber) */
@@ -224,6 +224,73 @@ body.graph-fullwidth .graph-canvas-wrap {
   border-radius: 0 !important;
 }
 
+.graph-details-overlay {
+  position: absolute;
+  left: 0.5rem;
+  right: auto;
+  top: 0.5rem;
+  z-index: 25;
+  width: min(22rem, calc(100% - 5rem));
+  max-height: min(72vh, calc(100% - 1rem));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  border-radius: 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(8, 8, 16, 0.6);
+  box-shadow: 0 24px 60px rgba(8, 8, 16, 0.32);
+  backdrop-filter: blur(14px);
+  color: rgba(248, 250, 252, 0.96);
+}
+
+.graph-details-overlay[data-state="empty"] {
+  width: min(13rem, calc(100% - 5rem));
+  max-height: 5.5rem;
+}
+
+.graph-details-overlay-content {
+  max-height: none;
+  overflow: visible;
+}
+
+.graph-details-overlay::-webkit-scrollbar {
+  width: 0.625rem;
+}
+
+.graph-details-overlay::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.45);
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+@media (min-width: 1024px) {
+  .graph-details-overlay {
+    left: 0.75rem;
+    top: 0.75rem;
+    width: min(23rem, 26vw);
+    max-height: min(76vh, calc(100% - 1.5rem));
+  }
+
+  .graph-details-overlay[data-state="empty"] {
+    width: min(14rem, 18vw);
+  }
+}
+
+.graph-canvas-wrap:fullscreen .graph-details-overlay,
+.graph-canvas-wrap:-webkit-full-screen .graph-details-overlay,
+.graph-canvas-wrap:-moz-full-screen .graph-details-overlay {
+  top: 1rem;
+  left: 1rem;
+  max-height: min(78vh, calc(100% - 2rem));
+}
+
+.graph-legend-overlay {
+  left: auto !important;
+  right: 0.75rem !important;
+  top: 0.75rem !important;
+}
+
 /* ────────────────────────────────────────────────────────────────────────
  * Design-system primitives (new — consumed by Astro components)
  * Prefix: .u-*  (utility components)
@@ -386,6 +453,7 @@ body.graph-fullwidth .graph-canvas-wrap {
 .u-dashboard-footer {
   @apply mx-auto flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 px-6 py-5 text-xs text-stone-500;
   max-width: var(--layout-max);
+  width: 100%;
 }
 .u-dashboard-footer a {
   @apply text-stone-600 transition hover:text-amber-800;
@@ -406,8 +474,24 @@ body.graph-fullwidth .graph-canvas-wrap {
 
 /* Page width container */
 .u-page-container {
-  @apply mx-auto px-6;
+  @apply mx-auto w-full px-6;
   max-width: var(--layout-max);
+}
+
+.u-page-stack {
+  @apply w-full;
+}
+
+.u-page-stack > * {
+  min-width: 0;
+}
+
+.u-page-shell {
+  @apply w-full;
+}
+
+.u-page-shell > * {
+  min-width: 0;
 }
 
 /* Page hero */
@@ -447,7 +531,19 @@ body.graph-fullwidth .graph-canvas-wrap {
   @apply text-xl font-semibold tracking-tight text-stone-950;
 }
 
-/* Sidebar grid helper (unified 380px) */
+.u-split-hero {
+  @apply grid gap-8 lg:grid-cols-[1.1fr_0.9fr];
+}
+
+.u-split-hero-copy {
+  @apply space-y-4 lg:self-center;
+}
+
+.u-split-hero-copy .u-page-hero-sub {
+  @apply mt-0 max-w-2xl text-base leading-7;
+}
+
+/* Sidebar grid helper (unified 360px) */
 .u-grid-sidebar {
   display: grid;
   gap: 2rem;

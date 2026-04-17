@@ -362,6 +362,20 @@ def build_transport(
         del user
         return await memory_tools.minder_memory_delete(skill_id)
 
+    async def minder_memory_compact(
+        *,
+        user=None,
+        memory_ids: list[str],
+        similarity_threshold: float = 0.92,
+        dry_run: bool = True,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await memory_tools.minder_memory_compact(
+            memory_ids=memory_ids,
+            similarity_threshold=similarity_threshold,
+            dry_run=dry_run,
+        )
+
     async def minder_skill_store(
         *,
         user=None,
@@ -449,6 +463,24 @@ def build_transport(
     ) -> dict[str, bool]:  # noqa: ANN001
         del user
         return await skill_tools.minder_skill_delete(skill_id)
+
+    async def minder_skill_import_git(
+        *,
+        user=None,
+        repo_url: str,
+        source_path: str = "skills",
+        ref: str | None = None,
+        provider: str | None = None,
+        excerpt_kind: str = "none",
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_import_git(
+            repo_url=repo_url,
+            source_path=source_path,
+            ref=ref,
+            provider=provider,
+            excerpt_kind=excerpt_kind,
+        )
 
     async def minder_search(
         *, user=None, query: str, limit: int = 5
@@ -674,6 +706,12 @@ def build_transport(
         description=TOOL_DESCRIPTIONS["minder_memory_delete"],
     )
     transport.register_tool(
+        "minder_memory_compact",
+        minder_memory_compact,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_memory_compact"],
+    )
+    transport.register_tool(
         "minder_skill_store",
         minder_skill_store,
         require_auth=True,
@@ -702,6 +740,12 @@ def build_transport(
         minder_skill_delete,
         require_auth=True,
         description=TOOL_DESCRIPTIONS["minder_skill_delete"],
+    )
+    transport.register_tool(
+        "minder_skill_import_git",
+        minder_skill_import_git,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_skill_import_git"],
     )
     transport.register_tool(
         "minder_search",

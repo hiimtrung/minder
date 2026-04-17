@@ -1,144 +1,136 @@
 {
-  "updated_at": "2026-04-17T14:07:46.957872+07:00",
+  "updated_at": "2026-04-17T16:29:50.632327+07:00",
   "skills": {
-    "task": "astro tailwind v4 design tokens components",
+    "task": "d3 transform NaN and vite outdated optimize dep",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-17T14:07:46.956682+07:00",
+    "resolved_at": "2026-04-17T16:29:50.63201+07:00",
     "keep": [],
     "add": [
-      "tailwind-design-system",
-      "figma-automation",
-      "ui-styling"
+      "threejs-shaders",
+      "shader-programming-glsl",
+      "claude-d3js-skill"
     ],
     "drop": [
-      "skill-creator",
-      "ai-ml",
-      "mcp-builder-ms"
+      "advanced-evaluation",
+      "conductor-status",
+      "ui-ux-pro-max"
     ],
     "skills": [
       {
-        "name": "tailwind-design-system",
+        "name": "threejs-shaders",
         "category": "frontend",
         "score": 0.016393442,
-        "chunk_count": 2,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "figma-automation",
+        "name": "shader-programming-glsl",
         "category": "frontend",
         "score": 0.016129032,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "ui-styling",
-        "category": "frontend",
+        "name": "claude-d3js-skill",
+        "category": "general",
         "score": 0.015873017,
-        "chunk_count": 9,
+        "chunk_count": 10,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "phase 5 phase 6 roadmap installer IDE MCP dashboard chat",
+    "query": "d3 transform NaN and vite outdated optimize dep",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-17T14:07:08.315746+07:00",
+    "searched_at": "2026-04-17T16:29:50.442048+07:00",
     "results": [
       {
-        "id": "a6d00cbc-cd8d-4cbe-b95c-6067549efbf7",
-        "title": "coder CLI — state.go + cmd_new_project.go + cmd_map_codebase.go (Phases 9 \u0026 10)",
+        "id": "2b9d30d6-3104-44ad-a66f-d5e1b9e5717c",
+        "title": "D3.js Graph Explorer Refactor",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:coder-cli-state-go-cmd-new-project-go-cmd-map-codebase-go-phases-9-10",
+        "canonical_key": "document:d3-js-graph-explorer-refactor",
         "score": 0.086393446,
         "tags": [
-          "coder",
-          "cli",
-          "golang",
-          "new-project",
-          "map-codebase",
-          "state",
-          "phase-9",
-          "phase-10"
+          "minder",
+          "dashboard",
+          "d3",
+          "graph",
+          "frontend",
+          "refactor"
         ],
         "conflict_detected": false,
-        "content": "Implemented three new files for the coder CLI (cmd/coder/). state.go: shared ProjectState struct (project, current_phase, step, decisions, blockers, backlog, PRs map), RoadmapPhase, coderPath(), loadState(), saveState(), loadRoadmap(), phaseDir(), ensurePhaseDir(), projectExists(). All .coder/ paths route through coderPath(). cmd_new_project.go: runNewProject() — flags: --auto, --prd, --resume. Guards against re-init via projectExists(). Interactive deep Q\u0026A via ChatStream loop (bufio.Scanner, blank×2 or 'done' to exit). Generates REQUIREMENTS.md then ROADMAP.md via streaming LLM, with [Y/n/edit] approval gates. Writes PROJECT.md + REQUIREMENTS.md + ROADMAP.md + STATE.md (phase=1, step=discuss). Uses getChatClient(cfg) pattern. cmd_map_codebase.go: runMapCodebase() — flag: --refresh, positional area arg. Four sequential ChatStream focus passes (tech→STACK.md, arch→ARCHITECTURE.md, quality→CONVENTIONS.md, concerns→CONCERNS.md) written to .coder/codebase/."
+        "content": "Replaced static Canvas graph on minder/src/dashboard with D3.js v7 force-directed renderer. Pattern: D3GraphRenderer class (extends d3.SimulationNodeDatum/SimulationLinkDatum), forceManyBody+forceLink+forceCollide+forceCenter, d3.zoom for pan/zoom, SVG glow filter for selected nodes, drag-to-pin. Tab nav: Graph|Overview|Search|Impact|Settings. Dark canvas (radial-gradient dark navy). Legend overlay, tooltip, zoom controls overlay. Three renderer instances: repoRenderer (eager), searchRenderer/impactRenderer (lazy on first use). bun add d3 @types/d3. CSS classes (tab-btn, tab-btn-active, graph-ctrl-btn) in global.css — NOT Astro scoped style (Tailwind v4 @apply breaks in scoped blocks). Build: astro build passes."
       },
       {
-        "id": "78a3d431-edda-4110-a64f-5ecf600f085d",
-        "title": "Phase 9-17 CLI Commands Implemented",
+        "id": "2221385d-cec2-4a8a-a0fe-02d64661df1b",
+        "title": "Quote form guests changed to number input with min 2",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-9-17-cli-commands-implemented",
+        "canonical_key": "document:quote-form-guests-changed-to-number-input-with-min-2",
         "score": 0.086129025,
         "tags": [
-          "coder-cli",
-          "phases",
-          "lifecycle",
-          "implementation"
+          "wordpress",
+          "plugin",
+          "quote-form",
+          "validation",
+          "ui"
         ],
         "conflict_detected": false,
-        "content": "Implemented all project lifecycle commands for coder CLI (phases 9-17 from roadmap-intelligence-flows.md). Files created: cmd_new_project.go (runNewProject - Q\u0026A → REQUIREMENTS.md/ROADMAP.md/STATE.md), cmd_map_codebase.go (runMapCodebase - 4 sequential analyses → STACK/ARCH/CONVENTIONS/CONCERNS.md), cmd_discuss_phase.go (runDiscussPhase - gray-area Q\u0026A → CONTEXT.md), cmd_plan_phase.go (runPlanPhase - research + XML plans + verification loop), cmd_execute_phase.go (runExecutePhase - wave-based execution + parsePlanXML + atomic git commits), cmd_ship.go (runShip - gh pr create with AI-generated body), cmd_progress.go (runProgress + runNext - STATE.md-aware navigation), cmd_milestone.go (runMilestone - audit/complete/archive/next lifecycle), cmd_todo.go (runTodo/runStats/runHealth/runNote/runDo - project utilities). All commands registered in main.go. go build + go vet both pass clean. STATE.md format: frontmatter fields + ## Decisions/Blockers/Backlog/PRs sections. XML plan"
+        "content": "Updated plugins/ski-price-calculator/includes/class-spcu-shortcode.php: replaced quote_guests select with input type=number min=2 step=1 default=2. Added number input styling, JS initialization validation to reset invalid/low values to 2, input+change listeners for live recalculation, and runtime clamp in calculatePrice so guests is always \u003e=2."
       },
       {
-        "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
-        "title": "README + CLI docs + dashboard-plan cleanup",
+        "id": "45aa38d1-9aba-4c61-87a2-8beb63e6100f",
+        "title": "ReactSelect safe optimization and style cleanup",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
+        "canonical_key": "document:reactselect-safe-optimization-and-style-cleanup",
         "score": 0.08587302,
         "tags": [
-          "coder-cli",
-          "docs",
-          "readme",
-          "cleanup"
+          "findtourgo",
+          "reactselect",
+          "optimization",
+          "performance",
+          "ui"
         ],
         "conflict_detected": false,
-        "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
+        "content": "Optimized src/components/atoms/ReactSelect/ReactSelect.tsx without changing logic: memoized customStyles with useMemo, memoized merged components to avoid recreating LoadingMessage/LoadingIndicator config each render, removed redundant formatOptionLabel prop pass-through (already included in spread props), and kept existing color/size/error behavior intact."
       },
       {
-        "id": "4b1959b4-1fc6-4a29-bf2d-4197c5e2a011",
-        "title": "Phase 4.3 completed with console serving seam",
+        "id": "95a2fb4e-da16-4530-a017-b731a6acbd0e",
+        "title": "useSearchParamsState immutable+no-op",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-3-completed-with-console-serving-seam",
+        "canonical_key": "document:usesearchparamsstate-immutable-no-op",
         "score": 0.08562499,
         "tags": [
-          "phase4",
-          "dashboard",
-          "astro",
-          "console",
-          "parity"
+          "findtourgo",
+          "hook",
+          "query"
         ],
         "conflict_detected": false,
-        "content": "Completed Phase 4.3 without creating a commit. Added dashboard config for base_path/static_dir/legacy_compat_enabled, served built dashboard assets under /console, redirected legacy setup/login/dashboard GET routes to /console equivalents when compatibility is disabled, and added tests/integration/test_phase4_3_console_gate.py. Focused verification now passes for architecture extraction, admin use cases, Astro scaffold, HTTP admin routes, setup/login flows, and console static serving. Broader Phase 4 remains open for observability and production hardening."
+        "content": "Applied immutable merge and query-equality guard before router.replace in useSearchParamsState."
       },
       {
-        "id": "4ef3936a-74f0-47c6-a413-932a62841390",
-        "title": "coder CLI Intelligence Layer — 8 AI Workflow Commands Implemented",
+        "id": "b79b7381-89b1-46e8-ba9d-b9739e9d98b0",
+        "title": "Git branch for recaptcha locale patch",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:coder-cli-intelligence-layer-8-ai-workflow-commands-implemented",
+        "canonical_key": "document:git-branch-for-recaptcha-locale-patch",
         "score": 0.08538462,
         "tags": [
-          "coder",
-          "cli",
-          "ai-workflow",
-          "chat",
-          "review",
-          "debug",
-          "plan",
-          "qa",
-          "session",
-          "workflow",
-          "coder-node"
+          "findtourgo",
+          "git",
+          "branch",
+          "commit",
+          "recaptcha"
         ],
         "conflict_detected": false,
-        "content": "Implemented all 8 phases of the Intelligence Flows Roadmap. New commands: coder chat (Q\u0026A with SSE streaming), coder review (structured code review → JSON), coder debug (root cause analysis), coder plan (3-stage: Q\u0026A→research→PLAN.md), coder qa (UAT from PLAN.md, auto-diagnose), coder session (save/restore context to .coder/sessions/), coder workflow (auto-chain: plan→review→implement→qa→fix). coder-node HTTP endpoints: POST /v1/chat, /v1/chat/stream (SSE), /v1/review, /v1/debug. Context injection pipeline: parallel goroutines (300ms timeout) for memory+skill search before every LLM call. State files saved in .coder/ (plans/, qa/, sessions/, workflows/). Agent configs updated: .claude/agents/coder.md, .agents/workflows/, .agents/skills/coder-cli/, .github/copilot-instructions.md. Run coder skill ingest --source local after updating skills."
+        "content": "Created branch codex/recaptcha-locale and committed the GoogleRecaptcha locale propagation change as d4c070d4 with message Pass locale into GoogleRecaptcha. Pre-commit ran lint-staged with prettier and eslint --fix successfully before commit."
       }
     ]
   }

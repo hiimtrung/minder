@@ -1,10 +1,13 @@
 import {
   createSkill,
   deleteSkill,
+  importSkills,
   listSkills,
   searchAdminCatalog,
   updateSkill,
+  type SkillImportSummaryPayload,
   type SkillPayload,
+  type SkillSourcePayload,
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
@@ -40,6 +43,10 @@ const provenanceEl = document.querySelector(
 const qualityScoreEl = document.querySelector(
   "#skill-quality-score",
 ) as HTMLInputElement | null;
+const excerptKindEl = document.querySelector(
+  "#skill-excerpt-kind",
+) as HTMLSelectElement | null;
+const sourceSummaryEl = document.querySelector("#skill-source-summary");
 const quickSearchEl = document.querySelector(
   "#skill-quick-search",
 ) as HTMLInputElement | null;
@@ -47,9 +54,31 @@ const paginationStatusEl = document.querySelector("#skill-pagination-status");
 const pagePrevButton = document.querySelector("#skill-page-prev");
 const pageNextButton = document.querySelector("#skill-page-next");
 const statusEl = document.querySelector("#skill-editor-status");
+const importFormEl = document.querySelector(
+  "#skill-import-form",
+) as HTMLFormElement | null;
+const importRepoUrlEl = document.querySelector(
+  "#skill-import-repo-url",
+) as HTMLInputElement | null;
+const importPathEl = document.querySelector(
+  "#skill-import-path",
+) as HTMLInputElement | null;
+const importRefEl = document.querySelector(
+  "#skill-import-ref",
+) as HTMLInputElement | null;
+const importProviderEl = document.querySelector(
+  "#skill-import-provider",
+) as HTMLSelectElement | null;
+const importExcerptKindEl = document.querySelector(
+  "#skill-import-excerpt-kind",
+) as HTMLSelectElement | null;
+const importStatusEl = document.querySelector("#skill-import-status");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
 const PAGE_SIZE = 6;
+
+type SkillExcerptKind = "none" | "reusable_excerpt";
+type SkillImportProvider = "github" | "gitlab" | "generic_git";
 
 let allSkills: SkillPayload[] = [];
 let visibleSkills: SkillPayload[] = [];
@@ -71,17 +100,27 @@ const splitCsv = (value: string): string[] =>
     .map((item) => item.trim())
     .filter(Boolean);
 
-const setStatus = (
+const setStatusLine = (
+  target: Element | null,
   message: string,
   tone: "default" | "success" | "danger" = "default",
 ) => {
-  if (!(statusEl instanceof HTMLElement)) return;
-  statusEl.textContent = message;
-  statusEl.className = "min-h-6 text-sm";
-  if (tone === "success") statusEl.classList.add("text-emerald-700");
-  else if (tone === "danger") statusEl.classList.add("text-red-700");
-  else statusEl.classList.add("text-stone-600");
+  if (!(target instanceof HTMLElement)) return;
+  target.textContent = message;
+  target.className = "u-status";
+  if (tone === "success") target.classList.add("u-status-success");
+  else if (tone === "danger") target.classList.add("u-status-danger");
 };
+
+const setStatus = (
+  message: string,
+  tone: "default" | "success" | "danger" = "default",
+) => setStatusLine(statusEl, message, tone);
+
+const setImportStatus = (
+  message: string,
+  tone: "default" | "success" | "danger" = "default",
+) => setStatusLine(importStatusEl, message, tone);
 
 const showToast = (
   message: string,
@@ -119,7 +158,49 @@ const currentDraft = () => ({
   artifact_types: splitCsv(artifactTypesEl?.value ?? ""),
   provenance: provenanceEl?.value.trim() || null,
   quality_score: Number(qualityScoreEl?.value ?? "0") || 0,
+  excerpt_kind: (excerptKindEl?.value === "reusable_excerpt"
+    ? "reusable_excerpt"
+    : "none") as SkillExcerptKind,
 });
+
+const currentImportDraft = () => ({
+  repo_url: importRepoUrlEl?.value.trim() ?? "",
+  path: importPathEl?.value.trim() || "skills",
+  ref: importRefEl?.value.trim() || undefined,
+  provider: (importProviderEl?.value === "github" ||
+  importProviderEl?.value === "gitlab" ||
+  importProviderEl?.value === "generic_git"
+    ? importProviderEl.value
+    : undefined) as SkillImportProvider | undefined,
+  excerpt_kind: (importExcerptKindEl?.value === "reusable_excerpt"
+    ? "reusable_excerpt"
+    : "none") as SkillExcerptKind,
+});
+
+const summarizeSource = (source: SkillSourcePayload | null): string => {
+  if (!source) return "";
+  const location = source.file_path
+    ? `${source.path}/${source.file_path}`
+    : source.path;
+  const ref = source.ref ? ` · ${source.ref}` : "";
+  return `${source.provider} · ${location}${ref}`;
+};
+
+const updateSourceSummary = (skill?: SkillPayload) => {
+  if (!(sourceSummaryEl instanceof HTMLElement)) return;
+  if (!skill?.source) {
+    sourceSummaryEl.innerHTML = "";
+    sourceSummaryEl.classList.add("hidden");
+    return;
+  }
+
+  sourceSummaryEl.innerHTML = `
+    <p class="eyebrow">Imported source</p>
+    <p class="mt-2 break-words text-sm font-medium text-stone-800">${escapeHtml(skill.source.repo_url)}</p>
+    <p class="mt-1 text-sm text-stone-600">${escapeHtml(summarizeSource(skill.source))}</p>
+  `;
+  sourceSummaryEl.classList.remove("hidden");
+};
 
 const fillForm = (skill?: SkillPayload) => {
   selectedSkillId = skill?.id ?? null;
@@ -138,7 +219,24 @@ const fillForm = (skill?: SkillPayload) => {
   if (qualityScoreEl) {
     qualityScoreEl.value = String(skill?.quality_score ?? 0.7);
   }
+  if (excerptKindEl) {
+    excerptKindEl.value = skill?.excerpt_kind ?? "none";
+  }
+  updateSourceSummary(skill);
   setStatus("");
+};
+
+const selectSkillById = (skillId: string | null) => {
+  if (!skillId) return;
+  const skill = allSkills.find((item) => item.id === skillId);
+  if (!skill) return;
+  fillForm(skill);
+};
+
+const importSummaryMessage = (summary: SkillImportSummaryPayload): string => {
+  const created = `${summary.created_count} new`;
+  const updated = `${summary.updated_count} updated`;
+  return `Imported ${summary.imported_count} skills (${created}, ${updated}).`;
 };
 
 const renderRegistry = () => {
@@ -187,10 +285,13 @@ const renderRegistry = () => {
               <div class="mt-2 flex flex-wrap gap-2">
                 <span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-800">q ${escapeHtml(skill.quality_score.toFixed(1))}</span>
                 ${skill.provenance ? `<span class="rounded-full border border-stone-200 bg-stone-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-stone-600">${escapeHtml(skill.provenance)}</span>` : ""}
+                ${skill.excerpt_kind === "reusable_excerpt" ? `<span class="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-700">excerpt</span>` : ""}
+                ${skill.source ? `<span class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">${escapeHtml(skill.source.provider)}</span>` : ""}
               </div>
               <p class="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">
                 ${escapeHtml(skill.content)}
               </p>
+              ${skill.source ? `<p class="mt-3 break-words text-xs text-stone-500">${escapeHtml(summarizeSource(skill.source))}</p>` : ""}
               <div class="mt-4 flex flex-wrap gap-2">
                 ${(skill.workflow_step_tags ?? []).map((tag) => `<span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-700">${escapeHtml(tag)}</span>`).join("")}
                 ${(skill.artifact_type_tags ?? []).map((tag) => `<span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] text-blue-700">${escapeHtml(tag)}</span>`).join("")}
@@ -270,6 +371,7 @@ const refreshSkills = async () => {
     if (selectedSkillId) {
       const selected = allSkills.find((item) => item.id === selectedSkillId);
       if (selected) fillForm(selected);
+      else fillForm();
     }
     await syncVisibleSkills();
   } catch (error) {
@@ -327,8 +429,8 @@ formEl?.addEventListener("submit", async (event) => {
     const saved = isUpdate
       ? await updateSkill(currentSkillId, draft)
       : await createSkill(draft);
-    fillForm(saved);
     await refreshSkills();
+    selectSkillById(saved.id);
     showToast(
       `${isUpdate ? "Saved" : "Ingested"} skill ${saved.title}.`,
       "success",
@@ -342,5 +444,30 @@ formEl?.addEventListener("submit", async (event) => {
   }
 });
 
+importFormEl?.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const draft = currentImportDraft();
+  if (!draft.repo_url) {
+    setImportStatus("Repository URL is required.", "danger");
+    return;
+  }
+
+  setImportStatus("Importing skill pack...");
+  try {
+    const summary = await importSkills(draft);
+    await refreshSkills();
+    selectSkillById(summary.imported[0]?.id ?? null);
+    const message = importSummaryMessage(summary);
+    setImportStatus(message, "success");
+    showToast(message, "success");
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Unable to import skill pack.";
+    setImportStatus(message, "danger");
+    showToast(message, "danger");
+  }
+});
+
 fillForm();
+setImportStatus("");
 void refreshSkills();

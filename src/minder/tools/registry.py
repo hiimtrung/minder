@@ -40,6 +40,10 @@ ALL_TOOLS: list[ToolMeta] = [
         description="Delete a stored memory entry by its ID.",
     ),
     ToolMeta(
+        name="minder_memory_compact",
+        description="Review and compact duplicate memory entries by merging selected memories into a canonical entry.",
+    ),
+    ToolMeta(
         name="minder_skill_store",
         description="Store a reusable workflow-aware skill with step, artifact, provenance, and quality metadata.",
     ),
@@ -58,6 +62,10 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_skill_delete",
         description="Delete a stored skill by its ID.",
+    ),
+    ToolMeta(
+        name="minder_skill_import_git",
+        description="Import supported skill documents from a Git repository path and upsert them with source metadata.",
     ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(

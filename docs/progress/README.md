@@ -30,7 +30,7 @@
 | [phase-4-2-client-management-dashboard.md](phase-4-2-client-management-dashboard.md)                     | Phase 4.2 client management dashboard UX                                                     | Closed                             |
 | [phase-4-3-console-clean-architecture.md](phase-4-3-console-clean-architecture.md)                       | Phase 4.3 clean architecture and Astro console migration                                     | Closed                             |
 | [phase-4-4-context-continuity.md](phase-4-4-context-continuity.md)                                       | Phase 4.4 context continuity and anti-drift backlog                                          | Backlog                            |
-| [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 learning, skill catalog, metadata-first graph, dashboard local chat backlog          | Backlog                            |
+| [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 learning, skill catalog, metadata-first graph, dashboard local chat backlog          | In progress                        |
 | [phase-6-branch-topology-automation.md](phase-6-branch-topology-automation.md)                           | Phase 6 post-Phase-5 branch topology, repo-local IDE bootstrap, installer automation backlog | Backlog                            |
 | [architecture-transition-cli-edge-sync.md](architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync                           | Closed for current scope           |
 

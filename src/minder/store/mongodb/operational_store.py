@@ -407,6 +407,8 @@ class MongoOperationalStore:
         kwargs.setdefault("quality_score", 0.0)
         kwargs.setdefault("tags", [])
         kwargs.setdefault("embedding", None)
+        kwargs.setdefault("source_metadata", None)
+        kwargs.setdefault("excerpt_kind", "none")
         kwargs.setdefault("created_at", _now())
         kwargs.setdefault("updated_at", _now())
         kwargs["_id"] = kwargs.pop("id")

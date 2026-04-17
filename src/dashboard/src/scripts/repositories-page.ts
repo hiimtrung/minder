@@ -168,6 +168,10 @@ class D3GraphRenderer {
     return Math.max(this.container.clientHeight, 300);
   }
 
+  private finite(value: number | undefined | null, fallback = 0): number {
+    return Number.isFinite(value) ? (value as number) : fallback;
+  }
+
   private initSvg(): void {
     this.svg = d3
       .select(this.container)
@@ -268,14 +272,17 @@ class D3GraphRenderer {
     }
     this.edgeGrp
       .selectAll<SVGLineElement, SimEdge>("line")
-      .attr("x1", (d) => (d.source as SimNode).x ?? 0)
-      .attr("y1", (d) => (d.source as SimNode).y ?? 0)
-      .attr("x2", (d) => (d.target as SimNode).x ?? 0)
-      .attr("y2", (d) => (d.target as SimNode).y ?? 0);
+      .attr("x1", (d) => this.finite((d.source as SimNode).x))
+      .attr("y1", (d) => this.finite((d.source as SimNode).y))
+      .attr("x2", (d) => this.finite((d.target as SimNode).x))
+      .attr("y2", (d) => this.finite((d.target as SimNode).y));
 
     this.nodeGrp
       .selectAll<SVGGElement, SimNode>("g.node")
-      .attr("transform", (d) => `translate(${d.x ?? 0},${d.y ?? 0})`);
+      .attr(
+        "transform",
+        (d) => `translate(${this.finite(d.x)},${this.finite(d.y)})`,
+      );
   }
 
   onSelect(fn: (n: SimNode | null) => void): void {
@@ -369,7 +376,7 @@ class D3GraphRenderer {
 
     // Scatter initial positions around centre
     for (const n of nodes) {
-      if (n.x === undefined || n.y === undefined) {
+      if (!Number.isFinite(n.x) || !Number.isFinite(n.y)) {
         const angle = Math.random() * Math.PI * 2;
         const r = Math.random() * Math.min(w, h) * 0.3;
         n.x = w / 2 + Math.cos(angle) * r;
@@ -570,8 +577,8 @@ class D3GraphRenderer {
     const w = this.w(),
       h = this.h(),
       pad = 64;
-    const xs = this.nodes.map((d) => d.x ?? 0);
-    const ys = this.nodes.map((d) => d.y ?? 0);
+    const xs = this.nodes.map((d) => this.finite(d.x));
+    const ys = this.nodes.map((d) => this.finite(d.y));
     const x0 = Math.min(...xs),
       x1 = Math.max(...xs);
     const y0 = Math.min(...ys),
@@ -579,8 +586,10 @@ class D3GraphRenderer {
     const gw = x1 - x0 || 1,
       gh = y1 - y0 || 1;
     const scale = Math.min((w - pad * 2) / gw, (h - pad * 2) / gh, 3);
+    if (!Number.isFinite(scale) || scale <= 0) return;
     const tx = w / 2 - scale * (x0 + gw / 2);
     const ty = h / 2 - scale * (y0 + gh / 2);
+    if (!Number.isFinite(tx) || !Number.isFinite(ty)) return;
     this.svg
       .transition()
       .duration(600)
@@ -1197,30 +1206,46 @@ function showNodeDetails(
   if (!metaEl) return;
   const rows = Object.entries(node.metadata)
     .filter(([, v]) => v != null && v !== "")
-    .slice(0, 12)
     .map(
-      ([k, v]) => `
-      <div class="grid gap-0.5 border border-stone-100 rounded-xl p-3">
-        <span class="text-[10px] font-bold uppercase tracking-widest text-stone-400">${escapeHtml(k)}</span>
-        <span class="text-sm text-stone-800 break-all">${escapeHtml(String(v))}</span>
+      ([k, v]) => {
+        const value = String(v);
+        const compactValue = value.trim();
+        const isLong =
+          compactValue.length > 56 ||
+          compactValue.includes("\n") ||
+          compactValue.includes("/") ||
+          compactValue.includes("\\") ||
+          compactValue.includes(",") ||
+          compactValue.includes("[") ||
+          compactValue.includes("]") ||
+          (compactValue.length > 28 && compactValue.includes(" "));
+
+        return `
+      <div class="${isLong ? "sm:col-span-2" : ""} grid gap-0 overflow-hidden rounded-md border border-white/10 bg-white/6 px-2 py-1.5">
+        <span class="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">${escapeHtml(k)}</span>
+        <span class="overflow-x-hidden text-[11px] leading-3.5 text-white/92 ${isLong ? "whitespace-pre-wrap break-words" : "break-all"}">${escapeHtml(value)}</span>
       </div>
-    `,
+    `;
+      },
     )
     .join("");
   metaEl.innerHTML =
-    rows || `<p class="text-sm text-stone-400 col-span-full">No metadata.</p>`;
+    rows || `<p class="text-xs text-white/50 col-span-full">No metadata.</p>`;
 }
 
 function showRepoNodeDetails(n: SimNode | null): void {
   const empty = getEl("repo-graph-node-empty");
   const details = getEl("repo-graph-node-details");
+  const shell = getEl("repo-graph-details-shell");
   if (empty && details) {
     if (n) {
       empty.classList.add("hidden");
       details.classList.remove("hidden");
+      shell?.setAttribute("data-state", "details");
     } else {
       empty.classList.remove("hidden");
       details.classList.add("hidden");
+      shell?.setAttribute("data-state", "empty");
     }
   }
   showNodeDetails(
@@ -1233,22 +1258,32 @@ function showRepoNodeDetails(n: SimNode | null): void {
   );
 }
 function showSearchNodeDetails(n: SimNode | null): void {
+  const shell = getEl("search-graph-details-shell");
+  if (shell) {
+    if (n) shell.classList.remove("hidden");
+    else shell.classList.add("hidden");
+  }
   showNodeDetails(
     "search-graph-node-type",
     "search-graph-node-name",
     "search-graph-node-extra",
     "search-graph-node-metadata",
-    "search-graph-node-details",
+    "search-graph-details-shell",
     n,
   );
 }
 function showImpactNodeDetails(n: SimNode | null): void {
+  const shell = getEl("impact-graph-details-shell");
+  if (shell) {
+    if (n) shell.classList.remove("hidden");
+    else shell.classList.add("hidden");
+  }
   showNodeDetails(
     "impact-graph-node-type",
     "impact-graph-node-name",
     "impact-graph-node-extra",
     "impact-graph-node-metadata",
-    "impact-graph-node-details",
+    "impact-graph-details-shell",
     n,
   );
 }

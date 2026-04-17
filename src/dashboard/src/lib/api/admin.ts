@@ -503,8 +503,36 @@ export type SkillPayload = {
   workflow_step_tags: string[];
   artifact_type_tags: string[];
   provenance: string | null;
+  source: SkillSourcePayload | null;
+  excerpt_kind: "none" | "reusable_excerpt";
   created_at: string | null;
   updated_at: string | null;
+};
+
+export type SkillSourcePayload = {
+  provider: "github" | "gitlab" | "generic_git";
+  repo_url: string;
+  ref?: string | null;
+  path: string;
+  file_path?: string | null;
+  import_key?: string | null;
+  imported_at?: string | null;
+};
+
+export type SkillImportSummaryPayload = {
+  provider: "github" | "gitlab" | "generic_git";
+  repo_url: string;
+  ref: string | null;
+  path: string;
+  created_count: number;
+  updated_count: number;
+  imported_count: number;
+  imported: Array<{
+    action: "created" | "updated";
+    id: string;
+    title: string;
+    source: SkillSourcePayload | null;
+  }>;
 };
 
 export type MemoryPayload = {
@@ -530,6 +558,7 @@ export async function createSkill(payload: {
   artifact_types?: string[];
   provenance?: string | null;
   quality_score?: number;
+  excerpt_kind?: "none" | "reusable_excerpt";
 }): Promise<SkillPayload> {
   return requestJson<SkillPayload>("/api/v1/skills", {
     method: "POST",
@@ -548,10 +577,24 @@ export async function updateSkill(
     artifact_types?: string[];
     provenance?: string | null;
     quality_score?: number;
+    excerpt_kind?: "none" | "reusable_excerpt";
   },
 ): Promise<SkillPayload> {
   return requestJson<SkillPayload>(`/api/v1/skills/${skillId}`, {
     method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function importSkills(payload: {
+  repo_url: string;
+  path?: string;
+  ref?: string;
+  provider?: "github" | "gitlab" | "generic_git";
+  excerpt_kind?: "none" | "reusable_excerpt";
+}): Promise<SkillImportSummaryPayload> {
+  return requestJson<SkillImportSummaryPayload>("/api/v1/skills/imports", {
+    method: "POST",
     body: JSON.stringify(payload),
   });
 }

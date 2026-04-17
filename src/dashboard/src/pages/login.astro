@@ -5,6 +5,7 @@ import Field from "../components/ui/Field.astro";
 import Input from "../components/ui/Input.astro";
 import Button from "../components/ui/Button.astro";
 import FormStatus from "../components/ui/FormStatus.astro";
+import PageHero from "../components/ui/PageHero.astro";
 ---
 
 <DashboardLayout
@@ -15,17 +16,14 @@ import FormStatus from "../components/ui/FormStatus.astro";
   navLinks={[]}
   showPageIntro={false}
 >
-  <section class="grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-    <div class="space-y-4">
-      <p class="eyebrow">Admin Access</p>
-      <h1 class="font-display max-w-3xl text-4xl font-semibold leading-tight tracking-tight text-stone-950">
-        Sign into Minder without leaving the browser.
-      </h1>
-      <p class="max-w-2xl text-base leading-7 text-stone-700">
-        The dashboard uses an <code>HttpOnly</code> cookie-backed admin session.
-        Sign in with your username and password, then manage clients, workflows,
-        and activity from one place.
-      </p>
+  <section class="u-split-hero">
+    <div class="u-split-hero-copy">
+      <PageHero
+        eyebrow="Admin Access"
+        title="Sign into Minder without leaving the browser."
+        description="The dashboard uses an HttpOnly cookie-backed admin session. Sign in with your username and password, then manage clients, workflows, and activity from one place."
+        class="mb-0"
+      />
     </div>
 
     <Card padding="lg">

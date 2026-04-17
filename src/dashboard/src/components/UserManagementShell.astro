@@ -8,6 +8,7 @@ import Select from "./ui/Select.astro";
 import Button from "./ui/Button.astro";
 import FormStatus from "./ui/FormStatus.astro";
 import ResultCallout from "./ui/ResultCallout.astro";
+import SectionHeader from "./ui/SectionHeader.astro";
 ---
 
 <DashboardLayout
@@ -224,13 +225,11 @@ import ResultCallout from "./ui/ResultCallout.astro";
       <section
         class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-4"
       >
-        <div>
-          <p class="text-sm font-medium text-stone-900">User roster</p>
-          <p class="mt-1 text-sm text-stone-600">
-            Click any user row to load their profile into the edit panel on the
-            left.
-          </p>
-        </div>
+        <SectionHeader
+          title="User roster"
+          description="Click any user row to load their profile into the edit panel on the left."
+          class="mb-0 flex-1"
+        />
         <Button href="/dashboard" size="sm">Dashboard home</Button>
       </section>
 
@@ -240,13 +239,6 @@ import ResultCallout from "./ui/ResultCallout.astro";
       </div>
     </div>
   </section>
-
-  <!-- Toast region -->
-  <div
-    id="dashboard-toast-region"
-    class="pointer-events-none fixed right-6 bottom-6 z-50 flex flex-col items-end gap-3"
-  >
-  </div>
 
   <script src="../scripts/users-page.ts"></script>
 </DashboardLayout>

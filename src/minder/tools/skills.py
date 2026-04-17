@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
 import math
+import subprocess
+import tempfile
 import uuid
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 from minder.continuity import compatibility_score_for_memory, step_keywords
 from minder.config import MinderConfig
@@ -12,6 +18,8 @@ from minder.store.interfaces import IOperationalStore
 
 
 class SkillTools:
+    _ALLOWED_EXCERPT_KINDS = {"none", "reusable_excerpt"}
+    _IMPORT_SUFFIXES = {".json", ".md", ".markdown", ".txt"}
     _ARTIFACT_TAGS = {
         "problem_statement",
         "acceptance_criteria",
@@ -49,6 +57,8 @@ class SkillTools:
         artifact_types: list[str] | None = None,
         provenance: str | None = None,
         quality_score: float = 0.0,
+        source_metadata: dict[str, Any] | None = None,
+        excerpt_kind: str = "none",
     ) -> dict[str, Any]:
         skill = await self._store.create_skill(
             id=uuid.uuid4(),
@@ -64,6 +74,8 @@ class SkillTools:
             embedding=self._embedder.embed(f"{title}\n{content}"),
             usage_count=0,
             quality_score=max(float(quality_score), 0.0),
+            source_metadata=self._normalized_source_metadata(source_metadata),
+            excerpt_kind=self._validated_excerpt_kind(excerpt_kind),
         )
         return self._serialize_skill(skill)
 
@@ -160,6 +172,8 @@ class SkillTools:
         artifact_types: list[str] | None = None,
         provenance: str | None = None,
         quality_score: float | None = None,
+        source_metadata: dict[str, Any] | None = None,
+        excerpt_kind: str | None = None,
     ) -> dict[str, Any]:
         existing = await self._store.get_skill_by_id(uuid.UUID(skill_id))
         if existing is None:
@@ -176,6 +190,12 @@ class SkillTools:
             update_data["language"] = language
         if quality_score is not None:
             update_data["quality_score"] = max(float(quality_score), 0.0)
+        if source_metadata is not None:
+            update_data["source_metadata"] = self._normalized_source_metadata(
+                source_metadata
+            )
+        if excerpt_kind is not None:
+            update_data["excerpt_kind"] = self._validated_excerpt_kind(excerpt_kind)
         if any(
             value is not None
             for value in (tags, workflow_steps, artifact_types, provenance)
@@ -199,12 +219,150 @@ class SkillTools:
             raise ValueError(f"Skill not found: {skill_id}")
         return self._serialize_skill(updated)
 
+    async def minder_skill_import_git(
+        self,
+        *,
+        repo_url: str,
+        source_path: str = "skills",
+        ref: str | None = None,
+        provider: str | None = None,
+        excerpt_kind: str = "none",
+    ) -> dict[str, Any]:
+        normalized_repo_url = self._normalize_repo_url(repo_url)
+        normalized_source_path = self._normalize_source_path(source_path)
+        resolved_provider = self._resolve_provider(provider, normalized_repo_url)
+        validated_excerpt_kind = self._validated_excerpt_kind(excerpt_kind)
+
+        with tempfile.TemporaryDirectory(prefix="minder-skill-import-") as tmp_dir:
+            command = ["git", "clone", "--depth", "1"]
+            if ref:
+                command += ["--branch", ref]
+            command += [repo_url, tmp_dir]
+            result = subprocess.run(
+                command,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            if result.returncode != 0:
+                message = (
+                    result.stderr.strip() or result.stdout.strip() or "git clone failed"
+                )
+                raise ValueError(message)
+
+            import_root = Path(tmp_dir) / normalized_source_path
+            if not import_root.exists() or not import_root.is_dir():
+                raise ValueError(
+                    f"Skill source path not found in repository: {normalized_source_path}"
+                )
+
+            files = [
+                path
+                for path in sorted(import_root.rglob("*"))
+                if path.is_file()
+                and path.suffix.lower() in self._IMPORT_SUFFIXES
+                and not any(
+                    part.startswith(".") for part in path.relative_to(import_root).parts
+                )
+            ]
+            if not files:
+                raise ValueError(
+                    f"No supported skill documents found under {normalized_source_path}"
+                )
+
+            existing_by_source_key = self._skills_by_source_key(
+                await self._store.list_skills()
+            )
+            imported: list[dict[str, Any]] = []
+            created_count = 0
+            updated_count = 0
+
+            for file_path in files:
+                relative_file_path = file_path.relative_to(import_root).as_posix()
+                documents = self._load_import_documents(file_path)
+                for index, document in enumerate(documents):
+                    source_metadata = self._build_import_source_metadata(
+                        provider=resolved_provider,
+                        repo_url=normalized_repo_url,
+                        ref=ref,
+                        source_path=normalized_source_path,
+                        file_path=relative_file_path,
+                        document_index=index,
+                    )
+                    source_key = str(source_metadata["import_key"])
+                    existing = existing_by_source_key.get(source_key)
+                    next_excerpt_kind = document.get(
+                        "excerpt_kind", validated_excerpt_kind
+                    )
+                    if existing is None:
+                        stored = await self.minder_skill_store(
+                            title=document["title"],
+                            content=document["content"],
+                            language=document["language"],
+                            tags=document["tags"],
+                            workflow_steps=document["workflow_steps"],
+                            artifact_types=document["artifact_types"],
+                            provenance=document["provenance"],
+                            quality_score=document["quality_score"],
+                            source_metadata=source_metadata,
+                            excerpt_kind=next_excerpt_kind,
+                        )
+                        created_count += 1
+                        imported.append(
+                            {
+                                "action": "created",
+                                "id": stored["id"],
+                                "title": stored["title"],
+                                "source": stored["source"],
+                            }
+                        )
+                        existing_by_source_key[source_key] = stored
+                        continue
+
+                    updated = await self.minder_skill_update(
+                        str(existing["id"]),
+                        title=document["title"],
+                        content=document["content"],
+                        language=document["language"],
+                        tags=document["tags"],
+                        workflow_steps=document["workflow_steps"],
+                        artifact_types=document["artifact_types"],
+                        provenance=document["provenance"],
+                        quality_score=document["quality_score"],
+                        source_metadata=source_metadata,
+                        excerpt_kind=next_excerpt_kind,
+                    )
+                    updated_count += 1
+                    imported.append(
+                        {
+                            "action": "updated",
+                            "id": updated["id"],
+                            "title": updated["title"],
+                            "source": updated["source"],
+                        }
+                    )
+                    existing_by_source_key[source_key] = updated
+
+        return {
+            "provider": resolved_provider,
+            "repo_url": normalized_repo_url,
+            "ref": ref,
+            "path": normalized_source_path,
+            "created_count": created_count,
+            "updated_count": updated_count,
+            "imported_count": created_count + updated_count,
+            "imported": imported,
+        }
+
     async def minder_skill_delete(self, skill_id: str) -> dict[str, bool]:
         await self._store.delete_skill(uuid.UUID(skill_id))
         return {"deleted": True}
 
     def _serialize_skill(self, skill: Any) -> dict[str, Any]:
         tags = list(getattr(skill, "tags", []) or [])
+        source_metadata = self._normalized_source_metadata(
+            getattr(skill, "source_metadata", None)
+        )
         return {
             "id": str(skill.id),
             "title": str(skill.title),
@@ -223,7 +381,183 @@ class SkillTools:
                 (tag.split(":", 1)[1] for tag in tags if tag.startswith("source:")),
                 None,
             ),
+            "source": source_metadata,
+            "excerpt_kind": self._validated_excerpt_kind(
+                str(getattr(skill, "excerpt_kind", "none") or "none")
+            ),
         }
+
+    @classmethod
+    def _validated_excerpt_kind(cls, excerpt_kind: str) -> str:
+        normalized = str(excerpt_kind or "none").strip().lower() or "none"
+        if normalized not in cls._ALLOWED_EXCERPT_KINDS:
+            raise ValueError(f"Unsupported excerpt_kind: {excerpt_kind}")
+        return normalized
+
+    @staticmethod
+    def _normalized_source_metadata(
+        source_metadata: dict[str, Any] | None,
+    ) -> dict[str, Any] | None:
+        if not isinstance(source_metadata, dict) or not source_metadata:
+            return None
+        normalized = {
+            str(key): value
+            for key, value in source_metadata.items()
+            if value is not None and str(key).strip()
+        }
+        return normalized or None
+
+    @staticmethod
+    def _normalize_source_path(source_path: str) -> str:
+        normalized = str(source_path or "skills").strip().strip("/")
+        if not normalized:
+            return "skills"
+        if Path(normalized).is_absolute() or ".." in Path(normalized).parts:
+            raise ValueError(f"Invalid skill source path: {source_path}")
+        return normalized
+
+    @staticmethod
+    def _normalize_repo_url(repo_url: str) -> str:
+        raw = str(repo_url or "").strip()
+        if not raw:
+            raise ValueError("repo_url is required")
+        parsed = urlparse(raw)
+        if parsed.scheme or raw.startswith("git@"):
+            return raw.rstrip("/")
+        path = Path(raw).expanduser()
+        if path.exists():
+            return path.resolve().as_posix()
+        return raw.rstrip("/")
+
+    @staticmethod
+    def _resolve_provider(provider: str | None, repo_url: str) -> str:
+        if provider:
+            normalized = str(provider).strip().lower()
+            if normalized in {"github", "gitlab", "generic_git"}:
+                return normalized
+            raise ValueError(f"Unsupported provider: {provider}")
+        lowered = repo_url.lower()
+        if "github.com" in lowered:
+            return "github"
+        if "gitlab" in lowered:
+            return "gitlab"
+        return "generic_git"
+
+    def _skills_by_source_key(self, skills: list[Any]) -> dict[str, dict[str, Any]]:
+        indexed: dict[str, dict[str, Any]] = {}
+        for skill in skills:
+            serialized = self._serialize_skill(skill)
+            source = serialized.get("source") or {}
+            source_key = str(source.get("import_key") or "").strip()
+            if source_key:
+                indexed[source_key] = serialized
+        return indexed
+
+    def _build_import_source_metadata(
+        self,
+        *,
+        provider: str,
+        repo_url: str,
+        ref: str | None,
+        source_path: str,
+        file_path: str,
+        document_index: int,
+    ) -> dict[str, Any]:
+        import_key = "::".join(
+            [
+                provider,
+                repo_url,
+                ref or "HEAD",
+                source_path,
+                file_path,
+                str(document_index),
+            ]
+        )
+        return {
+            "provider": provider,
+            "repo_url": repo_url,
+            "ref": ref,
+            "path": source_path,
+            "file_path": file_path,
+            "import_key": import_key,
+            "imported_at": datetime.now(UTC).isoformat(),
+        }
+
+    def _load_import_documents(self, file_path: Path) -> list[dict[str, Any]]:
+        suffix = file_path.suffix.lower()
+        raw = file_path.read_text(encoding="utf-8")
+        if suffix in {".md", ".markdown", ".txt"}:
+            title = self._extract_document_title(raw, fallback=file_path.stem)
+            return [
+                {
+                    "title": title,
+                    "content": raw.strip(),
+                    "language": "markdown" if suffix != ".txt" else "text",
+                    "tags": [],
+                    "workflow_steps": [],
+                    "artifact_types": [],
+                    "provenance": None,
+                    "quality_score": 0.0,
+                }
+            ]
+        if suffix == ".json":
+            payload = json.loads(raw)
+            if isinstance(payload, dict) and isinstance(payload.get("skills"), list):
+                candidates = payload.get("skills") or []
+            elif isinstance(payload, list):
+                candidates = payload
+            else:
+                candidates = [payload]
+            documents = [
+                self._coerce_import_document(item, file_path=file_path)
+                for item in candidates
+            ]
+            return [document for document in documents if document is not None]
+        raise ValueError(f"Unsupported skill import file: {file_path.name}")
+
+    def _coerce_import_document(
+        self,
+        payload: Any,
+        *,
+        file_path: Path,
+    ) -> dict[str, Any] | None:
+        if not isinstance(payload, dict):
+            return None
+        content = str(payload.get("content", "") or "").strip()
+        title = str(payload.get("title", "") or "").strip() or file_path.stem
+        if not content:
+            return None
+        return {
+            "title": title,
+            "content": content,
+            "language": str(payload.get("language", "markdown") or "markdown"),
+            "tags": [str(tag) for tag in list(payload.get("tags", []) or [])],
+            "workflow_steps": [
+                str(step) for step in list(payload.get("workflow_steps", []) or [])
+            ],
+            "artifact_types": [
+                str(item) for item in list(payload.get("artifact_types", []) or [])
+            ],
+            "provenance": (
+                str(payload.get("provenance"))
+                if payload.get("provenance") is not None
+                else None
+            ),
+            "quality_score": float(payload.get("quality_score", 0.0) or 0.0),
+            "excerpt_kind": (
+                str(payload.get("excerpt_kind"))
+                if payload.get("excerpt_kind") is not None
+                else "none"
+            ),
+        }
+
+    @staticmethod
+    def _extract_document_title(raw: str, *, fallback: str) -> str:
+        for line in raw.splitlines():
+            stripped = line.strip()
+            if stripped.startswith("#"):
+                return stripped.lstrip("#").strip() or fallback
+        return fallback
 
     @staticmethod
     def _normalized_tags(

@@ -27,6 +27,8 @@ class SkillCreateRequest(BaseModel):
     artifact_types: list[str] = Field(default_factory=list)
     provenance: str | None = None
     quality_score: float = 0.0
+    source: dict[str, Any] | None = None
+    excerpt_kind: str = "none"
 
 
 class SkillUpdateRequest(BaseModel):
@@ -38,6 +40,16 @@ class SkillUpdateRequest(BaseModel):
     artifact_types: list[str] | None = None
     provenance: str | None = None
     quality_score: float | None = None
+    source: dict[str, Any] | None = None
+    excerpt_kind: str | None = None
+
+
+class SkillImportRequest(BaseModel):
+    repo_url: str
+    path: str = "skills"
+    ref: str | None = None
+    provider: str | None = None
+    excerpt_kind: str = "none"
 
 
 def _config_from_request(request: Request) -> MinderConfig:
@@ -54,6 +66,7 @@ def _artifact_tags() -> set[str]:
 def _serialize_skill(skill: Any) -> dict[str, Any]:
     tags = list(getattr(skill, "tags", []) or [])
     artifact_tags = _artifact_tags()
+    source_metadata = getattr(skill, "source_metadata", None)
     return {
         "id": str(skill.id),
         "title": str(skill.title),
@@ -70,6 +83,8 @@ def _serialize_skill(skill: Any) -> dict[str, Any]:
             (tag.split(":", 1)[1] for tag in tags if tag.startswith("source:")),
             None,
         ),
+        "source": dict(source_metadata) if isinstance(source_metadata, dict) else None,
+        "excerpt_kind": str(getattr(skill, "excerpt_kind", "none") or "none"),
         "created_at": skill.created_at.isoformat() if skill.created_at else None,
         "updated_at": skill.updated_at.isoformat() if skill.updated_at else None,
     }
@@ -133,6 +148,8 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 artifact_types=payload.artifact_types,
                 provenance=payload.provenance,
                 quality_score=payload.quality_score,
+                source_metadata=payload.source,
+                excerpt_kind=payload.excerpt_kind,
             )
             return JSONResponse(skill, status_code=201)
         except Exception as exc:
@@ -150,15 +167,39 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
         try:
             payload = SkillUpdateRequest(**(await request.json()))
             tools = SkillTools(context.store, _config_from_request(request))
+            update_data = payload.model_dump(exclude={"source"}, exclude_unset=True)
             skill = await tools.minder_skill_update(
                 skill_id,
-                **payload.model_dump(exclude_unset=True),
+                **update_data,
+                source_metadata=payload.source,
             )
             return JSONResponse(skill)
         except ValueError as exc:
             return JSONResponse({"error": str(exc)}, status_code=404)
         except Exception as exc:
             logger.exception("Failed to update skill", exc_info=exc)
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+    async def import_skills(request: Request) -> JSONResponse:
+        await record_admin_operation(
+            operation="import_skills",
+            outcome="success",
+            actor_id="system",
+            store=context.store,
+        )
+        try:
+            payload = SkillImportRequest(**(await request.json()))
+            tools = SkillTools(context.store, _config_from_request(request))
+            summary = await tools.minder_skill_import_git(
+                repo_url=payload.repo_url,
+                source_path=payload.path,
+                ref=payload.ref,
+                provider=payload.provider,
+                excerpt_kind=payload.excerpt_kind,
+            )
+            return JSONResponse(summary, status_code=201)
+        except Exception as exc:
+            logger.exception("Failed to import skills", exc_info=exc)
             return JSONResponse({"error": str(exc)}, status_code=400)
 
     async def delete_skill(request: Request) -> JSONResponse:
@@ -182,6 +223,7 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
     return [
         Route("/api/v1/skills", list_skills, methods=["GET"]),
         Route("/api/v1/skills", create_skill, methods=["POST"]),
+        Route("/api/v1/skills/imports", import_skills, methods=["POST"]),
         Route("/api/v1/skills/{skill_id}", get_skill, methods=["GET"]),
         Route("/api/v1/skills/{skill_id}", update_skill, methods=["PATCH", "PUT"]),
         Route("/api/v1/skills/{skill_id}", delete_skill, methods=["DELETE"]),

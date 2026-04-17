@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 import uuid
 
 from starlette.applications import Starlette
@@ -24,6 +24,8 @@ def _skill(**overrides: object) -> SimpleNamespace:
         "tags": ["tdd", "test_plan", "source:phase_4_4"],
         "usage_count": 3,
         "quality_score": 0.9,
+        "source_metadata": None,
+        "excerpt_kind": "none",
         "created_at": now,
         "updated_at": now,
     }
@@ -102,3 +104,41 @@ def test_delete_skill_returns_json_payload() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "deleted"}
+
+
+def test_import_skills_returns_summary() -> None:
+    store = AsyncMock(spec=IOperationalStore)
+    client = _build_client(store)
+
+    with patch(
+        "minder.presentation.http.admin.skills.SkillTools.minder_skill_import_git",
+        new=AsyncMock(
+            return_value={
+                "provider": "generic_git",
+                "repo_url": "https://example.com/skills.git",
+                "path": "skills",
+                "created_count": 1,
+                "updated_count": 0,
+                "imported_count": 1,
+                "imported": [
+                    {
+                        "action": "created",
+                        "id": str(uuid.uuid4()),
+                        "title": "Imported skill",
+                        "source": {"path": "skills"},
+                    }
+                ],
+            }
+        ),
+    ):
+        response = client.post(
+            "/api/v1/skills/imports",
+            json={
+                "repo_url": "https://example.com/skills.git",
+                "path": "skills",
+                "provider": "generic_git",
+            },
+        )
+
+    assert response.status_code == 201
+    assert response.json()["imported_count"] == 1

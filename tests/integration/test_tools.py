@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import uuid
 from pathlib import Path
 
@@ -233,6 +234,35 @@ async def test_phase1_tool_modules_round_trip(
     listed = await memory_tools.minder_memory_list()
     assert listed
 
+    duplicate_memory = await memory_tools.minder_memory_store(
+        title="TDD note duplicate",
+        content="Write tests before implementation",
+        tags=["tdd", "phase1", "duplicate"],
+        language="markdown",
+    )
+
+    compaction_plan = await memory_tools.minder_memory_compact(
+        memory_ids=[memory_entry["id"], duplicate_memory["id"]],
+        similarity_threshold=0.9,
+        dry_run=True,
+    )
+    assert compaction_plan["dry_run"] is True
+    assert compaction_plan["duplicate_group_count"] == 1
+    primary_id = str(compaction_plan["plans"][0]["primary_id"])
+    duplicate_ids = {str(item) for item in compaction_plan["plans"][0]["duplicate_ids"]}
+
+    compacted = await memory_tools.minder_memory_compact(
+        memory_ids=[memory_entry["id"], duplicate_memory["id"]],
+        similarity_threshold=0.9,
+        dry_run=False,
+    )
+    assert compacted["compacted_count"] == 1
+    assert compacted["deleted_count"] == 1
+
+    post_compaction = await memory_tools.minder_memory_list()
+    assert any(item["id"] == primary_id for item in post_compaction)
+    assert not any(item["id"] in duplicate_ids for item in post_compaction)
+
     stored_skill = await skill_tools.minder_skill_store(
         title="Testing workflow skill",
         content="Capture failing tests and only then move into implementation.",
@@ -286,3 +316,76 @@ async def test_phase1_tool_modules_round_trip(
     assert repo_state["relationships"]["service"] == ["tests"]
     assert workflow_id
     assert created_user.id
+
+
+@pytest.mark.asyncio
+async def test_skill_import_git_round_trip(
+    store: RelationalStore,
+    config: MinderConfig,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "skill-pack"
+    repo_path.mkdir()
+    skills_dir = repo_path / "skills"
+    skills_dir.mkdir()
+    (skills_dir / "testing.md").write_text(
+        "# Testing Guide\n\nWrite failing tests first.",
+        encoding="utf-8",
+    )
+    (skills_dir / "catalog.json").write_text(
+        """
+        [
+          {
+            "title": "Release Checklist",
+            "content": "Verify rollback and release notes before deploy.",
+            "language": "markdown",
+            "tags": ["release"],
+            "workflow_steps": ["Release"],
+            "artifact_types": ["release_notes"],
+            "provenance": "git_import",
+            "quality_score": 0.8
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@example.com"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tests"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "add skill pack"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+
+    skill_tools = SkillTools(store, config)
+    imported = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path="skills",
+    )
+
+    assert imported["imported_count"] == 2
+    assert imported["created_count"] == 2
+
+    listed = await skill_tools.minder_skill_list()
+    assert any(item["title"] == "Testing Guide" for item in listed)
+    assert any(item["title"] == "Release Checklist" for item in listed)
+    assert all(item["source"]["path"] == "skills" for item in listed)
+
+    imported_again = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path="skills",
+    )
+    assert imported_again["updated_count"] == 2

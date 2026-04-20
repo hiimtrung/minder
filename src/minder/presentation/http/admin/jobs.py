@@ -41,7 +41,7 @@ def _serialize_job(job: Any) -> dict[str, Any]:
     finished_at = getattr(job, "finished_at", None)
     progress_current = int(getattr(job, "progress_current", 0) or 0)
     progress_total = int(getattr(job, "progress_total", 0) or 0)
-    progress_percent = 0
+    progress_percent = 0.0
     if progress_total > 0:
         progress_percent = round((progress_current / progress_total) * 100, 1)
     return {

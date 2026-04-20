@@ -795,3 +795,232 @@ def test_sync_can_skip_upgrade_notice(
 
     assert exit_code == 0
     assert "A newer minder CLI is available" not in capsys.readouterr().out
+
+
+def test_detect_branch_relationships_from_gitmodules(tmp_path) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".gitmodules").write_text(
+        '[submodule "vendor/other"]\n'
+        "\tpath = vendor/other\n"
+        "\turl = git@github.com:example/other.git\n"
+        "\tbranch = release/1.0\n"
+        '[submodule "vendor/no_url"]\n'
+        "\tpath = vendor/no_url\n",
+        encoding="utf-8",
+    )
+
+    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+
+    assert len(relationships) == 1
+    relationship = relationships[0]
+    assert relationship["source_branch"] == "feature/sync"
+    assert relationship["target_repo_name"] == "other"
+    assert relationship["target_repo_url"] == "git@github.com:example/other.git"
+    assert relationship["target_branch"] == "release/1.0"
+    assert relationship["relation"] == "depends_on"
+    assert relationship["direction"] == "outbound"
+    assert relationship["metadata"]["source"] == "gitmodules"
+    assert relationship["metadata"]["submodule_path"] == "vendor/other"
+
+
+def test_detect_branch_relationships_merges_override_file(tmp_path) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    (repo_root / ".minder").mkdir(parents=True)
+    (repo_root / ".gitmodules").write_text(
+        '[submodule "vendor/other"]\n'
+        "\tpath = vendor/other\n"
+        "\turl = git@github.com:example/other.git\n"
+        "\tbranch = main\n",
+        encoding="utf-8",
+    )
+    (repo_root / ".minder" / "branch-topology.toml").write_text(
+        "[[branch_relationships]]\n"
+        'source_branch = "develop"\n'
+        'target_repo_name = "sibling-service"\n'
+        'target_repo_url = "https://github.com/example/sibling.git"\n'
+        'target_branch = "develop"\n'
+        'relation = "consumes"\n'
+        'direction = "inbound"\n'
+        "confidence = 0.8\n"
+        "[branch_relationships.metadata]\n"
+        'reason = "shared bus"\n',
+        encoding="utf-8",
+    )
+
+    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+
+    assert {entry["target_repo_name"] for entry in relationships} == {
+        "other",
+        "sibling-service",
+    }
+    override = next(
+        entry
+        for entry in relationships
+        if entry["target_repo_name"] == "sibling-service"
+    )
+    assert override["source_branch"] == "develop"
+    assert override["relation"] == "consumes"
+    assert override["direction"] == "inbound"
+    assert override["confidence"] == 0.8
+    assert override["target_repo_url"] == "git@github.com:example/sibling.git"
+    assert override["metadata"]["reason"] == "shared bus"
+    assert override["metadata"]["source"] == "branch-topology.toml"
+
+
+def test_detect_branch_relationships_dedupes_submodule_and_override(tmp_path) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    (repo_root / ".minder").mkdir(parents=True)
+    (repo_root / ".gitmodules").write_text(
+        '[submodule "vendor/other"]\n'
+        "\tpath = vendor/other\n"
+        "\turl = git@github.com:example/other.git\n"
+        "\tbranch = main\n",
+        encoding="utf-8",
+    )
+    (repo_root / ".minder" / "branch-topology.toml").write_text(
+        "[[branch_relationships]]\n"
+        'source_branch = "feature/sync"\n'
+        'target_repo_name = "other"\n'
+        'target_repo_url = "git@github.com:example/other.git"\n'
+        'target_branch = "main"\n'
+        'relation = "depends_on"\n'
+        "confidence = 1.0\n"
+        "[branch_relationships.metadata]\n"
+        'note = "promoted manually"\n',
+        encoding="utf-8",
+    )
+
+    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+
+    assert len(relationships) == 1
+    relationship = relationships[0]
+    # submodule metadata is preserved, override metadata is merged in
+    assert relationship["metadata"]["note"] == "promoted manually"
+    assert relationship["metadata"]["source"] == "branch-topology.toml"
+    assert relationship["metadata"]["submodule_path"] == "vendor/other"
+
+
+def test_self_update_server_uses_powershell_installer_on_windows(
+    tmp_path, monkeypatch, capsys
+) -> None:  # noqa: ANN001
+    install_dir = tmp_path / "release"
+    install_dir.mkdir()
+    (install_dir / ".env").write_text(
+        "MINDER_PORT=8800\nMINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:v0.1.0\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(
+        cli,
+        "_latest_github_release",
+        lambda slug: {
+            "version": "v0.2.0",
+            "url": f"https://github.com/{slug}/releases/tag/v0.2.0",
+        },
+    )
+
+    class _HttpResponse:
+        text = "Write-Host 'server-updated'"
+
+        def raise_for_status(self) -> None:
+            return None
+
+    captured_urls: list[str] = []
+
+    def _fake_get(url: str, timeout: int) -> _HttpResponse:
+        captured_urls.append(url)
+        return _HttpResponse()
+
+    monkeypatch.setattr(cli.httpx, "get", _fake_get)
+
+    captured: dict[str, object] = {}
+
+    class _RunResult:
+        returncode = 0
+        stdout = "server-updated"
+        stderr = ""
+
+    def _fake_run(command, input, capture_output, text, env, check):  # noqa: ANN001
+        captured["command"] = command
+        captured["input"] = input
+        captured["env"] = env
+        return _RunResult()
+
+    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+
+    exit_code = main(
+        [
+            "self-update",
+            "--component",
+            "server",
+            "--install-dir",
+            str(install_dir),
+        ]
+    )
+
+    assert exit_code == 0
+    assert any(url.endswith(".ps1") for url in captured_urls)
+    command = captured["command"]
+    assert isinstance(command, list)
+    assert command[0] == "powershell.exe"
+    assert "-ExecutionPolicy" in command
+    assert "Bypass" in command
+    assert captured["input"] == "Write-Host 'server-updated'"
+    output = capsys.readouterr().out
+    assert "install-minder-v0.2.0.ps1" in output
+
+
+def test_sync_dry_run_includes_branch_relationships(tmp_path, monkeypatch, capsys) -> None:  # noqa: ANN001
+    repo_root = tmp_path / "repo"
+    (repo_root / ".minder").mkdir(parents=True)
+    (repo_root / "notes.md").write_text("# API\n", encoding="utf-8")
+    (repo_root / ".gitmodules").write_text(
+        '[submodule "vendor/other"]\n'
+        "\tpath = vendor/other\n"
+        "\turl = git@github.com:example/other.git\n"
+        "\tbranch = main\n",
+        encoding="utf-8",
+    )
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(
+        cli,
+        "_git_file_delta",
+        lambda repo, diff_base=None: (["notes.md"], []),
+    )
+
+    exit_code = main(
+        [
+            "sync",
+            "--repo-id",
+            "11111111-1111-1111-1111-111111111111",
+            "--repo-path",
+            str(repo_root),
+            "--config-path",
+            str(config_path),
+            "--dry-run",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["sync_metadata"]["branch_relationship_count"] == 1
+    assert len(payload["branch_relationships"]) == 1
+    relationship = payload["branch_relationships"][0]
+    assert relationship["source_branch"] == "feature/sync"
+    assert relationship["target_repo_name"] == "other"
+    assert relationship["target_branch"] == "main"
+    assert relationship["metadata"]["source"] == "gitmodules"

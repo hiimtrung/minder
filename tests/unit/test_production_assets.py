@@ -57,3 +57,28 @@ def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
     assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow
     assert "cache-from: type=gha,scope=minder-dashboard" in release_workflow
     assert "cache-to: type=gha,mode=max,scope=minder-dashboard" in release_workflow
+
+
+def test_phase6_powershell_installer_has_release_placeholders_and_core_steps() -> None:
+    installer = Path("scripts/release/install-minder-release.ps1").read_text()
+
+    assert "__REPO_OWNER__" in installer
+    assert "__REPO_NAME__" in installer
+    assert "__RELEASE_TAG__" in installer
+    assert "Invoke-WebRequest" in installer
+    assert "& docker @composeArgs pull" in installer  # argv form, not shell string
+    assert "& docker @composeArgs up -d" in installer
+    assert "docker-compose.yml" in installer
+    assert "Caddyfile" in installer
+    assert ".minder-release.json" in installer
+    assert "MINDER_INSTALL_DIR" in installer
+    assert "MINDER_MODELS_DIR" in installer
+
+
+def test_phase6_release_workflow_publishes_both_installers() -> None:
+    release_workflow = Path(".github/workflows/release.yml").read_text()
+
+    assert "install-minder-release.sh" in release_workflow
+    assert "install-minder-release.ps1" in release_workflow
+    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1" in release_workflow
+    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh" in release_workflow

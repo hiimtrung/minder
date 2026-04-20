@@ -116,6 +116,11 @@ jobs:
             -e 's|__RELEASE_TAG__|${{ needs.build-dist.outputs.release_tag }}|g' \
             scripts/release/install-minder-release.sh > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
           chmod +x dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
+          sed \
+            -e 's|__REPO_OWNER__|${{ github.repository_owner }}|g' \
+            -e 's|__REPO_NAME__|${{ github.event.repository.name }}|g' \
+            -e 's|__RELEASE_TAG__|${{ needs.build-dist.outputs.release_tag }}|g' \
+            scripts/release/install-minder-release.ps1 > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
 
           cat > dist/release/release-notes.md <<EOF
           ## Quick Start
@@ -134,13 +139,19 @@ jobs:
           minder install-ide --target vscode --target claude-code
           ```
 
-          One command install from this release:
+          One command install from this release on Linux or macOS:
 
           ```bash
           curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh | bash
           ```
 
-          This installer will:
+          One command install on Windows PowerShell (requires Docker Desktop):
+
+          ```powershell
+          iwr -useb https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1 | iex
+          ```
+
+          Both installers will:
 
           - create a self-contained deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
           - fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
@@ -148,6 +159,7 @@ jobs:
           - pull \`ghcr.io/${{ github.repository_owner }}/minder-api:${{ needs.build-dist.outputs.release_tag }}\`
           - pull \`ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
           - start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
+          - refresh the \`~/.minder/current\` pointer so \`minder check-update\` and \`minder self-update\` can target the active deployment
 
           Requirements:
 
@@ -160,6 +172,12 @@ jobs:
           - \`MINDER_DASHBOARD_IMAGE=ghcr.io/hiimtrung/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
           - \`MINDER_MODELS_DIR=~/.minder/models\`
           - \`docker compose -f docker/docker-compose.yml up -d\`
+
+          Updating later:
+
+          - \`minder check-update\` shows both CLI and server release deltas
+          - \`minder self-update --component cli\` upgrades the CLI in place
+          - \`minder self-update --component server\` re-runs the matching release installer for the newest tag
           EOF
 
       - name: Create GitHub release
@@ -173,4 +191,5 @@ jobs:
             dist/release/docker-compose.yml
             dist/release/Caddyfile
             dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
+            dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
           generate_release_notes: true

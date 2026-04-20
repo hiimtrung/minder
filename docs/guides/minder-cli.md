@@ -152,6 +152,41 @@ Disable that check for air-gapped or tightly controlled environments:
 minder sync --skip-upgrade-check
 ```
 
+### Branch Topology Auto-Detection
+
+`minder sync` now auto-discovers cross-repository `branch_relationships` and ships them in the sync payload so the server-side landscape, `minder_find_impact`, and `minder_search_graph` can traverse linked branches without manual admin API calls.
+
+Two sources are merged:
+
+1. **`.gitmodules`** — every submodule becomes a `depends_on / outbound` link from the current branch to the submodule's `url` and declared `branch` (default `main` when unset). Metadata records `source = gitmodules`, the submodule name, and its relative path.
+2. **`.minder/branch-topology.toml`** — an optional repo-curated override for relationships that submodules cannot express (sibling services, contract consumers, etc.).
+
+Example override file:
+
+```toml
+[[branch_relationships]]
+source_branch = "develop"
+target_repo_name = "orders-service"
+target_repo_url = "git@github.com:example/orders-service.git"
+target_branch = "develop"
+relation = "consumes"
+direction = "inbound"
+confidence = 0.9
+
+[branch_relationships.metadata]
+reason = "consumes orders.created events"
+```
+
+Entries from the override file merge with submodule-derived ones: when the same `(source_branch, target_repo, target_branch, relation)` tuple appears in both, the override metadata wins.
+
+Preview what will be sent with:
+
+```bash
+minder sync --dry-run
+```
+
+The `sync_metadata.branch_relationship_count` and `branch_relationships` keys in the dry-run output are what the server will persist under `repository.relationships.cross_repo_branches`.
+
 ## Check Updates
 
 Check both the installed CLI and the local server deployment at once:
@@ -200,6 +235,8 @@ minder self-update --component server --install-dir ~/.minder/current
 ```
 
 The server self-update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR`, `MINDER_PORT`, and `MILVUS_PORT`, then prints rollback guidance for the previous release.
+
+On Windows, `self-update --component server` downloads and runs the PowerShell release installer (`install-minder-<tag>.ps1`) through `powershell.exe -ExecutionPolicy Bypass`. On macOS and Linux it downloads and runs the bash installer (`install-minder-<tag>.sh`). Both installers publish `docker-compose.yml`, `Caddyfile`, and a refreshed `.env` into the deployment directory, then refresh the `~/.minder/current` pointer used by `check-update`.
 
 ## Supported Extraction Coverage
 

@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import argparse
+import configparser
 import json
 import os
 import platform
 import shutil
 import subprocess
 import sys
+import tomllib
 from getpass import getpass
 from importlib.metadata import (
     PackageNotFoundError,
@@ -416,16 +418,55 @@ def _self_update_cli(manager: str) -> None:
     raise RuntimeError("CLI self-update failed: " + "; ".join(failures))
 
 
+def _installer_asset_filename(release_tag: str, *, installer: str) -> str:
+    if installer == "powershell":
+        return f"install-minder-{release_tag}.ps1"
+    return f"install-minder-{release_tag}.sh"
+
+
+def _prefer_powershell_installer() -> bool:
+    return platform.system().lower() == "windows"
+
+
 def _download_release_installer(
-    repository_slug: str, release_tag: str
+    repository_slug: str,
+    release_tag: str,
+    *,
+    installer: str = "bash",
 ) -> tuple[str, str]:
+    asset_name = _installer_asset_filename(release_tag, installer=installer)
     installer_url = (
         f"https://github.com/{repository_slug}/releases/download/{release_tag}/"
-        f"install-minder-{release_tag}.sh"
+        f"{asset_name}"
     )
     response = httpx.get(installer_url, timeout=10)
     response.raise_for_status()
     return installer_url, response.text
+
+
+def _run_bash_installer(script: str, env: dict[str, str]) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["bash"],
+        input=script,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
+
+
+def _run_powershell_installer(
+    script: str, env: dict[str, str]
+) -> subprocess.CompletedProcess[str]:
+    executable = "powershell.exe" if platform.system().lower() == "windows" else "pwsh"
+    return subprocess.run(
+        [executable, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "-"],
+        input=script,
+        capture_output=True,
+        text=True,
+        env=env,
+        check=False,
+    )
 
 
 def _self_update_server(install_dir: Path) -> None:
@@ -439,8 +480,9 @@ def _self_update_server(install_dir: Path) -> None:
     if current is not None and not has_update:
         print(f"Minder server is already up to date ({current})")
         return
+    installer_variant = "powershell" if _prefer_powershell_installer() else "bash"
     installer_url, installer_script = _download_release_installer(
-        repository_slug, latest
+        repository_slug, latest, installer=installer_variant
     )
     env_payload = _load_env_file(install_dir / ".env")
     update_env = os.environ.copy()
@@ -449,14 +491,10 @@ def _self_update_server(install_dir: Path) -> None:
         value = env_payload.get(key)
         if value:
             update_env[key] = value
-    result = subprocess.run(
-        ["bash"],
-        input=installer_script,
-        capture_output=True,
-        text=True,
-        env=update_env,
-        check=False,
-    )
+    if installer_variant == "powershell":
+        result = _run_powershell_installer(installer_script, update_env)
+    else:
+        result = _run_bash_installer(installer_script, update_env)
     if result.returncode != 0:
         details = (
             result.stderr.strip() or result.stdout.strip() or str(result.returncode)
@@ -623,6 +661,190 @@ def _git_file_delta(
         line.strip() for line in untracked_result.stdout.splitlines() if line.strip()
     )
     return sorted(changed), sorted(deleted)
+
+
+_BRANCH_TOPOLOGY_OVERRIDE_RELATIVE = Path(".minder") / "branch-topology.toml"
+_ALLOWED_RELATIONSHIP_DIRECTIONS = ("outbound", "inbound", "bidirectional")
+
+
+def _gitmodules_submodule_sections(gitmodules_path: Path) -> dict[str, dict[str, str]]:
+    """Parse ``.gitmodules`` into a mapping of submodule name to field dict."""
+    parser = configparser.ConfigParser()
+    try:
+        parser.read_string(gitmodules_path.read_text(encoding="utf-8"))
+    except (configparser.Error, OSError):
+        return {}
+
+    submodules: dict[str, dict[str, str]] = {}
+    for section in parser.sections():
+        stripped = section.strip()
+        if not stripped.lower().startswith("submodule"):
+            continue
+        _, _, quoted = stripped.partition(" ")
+        name = quoted.strip().strip('"').strip()
+        if not name:
+            continue
+        fields = {key: parser.get(section, key) for key in parser.options(section)}
+        submodules[name] = fields
+    return submodules
+
+
+def _submodule_branch_relationships(
+    repo_root: Path, source_branch: str | None
+) -> list[dict[str, Any]]:
+    gitmodules = repo_root / ".gitmodules"
+    if not gitmodules.is_file():
+        return []
+
+    sections = _gitmodules_submodule_sections(gitmodules)
+    relationships: list[dict[str, Any]] = []
+    for name, fields in sections.items():
+        url = (fields.get("url") or "").strip()
+        if not url:
+            continue
+        target_branch = (fields.get("branch") or "").strip() or "main"
+        submodule_path = (fields.get("path") or name).strip()
+        target_repo_name = (
+            _repo_name_from_remote(url) or name.rsplit("/", 1)[-1].strip() or name
+        )
+        relationships.append(
+            {
+                "source_branch": source_branch,
+                "target_repo_name": target_repo_name,
+                "target_repo_url": _normalize_repo_remote(url),
+                "target_branch": target_branch,
+                "relation": "depends_on",
+                "direction": "outbound",
+                "confidence": 1.0,
+                "metadata": {
+                    "discovered_by": "minder-cli",
+                    "source": "gitmodules",
+                    "submodule_path": submodule_path,
+                    "submodule_name": name,
+                },
+            }
+        )
+    return relationships
+
+
+def _normalize_relationship_entry(
+    entry: dict[str, Any], *, fallback_branch: str | None
+) -> dict[str, Any] | None:
+    target_repo_name = str(entry.get("target_repo_name") or "").strip()
+    target_branch = str(entry.get("target_branch") or "").strip()
+    if not target_repo_name or not target_branch:
+        return None
+
+    raw_source_branch = entry.get("source_branch")
+    source_branch = str(raw_source_branch or fallback_branch or "").strip() or None
+
+    raw_url = entry.get("target_repo_url")
+    target_repo_url = (
+        _normalize_repo_remote(raw_url) if isinstance(raw_url, str) else None
+    )
+
+    raw_id = entry.get("target_repo_id")
+    target_repo_id = (
+        raw_id.strip() if isinstance(raw_id, str) and raw_id.strip() else None
+    )
+
+    direction = str(entry.get("direction") or "outbound").strip() or "outbound"
+    if direction not in _ALLOWED_RELATIONSHIP_DIRECTIONS:
+        direction = "outbound"
+
+    try:
+        confidence = float(entry.get("confidence", 1.0))
+    except (TypeError, ValueError):
+        confidence = 1.0
+
+    raw_metadata = entry.get("metadata")
+    metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+    metadata.setdefault("discovered_by", "minder-cli")
+
+    relation = str(entry.get("relation") or "depends_on").strip() or "depends_on"
+
+    normalized: dict[str, Any] = {
+        "source_branch": source_branch,
+        "target_repo_name": target_repo_name,
+        "target_repo_url": target_repo_url,
+        "target_branch": target_branch,
+        "relation": relation,
+        "direction": direction,
+        "confidence": confidence,
+        "metadata": metadata,
+    }
+    if target_repo_id:
+        normalized["target_repo_id"] = target_repo_id
+    return normalized
+
+
+def _branch_topology_override_relationships(
+    repo_root: Path, source_branch: str | None
+) -> list[dict[str, Any]]:
+    override_path = repo_root / _BRANCH_TOPOLOGY_OVERRIDE_RELATIVE
+    if not override_path.is_file():
+        return []
+    try:
+        data = tomllib.loads(override_path.read_text(encoding="utf-8"))
+    except (tomllib.TOMLDecodeError, OSError):
+        return []
+
+    raw_entries = data.get("branch_relationships")
+    if raw_entries is None:
+        raw_entries = data.get("branch_relationship")
+    if not isinstance(raw_entries, list):
+        return []
+
+    relationships: list[dict[str, Any]] = []
+    for entry in raw_entries:
+        if not isinstance(entry, dict):
+            continue
+        entry_copy = dict(entry)
+        raw_metadata = entry_copy.get("metadata")
+        metadata = dict(raw_metadata) if isinstance(raw_metadata, dict) else {}
+        metadata.setdefault("source", "branch-topology.toml")
+        entry_copy["metadata"] = metadata
+        normalized = _normalize_relationship_entry(
+            entry_copy, fallback_branch=source_branch
+        )
+        if normalized is not None:
+            relationships.append(normalized)
+    return relationships
+
+
+def _dedupe_branch_relationships(
+    relationships: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    deduped: dict[tuple[str, str, str, str, str], dict[str, Any]] = {}
+    for entry in relationships:
+        key = (
+            str(entry.get("source_branch") or ""),
+            str(entry.get("target_repo_id") or ""),
+            str(entry.get("target_repo_name") or ""),
+            str(entry.get("target_branch") or ""),
+            str(entry.get("relation") or "depends_on"),
+        )
+        existing = deduped.get(key)
+        if existing is None:
+            deduped[key] = dict(entry)
+            continue
+        merged_metadata = {
+            **dict(existing.get("metadata") or {}),
+            **dict(entry.get("metadata") or {}),
+        }
+        merged = {**existing, **entry, "metadata": merged_metadata}
+        deduped[key] = merged
+    return list(deduped.values())
+
+
+def _detect_branch_relationships(
+    repo_root: Path, source_branch: str | None
+) -> list[dict[str, Any]]:
+    relationships = _submodule_branch_relationships(repo_root, source_branch)
+    relationships.extend(
+        _branch_topology_override_relationships(repo_root, source_branch)
+    )
+    return _dedupe_branch_relationships(relationships)
 
 
 def _base_http_url(server_url: str) -> str:
@@ -1081,12 +1303,14 @@ def _sync(args: argparse.Namespace) -> int:
     repo_root = _repo_root(args.repo_path)
     branch = _git_branch(repo_root)
     changed_files, deleted_files = _git_file_delta(repo_root, args.diff_base)
+    branch_relationships = _detect_branch_relationships(repo_root, branch)
     payload = RepoScanner.build_sync_payload(
         str(repo_root),
         branch=branch,
         diff_base=args.diff_base,
         changed_files=changed_files,
         deleted_files=deleted_files,
+        branch_relationships=branch_relationships,
     )
 
     if args.dry_run:

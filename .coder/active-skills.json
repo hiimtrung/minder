@@ -1,39 +1,39 @@
 {
-  "task": "fix failing unit test continuity tools",
+  "task": "skill pack import dedup skill search modal scroll",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-17T18:06:44.196725+07:00",
+  "resolved_at": "2026-04-20T11:02:08.182788+07:00",
   "keep": [],
   "add": [
-    "dispatching-parallel-agents",
-    "e2e-testing-patterns",
-    "playwright-java"
+    "skill-sentinel",
+    "evolution",
+    "copilot-sdk"
   ],
   "drop": [
-    "devops-deploy",
-    "speckit-updater",
-    "agents-md"
+    "agent-orchestrator",
+    "radix-ui-design-system",
+    "agent-manager-skill"
   ],
   "skills": [
     {
-      "name": "dispatching-parallel-agents",
+      "name": "skill-sentinel",
       "category": "general",
       "score": 0.016393442,
-      "chunk_count": 4,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "e2e-testing-patterns",
-      "category": "general",
-      "score": 0.016129032,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "playwright-java",
-      "category": "test-automation",
-      "score": 0.015873017,
+      "name": "evolution",
+      "category": "general",
+      "score": 0.016129032,
       "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "copilot-sdk",
+      "category": "general",
+      "score": 0.015873017,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

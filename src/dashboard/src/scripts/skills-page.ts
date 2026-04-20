@@ -1,10 +1,15 @@
 import {
+  createAdminJob,
   createSkill,
   deleteSkill,
-  importSkills,
+  eventStreamUrl,
+  getAdminJob,
   listSkills,
+  listAdminJobs,
   searchAdminCatalog,
   updateSkill,
+  type AdminJobPayload,
+  type AdminJobStreamEvent,
   type SkillImportSummaryPayload,
   type SkillPayload,
   type SkillSourcePayload,
@@ -57,6 +62,15 @@ const statusEl = document.querySelector("#skill-editor-status");
 const importFormEl = document.querySelector(
   "#skill-import-form",
 ) as HTMLFormElement | null;
+const importModalEl = document.querySelector(
+  "#skill-import-modal",
+) as HTMLDialogElement | null;
+const openImportModalButton = document.querySelector(
+  "#skill-open-import-modal",
+);
+const closeImportModalButton = document.querySelector(
+  "#skill-close-import-modal",
+);
 const importRepoUrlEl = document.querySelector(
   "#skill-import-repo-url",
 ) as HTMLInputElement | null;
@@ -73,6 +87,12 @@ const importExcerptKindEl = document.querySelector(
   "#skill-import-excerpt-kind",
 ) as HTMLSelectElement | null;
 const importStatusEl = document.querySelector("#skill-import-status");
+const importActiveJobEl = document.querySelector("#skill-import-active-job");
+const importProgressLogEl = document.querySelector(
+  "#skill-import-progress-log",
+);
+const importJobListEl = document.querySelector("#skill-import-job-list");
+const importJobSummaryEl = document.querySelector("#skill-import-job-summary");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
 const PAGE_SIZE = 6;
@@ -85,6 +105,10 @@ let visibleSkills: SkillPayload[] = [];
 let selectedSkillId: string | null = null;
 let currentQuery = "";
 let currentPage = 1;
+let recentImportJobs: AdminJobPayload[] = [];
+let activeImportJobId: string | null = null;
+let importJobStream: EventSource | null = null;
+const completedImportRefreshes = new Set<string>();
 
 const escapeHtml = (value: string): string =>
   value
@@ -237,6 +261,247 @@ const importSummaryMessage = (summary: SkillImportSummaryPayload): string => {
   const created = `${summary.created_count} new`;
   const updated = `${summary.updated_count} updated`;
   return `Imported ${summary.imported_count} skills (${created}, ${updated}).`;
+};
+
+const isRunningJob = (job: AdminJobPayload): boolean =>
+  job.status === "queued" || job.status === "running";
+
+const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
+  [...jobs].sort((left, right) => {
+    const leftTime = new Date(left.created_at ?? 0).getTime();
+    const rightTime = new Date(right.created_at ?? 0).getTime();
+    return rightTime - leftTime;
+  });
+
+const jobStatusTone = (status: string): string => {
+  if (status === "completed")
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (status === "failed") return "border-red-200 bg-red-50 text-red-800";
+  if (status === "running")
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  return "border-stone-200 bg-stone-100 text-stone-700";
+};
+
+const summarizeJob = (job: AdminJobPayload): string => {
+  if (job.status === "completed" && job.result_payload) {
+    const summary = job.result_payload as unknown as SkillImportSummaryPayload;
+    return importSummaryMessage(summary);
+  }
+  return job.message || job.error_message || job.title;
+};
+
+const renderImportSummaryBanner = () => {
+  if (!(importJobSummaryEl instanceof HTMLElement)) return;
+  if (!recentImportJobs.length) {
+    importJobSummaryEl.classList.add("hidden");
+    importJobSummaryEl.innerHTML = "";
+    return;
+  }
+  const runningJobs = recentImportJobs.filter(isRunningJob);
+  const latest = recentImportJobs[0];
+  importJobSummaryEl.innerHTML = runningJobs.length
+    ? `<p class="font-medium">${runningJobs.length} import job${runningJobs.length === 1 ? " is" : "s are"} still active.</p><p class="mt-1 break-words text-amber-900/80">Latest: ${escapeHtml(summarizeJob(latest))}</p>`
+    : `<p class="font-medium">Latest import job</p><p class="mt-1 break-words text-amber-900/80">${escapeHtml(summarizeJob(latest))}</p>`;
+  importJobSummaryEl.classList.remove("hidden");
+};
+
+const renderProgressLog = (job: AdminJobPayload | null) => {
+  if (!(importProgressLogEl instanceof HTMLElement)) return;
+  if (!job?.events?.length) {
+    importProgressLogEl.classList.add("hidden");
+    importProgressLogEl.innerHTML = "";
+    return;
+  }
+  importProgressLogEl.innerHTML = job.events
+    .slice()
+    .reverse()
+    .map(
+      (event) =>
+        `<div class="border-b border-stone-800 py-2 last:border-b-0"><div class="flex items-center justify-between gap-3"><span class="break-words font-medium text-stone-100">${escapeHtml(event.message)}</span><span class="text-[11px] uppercase tracking-[0.18em] text-stone-400">${escapeHtml(event.status)}</span></div><div class="mt-1 break-words text-stone-400">${escapeHtml(event.created_at ?? "")}${typeof event.progress_current === "number" && typeof event.progress_total === "number" && event.progress_total > 0 ? ` · ${event.progress_current}/${event.progress_total}` : ""}</div></div>`,
+    )
+    .join("");
+  importProgressLogEl.classList.remove("hidden");
+};
+
+const renderActiveImportJob = (job: AdminJobPayload | null) => {
+  if (!(importActiveJobEl instanceof HTMLElement)) return;
+  if (!job) {
+    importActiveJobEl.classList.add("hidden");
+    importActiveJobEl.innerHTML = "";
+    renderProgressLog(null);
+    return;
+  }
+  const percent = Math.max(0, Math.min(100, Number(job.progress_percent || 0)));
+  importActiveJobEl.innerHTML = `
+    <div class="flex flex-wrap items-start justify-between gap-3">
+      <div class="min-w-0 flex-1">
+        <p class="eyebrow">Tracked job</p>
+        <h3 class="mt-2 break-words text-lg font-semibold tracking-tight text-stone-950">${escapeHtml(job.title)}</h3>
+        <p class="mt-2 break-words text-sm leading-6 text-stone-600">${escapeHtml(summarizeJob(job))}</p>
+      </div>
+      <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${jobStatusTone(job.status)}">${escapeHtml(job.status)}</span>
+    </div>
+    <div class="mt-4 h-2 overflow-hidden rounded-full bg-stone-200">
+      <div class="h-full rounded-full bg-amber-600 transition-[width] duration-300" style="width:${percent}%"></div>
+    </div>
+    <div class="mt-2 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+      <span>${job.progress_total > 0 ? `${job.progress_current}/${job.progress_total}` : "waiting for progress"}</span>
+      <span>${escapeHtml(job.updated_at ?? "")}</span>
+    </div>
+  `;
+  importActiveJobEl.classList.remove("hidden");
+  renderProgressLog(job);
+};
+
+const renderImportJobList = () => {
+  if (!(importJobListEl instanceof HTMLElement)) return;
+  if (!recentImportJobs.length) {
+    importJobListEl.innerHTML =
+      '<div class="rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-sm text-stone-400">No import jobs yet.</div>';
+    return;
+  }
+  importJobListEl.innerHTML = recentImportJobs
+    .slice(0, 8)
+    .map(
+      (job) => `
+        <button
+          type="button"
+          class="overflow-hidden rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-left transition hover:border-stone-600 hover:bg-stone-900"
+          data-import-job-id="${escapeHtml(job.id)}"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="break-words text-sm font-medium text-stone-100">${escapeHtml(job.title)}</p>
+              <p class="mt-1 break-words text-xs leading-5 text-stone-400">${escapeHtml(summarizeJob(job))}</p>
+            </div>
+            <span class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${jobStatusTone(job.status)}">${escapeHtml(job.status)}</span>
+          </div>
+        </button>
+      `,
+    )
+    .join("");
+  importJobListEl
+    .querySelectorAll<HTMLButtonElement>("[data-import-job-id]")
+    .forEach((button) => {
+      button.addEventListener("click", () => {
+        const jobId = button.dataset.importJobId;
+        if (!jobId) return;
+        void activateImportJob(jobId);
+      });
+    });
+};
+
+const upsertImportJob = (job: AdminJobPayload) => {
+  const nextJobs = sortJobs([
+    job,
+    ...recentImportJobs.filter((item) => item.id !== job.id),
+  ]);
+  recentImportJobs = nextJobs;
+  renderImportSummaryBanner();
+  renderImportJobList();
+  if (activeImportJobId === job.id) {
+    renderActiveImportJob(job);
+  }
+  if (
+    job.status === "completed" &&
+    job.result_payload &&
+    !completedImportRefreshes.has(job.id)
+  ) {
+    completedImportRefreshes.add(job.id);
+    const summary = job.result_payload as unknown as SkillImportSummaryPayload;
+    setImportStatus(importSummaryMessage(summary), "success");
+    showToast(importSummaryMessage(summary), "success");
+    void refreshSkills();
+    if (summary.imported[0]?.id) {
+      selectSkillById(summary.imported[0].id);
+    }
+  }
+  if (job.status === "failed") {
+    setImportStatus(
+      job.error_message || job.message || "Import job failed.",
+      "danger",
+    );
+    showToast(
+      job.error_message || job.message || "Import job failed.",
+      "danger",
+    );
+  }
+};
+
+const stopImportJobStream = () => {
+  importJobStream?.close();
+  importJobStream = null;
+};
+
+const trackImportJob = (jobId: string) => {
+  stopImportJobStream();
+  activeImportJobId = jobId;
+  const stream = new EventSource(
+    eventStreamUrl(`/api/v1/jobs/${jobId}/stream`),
+    { withCredentials: true },
+  );
+  importJobStream = stream;
+  stream.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data) as AdminJobStreamEvent;
+      if (payload.type === "job") {
+        upsertImportJob(payload.payload);
+        if (!isRunningJob(payload.payload)) {
+          stopImportJobStream();
+        }
+      }
+    } catch {
+      // Ignore malformed stream payloads.
+    }
+  };
+  stream.onerror = () => {
+    if (!importJobStream) return;
+    stopImportJobStream();
+  };
+};
+
+const activateImportJob = async (jobId: string) => {
+  activeImportJobId = jobId;
+  const existing = recentImportJobs.find((job) => job.id === jobId) ?? null;
+  const job = existing ?? (await getAdminJob(jobId));
+  upsertImportJob(job);
+  renderActiveImportJob(job);
+  if (isRunningJob(job)) {
+    trackImportJob(job.id);
+  } else {
+    stopImportJobStream();
+  }
+};
+
+const refreshImportJobs = async () => {
+  const payload = await listAdminJobs({
+    job_type: "skill_import_git",
+    limit: 12,
+  });
+  recentImportJobs = sortJobs(payload.jobs);
+  renderImportSummaryBanner();
+  renderImportJobList();
+  const trackedJob =
+    recentImportJobs.find((job) => job.id === activeImportJobId) ??
+    recentImportJobs.find(isRunningJob) ??
+    recentImportJobs[0] ??
+    null;
+  if (trackedJob) {
+    await activateImportJob(trackedJob.id);
+    return;
+  }
+  renderActiveImportJob(null);
+};
+
+const openImportModal = async () => {
+  if (importModalEl && !importModalEl.open) {
+    importModalEl.showModal();
+  }
+  await refreshImportJobs();
+};
+
+const closeImportModal = () => {
+  importModalEl?.close();
 };
 
 const renderRegistry = () => {
@@ -452,14 +717,16 @@ importFormEl?.addEventListener("submit", async (event) => {
     return;
   }
 
-  setImportStatus("Importing skill pack...");
+  setImportStatus("Queueing import job...");
   try {
-    const summary = await importSkills(draft);
-    await refreshSkills();
-    selectSkillById(summary.imported[0]?.id ?? null);
-    const message = importSummaryMessage(summary);
-    setImportStatus(message, "success");
-    showToast(message, "success");
+    const job = await createAdminJob({
+      job_type: "skill_import_git",
+      payload: draft,
+    });
+    upsertImportJob(job);
+    await activateImportJob(job.id);
+    setImportStatus("Import job queued. Progress will stream live.", "success");
+    showToast("Import job queued.", "success");
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to import skill pack.";
@@ -468,6 +735,19 @@ importFormEl?.addEventListener("submit", async (event) => {
   }
 });
 
+openImportModalButton?.addEventListener("click", () => {
+  void openImportModal();
+});
+
+closeImportModalButton?.addEventListener("click", () => {
+  closeImportModal();
+});
+
+importModalEl?.addEventListener("close", () => {
+  stopImportJobStream();
+});
+
 fillForm();
 setImportStatus("");
 void refreshSkills();
+void refreshImportJobs();

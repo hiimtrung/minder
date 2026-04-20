@@ -50,13 +50,30 @@ Expected local model files:
 
 ## 1. Recommended Release Install
 
-From the GitHub release page, run the attached installer script:
+From the GitHub release page, run the attached installer script.
+
+On macOS or Linux:
 
 ```bash
 curl -fsSL https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.sh | bash
 ```
 
-That script creates a deployment directory, downloads `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, writes a local `.env` with the release image tags, and starts the full stack.
+On Windows (PowerShell, with Docker Desktop running):
+
+```powershell
+iwr -useb https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.ps1 | iex
+```
+
+Both installers create a deployment directory, download `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, write a local `.env` with the release image tags, start the full stack, and refresh the `~/.minder/current` pointer used by `minder check-update` and `minder self-update`.
+
+Overridable environment variables (identical across platforms):
+
+- `MINDER_INSTALL_DIR` — target deployment directory
+- `MINDER_CURRENT_LINK` — stable symlink/junction path
+- `MINDER_MODELS_DIR` — GGUF model directory
+- `MINDER_PORT` — public gateway port
+- `MILVUS_PORT` — internal Milvus port
+- `OPENAI_API_KEY` — optional OpenAI fallback
 
 If you also want the repo-local sync CLI on operator or developer machines, install it separately from PyPI:
 

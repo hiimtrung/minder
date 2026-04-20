@@ -1,142 +1,139 @@
 {
-  "updated_at": "2026-04-17T18:06:44.197523+07:00",
+  "updated_at": "2026-04-20T11:02:08.734391+07:00",
   "skills": {
-    "task": "fix failing unit test continuity tools",
+    "task": "skill pack import dedup skill search modal scroll",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-17T18:06:44.196725+07:00",
+    "resolved_at": "2026-04-20T11:02:08.182788+07:00",
     "keep": [],
     "add": [
-      "dispatching-parallel-agents",
-      "e2e-testing-patterns",
-      "playwright-java"
+      "skill-sentinel",
+      "evolution",
+      "copilot-sdk"
     ],
     "drop": [
-      "devops-deploy",
-      "speckit-updater",
-      "agents-md"
+      "agent-orchestrator",
+      "radix-ui-design-system",
+      "agent-manager-skill"
     ],
     "skills": [
       {
-        "name": "dispatching-parallel-agents",
+        "name": "skill-sentinel",
         "category": "general",
         "score": 0.016393442,
-        "chunk_count": 4,
-        "reason": "added: fallback skill for low-confidence coverage"
-      },
-      {
-        "name": "e2e-testing-patterns",
-        "category": "general",
-        "score": 0.016129032,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "playwright-java",
-        "category": "test-automation",
-        "score": 0.015873017,
+        "name": "evolution",
+        "category": "general",
+        "score": 0.016129032,
         "chunk_count": 3,
+        "reason": "added: fallback skill for low-confidence coverage"
+      },
+      {
+        "name": "copilot-sdk",
+        "category": "general",
+        "score": 0.015873017,
+        "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "failing test continuity tools",
+    "query": "skill pack import dedup skill search modal scroll",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-17T18:06:43.939773+07:00",
+    "searched_at": "2026-04-20T11:02:08.733717+07:00",
     "results": [
       {
-        "id": "c84d27db-b60f-48f6-b2e4-b66b37942d76",
-        "title": "Fixed lint and type-check errors in transport/admin metrics",
+        "id": "f0ffd763-1487-461a-afd8-991f1ff8cbbc",
+        "title": "Support .agents skill imports and modal overflow fix",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:fixed-lint-and-type-check-errors-in-transport-admin-metrics",
+        "canonical_key": "document:support-agents-skill-imports-and-modal-overflow-fix",
         "score": 0.086393446,
         "tags": [
           "minder",
-          "lint",
-          "mypy",
-          "transport",
-          "admin",
-          "metrics"
+          "skills",
+          "git-import",
+          "dashboard",
+          "modal",
+          "tests"
         ],
         "conflict_detected": false,
-        "content": "Resolved ruff failures by moving admin API imports to the top, removing unused test imports, and returning the computed tool-by-client/tool-by-name metrics instead of leaving dead assignments. Resolved mypy failures in build_transport by normalizing a nullable cache to an LRUCacheProvider fallback before constructing transports that require a non-null ICacheProvider. Verified with env UV_CACHE_DIR=.uv-cache make lint."
+        "content": "Allowed explicit and discovered skill imports under .agents/skills by whitelisting .agents as a supported hidden import directory. Also centered the skills import dialog, constrained modal height, and enabled internal scroll plus break-word rendering for recent jobs and progress text. Verified with uv run pytest -q tests/integration/test_tools.py -k 'agents_skill_directory or skill_import_git' and bun run check."
       },
       {
-        "id": "8aceb94e-208a-4722-bdae-b51290b1dbe9",
-        "title": "Phase 4.4 continuity contract and envelope",
+        "id": "5c4d6ca7-39ac-4818-a86b-ccc6faee3a66",
+        "title": "Changelog updated for v0.5.5 dynamic skill retrieval",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-4-4-continuity-contract-and-envelope",
+        "canonical_key": "document:changelog-updated-for-v0-5-5-dynamic-skill-retrieval",
         "score": 0.086129025,
         "tags": [
-          "minder",
-          "phase4.4",
-          "continuity",
-          "workflow",
-          "memory",
-          "session"
+          "changelog",
+          "release",
+          "skills",
+          "v0.5.5"
         ],
         "conflict_detected": false,
-        "content": "Implemented a shared continuity contract in src/minder/continuity.py and wired it into session restore, memory recall, workflow guard, and graph workflow planning/reasoning. Session restore now returns continuity_packet with instruction_envelope + session_brief; memory recall is step-aware; workflow guard reports violations and deterministic envelopes; query workflow planner injects the envelope/brief into reasoning prompts. Verified with uv run pytest tests/unit/test_continuity_tools.py tests/unit/test_nodes.py tests/unit/test_session_client_flow.py tests/integration/test_tools.py."
+        "content": "Filled CHANGELOG.md v0.5.5 with dynamic skill retrieval CLI additions, active skill state in .coder/active-skills.json, raw/json skill output, agent/workflow alignment, and fixes for stale skill context and markdown flattening."
       },
       {
-        "id": "91cf6885-b9d9-4de2-acd1-0fcdc1444396",
-        "title": "Closed Phase 3 with acceptance gate and runtime-safe test fixes",
+        "id": "00e404a2-b1cc-4f8a-8294-73593c4ff0f0",
+        "title": "Phase 5 dashboard skill import UX slice",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:closed-phase-3-with-acceptance-gate-and-runtime-safe-test-fixes",
+        "canonical_key": "document:phase-5-dashboard-skill-import-ux-slice",
         "score": 0.08587302,
         "tags": [
           "minder",
-          "phase3",
-          "acceptance-gate",
-          "retrieval",
-          "graph",
-          "ingest",
-          "server",
-          "testing"
+          "phase5",
+          "dashboard",
+          "skills",
+          "git-import",
+          "astro",
+          "docs"
         ],
         "conflict_detected": false,
-        "content": "Implemented tests/integration/test_phase3_gate.py to close Minder Phase 3. The gate verifies multi-hop cross-references across code and docs, hybrid retrieval MRR improvement, knowledge-graph repo relationships, real local git-repo ingestion, MCP resources/prompts, and graph-enriched workflow guidance. Also fixed a latent mypy issue in code_splitter, changed server runtime_summary to avoid probing llama_cpp at boot, switched stdio startup to FastMCP's async runner, and made SSE round-trip skip when sandbox policy forbids localhost bind. Verified with ruff, mypy, and full pytest: 233 passed, 14 skipped."
+        "content": "Extended the dashboard skill registry to support Git-based skill import submission, excerpt_kind editing, and source metadata visibility. Updated src/dashboard/src/lib/api/admin.ts, src/dashboard/src/components/SkillRegistryShell.astro, and src/dashboard/src/scripts/skills-page.ts, then synced Phase 5 progress docs to mark P5-T07A partial. Verified with bun run check (0 errors, 1 existing hint in Card.astro) and bun run build in src/dashboard."
       },
       {
-        "id": "5e06e45d-5751-43fb-9eb0-cc466a3d75d1",
-        "title": "Order test suite stale expectations after enum and repository changes",
+        "id": "c50d3669-23df-44ac-a96e-5494bc5e0d70",
+        "title": "Content template modals extracted to components",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:order-test-suite-stale-expectations-after-enum-and-repository-changes",
+        "canonical_key": "document:content-template-modals-extracted-to-components",
         "score": 0.08562499,
         "tags": [
-          "crm",
-          "test",
-          "order",
-          "enum",
-          "repository"
+          "findtourgoUI",
+          "content-template",
+          "react",
+          "modal",
+          "refactor"
         ],
         "conflict_detected": false,
-        "content": "Fixed three failing CRM tests caused by stale test expectations, not production regressions. StatusEnumTest now expects the added QUOTE status and total enum count 5. OrderRepositoryImplTest now mocks findByIdAndProviderFtgIdAndDeletedAtIsNull instead of findById, matching the repository's tenant-aware and soft-delete-aware contract for get/update/not-found paths. Verified with targeted order tests and full ./gradlew test."
+        "content": "Moved create/edit modal and delete confirm modal out of ContentTemplateList into dedicated components under _sections/_components, keeping all behavior and props flow unchanged. Updated imports and wiring in ContentTemplateList. Files: src/app/[locale]/(company)/company/[companyId]/content-templates/_sections/_components/ContentTemplateEditorModal.tsx, src/app/[locale]/(company)/company/[companyId]/content-templates/_sections/_components/ContentTemplateDeleteModal.tsx, src/app/[locale]/(company)/company/[companyId]/content-templates/_sections/ContentTemplateList.tsx"
       },
       {
-        "id": "170511a6-e189-4d9b-903b-11b52c95b7ec",
-        "title": "Paused Phase 01.1 smoke coverage work",
+        "id": "9c6e70f9-d4fa-4182-8cf2-bd8768c1ac8e",
+        "title": "SelectKit multi and combobox defaults now show active arrow-key item",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:paused-phase-01-1-smoke-coverage-work",
+        "canonical_key": "document:selectkit-multi-and-combobox-defaults-now-show-active-arrow-key-item",
         "score": 0.08538462,
         "tags": [
-          "pause",
-          "gsd",
-          "phase-01.1",
-          "testing",
-          "frontend"
+          "planTourUI",
+          "select-kit",
+          "keyboard",
+          "active-state",
+          "ui"
         ],
         "conflict_detected": false,
-        "content": "Paused rental-management-ui during Phase 01.1 Plan 01.1-03 after creating a WIP checkpoint commit. Added Vitest as the minimal smoke-test runner, created vitest.config.ts and a yarn test script, drafted shared API/session smoke tests under src/lib/api/__tests__/client.test.ts and src/lib/auth/__tests__/session.test.ts, patched src/lib/api/client.ts so protected 401 responses clear the stored access token, and wrote .planning/HANDOFF.json plus .planning/phases/01.1-api-integration-contract-and-typed-data-layer/.continue-here.md for resume context. The work is intentionally paused before running yarn test, so the next action is to run the new test suite, fix any mocking or assertion failures, then continue with contract-gap TODOs and final lint/build verification."
+        "content": "Updated src/shared/components/ui/select-kit-core.tsx so the default item classes for MultiSelect and Combobox add data-[active=true]:bg-accent. Arrow-key navigation was already updating activeValue in SelectPrimitive, but these default render paths did not visually reflect the active item, which made RHF fields look stuck while navigating with ArrowUp/ArrowDown. Verified with eslint and tsc --noEmit."
       }
     ]
   }

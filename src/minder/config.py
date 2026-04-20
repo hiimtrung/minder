@@ -43,7 +43,7 @@ class LLMConfig(BaseModel):
     provider: str = "llamacpp"
     model_name: str = "ggml-org/gemma-4-E2B-it-GGUF"
     model_path: str = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
-    context_length: int = 4096
+    context_length: int = 131072
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
@@ -93,7 +93,9 @@ class RetrievalConfig(BaseModel):
 class CacheConfig(BaseModel):
     enabled: bool = True
     provider: str = "redis"  # "redis" is the only supported runtime backend
-    max_size: int = 1000  # unused; kept for backwards-compat with any existing .env files
+    max_size: int = (
+        1000  # unused; kept for backwards-compat with any existing .env files
+    )
     ttl_seconds: int = 3600
 
 
@@ -134,7 +136,9 @@ class Settings(BaseSettings):
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
-    relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
+    relational_store: RelationalStoreConfig = Field(
+        default_factory=RelationalStoreConfig
+    )
     graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
     mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
@@ -161,7 +165,7 @@ class Settings(BaseSettings):
         env_settings,
         dotenv_settings,
         file_secret_settings,
-        ):
+    ):
         return (
             init_settings,
             env_settings,

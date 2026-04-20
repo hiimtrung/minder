@@ -447,6 +447,81 @@ class MongoOperationalStore:
         await self._db.skills.delete_one({"_id": _uuid_to_str(skill_id)})
 
     # ------------------------------------------------------------------
+    # Admin Jobs
+    # ------------------------------------------------------------------
+
+    async def create_admin_job(self, **kwargs: Any) -> _MongoDoc:
+        if "id" not in kwargs:
+            kwargs["id"] = _uuid_to_str(uuid.uuid4())
+        else:
+            kwargs["id"] = _uuid_to_str(kwargs["id"])
+        if "requested_by_user_id" in kwargs and isinstance(
+            kwargs["requested_by_user_id"], uuid.UUID
+        ):
+            kwargs["requested_by_user_id"] = _uuid_to_str(
+                kwargs["requested_by_user_id"]
+            )
+        kwargs.setdefault("company_id", "default")
+        kwargs.setdefault("status", "queued")
+        kwargs.setdefault("payload", {})
+        kwargs.setdefault("result_payload", None)
+        kwargs.setdefault("error_message", None)
+        kwargs.setdefault("progress_current", 0)
+        kwargs.setdefault("progress_total", 0)
+        kwargs.setdefault("message", None)
+        kwargs.setdefault("events", [])
+        kwargs.setdefault("created_at", _now())
+        kwargs.setdefault("updated_at", _now())
+        kwargs.setdefault("started_at", None)
+        kwargs.setdefault("finished_at", None)
+        kwargs["_id"] = kwargs.pop("id")
+        await self._db.admin_jobs.insert_one(kwargs)
+        return _to_doc(kwargs)
+
+    async def get_admin_job_by_id(self, job_id: uuid.UUID) -> _MongoDoc | None:
+        doc = await self._db.admin_jobs.find_one({"_id": _uuid_to_str(job_id)})
+        return _to_doc(doc) if doc else None
+
+    async def list_admin_jobs(
+        self,
+        *,
+        job_type: str | None = None,
+        status: str | None = None,
+        requested_by_user_id: uuid.UUID | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[_MongoDoc]:
+        query: dict[str, Any] = {}
+        if job_type:
+            query["job_type"] = job_type
+        if status:
+            query["status"] = status
+        if requested_by_user_id is not None:
+            query["requested_by_user_id"] = _uuid_to_str(requested_by_user_id)
+        cursor = self._db.admin_jobs.find(query).sort("created_at", -1).skip(offset)
+        if limit is not None:
+            cursor = cursor.limit(limit)
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def update_admin_job(
+        self, job_id: uuid.UUID, **kwargs: Any
+    ) -> _MongoDoc | None:
+        if not kwargs:
+            return await self.get_admin_job_by_id(job_id)
+        if "requested_by_user_id" in kwargs and isinstance(
+            kwargs["requested_by_user_id"], uuid.UUID
+        ):
+            kwargs["requested_by_user_id"] = _uuid_to_str(
+                kwargs["requested_by_user_id"]
+            )
+        kwargs["updated_at"] = _now()
+        await self._db.admin_jobs.update_one(
+            {"_id": _uuid_to_str(job_id)},
+            {"$set": kwargs},
+        )
+        return await self.get_admin_job_by_id(job_id)
+
+    # ------------------------------------------------------------------
     # Session
     # ------------------------------------------------------------------
 

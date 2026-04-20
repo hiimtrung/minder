@@ -1,6 +1,10 @@
 import {
+  eventStreamUrl,
   getMetricsSummary,
+  listAdminJobs,
   listAudit,
+  type AdminJobPayload,
+  type AdminJobStreamEvent,
   type AuditEventPayload,
   type MetricsSummaryPayload,
 } from "../lib/api/admin";
@@ -77,6 +81,15 @@ const pageSizeSelect = document.querySelector(
   "#audit-page-size",
 ) as HTMLSelectElement | null;
 const activeFilterPills = document.querySelector("#active-filter-pills");
+const jobBoard = document.querySelector("#job-board");
+const jobTypeFilter = document.querySelector(
+  "#job-type-filter",
+) as HTMLSelectElement | null;
+const jobStatusFilter = document.querySelector(
+  "#job-status-filter",
+) as HTMLSelectElement | null;
+const jobRefreshButton = document.querySelector("#jobs-refresh");
+const jobStatusSummary = document.querySelector("#job-status-summary");
 
 // ---------------------------------------------------------------------------
 // Pagination / filter state
@@ -89,8 +102,12 @@ let currentLimit = PAGE_SIZE_DEFAULT;
 let currentActorFilter: string | undefined;
 let currentEventTypeFilter: string | undefined;
 let currentOutcomeFilter: string | undefined;
+let currentJobTypeFilter: string | undefined;
+let currentJobStatusFilter: string | undefined;
+let currentJobs: AdminJobPayload[] = [];
 
 let autoRefreshInterval: ReturnType<typeof setInterval> | null = null;
+let jobsStream: EventSource | null = null;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -135,6 +152,39 @@ const outcomeClass = (outcome: string): string => {
   }
   return "border-stone-200 bg-stone-50 text-stone-700";
 };
+
+const jobStatusClass = (status: string): string => {
+  if (status === "completed") {
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  }
+  if (status === "failed") {
+    return "border-red-200 bg-red-50 text-red-800";
+  }
+  if (status === "running") {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+  return "border-stone-200 bg-stone-100 text-stone-700";
+};
+
+const isVisibleJob = (job: AdminJobPayload): boolean => {
+  if (currentJobTypeFilter && job.job_type !== currentJobTypeFilter) {
+    return false;
+  }
+  if (currentJobStatusFilter && job.status !== currentJobStatusFilter) {
+    return false;
+  }
+  return true;
+};
+
+const summarizeJob = (job: AdminJobPayload): string =>
+  job.message || job.error_message || job.title;
+
+const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
+  [...jobs].sort((left, right) => {
+    const leftTime = new Date(left.created_at ?? 0).getTime();
+    const rightTime = new Date(right.created_at ?? 0).getTime();
+    return rightTime - leftTime;
+  });
 
 // ---------------------------------------------------------------------------
 // Donut SVG chart
@@ -374,6 +424,61 @@ const renderFilterPills = (): void => {
     });
 };
 
+const renderJobSummary = (): void => {
+  if (!(jobStatusSummary instanceof HTMLElement)) return;
+  const queued = currentJobs.filter((job) => job.status === "queued").length;
+  const running = currentJobs.filter((job) => job.status === "running").length;
+  const latest = currentJobs[0]?.updated_at ?? null;
+  jobStatusSummary.innerHTML = [
+    `<div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"><span class="block text-xs uppercase tracking-[0.18em] text-stone-500">Queued</span><span class="mt-1 block text-lg font-semibold text-stone-950">${fmt(queued)}</span></div>`,
+    `<div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"><span class="block text-xs uppercase tracking-[0.18em] text-stone-500">Running</span><span class="mt-1 block text-lg font-semibold text-stone-950">${fmt(running)}</span></div>`,
+    `<div class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-700"><span class="block text-xs uppercase tracking-[0.18em] text-stone-500">Last updated</span><span class="mt-1 block text-sm font-medium text-stone-950">${escapeHtml(latest ? relativeTime(latest) : "—")}</span></div>`,
+  ].join("");
+};
+
+const renderJobs = (): void => {
+  if (!(jobBoard instanceof HTMLElement)) return;
+  const visibleJobs = currentJobs.filter(isVisibleJob);
+  renderJobSummary();
+  if (!visibleJobs.length) {
+    jobBoard.innerHTML =
+      '<article class="shell-card p-6 text-sm text-stone-400">No jobs match the current filters.</article>';
+    return;
+  }
+  jobBoard.innerHTML = visibleJobs
+    .slice(0, 18)
+    .map(
+      (job) => `
+        <article class="shell-card p-5">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="text-[11px] font-semibold uppercase tracking-[0.18em] text-stone-500">${escapeHtml(job.job_type)}</p>
+              <h3 class="mt-2 text-lg font-semibold tracking-tight text-stone-950">${escapeHtml(job.title)}</h3>
+              <p class="mt-2 text-sm leading-6 text-stone-600">${escapeHtml(summarizeJob(job))}</p>
+            </div>
+            <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${jobStatusClass(job.status)}">${escapeHtml(job.status)}</span>
+          </div>
+          <div class="mt-4 h-2 overflow-hidden rounded-full bg-stone-200">
+            <div class="h-full rounded-full bg-amber-600" style="width:${Math.max(0, Math.min(100, Number(job.progress_percent || 0)))}%"></div>
+          </div>
+          <div class="mt-3 flex flex-wrap items-center justify-between gap-3 text-xs text-stone-500">
+            <span>${job.progress_total > 0 ? `${job.progress_current}/${job.progress_total}` : "waiting for progress"}</span>
+            <span>${escapeHtml(relativeTime(job.updated_at))}</span>
+          </div>
+        </article>
+      `,
+    )
+    .join("");
+};
+
+const upsertJob = (job: AdminJobPayload): void => {
+  currentJobs = sortJobs([
+    job,
+    ...currentJobs.filter((item) => item.id !== job.id),
+  ]);
+  renderJobs();
+};
+
 // ---------------------------------------------------------------------------
 // Render audit log
 // ---------------------------------------------------------------------------
@@ -514,6 +619,27 @@ const loadAuditLog = async (): Promise<void> => {
   }
 };
 
+const loadJobs = async (): Promise<void> => {
+  if (jobBoard instanceof HTMLElement) {
+    jobBoard.innerHTML =
+      '<article class="shell-card p-6 text-sm text-stone-400">Loading jobs...</article>';
+  }
+  try {
+    const payload = await listAdminJobs({
+      job_type: currentJobTypeFilter,
+      status: currentJobStatusFilter,
+      limit: 30,
+    });
+    currentJobs = sortJobs(payload.jobs);
+    renderJobs();
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : "Unable to load jobs.";
+    if (jobBoard instanceof HTMLElement) {
+      jobBoard.innerHTML = `<article class="shell-card p-6 text-sm text-red-600">${escapeHtml(msg)}</article>`;
+    }
+  }
+};
+
 const applyFilters = () => {
   currentActorFilter = auditActorFilter?.value.trim() || undefined;
   currentEventTypeFilter = auditEventTypeFilter?.value || undefined;
@@ -541,6 +667,34 @@ const refresh = (): void => {
   void loadMetrics();
   currentOffset = 0;
   void loadAuditLog();
+  void loadJobs();
+};
+
+const connectJobStream = (): void => {
+  jobsStream?.close();
+  const params = new URLSearchParams();
+  if (currentJobTypeFilter) params.set("job_type", currentJobTypeFilter);
+  if (currentJobStatusFilter) params.set("status", currentJobStatusFilter);
+  const query = params.toString();
+  const path = query ? `/api/v1/jobs/stream?${query}` : "/api/v1/jobs/stream";
+  const stream = new EventSource(eventStreamUrl(path), {
+    withCredentials: true,
+  });
+  jobsStream = stream;
+  stream.onmessage = (event) => {
+    try {
+      const payload = JSON.parse(event.data) as AdminJobStreamEvent;
+      if (payload.type === "job") {
+        upsertJob(payload.payload);
+      }
+    } catch {
+      // Ignore malformed job stream payloads.
+    }
+  };
+  stream.onerror = () => {
+    jobsStream?.close();
+    jobsStream = null;
+  };
 };
 
 // ---------------------------------------------------------------------------
@@ -592,6 +746,21 @@ pageSizeSelect?.addEventListener("change", () => {
 });
 
 refreshButton?.addEventListener("click", refresh);
+jobRefreshButton?.addEventListener("click", () => {
+  void loadJobs();
+});
+
+jobTypeFilter?.addEventListener("change", () => {
+  currentJobTypeFilter = jobTypeFilter.value || undefined;
+  void loadJobs();
+  connectJobStream();
+});
+
+jobStatusFilter?.addEventListener("change", () => {
+  currentJobStatusFilter = jobStatusFilter.value || undefined;
+  void loadJobs();
+  connectJobStream();
+});
 
 autoRefreshToggle?.addEventListener("change", () => {
   if (autoRefreshToggle.checked) {
@@ -607,3 +776,5 @@ autoRefreshToggle?.addEventListener("change", () => {
 
 void loadMetrics();
 void loadAuditLog();
+void loadJobs();
+connectJobStream();

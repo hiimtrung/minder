@@ -108,6 +108,7 @@ export type RuntimeQueryPayload = {
   transition_log: Array<Record<string, unknown>>;
   edge: string | null;
   cross_repo_graph: Record<string, unknown> | null;
+  agent_actions: Array<Record<string, unknown>>;
 };
 
 export type RuntimeQueryStreamEvent =
@@ -148,6 +149,10 @@ function apiUrl(path: string): string {
     return path;
   }
   return `${API_BASE_URL}${path}`;
+}
+
+export function eventStreamUrl(path: string): string {
+  return apiUrl(path);
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -652,6 +657,7 @@ export type SkillImportSummaryPayload = {
   repo_url: string;
   ref: string | null;
   path: string;
+  resolved_paths: string[];
   created_count: number;
   updated_count: number;
   imported_count: number;
@@ -662,6 +668,51 @@ export type SkillImportSummaryPayload = {
     source: SkillSourcePayload | null;
   }>;
 };
+
+export type AdminJobEventPayload = {
+  id: string;
+  event_type: string;
+  status: string;
+  message: string;
+  progress_current: number | null;
+  progress_total: number | null;
+  details: Record<string, unknown>;
+  created_at: string | null;
+};
+
+export type AdminJobPayload = {
+  id: string;
+  job_type: string;
+  title: string;
+  status: string;
+  requested_by_user_id: string | null;
+  payload: Record<string, unknown>;
+  result_payload: Record<string, unknown> | null;
+  error_message: string | null;
+  progress_current: number;
+  progress_total: number;
+  progress_percent: number;
+  message: string | null;
+  events: AdminJobEventPayload[];
+  created_at: string | null;
+  updated_at: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type AdminJobListPayload = {
+  jobs: AdminJobPayload[];
+  limit: number;
+};
+
+export type AdminJobStreamEvent =
+  | {
+      type: "job";
+      payload: AdminJobPayload;
+    }
+  | {
+      type: "keepalive";
+    };
 
 export type MemoryPayload = {
   id: string;
@@ -725,6 +776,34 @@ export async function importSkills(payload: {
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export async function createAdminJob(payload: {
+  job_type: string;
+  payload: Record<string, unknown>;
+}): Promise<AdminJobPayload> {
+  return requestJson<AdminJobPayload>("/api/v1/jobs", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listAdminJobs(filters?: {
+  job_type?: string;
+  status?: string;
+  limit?: number;
+}): Promise<AdminJobListPayload> {
+  const params = new URLSearchParams();
+  if (filters?.job_type) params.set("job_type", filters.job_type);
+  if (filters?.status) params.set("status", filters.status);
+  if (filters?.limit) params.set("limit", String(filters.limit));
+  const query = params.toString();
+  const path = query ? `/api/v1/jobs?${query}` : "/api/v1/jobs";
+  return requestJson<AdminJobListPayload>(path);
+}
+
+export async function getAdminJob(jobId: string): Promise<AdminJobPayload> {
+  return requestJson<AdminJobPayload>(`/api/v1/jobs/${jobId}`);
 }
 
 export async function deleteSkill(skillId: string): Promise<void> {

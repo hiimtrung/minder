@@ -124,11 +124,9 @@ import GuideAside from "./ui/GuideAside.astro";
 
           <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
             <Field label="Workflow name" htmlFor="runtime-chat-workflow">
-              <input
-                id="runtime-chat-workflow"
-                class="u-input"
-                placeholder="Optional workflow override"
-              />
+              <Select id="runtime-chat-workflow">
+                <option value="">Use repository workflow</option>
+              </Select>
             </Field>
             <Field label="Max attempts" htmlFor="runtime-chat-max-attempts">
               <Select id="runtime-chat-max-attempts">
@@ -173,6 +171,16 @@ import GuideAside from "./ui/GuideAside.astro";
           class="runtime-side-scroll mt-2.5 grid gap-2"
         >
           <div class="text-sm text-stone-500">No transition log yet.</div>
+        </div>
+      </aside>
+
+      <aside class="shell-card runtime-side-block p-3.5">
+        <p class="eyebrow">Agent actions</p>
+        <div
+          id="runtime-chat-actions"
+          class="runtime-side-scroll mt-2.5 grid gap-2"
+        >
+          <div class="text-sm text-stone-500">No tool actions yet.</div>
         </div>
       </aside>
 

@@ -17,6 +17,7 @@ from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperation
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
+from .jobs import build_jobs_routes
 from .memories import build_memories_routes
 from .prompts import build_prompts_routes
 from .runtime import build_runtime_routes
@@ -76,6 +77,7 @@ def build_http_routes(
         Route("/metrics", metrics_endpoint, methods=["GET"]),
         *build_admin_api_routes(context),
         *build_prompts_routes(context),
+        *build_jobs_routes(context),
         *build_skills_routes(context),
         *build_memories_routes(context),
         *build_runtime_routes(context),
@@ -91,6 +93,8 @@ def build_http_app(
     graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
 ) -> FastAPI:
+    from minder.application.admin.jobs import AdminJobService
+
     middleware: list[Middleware] = []
 
     # Observability middleware (innermost first — applied outermost-last)
@@ -119,4 +123,5 @@ def build_http_app(
     )
     app.state.store = store
     app.state.config = config
+    app.state.job_service = AdminJobService(store, config)
     return app

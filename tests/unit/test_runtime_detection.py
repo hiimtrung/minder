@@ -151,9 +151,9 @@ def test_local_model_llama_cpp_retries_without_flash_attention(
     monkeypatch.setattr(local_llm_module, "module_available", lambda name: True)
     monkeypatch.setattr(local_llm_module, "load_attr", lambda module, attr: FakeLlama)
 
-    llm = LocalModelLLM("/tmp/model.gguf", runtime="llama_cpp", context_length=4096)
+    llm = LocalModelLLM("/tmp/model.gguf", runtime="llama_cpp", context_length=131072)
     assert llm.complete_text("hello", fallback="fallback") == "fallback path"
-    assert llm._client.kwargs["n_ctx"] == 4096
+    assert llm._client.kwargs["n_ctx"] == 131072
     assert "flash_attn" not in llm._client.kwargs
 
 

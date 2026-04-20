@@ -248,6 +248,7 @@ class RepoScanner:
         diff_base: str | None = None,
         changed_files: list[str] | None = None,
         deleted_files: list[str] | None = None,
+        branch_relationships: list[dict[str, Any]] | None = None,
         payload_version: str = "2026-04-15",
         source: str = "minder-cli",
     ) -> dict[str, Any]:
@@ -342,9 +343,11 @@ class RepoScanner:
                 "changed_file_count": len(source_files),
                 "changed_files": [str(file_path.relative_to(builder._root)) for file_path in source_files],
                 "deleted_file_count": len(deleted_files or []),
+                "branch_relationship_count": len(branch_relationships or []),
             },
             "nodes": nodes,
             "edges": edges,
+            "branch_relationships": list(branch_relationships or []),
         }
 
     def _discover_service_boundaries(self) -> list[Path]:

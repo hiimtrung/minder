@@ -4,12 +4,15 @@
 
 ## Status
 
-| Area                            | Status    | Notes                                                                                |
-| ------------------------------- | --------- | ------------------------------------------------------------------------------------ |
-| Phase 7                         | `PLANNED` | Created to hold deferred work moved out of Phases 5 and 6                            |
-| Workflow learning backlog       | `BACKLOG` | ML-heavy synthesis and optimization work moved here from Phase 5                     |
-| Advanced runtime and catalog UX | `BACKLOG` | Remaining dashboard/runtime/catalog backlog moved here from Phase 5                  |
-| Post-CLI backend reconciliation | `BACKLOG` | Non-CLI follow-up moved here so Phase 6 remains focused on repo-local CLI completion |
+| Area                            | Status        | Notes                                                                                                                                            |
+| ------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Phase 7                         | `PLANNED`     | Created to hold deferred work moved out of Phases 5 and 6                                                                                        |
+| Workflow learning backlog       | `BACKLOG`     | ML-heavy synthesis and optimization work moved here from Phase 5                                                                                 |
+| Advanced runtime and catalog UX | `BACKLOG`     | Remaining dashboard/runtime/catalog backlog moved here from Phase 5                                                                              |
+| Advanced runtime and catalog UX | `IN PROGRESS` | Runtime chat now executes a first tranche of write-safe memory, skill, and session actions and uses workflow selection from the workflow catalog |
+| `P7-T13`                        | `FE/BE`       | `BACKLOG`                                                                                                                                        | Remaining multi-turn runtime memory, CRUD intents, and richer chat UX moved from `P5-T09A`                                                                                                                   | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../system-design.md](../system-design.md)                                                                                                             |
+| `P7-T13`                        | `FE/BE`       | `PARTIAL`                                                                                                                                        | Runtime chat now supports workflow dropdown selection plus a first safe agentic execution tranche for memory, skill, and session CRUD-style actions; multi-turn memory and broader tool coverage remain open | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md); [../system-design.md](../system-design.md); [../../src/minder/presentation/http/admin/runtime.py](../../src/minder/presentation/http/admin/runtime.py) |
+| Post-CLI backend reconciliation | `BACKLOG`     | Non-CLI follow-up moved here so Phase 6 remains focused on repo-local CLI completion                                                             |
 
 ## Scope Note
 

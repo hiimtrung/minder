@@ -110,6 +110,9 @@ async def test_planning_and_reasoning_nodes(tmp_path: Path) -> None:
     assert "Current step: Test Writing" in state.reasoning_output["prompt"]
     assert "Instruction envelope:" in state.reasoning_output["prompt"]
     assert "Continuity packet:" in state.reasoning_output["prompt"]
+    assert "Tool capabilities:" in state.reasoning_output["prompt"]
+    assert "minder_memory_store" in state.reasoning_output["prompt"]
+    assert "User account records are read-only" in state.reasoning_output["prompt"]
     assert state.reasoning_output["prompt_name"] == "query_reasoning"
 
 
@@ -132,6 +135,19 @@ def test_reasoning_node_uses_custom_query_prompt_template() -> None:
     assert "Question=explain the bug" in reasoned.reasoning_output["prompt"]
     assert '"next_valid_actions"' in reasoned.reasoning_output["prompt"]
     assert reasoned.reasoning_output["prompt_name"] == "query_reasoning_override"
+
+
+def test_reasoning_node_describes_capabilities_without_repo_context() -> None:
+    state = GraphState(query="co nhung tool nao")
+
+    reasoned = ReasoningNode().run(state)
+
+    assert "No repository is currently selected" in reasoned.reasoning_output["prompt"]
+    assert (
+        "Minder has built-in tools and internal data capabilities"
+        in reasoned.reasoning_output["prompt"]
+    )
+    assert "minder_auth_manage" in reasoned.reasoning_output["prompt"]
 
 
 def test_guard_blocks_unsafe_output() -> None:

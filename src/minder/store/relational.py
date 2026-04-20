@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import (
 )
 
 from minder.models import (
+    AdminJob,
     AuditLog,
     Base,
     Client,
@@ -45,6 +46,7 @@ from minder.models import (
 )
 
 _REGISTERED_MODELS = (
+    AdminJob,
     AuditLog,
     Client,
     ClientApiKey,
@@ -241,6 +243,60 @@ class RelationalStore:
     async def delete_skill(self, skill_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(Skill).where(Skill.id == skill_id))
+
+    # ------------------------------------------------------------------
+    # Admin Jobs
+    # ------------------------------------------------------------------
+
+    async def create_admin_job(self, **kwargs: Any) -> AdminJob:
+        async with self._session() as sess:
+            job = AdminJob(**kwargs)
+            sess.add(job)
+            await sess.flush()
+            await sess.refresh(job)
+            return job
+
+    async def get_admin_job_by_id(self, job_id: uuid.UUID) -> Optional[AdminJob]:
+        async with self._session() as sess:
+            result = await sess.execute(select(AdminJob).where(AdminJob.id == job_id))
+            return result.scalar_one_or_none()
+
+    async def list_admin_jobs(
+        self,
+        *,
+        job_type: str | None = None,
+        status: str | None = None,
+        requested_by_user_id: uuid.UUID | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[AdminJob]:
+        async with self._session() as sess:
+            stmt = select(AdminJob).order_by(AdminJob.created_at.desc())
+            if job_type:
+                stmt = stmt.where(AdminJob.job_type == job_type)
+            if status:
+                stmt = stmt.where(AdminJob.status == status)
+            if requested_by_user_id is not None:
+                stmt = stmt.where(AdminJob.requested_by_user_id == requested_by_user_id)
+            if offset:
+                stmt = stmt.offset(offset)
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
+    async def update_admin_job(
+        self, job_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[AdminJob]:
+        async with self._session() as sess:
+            job = await sess.get(AdminJob, job_id)
+            if job is None:
+                return None
+            for key, value in kwargs.items():
+                setattr(job, key, value)
+            await sess.flush()
+            await sess.refresh(job)
+            return job
 
     # ------------------------------------------------------------------
     # Session

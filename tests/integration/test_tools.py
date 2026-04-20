@@ -129,6 +129,29 @@ async def test_repo_state_store_round_trip(
     assert "note.txt" in state["artifacts"]
 
 
+def _init_git_repo(repo_path: Path, message: str) -> None:
+    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "config", "user.email", "tests@example.com"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "config", "user.name", "Tests"],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", message],
+        cwd=repo_path,
+        check=True,
+        capture_output=True,
+    )
+
+
 @pytest.mark.asyncio
 async def test_phase1_tool_modules_round_trip(
     store: RelationalStore,
@@ -349,26 +372,7 @@ async def test_skill_import_git_round_trip(
         """.strip(),
         encoding="utf-8",
     )
-    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "tests@example.com"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Tests"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "add skill pack"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
+    _init_git_repo(repo_path, "add skill pack")
 
     skill_tools = SkillTools(store, config)
     imported = await skill_tools.minder_skill_import_git(
@@ -389,3 +393,174 @@ async def test_skill_import_git_round_trip(
         source_path="skills",
     )
     assert imported_again["updated_count"] == 2
+
+
+@pytest.mark.asyncio
+async def test_skill_import_git_auto_discovers_when_default_path_missing(
+    store: RelationalStore,
+    config: MinderConfig,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "fallback-skill-pack"
+    repo_path.mkdir()
+    (repo_path / "docs" / "skill-packs").mkdir(parents=True)
+    (repo_path / "docs" / "skill-packs" / "release.md").write_text(
+        "# Release skill\n\nVerify rollback and release notes before deploy.",
+        encoding="utf-8",
+    )
+    (repo_path / "team-skills.json").write_text(
+        """
+        {
+          "skills": [
+            {
+              "title": "Testing Guide",
+              "content": "Write failing tests before implementation.",
+              "language": "markdown",
+              "tags": ["testing"],
+              "workflow_steps": ["Test Writing"],
+              "artifact_types": ["test_plan"],
+              "provenance": "git_import",
+              "quality_score": 0.9
+            }
+          ]
+        }
+        """.strip(),
+        encoding="utf-8",
+    )
+    _init_git_repo(repo_path, "add fallback skill pack")
+
+    skill_tools = SkillTools(store, config)
+    imported = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path="skills",
+    )
+
+    assert imported["imported_count"] == 2
+    assert imported["created_count"] == 2
+    assert set(imported["resolved_paths"]) == {"docs/skill-packs", "team-skills.json"}
+
+    listed = await skill_tools.minder_skill_list()
+    assert {item["title"] for item in listed} == {"Release skill", "Testing Guide"}
+    assert {str(item["source"]["path"]) for item in listed} == {
+        "docs/skill-packs",
+        "team-skills.json",
+    }
+
+
+@pytest.mark.asyncio
+async def test_skill_import_git_aggregates_multiple_skill_roots_in_default_mode(
+    store: RelationalStore,
+    config: MinderConfig,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "multi-skill-pack"
+    repo_path.mkdir()
+    (repo_path / "skills").mkdir()
+    (repo_path / "skill-packs").mkdir()
+    (repo_path / "skills" / "testing.md").write_text(
+        "# Testing Guide\n\nWrite failing tests before implementation.",
+        encoding="utf-8",
+    )
+    (repo_path / "skill-packs" / "release.json").write_text(
+        """
+        [
+          {
+            "title": "Release Checklist",
+            "content": "Verify rollback and release notes before deploy.",
+            "language": "markdown",
+            "tags": ["release"],
+            "workflow_steps": ["Release"],
+            "artifact_types": ["release_notes"],
+            "provenance": "git_import",
+            "quality_score": 0.8
+          }
+        ]
+        """.strip(),
+        encoding="utf-8",
+    )
+    _init_git_repo(repo_path, "add multiple skill roots")
+
+    skill_tools = SkillTools(store, config)
+    imported = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path="skills",
+    )
+
+    assert imported["imported_count"] == 2
+    assert set(imported["resolved_paths"]) == {"skills", "skill-packs"}
+
+    listed = await skill_tools.minder_skill_list()
+    assert any(item["title"] == "Testing Guide" for item in listed)
+    assert any(item["title"] == "Release Checklist" for item in listed)
+
+
+@pytest.mark.asyncio
+async def test_skill_import_git_supports_agents_skill_directory(
+    store: RelationalStore,
+    config: MinderConfig,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "coder-style-skills"
+    repo_path.mkdir()
+    (repo_path / ".agents" / "skills").mkdir(parents=True)
+    (repo_path / ".agents" / "skills" / "rust").mkdir(parents=True)
+    (repo_path / ".agents" / "skills" / "rust" / "SKILL.md").write_text(
+        "---\nname: rust\ndescription: Rust engineering\n---\n\n# Skill: Rust\n\nBuild safe Rust systems.",
+        encoding="utf-8",
+    )
+    (repo_path / ".agents" / "skills" / "rust" / "rules").mkdir()
+    (repo_path / ".agents" / "skills" / "rust" / "rules" / "ownership.md").write_text(
+        "Prefer ownership and borrowing over cloning.",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo_path, "add hidden agents skills")
+
+    skill_tools = SkillTools(store, config)
+    imported = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path=".agents/skills",
+    )
+
+    assert imported["imported_count"] == 1
+    assert imported["resolved_paths"] == [".agents/skills"]
+
+    listed = await skill_tools.minder_skill_list()
+    assert listed[0]["title"] == "Skill: Rust"
+    assert listed[0]["source"]["path"] == ".agents/skills"
+    assert (
+        listed[0]["source"]["file_path"] == ".agents/skills/rust/SKILL.md"
+        or listed[0]["source"]["file_path"] == "rust/SKILL.md"
+    )
+    assert "rules" in listed[0]["source"].get("auxiliary_paths", [])
+    assert "rules/ownership.md" in listed[0]["source"].get("auxiliary_paths", [])
+
+
+@pytest.mark.asyncio
+async def test_skill_import_git_does_not_create_auxiliary_rule_documents_as_skills(
+    store: RelationalStore,
+    config: MinderConfig,
+    tmp_path: Path,
+) -> None:
+    repo_path = tmp_path / "coder-style-aux"
+    repo_path.mkdir()
+    (repo_path / ".agents" / "skills" / "go" / "rules").mkdir(parents=True)
+    (repo_path / ".agents" / "skills" / "go" / "SKILL.md").write_text(
+        "# Go Skill\n\nShip clear Go services.",
+        encoding="utf-8",
+    )
+    (repo_path / ".agents" / "skills" / "go" / "rules" / "errors.md").write_text(
+        "Return explicit error values.",
+        encoding="utf-8",
+    )
+    _init_git_repo(repo_path, "add canonical skill with aux docs")
+
+    skill_tools = SkillTools(store, config)
+    imported = await skill_tools.minder_skill_import_git(
+        repo_url=str(repo_path),
+        source_path=".agents/skills",
+    )
+
+    assert imported["imported_count"] == 1
+    listed = await skill_tools.minder_skill_list()
+    assert len(listed) == 1
+    assert listed[0]["title"] == "Go Skill"

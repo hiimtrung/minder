@@ -6,7 +6,7 @@
 
 | Area               | Status     | Notes                                                                                                                                                                                                                                                         |
 | ------------------ | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Transition roadmap | `DONE`     | CLI runtime, sync semantics, packaging, release automation, MCP graph surface, dashboard explorer, and landscape-aware cross-repo search/impact follow-up are delivered; CLI-side branch-relationship auto-discovery is deferred into a later `Phase 6` track |
+| Transition roadmap | `DONE`     | CLI runtime, sync semantics, packaging, release automation, MCP graph surface, dashboard explorer, and landscape-aware cross-repo search/impact follow-up are delivered; CLI-side branch-relationship auto-discovery shipped in `Phase 6` (`P6-T01`) |
 | Review posture     | `ACCEPTED` | Core direction accepted with adjustments on embeddings and realtime transport                                                                                                                                                                                 |
 
 ## Transition Phases

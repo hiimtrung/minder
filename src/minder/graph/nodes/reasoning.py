@@ -4,6 +4,7 @@ import json
 
 from minder.graph.state import GraphState
 from minder.prompts import PromptRegistry
+from minder.tools.registry import tool_capability_manifest, tool_data_access_policy
 
 
 class ReasoningNode:
@@ -59,6 +60,13 @@ class ReasoningNode:
                     )
                     if continuity_packet
                     else "{}"
+                ),
+                "tool_capabilities": tool_capability_manifest(),
+                "data_access_policy": tool_data_access_policy(),
+                "repository_context_note": (
+                    "Repository context is available for repo-scoped reasoning."
+                    if state.repo_path
+                    else "No repository is currently selected. Minder can still describe its built-in tools and internal data capabilities, but repo-scoped code and graph inspection tools need repository context first."
                 ),
                 "user_query": state.query,
                 "retrieved_context": (

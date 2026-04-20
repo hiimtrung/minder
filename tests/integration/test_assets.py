@@ -33,7 +33,13 @@ async def store() -> RelationalStore:
 
 @pytest.fixture
 def config() -> MinderConfig:
-    return MinderConfig()
+    # _env_file=None prevents pydantic-settings from picking up the repo-root
+    # `.env`, which on developer machines sets MINDER_VECTOR_STORE__PROVIDER=milvus
+    # and causes build_vector_store() to hang forever on a Milvus gRPC connect.
+    cfg = MinderConfig(_env_file=None)
+    # Force an in-process vector store so tests never reach out to Milvus.
+    cfg.vector_store.provider = "memory"
+    return cfg
 
 
 @pytest.mark.asyncio

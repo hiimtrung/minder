@@ -9,12 +9,19 @@ import httpx
 from pathlib import Path
 
 
-def _ensure_local_bind_allowed(host: str, port: int) -> None:
+def _allocate_local_port(host: str = "127.0.0.1") -> int:
+    """Bind to port 0 so the kernel picks a free port, then release it.
+
+    Fixes the old hard-coded port 8081 which caused flakes when something
+    else on the runner (or a previous aborted test) still held the socket.
+    Also acts as a bind-permission probe — returns None if sandboxed.
+    """
     import socket
 
     probe = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        probe.bind((host, port))
+        probe.bind((host, 0))
+        return int(probe.getsockname()[1])
     except OSError as exc:
         pytest.skip(f"Local TCP bind not permitted in this environment: {exc}")
     finally:
@@ -28,11 +35,12 @@ def uv_path():
         pytest.skip("uv not found")
     return path
 
+@pytest.mark.slow
+@pytest.mark.timeout(180)
 @pytest.mark.asyncio
 async def test_sse_roundtrip(tmp_path, uv_path):
-    # Port for test server
-    port = 8081
-    _ensure_local_bind_allowed("127.0.0.1", port)
+    # Use an ephemeral port to avoid collisions on CI runners.
+    port = _allocate_local_port("127.0.0.1")
     
     # Start the minder server in sse mode as a subprocess
     env = os.environ.copy()
@@ -104,19 +112,21 @@ async def test_sse_roundtrip(tmp_path, uv_path):
         start_time = time.time()
         connected = False
         print(f"DEBUG: Waiting for server on 127.0.0.1:{port}...")
-        while time.time() - start_time < 90: # Increase to 90s for safety
+        # 45s is more than enough for a cold-start `python -m minder.server`
+        # on a CI runner; anything longer points at a real hang, not slowness.
+        while time.time() - start_time < 45:
             if process.poll() is not None:
                 # Read from the log file instead of process.stderr
                 stderr_file.flush()
                 stderr_content = stderr_log.read_text()
                 pytest.fail(f"Server crashed during startup. Stderr:\n{stderr_content}")
-            
+
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(1)
                 if s.connect_ex(("127.0.0.1", port)) == 0:
                     connected = True
                     break
-            await asyncio.sleep(2)
+            await asyncio.sleep(1)
         
         if not connected:
             lsof_res = subprocess.run(["lsof", "-i", f":{port}"], capture_output=True, text=True)

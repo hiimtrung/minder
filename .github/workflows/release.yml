@@ -8,6 +8,7 @@ on:
 jobs:
   build-dist:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
     outputs:
@@ -31,7 +32,7 @@ jobs:
         run: |
           uv run ruff check .
           uv run mypy src
-          uv run pytest
+          uv run pytest --timeout=120
 
       - name: Build Python distributions
         run: uv build
@@ -52,6 +53,7 @@ jobs:
   release:
     needs: build-dist
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: pypi
     permissions:
       contents: write

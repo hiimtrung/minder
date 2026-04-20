@@ -7,3 +7,5 @@ __pycache__
 .ruff_cache
 .uv-cache
 ref
+.mcp.json
+.vscode/mcp.json

@@ -121,6 +121,9 @@ class PromptRegistry:
                 "instruction_envelope",
                 "continuity_brief",
                 "continuity_packet",
+                "tool_capabilities",
+                "data_access_policy",
+                "repository_context_note",
                 "user_query",
                 "retrieved_context",
                 "correction_required",
@@ -130,6 +133,9 @@ class PromptRegistry:
                 "instruction_envelope": "{}",
                 "continuity_brief": "{}",
                 "continuity_packet": "{}",
+                "tool_capabilities": "No capability manifest was provided.",
+                "data_access_policy": "No data-access policy was provided.",
+                "repository_context_note": "No repository context policy was provided.",
                 "user_query": "Summarize the current repository state.",
                 "retrieved_context": "No repository context found.",
                 "correction_required": "",
@@ -139,6 +145,9 @@ class PromptRegistry:
                     "Workflow instruction:\n{workflow_instruction}",
                     "Instruction envelope:\n{instruction_envelope}",
                     "Continuity packet:\n{continuity_packet}",
+                    "Tool capabilities:\n{tool_capabilities}",
+                    "Data access policy:\n{data_access_policy}",
+                    "Repository context note:\n{repository_context_note}",
                     "User query:\n{user_query}",
                     "Retrieved context:\n{retrieved_context}",
                     "Correction required:\n{correction_required}",
@@ -250,7 +259,11 @@ class PromptRegistry:
     def _optional_arguments(name: str) -> list[PromptArgument]:
         definition = PromptRegistry._BUILTIN_DEFINITIONS[name]
         return [
-            PromptArgument(name=argument_name, required=False, description=f"{argument_name} argument")
+            PromptArgument(
+                name=argument_name,
+                required=False,
+                description=f"{argument_name} argument",
+            )
             for argument_name in definition["arguments"]
         ]
 
@@ -615,7 +628,10 @@ class PromptRegistry:
                 description=str(prompt_model.description),
             )
             dynamic_prompt.arguments = [
-                PromptArgument(name=name, required=False, description=f"{name} argument") for name in argument_names
+                PromptArgument(
+                    name=name, required=False, description=f"{name} argument"
+                )
+                for name in argument_names
             ]
             PromptRegistry._upsert_prompt(app, dynamic_prompt)
             dynamic_names.add(str(prompt_model.name))

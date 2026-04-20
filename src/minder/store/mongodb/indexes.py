@@ -34,6 +34,12 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:  # type: ignore[type
     await audit_logs.create_index([("actor_id", ASCENDING)])
     await audit_logs.create_index([("event_type", ASCENDING)])
 
+    admin_jobs = db["admin_jobs"]
+    await admin_jobs.create_index([("job_type", ASCENDING)])
+    await admin_jobs.create_index([("status", ASCENDING)])
+    await admin_jobs.create_index([("requested_by_user_id", ASCENDING)])
+    await admin_jobs.create_index([("created_at", ASCENDING)])
+
     # Skills
     skills = db["skills"]
     await skills.create_index([("company_id", ASCENDING)])

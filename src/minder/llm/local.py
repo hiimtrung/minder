@@ -24,12 +24,13 @@ _CHAT_TEMPLATE_MARKERS = (
 
 
 class LocalModelLLM:
+
     def __init__(
         self,
         model_path: str,
         fail: bool = False,
         runtime: str = "mock",
-        context_length: int = 4096,
+        context_length: int = 131072,
     ) -> None:
         self._model_path = model_path
         self._fail = fail

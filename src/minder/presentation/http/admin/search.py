@@ -98,6 +98,104 @@ def _rank_serialized_items(
     return ranked
 
 
+def _rank_skill_items(
+    *,
+    items: list[dict[str, Any]],
+    query: str,
+    config: MinderConfig,
+) -> list[dict[str, Any]]:
+    if not query.strip():
+        return items
+
+    embedder = LocalEmbeddingProvider(
+        config.embedding.model_path,
+        dimensions=min(config.embedding.dimensions, 16),
+        runtime="auto",
+    )
+    query_embedding = embedder.embed(query)
+    query_lower = query.strip().lower()
+    query_tokens = _tokenize(query)
+    ranked: list[dict[str, Any]] = []
+
+    for item in items:
+        title = str(item.get("title", "") or "")
+        language = str(item.get("language", "") or "")
+        tags = [str(tag) for tag in list(item.get("tags", []) or [])]
+        candidate_text = " ".join(
+            [
+                title,
+                language,
+                " ".join(tags),
+                " ".join(item.get("workflow_step_tags", [])),
+                " ".join(item.get("artifact_type_tags", [])),
+                str(item.get("content", "") or ""),
+            ]
+        ).strip()
+        if not candidate_text:
+            continue
+        semantic_score = _cosine_similarity(
+            query_embedding,
+            embedder.embed(candidate_text),
+        )
+        lexical_score = _lexical_score(query, candidate_text)
+        title_lower = title.lower()
+        language_lower = language.lower()
+        tag_tokens = {tag.lower() for tag in tags}
+        exact_boost = 0.0
+        if title_lower == query_lower:
+            exact_boost += 2.2
+        if language_lower == query_lower:
+            exact_boost += 2.8
+        if query_lower in tag_tokens:
+            exact_boost += 1.9
+        if title_lower.startswith(query_lower):
+            exact_boost += 0.8
+        if any(token == language_lower for token in query_tokens):
+            exact_boost += 1.4
+        if any(token in tag_tokens for token in query_tokens):
+            exact_boost += 0.8
+        score = (
+            (lexical_score * 0.62)
+            + (semantic_score * 0.18)
+            + exact_boost
+            + (min(float(item.get("quality_score", 0.0) or 0.0), 1.0) * 0.05)
+        )
+        ranked.append(
+            {
+                **item,
+                "search_score": round(score, 4),
+                "lexical_score": round(lexical_score, 4),
+                "semantic_score": round(semantic_score, 4),
+                "exact_match_score": round(exact_boost, 4),
+            }
+        )
+
+    if (
+        query_tokens
+        and len(query_tokens) <= 2
+        and any(
+            float(item.get("exact_match_score", 0.0) or 0.0) > 0
+            or float(item.get("lexical_score", 0.0) or 0.0) >= 0.45
+            for item in ranked
+        )
+    ):
+        ranked = [
+            item
+            for item in ranked
+            if float(item.get("exact_match_score", 0.0) or 0.0) > 0
+            or float(item.get("lexical_score", 0.0) or 0.0) > 0
+        ]
+
+    ranked.sort(
+        key=lambda item: (
+            -float(item.get("search_score", 0.0) or 0.0),
+            -float(item.get("exact_match_score", 0.0) or 0.0),
+            str(item.get("title") or "").lower(),
+        )
+    )
+    return ranked
+
+
 def _slice_items(
     items: list[Any],
     *,
@@ -236,10 +334,10 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
         elif resource == "skills":
             skill_tools = SkillTools(context.store, config)
             all_skill_items = await skill_tools.minder_skill_list()
-            ranked = (
-                await skill_tools.minder_skill_recall(query, limit=max(len(all_skill_items), 1))
-                if query
-                else all_skill_items
+            ranked = _rank_skill_items(
+                items=all_skill_items,
+                query=query,
+                config=config,
             )
         elif resource == "memories":
             memory_tools = MemoryTools(context.store, config)
@@ -251,7 +349,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 )
             ]
             ranked = (
-                await memory_tools.minder_memory_recall(query, limit=max(len(all_memory_items), 1))
+                await memory_tools.minder_memory_recall(
+                    query, limit=max(len(all_memory_items), 1)
+                )
                 if query
                 else all_memory_items
             )

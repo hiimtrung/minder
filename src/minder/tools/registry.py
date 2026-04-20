@@ -203,3 +203,67 @@ SCOPEABLE_TOOLS: list[ToolMeta] = [tool for tool in ALL_TOOLS if tool.scopeable]
 ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
     tool.name for tool in ALL_TOOLS if tool.always_available
 )
+
+
+def _tool_category(tool_name: str) -> str:
+    if tool_name.startswith("minder_memory_"):
+        return "Memory"
+    if tool_name.startswith("minder_skill_"):
+        return "Skills"
+    if tool_name.startswith("minder_search_") or tool_name in {
+        "minder_search",
+        "minder_query",
+        "minder_find_impact",
+    }:
+        return "Search and query"
+    if tool_name.startswith("minder_workflow_"):
+        return "Workflow"
+    if tool_name.startswith("minder_session_"):
+        return "Sessions"
+    if tool_name.startswith("minder_auth_"):
+        return "Auth and identity"
+    return "Other"
+
+
+def tool_capability_manifest() -> str:
+    grouped: dict[str, list[ToolMeta]] = {}
+    for tool in ALL_TOOLS:
+        grouped.setdefault(_tool_category(tool.name), []).append(tool)
+
+    ordered_categories = [
+        "Memory",
+        "Skills",
+        "Search and query",
+        "Workflow",
+        "Sessions",
+        "Auth and identity",
+        "Other",
+    ]
+    lines = [
+        "Minder has built-in tools and internal data capabilities even when no repository is selected.",
+        "Repo-scoped query, graph, and impact tools need a repository path or repository selection before they can inspect code context.",
+    ]
+    for category in ordered_categories:
+        tools = grouped.get(category, [])
+        if not tools:
+            continue
+        lines.append(f"{category}:")
+        for tool in tools:
+            availability = (
+                "always available to authenticated clients"
+                if tool.always_available
+                else "scoped" if tool.scopeable else "admin/internal"
+            )
+            lines.append(f"- {tool.name}: {tool.description} [{availability}]")
+    return "\n".join(lines)
+
+
+def tool_data_access_policy() -> str:
+    return "\n".join(
+        [
+            "Minder may read and update its own operational data where matching tools exist, including memories, skills, workflow state, sessions, client credentials, and repository metadata.",
+            "User account records are read-only. Minder may inspect identity information through read-only auth tools such as whoami or list_users, but it must not claim it can create, edit, rotate, deactivate, or delete users.",
+            "Repository-aware search, graph traversal, and query actions require repository context before they can inspect code or graph state.",
+            "If a request asks what Minder can do, answer from the tool capability manifest instead of saying no tools are available.",
+        ]
+    )

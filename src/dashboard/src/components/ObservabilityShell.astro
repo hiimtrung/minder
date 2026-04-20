@@ -139,6 +139,57 @@ import SectionHeader from "./ui/SectionHeader.astro";
     </Card>
   </section>
 
+  <section class="mb-6 grid gap-5">
+    <Card padding="md">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <SectionHeader
+            title="Admin jobs"
+            description="Persistent async jobs by type with live status updates. Reloading the page should not lose job state."
+            class="mb-0"
+          />
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <Select id="job-type-filter" class="min-w-40">
+            <option value="">All job types</option>
+            <option value="skill_import_git">skill_import_git</option>
+          </Select>
+          <Select id="job-status-filter" class="min-w-32">
+            <option value="">All statuses</option>
+            <option value="queued">Queued</option>
+            <option value="running">Running</option>
+            <option value="completed">Completed</option>
+            <option value="failed">Failed</option>
+          </Select>
+          <Button id="jobs-refresh" size="sm">Refresh jobs</Button>
+        </div>
+      </div>
+      <div id="job-status-summary" class="mt-4 grid gap-3 sm:grid-cols-3">
+        <div
+          class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+        >
+          Queued: —
+        </div>
+        <div
+          class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+        >
+          Running: —
+        </div>
+        <div
+          class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+        >
+          Last updated: —
+        </div>
+      </div>
+    </Card>
+
+    <div id="job-board" class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <article class="shell-card p-6 text-sm text-stone-400">
+        Loading jobs...
+      </article>
+    </div>
+  </section>
+
   <!-- Audit log section -->
   <section class="grid gap-5">
     <!-- Audit log header + filters -->

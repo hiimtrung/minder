@@ -19,6 +19,9 @@ from .client import (
 # Skill
 from .skill import Skill as Skill, SkillSchema as SkillSchema
 
+# Admin Jobs
+from .job import AdminJob as AdminJob, AdminJobSchema as AdminJobSchema
+
 # Session
 from .session import Session as Session, SessionSchema as SessionSchema
 
@@ -63,6 +66,8 @@ __all__ = [
     "Base",
     "AuditLog",
     "AuditLogSchema",
+    "AdminJob",
+    "AdminJobSchema",
     "Client",
     "ClientApiKey",
     "ClientApiKeySchema",

@@ -1,11 +1,13 @@
 import {
   listRepositories,
   listTools,
+  listWorkflows,
   queryRuntimeStream,
   type RepositoryPayload,
   type RuntimeQueryPayload,
   type RuntimeQueryStreamEvent,
   type ToolInfo,
+  type WorkflowPayload,
 } from "../lib/api/admin";
 
 const formEl = document.querySelector(
@@ -16,7 +18,7 @@ const repositoryEl = document.querySelector(
 ) as HTMLSelectElement | null;
 const workflowEl = document.querySelector(
   "#runtime-chat-workflow",
-) as HTMLInputElement | null;
+) as HTMLSelectElement | null;
 const attemptsEl = document.querySelector(
   "#runtime-chat-max-attempts",
 ) as HTMLSelectElement | null;
@@ -29,6 +31,7 @@ const threadEl = document.querySelector("#runtime-chat-thread");
 const emptyEl = document.querySelector("#runtime-chat-empty");
 const sourcesEl = document.querySelector("#runtime-chat-sources");
 const transitionsEl = document.querySelector("#runtime-chat-transitions");
+const actionsEl = document.querySelector("#runtime-chat-actions");
 const summaryEl = document.querySelector("#runtime-chat-summary");
 const engineEl = document.querySelector("#runtime-chat-engine");
 const warningEl = document.querySelector("#runtime-chat-warning");
@@ -48,6 +51,7 @@ type ChatMessage = {
 };
 
 let repositories: RepositoryPayload[] = [];
+let workflows: WorkflowPayload[] = [];
 let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
 const QUERY_MIN_ROWS = 2;
@@ -177,6 +181,17 @@ const renderRepositoryOptions = (items: RepositoryPayload[]) => {
   ].join("");
 };
 
+const renderWorkflowOptions = (items: WorkflowPayload[]) => {
+  if (!(workflowEl instanceof HTMLSelectElement)) return;
+  workflowEl.innerHTML = [
+    '<option value="">Use repository workflow</option>',
+    ...items.map(
+      (workflow) =>
+        `<option value="${escapeHtml(workflow.name)}">${escapeHtml(workflow.name)}</option>`,
+    ),
+  ].join("");
+};
+
 const renderResult = (payload: RuntimeQueryPayload) => {
   if (typeof activeAssistantMessageIndex === "number") {
     messages[activeAssistantMessageIndex] = {
@@ -251,6 +266,25 @@ const renderResult = (payload: RuntimeQueryPayload) => {
     }
   }
 
+  if (actionsEl instanceof HTMLElement) {
+    if (!payload.agent_actions?.length) {
+      actionsEl.innerHTML =
+        '<div class="text-sm text-stone-500">No tool actions executed.</div>';
+    } else {
+      actionsEl.innerHTML = payload.agent_actions
+        .map(
+          (action) => `
+            <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
+              <p class="text-sm font-medium text-stone-900">${escapeHtml(String(action.tool ?? "unknown_tool"))}</p>
+              <p class="mt-1 text-xs text-stone-500">${escapeHtml(String(action.mode ?? "unknown"))} · ${escapeHtml(String(action.status ?? "unknown"))}</p>
+              <pre class="snippet-pre mt-3 text-xs">${escapeHtml(jsonPreview(action))}</pre>
+            </article>
+          `,
+        )
+        .join("");
+    }
+  }
+
   if (summaryEl instanceof HTMLElement) {
     summaryEl.innerHTML = [
       ["Repository", payload.repository.name || payload.repository.id],
@@ -258,6 +292,7 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       ["Path", payload.repository.path || "-"],
       ["Orchestration", payload.orchestration_runtime || "-"],
       ["Edge", payload.edge || "-"],
+      ["Agent actions", payload.agent_actions?.length ?? 0],
       ["Answer sanitized", payload.answer_sanitized ? "yes" : "no"],
       ["Guard", payload.guard_result ? "returned" : "-"],
       ["Verification", payload.verification_result ? "returned" : "-"],
@@ -348,14 +383,31 @@ const handleStreamEvent = (event: RuntimeQueryStreamEvent) => {
 };
 
 const loadBootstrap = async () => {
-  const [repositoryPayload, toolPayload] = await Promise.all([
+  const [repositoryPayload, toolPayload, workflowPayload] = await Promise.all([
     listRepositories(),
     listTools(),
+    listWorkflows(),
   ]);
   repositories = repositoryPayload.repositories;
+  workflows = workflowPayload.workflows;
   renderRepositoryOptions(repositories);
+  renderWorkflowOptions(workflows);
   renderTools(toolPayload.tools);
 };
+
+repositoryEl?.addEventListener("change", () => {
+  if (!(workflowEl instanceof HTMLSelectElement)) return;
+  const selectedRepository =
+    repositories.find((item) => item.id === (repositoryEl.value || "")) ?? null;
+  if (!selectedRepository?.workflow_name) {
+    workflowEl.value = "";
+    return;
+  }
+  const matched = workflows.find(
+    (item) => item.name === selectedRepository.workflow_name,
+  );
+  workflowEl.value = matched?.name ?? "";
+});
 
 formEl?.addEventListener("submit", async (event) => {
   event.preventDefault();

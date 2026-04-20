@@ -179,3 +179,70 @@ def test_runtime_query_allows_missing_repository_scope() -> None:
     query_mock.assert_awaited_once()
     assert query_mock.await_args.kwargs["repo_path"] is None
     assert query_mock.await_args.kwargs["repo_id"] is None
+
+
+def test_runtime_query_executes_safe_memory_action_before_query_fallback() -> None:
+    store = AsyncMock(spec=IOperationalStore)
+    context = AdminRouteContext.build(config=Settings(), store=store, cache=None)
+    app = Starlette(routes=build_runtime_routes(context))
+    app.state.config = Settings()
+    client = TestClient(app)
+    admin_id = uuid.uuid4()
+
+    with patch(
+        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+        new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
+    ), patch(
+        "minder.presentation.http.admin.runtime.MemoryTools.minder_memory_store",
+        new=AsyncMock(return_value={"id": "memory-1", "title": "Release note"}),
+    ) as memory_store_mock, patch(
+        "minder.presentation.http.admin.runtime.QueryTools.minder_query",
+        new=AsyncMock(),
+    ) as query_mock:
+        response = client.post(
+            "/api/v1/runtime/query",
+            json={
+                "query": 'create memory title "Release note" content "Ship phase 6 safely" tags "release,phase6"',
+            },
+        )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["edge"] == "agent_tool_executed"
+    assert payload["agent_actions"][0]["tool"] == "minder_memory_store"
+    assert payload["answer"] == "Created memory 'Release note' with id memory-1."
+    query_mock.assert_not_awaited()
+    memory_store_mock.assert_awaited_once()
+
+
+def test_runtime_query_stream_executes_safe_session_action() -> None:
+    store = AsyncMock(spec=IOperationalStore)
+    context = AdminRouteContext.build(config=Settings(), store=store, cache=None)
+    app = Starlette(routes=build_runtime_routes(context))
+    app.state.config = Settings()
+    client = TestClient(app)
+    admin_id = uuid.uuid4()
+
+    with patch(
+        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+        new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
+    ), patch(
+        "minder.presentation.http.admin.runtime.SessionTools.minder_session_cleanup",
+        new=AsyncMock(return_value={"deleted_sessions": 2, "deleted_history": 4}),
+    ) as cleanup_mock, patch(
+        "minder.presentation.http.admin.runtime.QueryTools.minder_query_stream",
+        new=AsyncMock(),
+    ) as query_stream_mock:
+        response = client.post(
+            "/api/v1/runtime/query/stream",
+            json={
+                "query": "cleanup expired sessions",
+            },
+        )
+
+    assert response.status_code == 200
+    lines = [line for line in response.text.splitlines() if line.strip()]
+    assert any('"type": "final"' in line for line in lines)
+    assert any("minder_session_cleanup" in line for line in lines)
+    cleanup_mock.assert_awaited_once_with(user_id=admin_id)
+    query_stream_mock.assert_not_called()

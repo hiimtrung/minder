@@ -1,39 +1,39 @@
 {
-  "task": "README refactor for modern, premium technical branding",
+  "task": "skill pack import dedup skill search modal scroll",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-20T09:16:52.574697+07:00",
+  "resolved_at": "2026-04-20T11:02:08.182788+07:00",
   "keep": [],
   "add": [
-    "ui-ux-pro-max",
-    "viral-generator-builder",
-    "brand"
+    "skill-sentinel",
+    "evolution",
+    "copilot-sdk"
   ],
   "drop": [
-    "find-bugs",
-    "agentic-actions-auditor",
-    "claude-settings-audit"
+    "agent-orchestrator",
+    "radix-ui-design-system",
+    "agent-manager-skill"
   ],
   "skills": [
     {
-      "name": "ui-ux-pro-max",
-      "category": "frontend",
-      "score": 0.016393442,
-      "chunk_count": 3,
-      "reason": "added: fallback skill for low-confidence coverage"
-    },
-    {
-      "name": "viral-generator-builder",
+      "name": "skill-sentinel",
       "category": "general",
-      "score": 0.016129032,
+      "score": 0.016393442,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "brand",
-      "category": "frontend",
+      "name": "evolution",
+      "category": "general",
+      "score": 0.016129032,
+      "chunk_count": 3,
+      "reason": "added: fallback skill for low-confidence coverage"
+    },
+    {
+      "name": "copilot-sdk",
+      "category": "general",
       "score": 0.015873017,
-      "chunk_count": 4,
+      "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }
   ]

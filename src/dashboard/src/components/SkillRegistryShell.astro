@@ -95,7 +95,7 @@ import GuideAside from "./ui/GuideAside.astro";
 
           <div
             id="skill-source-summary"
-            class="hidden rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600"
+            class="hidden rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3 text-sm text-stone-600 truncate"
           >
           </div>
 
@@ -123,20 +123,92 @@ import GuideAside from "./ui/GuideAside.astro";
           <FormStatus id="skill-editor-status" />
         </form>
       </aside>
+    </div>
 
-      <aside class="shell-card p-6">
-        <p class="eyebrow">Import</p>
-        <h2
-          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+    <div class="flex flex-col gap-5">
+      <div
+        id="skill-import-job-summary"
+        class="hidden rounded-3xl border border-amber-200 bg-amber-50/80 px-5 py-4 text-sm text-amber-900"
+      >
+      </div>
+
+      <Toolbar
+        idPrefix="skill"
+        title="Registry"
+        description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
+        searchPlaceholder="Semantic quick search skills"
+      >
+        <Button slot="leading" id="skill-refresh-button" size="sm">
+          Refresh list
+        </Button>
+        <Button
+          slot="leading"
+          id="skill-open-import-modal"
+          size="sm"
+          variant="primary"
         >
-          Import skill pack from Git
-        </h2>
-        <p class="mt-2 text-sm leading-6 text-stone-600">
-          Pull supported markdown, text, or JSON skill documents from GitHub,
-          GitLab, or a generic Git source and upsert them into the registry.
-        </p>
+          Import from Git
+        </Button>
+      </Toolbar>
 
-        <form id="skill-import-form" class="mt-5 grid gap-4">
+      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div id="skill-registry" class="grid gap-4">
+          <article class="u-placeholder-card">Loading skills...</article>
+        </div>
+
+        <GuideAside eyebrow="Ingest Guide" title="What makes a good skill">
+          <p>
+            Write a single reusable pattern per skill. Keep it operational and
+            specific to a workflow step or artifact outcome.
+          </p>
+          <p>
+            Use workflow steps to guide recall ranking, artifact types to bind
+            the skill to expected outputs, and provenance to show where it came
+            from.
+          </p>
+          <p>
+            Quality score is a soft confidence signal. Higher values push the
+            skill up when semantic similarity is close.
+          </p>
+          <p>
+            Imported skill packs upsert by source metadata so rerunning an
+            import updates the same skill set instead of multiplying duplicates.
+          </p>
+        </GuideAside>
+      </section>
+    </div>
+  </section>
+
+  <dialog
+    id="skill-import-modal"
+    class="m-auto w-[min(960px,calc(100vw-2rem))] max-h-[min(88vh,920px)] max-w-[960px] overflow-hidden rounded-[32px] border border-stone-200 bg-[rgba(255,252,245,0.98)] p-0 text-stone-900 shadow-[0_36px_120px_rgba(28,25,23,0.22)] backdrop:bg-stone-950/45"
+  >
+    <div
+      class="grid max-h-[min(88vh,920px)] min-h-0 gap-0 lg:grid-cols-[minmax(0,1fr)_320px]"
+    >
+      <section
+        class="min-h-0 overflow-y-auto p-6 sm:p-7 max-h-[min(88vh,920px)] overflow-auto"
+      >
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="eyebrow">Async Import Job</p>
+            <h2
+              class="font-display mt-2 text-2xl font-semibold tracking-tight text-stone-950"
+            >
+              Import skill pack from Git
+            </h2>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
+              Queue a background job, watch progress stream live, and reopen
+              this modal after a page reload without losing the persisted job
+              state.
+            </p>
+          </div>
+          <Button id="skill-close-import-modal" size="sm" variant="ghost">
+            Close
+          </Button>
+        </div>
+
+        <form id="skill-import-form" class="mt-6 grid gap-4">
           <Field label="Repository URL" htmlFor="skill-import-repo-url">
             <Input
               id="skill-import-repo-url"
@@ -173,53 +245,54 @@ import GuideAside from "./ui/GuideAside.astro";
             </Field>
           </div>
 
-          <Button type="submit" variant="primary" fullWidth>
-            Import skill pack
-          </Button>
+          <div
+            id="skill-import-active-job"
+            class="hidden rounded-2xl border border-stone-200 bg-white/80 px-4 py-4"
+          >
+          </div>
+
+          <div class="flex flex-wrap gap-3">
+            <Button
+              type="submit"
+              variant="primary"
+              class="flex-1 min-w-[220px]"
+            >
+              Queue import job
+            </Button>
+            <Button
+              id="skill-open-observability"
+              href="/dashboard/observability"
+              size="sm"
+              variant="ghost"
+            >
+              Open observability
+            </Button>
+          </div>
           <FormStatus id="skill-import-status" />
         </form>
+      </section>
+
+      <aside
+        class="min-h-0 overflow-y-auto border-t border-stone-200 bg-stone-950 px-5 py-6 text-stone-100 lg:border-l lg:border-t-0"
+      >
+        <p class="eyebrow text-stone-300">Recent jobs</p>
+        <p class="mt-2 text-sm leading-6 text-stone-300">
+          Recent import jobs stay visible here and on observability even if you
+          reload the page.
+        </p>
+        <div
+          id="skill-import-job-list"
+          class="mt-5 grid max-h-[min(52vh,560px)] gap-3 overflow-x-hidden overflow-y-auto"
+        >
+          <div
+            class="break-words rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-sm text-stone-400"
+          >
+            No import jobs yet.
+          </div>
+        </div>
       </aside>
     </div>
-
-    <div class="grid gap-5">
-      <Toolbar
-        idPrefix="skill"
-        title="Registry"
-        description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
-        searchPlaceholder="Semantic quick search skills"
-      >
-        <Button slot="leading" id="skill-refresh-button" size="sm">
-          Refresh list
-        </Button>
-      </Toolbar>
-
-      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div id="skill-registry" class="grid gap-4">
-          <article class="u-placeholder-card">Loading skills...</article>
-        </div>
-
-        <GuideAside eyebrow="Ingest Guide" title="What makes a good skill">
-          <p>
-            Write a single reusable pattern per skill. Keep it operational and
-            specific to a workflow step or artifact outcome.
-          </p>
-          <p>
-            Use workflow steps to guide recall ranking, artifact types to bind
-            the skill to expected outputs, and provenance to show where it came
-            from.
-          </p>
-          <p>
-            Quality score is a soft confidence signal. Higher values push the
-            skill up when semantic similarity is close.
-          </p>
-          <p>
-            Imported skill packs upsert by source metadata so rerunning an
-            import updates the same skill set instead of multiplying duplicates.
-          </p>
-        </GuideAside>
-      </section>
-    </div>
-  </section>
+  </dialog>
 
   <script src="../scripts/skills-page.ts"></script>
 </DashboardLayout>

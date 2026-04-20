@@ -411,6 +411,24 @@ class IClientRepository(Protocol):
     ) -> dict[str, int]: ...
 
 
+@runtime_checkable
+class IAdminJobRepository(Protocol):
+    async def create_admin_job(self, **kwargs: Any) -> Any: ...
+    async def get_admin_job_by_id(self, job_id: uuid.UUID) -> Any | None: ...
+    async def list_admin_jobs(
+        self,
+        *,
+        job_type: str | None = None,
+        status: str | None = None,
+        requested_by_user_id: uuid.UUID | None = None,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[Any]: ...
+    async def update_admin_job(
+        self, job_id: uuid.UUID, **kwargs: Any
+    ) -> Any | None: ...
+
+
 # ---------------------------------------------------------------------------
 # Cache Provider (for Redis)
 # ---------------------------------------------------------------------------
@@ -479,6 +497,7 @@ class IOperationalStore(
     IRuleRepository,
     IFeedbackRepository,
     IClientRepository,
+    IAdminJobRepository,
     Protocol,
 ):
     """

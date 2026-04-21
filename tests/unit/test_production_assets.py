@@ -11,7 +11,7 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     full_compose = Path("docker/docker-compose.full.yml").read_text()
     dockerignore = Path(".dockerignore").read_text()
 
-    assert "FROM python:3.14-slim AS api-builder" in api_dockerfile
+    assert "FROM python:3.13-slim AS api-builder" in api_dockerfile
     assert "UV_PROJECT_ENVIRONMENT=/app/.venv" in api_dockerfile
     assert "uv sync --frozen --extra server --no-dev --no-install-project --no-editable" in api_dockerfile
     assert "COPY --from=api-builder /app/.venv /app/.venv" in api_dockerfile

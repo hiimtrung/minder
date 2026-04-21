@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "minder-cli"
-version = "0.2.2"
+version = "0.2.3"
 description = "Minder CLI is the command-line interface for the Minder self-hosted MCP platform."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.13"
 keywords = ["mcp", "cli", "ai", "code-search", "workflow"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -15,7 +15,7 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [

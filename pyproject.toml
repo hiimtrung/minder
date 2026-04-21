@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "minder-cli"
 version = "0.2.0"
-description = "Minder is an AI MCP server for manage your LLM flow development and memory of AI agent."
+description = "Minder CLI is the command-line interface for the Minder self-hosted MCP platform."
 readme = "README.md"
 requires-python = ">=3.14"
 keywords = ["mcp", "cli", "ai", "code-search", "workflow"]
@@ -13,7 +13,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",

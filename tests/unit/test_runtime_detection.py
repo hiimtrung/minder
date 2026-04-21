@@ -3,9 +3,7 @@ import pytest
 import minder.graph.executor as executor_module
 import minder.graph.graph as graph_module
 import minder.graph.runtime as graph_runtime_module
-import minder.llm.local as local_llm_module
 import minder.llm.openai as openai_module
-import minder.embedding.local as local_embedding_module
 from minder.config import MinderConfig
 from minder.graph.executor import (
     GraphNodes,
@@ -25,7 +23,6 @@ from minder.graph.nodes import (
 )
 from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
-from minder.embedding.local import LocalEmbeddingProvider
 from minder.llm.local import LocalModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.relational import RelationalStore

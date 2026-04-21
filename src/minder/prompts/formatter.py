@@ -118,7 +118,7 @@ Make the prompt direct, structured, and useful for a coding workflow.
     if not parsed:
         return polished, {
             "provider": "heuristic",
-            "model": config.llm.model_name,
+            "model": config.llm.ollama_model,
             "runtime": runtime,
         }
 

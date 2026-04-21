@@ -312,7 +312,7 @@ class ContinuitySynthesizer:
         if not parsed:
             return fallback, {
                 "provider": "heuristic",
-                "model": self._config.llm.model_name,
+                "model": self._config.llm.ollama_model,
                 "runtime": self._llm.runtime,
             }
         return {

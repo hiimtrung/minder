@@ -1,38 +1,38 @@
 {
-  "task": "pytest timeout CI hardening python",
+  "task": "github actions release workflow",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-20T13:27:24.868701+07:00",
-  "keep": [
-    "temporal-python-testing"
-  ],
+  "resolved_at": "2026-04-21T16:42:13.709516+07:00",
+  "keep": [],
   "add": [
+    "bash-pro",
+    "cicd-automation-workflow-automate",
+    "makepad-deployment"
+  ],
+  "drop": [
+    "temporal-python-testing",
     "python-testing-patterns",
     "python-patterns"
   ],
-  "drop": [
-    "kotlin-coroutines-expert",
-    "test-driven-development"
-  ],
   "skills": [
     {
-      "name": "temporal-python-testing",
+      "name": "bash-pro",
       "category": "general",
-      "score": 0.016393442,
-      "chunk_count": 5,
-      "reason": "kept active: still relevant after re-resolve"
+      "score": 0.028588565,
+      "chunk_count": 2,
+      "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "python-testing-patterns",
+      "name": "cicd-automation-workflow-automate",
       "category": "general",
-      "score": 0.016129032,
+      "score": 0.024325754,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "python-patterns",
+      "name": "makepad-deployment",
       "category": "general",
-      "score": 0.015384615,
+      "score": 0.01971362,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     }

@@ -1,95 +1,93 @@
 {
   "mode": "search",
-  "query": "test_setup_wizard hang timeout",
+  "query": "release workflow quick start notes",
   "limit": 5,
   "include_stale": false,
   "history": false,
-  "searched_at": "2026-04-20T13:16:49.465423+07:00",
+  "searched_at": "2026-04-21T16:42:17.202963+07:00",
   "results": [
     {
-      "id": "170511a6-e189-4d9b-903b-11b52c95b7ec",
-      "title": "Paused Phase 01.1 smoke coverage work",
+      "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
+      "title": "README + CLI docs + dashboard-plan cleanup",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:paused-phase-01-1-smoke-coverage-work",
+      "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
       "score": 0.086393446,
       "tags": [
-        "pause",
-        "gsd",
-        "phase-01.1",
-        "testing",
-        "frontend"
+        "coder-cli",
+        "docs",
+        "readme",
+        "cleanup"
       ],
       "conflict_detected": false,
-      "content": "Paused rental-management-ui during Phase 01.1 Plan 01.1-03 after creating a WIP checkpoint commit. Added Vitest as the minimal smoke-test runner, created vitest.config.ts and a yarn test script, drafted shared API/session smoke tests under src/lib/api/__tests__/client.test.ts and src/lib/auth/__tests__/session.test.ts, patched src/lib/api/client.ts so protected 401 responses clear the stored access token, and wrote .planning/HANDOFF.json plus .planning/phases/01.1-api-integration-contract-and-typed-data-layer/.continue-here.md for resume context. The work is intentionally paused before running yarn test, so the next action is to run the new test suite, fix any mocking or assertion failures, then continue with contract-gap TODOs and final lint/build verification."
+      "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
     },
     {
-      "id": "91cf6885-b9d9-4de2-acd1-0fcdc1444396",
-      "title": "Closed Phase 3 with acceptance gate and runtime-safe test fixes",
+      "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
+      "title": "Docs refactor: split progress trackers by phase",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:closed-phase-3-with-acceptance-gate-and-runtime-safe-test-fixes",
+      "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
       "score": 0.086129025,
       "tags": [
         "minder",
-        "phase3",
-        "acceptance-gate",
-        "retrieval",
-        "graph",
-        "ingest",
-        "server",
-        "testing"
+        "docs",
+        "progress",
+        "tracking",
+        "architecture"
       ],
       "conflict_detected": false,
-      "content": "Implemented tests/integration/test_phase3_gate.py to close Minder Phase 3. The gate verifies multi-hop cross-references across code and docs, hybrid retrieval MRR improvement, knowledge-graph repo relationships, real local git-repo ingestion, MCP resources/prompts, and graph-enriched workflow guidance. Also fixed a latent mypy issue in code_splitter, changed server runtime_summary to avoid probing llama_cpp at boot, switched stdio startup to FastMCP's async runner, and made SSE round-trip skip when sandbox policy forbids localhost bind. Verified with ruff, mypy, and full pytest: 233 passed, 14 skipped."
+      "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
     },
     {
-      "id": "515d0256-4586-49f6-b6e8-32a069cb325a",
-      "title": "CLI runtime coverage for MCP paths and sync post",
+      "id": "f7f25b0e-0726-41b5-9d7f-64d890a0e091",
+      "title": "Archived milestone v1.0 with planning compaction",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:cli-runtime-coverage-for-mcp-paths-and-sync-post",
+      "canonical_key": "document:archived-milestone-v1-0-with-planning-compaction",
       "score": 0.08587302,
       "tags": [
-        "minder",
-        "python",
-        "cli",
-        "testing",
-        "mcp"
+        "milestone",
+        "archive",
+        "v1.0",
+        "planning"
       ],
       "conflict_detected": false,
-      "content": "Expanded tests/unit/test_cli.py to validate cross-platform global MCP config paths for macOS/Linux/Windows and the non-dry-run minder sync HTTP POST path with captured URL, headers, timeout, payload, and response output. No runtime code changes were needed because the existing CLI behavior passed the added coverage."
+      "content": "Completed the v1.0 milestone archival workflow by creating .planning/milestones/v1.0-ROADMAP.md and v1.0-REQUIREMENTS.md, collapsing ROADMAP.md to an archived-milestones index, deleting the root REQUIREMENTS.md, evolving PROJECT.md to post-ship state, updating STATE.md to milestone archived, committing as chore: archive v1.0 milestone, and tagging the repo with v1.0. This is the handoff point before starting a fresh requirements file for the next milestone."
     },
     {
-      "id": "f736122c-ef95-479f-901b-8e6ea2bb58e3",
-      "title": "Stabilize continuity recall unit test against local_llm phrasing",
+      "id": "4bc6707e-c67c-4152-8a90-d2e860fbc87c",
+      "title": "Phase 1 task breakdown audit",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:stabilize-continuity-recall-unit-test-against-local-llm-phrasing",
+      "canonical_key": "document:phase-1-task-breakdown-audit",
       "score": 0.08562499,
       "tags": [
-        "testing",
-        "continuity",
-        "memory-recall",
-        "flake"
+        "docs",
+        "planning",
+        "phase1",
+        "audit",
+        "deployment",
+        "workflow"
       ],
       "conflict_detected": false,
-      "content": "Fixed flaky assertion in tests/unit/test_continuity_tools.py by replacing hard-coded recall_summary phrase check ('Top recalled memories') with stable non-empty string assertions. This keeps behavior checks focused on ranking and compatibility while supporting local_llm and heuristic synthesizer outputs."
+      "content": "Audited docs/TASK_BREAKDOWN.md against the actual minder repository state. Added a Phase 1 implementation audit, a per-task status map, a current runnable local flow section, and an explicit closure checklist. Key finding: Phase 1 is still open despite strong foundation code. Missing or partial areas are MCP transports (SSE/stdio), repo-local .minder state, standalone workflow/memory/auth/session tool modules, bootstrap scripts, docker development stack, GitHub Actions CI/release workflows, and tests/integration/test_phase1_gate.py. Also removed a stale reference to docs/PHASE2_MANUAL_TEST.md because that file does not exist in the workspace."
     },
     {
-      "id": "480bcc8b-5999-45dc-83f1-24374fe8d109",
-      "title": "Phase 1 - Tasks 01 to 03 Implementation",
+      "id": "f37b2634-98bd-42ef-95b4-06e7c43c6ec9",
+      "title": "Docs cleanup and dynamic skill retrieval plan",
       "type": "document",
       "status": "active",
-      "canonical_key": "document:phase-1-tasks-01-to-03-implementation",
+      "canonical_key": "document:docs-cleanup-and-dynamic-skill-retrieval-plan",
       "score": 0.08538462,
       "tags": [
-        "phase1",
-        "config",
-        "models"
+        "docs",
+        "skills",
+        "planning",
+        "roadmap"
       ],
       "conflict_detected": false,
-      "content": "Completed initialization with uv, Pydantic configuration, and SQLAlchemy models for User, Skill, Session, Workflow, Repository, History, Error, Document, Rule, Feedback. Set up pytest tests."
+      "content": "Cleaned the core docs so README, docs/GUIDE.md, docs/cli.md, and the coder-cli skill now reflect the current command surface from cmd/coder/main.go and explicitly label roadmap-only commands as future design. Added docs/dynamic_skill_retrieval_plan.md proposing a phased upgrade: structured skill output for LLMs, a server-side skill resolver, session-scoped active skills, re-resolve triggers during work, and context budgeting so agents can fetch and swap skills mid-task instead of locking retrieval at submit time."
     }
   ]
 }

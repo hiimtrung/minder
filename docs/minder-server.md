@@ -29,13 +29,13 @@ flowchart TB
 
 ### Why Ollama instead of in-process inference?
 
-| Aspect | In-process (Ollama-python) | Ollama (current) |
-| --- | --- | --- |
-| Docker build time | 30+ min (ARM emulation) | ~2 min |
-| Multi-platform | ❌ Frequent build failures | ✅ amd64 + arm64 |
-| GPU acceleration | Manual CMake flags | Automatic (Metal/CUDA) |
-| Image size | ~3 GB | ~500 MB |
-| Model management | Mount GGUF files into container | `ollama pull` on host |
+| Aspect            | In-process (Ollama-python)      | Ollama (current)       |
+| ----------------- | ------------------------------- | ---------------------- |
+| Docker build time | 30+ min (ARM emulation)         | ~2 min                 |
+| Multi-platform    | ❌ Frequent build failures      | ✅ amd64 + arm64       |
+| GPU acceleration  | Manual CMake flags              | Automatic (Metal/CUDA) |
+| Image size        | ~3 GB                           | ~500 MB                |
+| Model management  | Mount GGUF files into container | `ollama pull` on host  |
 
 ### Runtime Layers
 
@@ -74,16 +74,16 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 
 The install script does this automatically, but you can also install manually:
 
-| OS | Command |
-| --- | --- |
-| macOS | `brew install ollama` or [download app](https://ollama.com/download) |
-| Linux | `curl -fsSL https://ollama.com/install.sh \| sh` |
-| Windows | `winget install Ollama.Ollama` |
+| OS      | Command                                                              |
+| ------- | -------------------------------------------------------------------- |
+| macOS   | `brew install ollama` or [download app](https://ollama.com/download) |
+| Linux   | `curl -fsSL https://ollama.com/install.sh \| sh`                     |
+| Windows | `winget install Ollama.Ollama`                                       |
 
 #### 2) Pull models
 
 ```bash
-ollama pull gemma3:4b
+ollama pull gemma4:e4b
 ollama pull embeddinggemma
 ```
 
@@ -128,7 +128,7 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | --- | --- | --- |
 | `MINDER_SERVER__PORT` | `8800` | HTTP listen port |
 | `MINDER_LLM__OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `MINDER_LLM__OLLAMA_MODEL` | `gemma3:4b` | LLM model name |
+| `MINDER_LLM__OLLAMA_MODEL` | `gemma4:e4b` | LLM model name |
 | `MINDER_EMBEDDING__OLLAMA_URL` | `http://localhost:11434` | Ollama embedding endpoint |
 | `MINDER_EMBEDDING__OLLAMA_MODEL` | `embeddinggemma` | Embedding model name |
 | `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |
@@ -155,3 +155,4 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 - [Admin & Client Onboarding](guides/admin-client-onboarding.md)
 - [Production Deployment](guides/production-deployment.md)
 - [System Design](system-design.md)
+```

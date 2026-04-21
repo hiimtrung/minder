@@ -42,7 +42,7 @@ class EmbeddingConfig(BaseModel):
 class LLMConfig(BaseModel):
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma3:4b"
+    ollama_model: str = "gemma4:e4b"
     context_length: int = 131072
     temperature: float = 0.1
     openai_api_key: Optional[str] = None

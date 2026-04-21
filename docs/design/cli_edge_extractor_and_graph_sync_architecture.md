@@ -20,7 +20,7 @@ The system is organized into three pillars:
 - Minder Server: the central graph, semantic search, and orchestration engine
 - Minder Dashboard: an Astro shell with interactive graph and environment-management surfaces
 
-This change preserves the metadata-first graph policy while improving ingestion latency and reducing server-side model cost. It also separates structural extraction from semantic reasoning: embeddings stay in a dedicated embedding layer, while Gemma 4 remains the reasoning model used through LangGraph.
+This change preserves the metadata-first graph policy while improving ingestion latency and reducing server-side model cost. It also separates structural extraction from semantic reasoning: embeddings stay in a dedicated embedding layer, while Gemma 3/4 remains the reasoning model used through LangGraph.
 
 ---
 
@@ -34,7 +34,7 @@ flowchart LR
     Server --> Mongo["MongoDB\nStructural Graph + Env Mapping"]
     Server --> Milvus["Milvus\nSemantic Index"]
     Server --> LangGraph["LangGraph Orchestration"]
-    LangGraph --> Gemma["Gemma 4\nReasoning"]
+    LangGraph --> Gemma["Gemma 3/4\nReasoning"]
     Server --> Dashboard["Astro Dashboard\nReact Islands"]
     Dashboard --> Server
 ```
@@ -82,8 +82,8 @@ Dual-storage strategy:
 AI pipeline:
 
 - LangGraph orchestrates ingestion follow-up, retrieval, impact analysis, and reasoning flows
-- Gemma 4 reasons over graph context, semantic hits, and workflow state
-- a dedicated embedding model produces vectors for Milvus; Gemma 4 is not the embedding engine
+- Gemma 3/4 reasons over graph context, semantic hits, and workflow state
+- a dedicated embedding model produces vectors for Milvus; Gemma 3/4 is not the embedding engine
 
 ### Phase 3: Minder MCP Server
 
@@ -129,7 +129,7 @@ Deployment summary:
 | --------------- | --------------------------------------------------- |
 | `minder-cli`    | PyPI package installed on developer machines        |
 | Minder Server   | Docker Compose locally or private cloud deployment  |
-| Gemma 4 runtime | Local GPU or containerized inference runtime        |
+| Gemma 3/4 runtime | Local GPU or containerized inference runtime        |
 | Dashboard       | Docker or managed static/app hosting with CI deploy |
 
 ---
@@ -145,7 +145,7 @@ Deployment summary:
 
 ### Adjustments Applied
 
-- Gemma 4 is documented as the reasoning model, not the primary embedding model
+- Gemma 3/4 is documented as the reasoning model, not the primary embedding model
 - SSE is kept as the baseline real-time channel because it aligns with the current transport posture and is simpler than mandatory WebSockets
 - sub-second sync is treated as a target for small or medium diffs, not an unconditional guarantee across all repositories
 

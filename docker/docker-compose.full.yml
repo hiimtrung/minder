@@ -30,7 +30,7 @@ services:
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       MINDER_EMBEDDING__PROVIDER: ollama
       MINDER_EMBEDDING__OLLAMA_URL: http://host.docker.internal:11434
-      MINDER_EMBEDDING__OLLAMA_MODEL: nomic-embed-text
+      MINDER_EMBEDDING__OLLAMA_MODEL: embeddinggemma
       MINDER_LLM__PROVIDER: ollama
       MINDER_LLM__OLLAMA_URL: http://host.docker.internal:11434
       MINDER_LLM__OLLAMA_MODEL: gemma3:4b

@@ -23,7 +23,7 @@ Required policy:
 
 - persist files, functions, controllers, routes, queue topics, producers, consumers, and dependency edges as metadata-rich nodes and edges
 - store signatures, paths, route patterns, broker/topic names, ownership, and relationship attributes in node metadata
-- do not send full file contents into Gemma 4 for graph construction by default
+- do not send full file contents into Gemma 3/4 for graph construction by default
 - if source text is retained, keep only a bounded reusable excerpt with explicit long-term value
 
 ## LangGraph Nodes

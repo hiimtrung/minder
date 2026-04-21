@@ -375,7 +375,7 @@ When workflow enforcement is enabled for a repository:
 - Every retrieval call must receive workflow context (`workflow_id`, `current_step`, `required_artifacts`)
 - Memory and skill ranking must include step-compatibility scoring
 - Session restore must include the latest validated instruction envelope
-- Gemma 4 local synthesis output must be scoped to the current step and blocked actions
+- Gemma 3/4 local synthesis output must be scoped to the current step and blocked actions
 
 ---
 
@@ -399,9 +399,9 @@ default_admin_email = "${MINDER_ADMIN_EMAIL}"
 
 [embedding]
 provider = "ollama"
-model_name = "nomic-embed-text"
+model_name = "embeddinggemma"
 ollama_url = "http://localhost:11434"
-ollama_model = "nomic-embed-text"
+ollama_model = "embeddinggemma"
 dimensions = 768
 openai_api_key = "${OPENAI_API_KEY}"
 openai_model = "text-embedding-3-small"

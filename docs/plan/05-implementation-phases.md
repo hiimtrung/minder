@@ -9,11 +9,11 @@
 | Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine                |
 | Vector DB          | Milvus Lite to Milvus Standalone                    | Lightweight start with scale path                  |
 | Relational DB      | SQLite to PostgreSQL                                | Metadata, users, sessions, and audit               |
-| Embedding          | `ggml-org/embeddinggemma-300M-GGUF` GGUF, mandatory | Offline-first, optimized for `llama.cpp`           |
-| Embedding runtime  | `llama.cpp` via `llama-cpp-python`                  | Shared local inference runtime                     |
+| Embedding          | `ggml-org/embeddinggemma-300M-GGUF` GGUF, mandatory | Offline-first, optimized for `Ollama`           |
+| Embedding runtime  | `Ollama` via `Ollama-python`                  | Shared local inference runtime                     |
 | Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback                            |
 | LLM                | `ggml-org/gemma-4-E2B-it-GGUF` GGUF, mandatory      | Offline-first, CPU-friendly                        |
-| LLM runtime        | `llama.cpp` via `llama-cpp-python`                  | Native GGUF runtime                                |
+| LLM runtime        | `Ollama` via `Ollama-python`                  | Native GGUF runtime                                |
 | LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                             |
 | Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                         |
 | Chunking           | LangChain text splitters plus custom code chunking  | Proven chunking patterns                           |
@@ -55,7 +55,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 2. Implement the auth layer with user model, API keys, JWTs, and RBAC.
 3. Implement SSE transport as the primary transport and stdio for local dev.
 4. Add auth middleware for SSE connections.
-5. Integrate mandatory `ggml-org/embeddinggemma-300M-GGUF` embeddings through `llama-cpp-python`.
+5. Integrate mandatory `ggml-org/embeddinggemma-300M-GGUF` embeddings through `Ollama-python`.
 6. Add optional OpenAI embedding fallback.
 7. Implement Milvus Lite for semantic search.
 8. Implement SQLite metadata storage for users, sessions, workflows, and repo state.
@@ -83,7 +83,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 1. Define LangGraph state.
 2. Build Workflow Planner, Planning, Retriever, Reasoning, LLM, Guard, Verification, and Evaluator nodes.
-3. Integrate mandatory `ggml-org/gemma-4-E2B-it-GGUF` GGUF through `llama-cpp-python`.
+3. Integrate mandatory `ggml-org/gemma-4-E2B-it-GGUF` GGUF through `Ollama-python`.
 4. Add optional OpenAI fallback through LiteLLM.
 5. Implement Docker sandbox verification.
 6. Keep subprocess verification available in dev mode only.

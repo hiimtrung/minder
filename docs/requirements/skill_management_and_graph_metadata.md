@@ -16,7 +16,7 @@ This feature must:
 - let admins create, read, update, and delete skills directly in the Dashboard
 - keep the skill model workflow-aware so skills can be tagged, curated, and reused by step
 - change `GraphNode` handling from source-heavy ingestion to metadata-first ingestion
-- avoid sending full source files into Gemma 4 for graph analysis by default
+- avoid sending full source files into Gemma 3/4 for graph analysis by default
 - allow code excerpts only when they are durable, high-signal, and worth preserving long term
 
 ---
@@ -36,7 +36,7 @@ The current codebase still has product and architecture gaps:
 - skill import is treated as a seeding/bootstrap concern instead of an operator-managed product capability
 - the Dashboard does not expose skill CRUD or external skill-source import flows
 - the documented external-source path is GitHub-specific rather than provider-agnostic
-- the graph/repository-intelligence direction can drift toward full-source ingestion into Gemma 4, which is expensive and low-efficiency for structural analysis
+- the graph/repository-intelligence direction can drift toward full-source ingestion into Gemma 3/4, which is expensive and low-efficiency for structural analysis
 - `GraphNode` policy is not yet explicitly documented as metadata-first
 
 ---
@@ -92,7 +92,7 @@ Then the skill no longer appears in the catalog and is excluded from future reca
 
 **As an** ML / RAG Engineer  
 **I want** graph construction to store structural metadata instead of full source code  
-**So that** Gemma 4 is not forced to analyze large low-signal payloads for topology extraction.
+**So that** Gemma 3/4 is not forced to analyze large low-signal payloads for topology extraction.
 
 **Acceptance Criteria**:
 

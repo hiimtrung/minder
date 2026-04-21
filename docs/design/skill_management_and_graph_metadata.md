@@ -14,7 +14,7 @@ Canonical system reference:
 
 This design promotes skills from a seed-time artifact into a first-class operator-managed catalog. Admins manage reusable skills through the Dashboard and admin APIs, while the backend keeps provenance, workflow-step labels, and quality metadata so skills remain auditable and reusable.
 
-The same design also corrects the repository-intelligence direction for `GraphNode`. The graph path must remain metadata-first: files, functions, controllers, routes, message-queue producers/consumers, and dependency edges are the durable product asset. Full source code is not. Gemma 4 should reason over compact structural metadata plus a small set of curated excerpts when a fragment has long-lived instructional value.
+The same design also corrects the repository-intelligence direction for `GraphNode`. The graph path must remain metadata-first: files, functions, controllers, routes, message-queue producers/consumers, and dependency edges are the durable product asset. Full source code is not. Gemma 3/4 should reason over compact structural metadata plus a small set of curated excerpts when a fragment has long-lived instructional value.
 
 This keeps Clean Architecture intact: Dashboard controllers stay in presentation, orchestration lives in application use cases, persistent contracts live in domain/data models, and Git-provider/graph-store details stay in infrastructure.
 
@@ -309,7 +309,7 @@ Full file contents are explicitly excluded from this schema.
 **Status**: Accepted  
 **Date**: 2026-04-15
 
-**Context**: Using Gemma 4 to analyze full source bodies for graph construction is expensive, noisy, and unnecessary for structural topology.
+**Context**: Using Gemma 3/4 to analyze full source bodies for graph construction is expensive, noisy, and unnecessary for structural topology.
 
 **Decision**: Persist graph nodes and edges as metadata-first structures, with optional bounded reusable excerpts only when they have durable instructional value.
 

@@ -24,7 +24,7 @@ Minder is an MCP-first engineering assistant platform with:
 - operational data in `MongoDB`
 - cache, rate limiting, and client sessions in `Redis`
 - vector search in `Milvus Standalone`
-- local GGUF inference through `llama-cpp-python`
+- LLM and Embedding inference via host-native Ollama (Gemma 3/4)
 
 ## 2. Runtime Architecture
 
@@ -51,15 +51,13 @@ flowchart TB
   Workflow --> Mongo["MongoDB\nStructural Graph + Env Mapping"]
   Workflow --> Redis["Redis"]
   Workflow --> Milvus["Milvus Standalone\nSemantic Index"]
-  Workflow --> Embedder["Embedding Model"]
-  Workflow --> Orchestrator["LangGraph"]
-  Orchestrator --> LLM["Gemma 4 via llama.cpp"]
-  Models["~/.minder/models"] --> LLM
+  Orchestrator --> LLM["Ollama LLM"]
+  Embedder --> OllamaE["Ollama Embedding"]
 ```
 
 ### Review Note
 
-Gemma 4 remains the reasoning model for orchestration and synthesis. The semantic index should continue to use a dedicated embedding model instead of treating Gemma 4 as the primary vector generator.
+Gemma 3/4 remains the reasoning model for orchestration and synthesis. The semantic index should continue to use a dedicated embedding model instead of treating Gemma 3/4 as the primary vector generator.
 
 ## 3. Dashboard Runtime Modes
 
@@ -270,7 +268,7 @@ Primary objective:
 flowchart LR
     ToolCalls["MCP tool calls<br/>workflow/query/code ops"] --> EventLog["Session + memory events"]
     EventLog --> Recall["Top-K memory recall<br/>embedding similarity"]
-    Recall --> Synth["Gemma 4 local synthesis<br/>issue framing + summary + next actions"]
+    Recall --> Synth["Ollama synthesis<br/>issue framing + summary + next actions"]
     Synth --> Brief["Session brief / continuity packet"]
     Brief --> Primary["Primary LLM prompt context"]
     Brief --> Store["Mongo session snapshot + memory artifacts"]
@@ -284,7 +282,7 @@ flowchart LR
 - `minder_session_*` remains the session state primitive:
   - persist active state, context, and working set
   - restore progress deterministically
-- Gemma 4 local acts as a context synthesizer:
+- Ollama acts as a context synthesizer:
   - convert raw recalled items into concise issue-centric summaries
   - highlight unresolved blockers, decisions, and assumptions
   - suggest next valid actions aligned with workflow state
@@ -318,7 +316,7 @@ Required behavior:
 - `minder_memory_recall` filters/ranks by `current_step` compatibility first, then semantic similarity
 - `minder_session_restore` returns both raw state and step-specific continuity brief
 - skill retrieval (new `minder_skill_*` surface) prioritizes skills tagged for the active step/artifact type
-- Gemma 4 local synthesizes a step-scoped brief for the primary LLM, not a generic summary
+- Ollama synthesizes a step-scoped brief for the primary LLM, not a generic summary
 
 This ensures the primary LLM remains aligned with implementation phase and does not drift across large contexts.
 

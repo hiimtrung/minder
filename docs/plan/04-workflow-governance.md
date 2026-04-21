@@ -30,7 +30,7 @@ Once a workflow is configured, Minder must:
 - Suggest the next valid step after each completed step
 - Track step completion and relationships between artifacts
 - Maintain a compact continuity brief so long-running flows survive context-window limits
-- Use local Gemma 4 synthesis to clarify unresolved issues, assumptions, and next actions
+- Use local Gemma 3/4 synthesis to clarify unresolved issues, assumptions, and next actions
 - Generate strict step instructions and enforce them as a hard constraint for the primary LLM
 - Ensure memory/session/skill retrieval is linked to the active workflow step
 
@@ -56,7 +56,7 @@ Minimum instruction envelope:
 For large flows, Minder should run a continuity loop at each major transition:
 
 1. Collect the current workflow state, strict instruction envelope, session state, and top memory/skill candidates.
-2. Synthesize a short step-scoped continuity brief with Gemma 4 local.
+2. Synthesize a short step-scoped continuity brief with Gemma 3/4 local.
 3. Validate suggested next actions against workflow gates and required artifacts.
 4. Persist the brief to session state and memory metadata.
 5. Inject both instruction envelope and continuity brief into the next primary LLM prompt with token budgeting.

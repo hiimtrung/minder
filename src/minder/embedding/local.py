@@ -18,7 +18,7 @@ class LocalEmbeddingProvider:
     def __init__(
         self,
         ollama_url: str = "http://localhost:11434",
-        ollama_model: str = "nomic-embed-text",
+        ollama_model: str = "embeddinggemma",
         dimensions: int = 768,
         runtime: str = "auto",
     ) -> None:

@@ -35,6 +35,7 @@ server = [
     "pydantic>=2.12.5",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
+    "pymilvus>=2.6.14",
     "sqlalchemy[asyncio]>=2.0.48",
     "yarl>=1.15.2",
     "zipp>=3.21.0",

@@ -33,13 +33,20 @@ release-start:
 		echo "Error: You must provide a VERSION, e.g., make release-start VERSION=0.0.1"; \
 		exit 1; \
 	fi; \
+	echo "Running local verification (lint + tests)..."; \
+	make lint test; \
 	CLEAN_VERSION=$$(echo $(VERSION) | sed 's/^v//'); \
 	BRANCH_NAME="chore/release-v$$CLEAN_VERSION"; \
-	echo "Checking out main and pulling latest changes..."; \
+	echo "Checking out main and capturing any local commits into $$BRANCH_NAME..."; \
 	git checkout main; \
-	git pull origin main; \
-	echo "Creating branch $$BRANCH_NAME..."; \
+	git fetch origin main; \
 	git checkout -b $$BRANCH_NAME; \
+	echo "Resetting local main to origin/main..."; \
+	git checkout main; \
+	git reset --hard origin/main; \
+	git checkout $$BRANCH_NAME; \
+	echo "Merging any new changes from origin/main..."; \
+	git pull origin main --rebase; \
 	echo "Updating version to $$CLEAN_VERSION in pyproject.toml..."; \
 	sed -i.bak -e "s/^version = \".*\"/version = \"$$CLEAN_VERSION\"/" pyproject.toml && rm pyproject.toml.bak; \
 	if ! git diff --quiet pyproject.toml; then \

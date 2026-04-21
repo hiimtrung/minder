@@ -134,6 +134,7 @@ docker compose -f docker/docker-compose.yml up -d
 
 ## Documentation Index
 
+- [Development Workflow](guides/development.md)
 - [Local Setup Guide](guides/local-setup.md)
 - [Admin & Client Onboarding](guides/admin-client-onboarding.md)
 - [Production Deployment](guides/production-deployment.md)

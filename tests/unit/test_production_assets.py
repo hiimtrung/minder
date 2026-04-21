@@ -13,13 +13,13 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
 
     assert "FROM python:3.14-slim AS api-builder" in api_dockerfile
     assert "UV_PROJECT_ENVIRONMENT=/app/.venv" in api_dockerfile
-    assert "uv sync --frozen --extra server --no-dev --no-install-project" in api_dockerfile
+    assert "uv sync --frozen --extra server --no-dev --no-install-project --no-editable" in api_dockerfile
     assert "COPY --from=api-builder /app/.venv /app/.venv" in api_dockerfile
     assert 'CMD ["uv", "run", "python", "-m", "minder.server"]' in api_dockerfile
 
     assert "FROM oven/bun:1.2.21 AS dashboard-builder" in dashboard_dockerfile
     assert "COPY src/dashboard/package.json" in dashboard_dockerfile
-    assert "RUN bun install --frozen-lockfile" in dashboard_dockerfile
+    assert "bun install --frozen-lockfile" in dashboard_dockerfile
     assert "RUN bun run build" in dashboard_dockerfile
     assert 'CMD ["node", "dist/server/entry.mjs"]' in dashboard_dockerfile
 

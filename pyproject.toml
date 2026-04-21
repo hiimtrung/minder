@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "minder"
-version = "0.1.0"
+version = "0.1.1"
 description = "Minder is an AI MCP server for manage your LLM flow development and memory of AI agent."
 readme = "README.md"
 requires-python = ">=3.14"

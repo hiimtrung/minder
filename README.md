@@ -72,6 +72,7 @@ minder self-update --component server
 
 ## Related Links
 
+- [Development Workflow](docs/guides/development.md)
 - [Minder Server Setup](docs/minder-server.md)
 - [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md)
 - [Local Setup Guide](docs/guides/local-setup.md)

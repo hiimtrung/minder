@@ -35,7 +35,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: "3.14"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v6
@@ -145,8 +145,8 @@ jobs:
           Install or upgrade the CLI from PyPI:
 
           ```bash
-          uv tool install --upgrade minder
-          # or: pipx install minder
+          uv tool install --upgrade minder-cli
+          # or: pipx install minder-cli
           ```
 
           Bootstrap the current repository for local IDE usage:
@@ -168,33 +168,37 @@ jobs:
           iwr -useb https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1 | iex
           ```
 
-          Both installers will:
+          The installer will automatically:
 
-          - create a self-contained deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
-          - fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
-          - write a local \`.env\` with the release image tags
-          - pull \`ghcr.io/${{ github.repository_owner }}/minder-api:${{ needs.build-dist.outputs.release_tag }}\`
-          - pull \`ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
-          - start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
-          - refresh the \`~/.minder/current\` pointer so \`minder check-update\` and \`minder self-update\` can target the active deployment
+          - Install [Ollama](https://ollama.com) if not present (Linux/macOS/Windows)
+          - Pull required AI models (\`gemma3:4b\` and \`nomic-embed-text\`)
+          - Create a deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
+          - Fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
+          - Start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
 
           Requirements:
 
           - Docker with the Compose plugin
-          - local model files in \`~/.minder/models\`
 
-          Manual compose usage is still available with:
+          Uninstall:
 
-          - \`MINDER_API_IMAGE=ghcr.io/hiimtrung/minder-api:${{ needs.build-dist.outputs.release_tag }}\`
-          - \`MINDER_DASHBOARD_IMAGE=ghcr.io/hiimtrung/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}\`
-          - \`MINDER_MODELS_DIR=~/.minder/models\`
-          - \`docker compose -f docker/docker-compose.yml up -d\`
+          ```bash
+          # Keep Ollama, models, and data volumes:
+          curl -fsSL .../uninstall-minder.sh | bash -s -- --keep-data
 
-          Updating later:
+          # Full removal:
+          curl -fsSL .../uninstall-minder.sh | bash
+          ```
 
-          - \`minder check-update\` shows both CLI and server release deltas
-          - \`minder self-update --component cli\` upgrades the CLI in place
-          - \`minder self-update --component server\` re-runs the matching release installer for the newest tag
+          Update:
+
+          ```bash
+          # Auto-detect latest:
+          curl -fsSL .../update-minder.sh | bash
+
+          # Specific version:
+          curl -fsSL .../update-minder.sh | bash -s -- --tag v0.3.0
+          ```
           EOF
 
       - name: Create GitHub release

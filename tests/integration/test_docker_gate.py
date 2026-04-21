@@ -143,7 +143,10 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(config.llm.model_path, runtime="auto"),
+            primary=LocalModelLLM(
+                ollama_url=config.llm.ollama_url,
+                ollama_model=config.llm.ollama_model,
+            ),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=retry_runner),
@@ -178,7 +181,11 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         store,
         config,
         llm=LLMNode(
-            primary=LocalModelLLM(config.llm.model_path, fail=True),
+            primary=LocalModelLLM(
+                ollama_url=config.llm.ollama_url,
+                ollama_model=config.llm.ollama_model,
+                fail=True,
+            ),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=FakeDockerRunner()),

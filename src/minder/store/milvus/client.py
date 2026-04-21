@@ -5,7 +5,7 @@ Milvus Client — connection wrapper.
 from __future__ import annotations
 
 import asyncio
-from pymilvus import MilvusClient as PyMilvusClient  # type: ignore[import-untyped]
+from pymilvus import MilvusClient as PyMilvusClient  # type: ignore[import-not-found, import-untyped]
 
 
 class MilvusClient:

@@ -135,7 +135,10 @@ async def test_phase2_gate(
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(config.llm.model_path),
+            primary=LocalModelLLM(
+                ollama_url=config.llm.ollama_url,
+                ollama_model=config.llm.ollama_model,
+            ),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key, config.llm.openai_model
             ),
@@ -266,7 +269,10 @@ async def test_minder_query_includes_cross_repo_landscape_context(
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(config.llm.model_path),
+            primary=LocalModelLLM(
+                ollama_url=config.llm.ollama_url,
+                ollama_model=config.llm.ollama_model,
+            ),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key, config.llm.openai_model
             ),

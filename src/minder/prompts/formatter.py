@@ -89,8 +89,8 @@ def polish_prompt_draft(
 
     polished = _heuristic_polish(draft)
     llm = LocalModelLLM(
-        config.llm.model_path,
-        runtime="auto",
+        ollama_url=config.llm.ollama_url,
+        ollama_model=config.llm.ollama_model,
         context_length=config.llm.context_length,
     )
     runtime = llm.runtime
@@ -118,7 +118,7 @@ Make the prompt direct, structured, and useful for a coding workflow.
     if not parsed:
         return polished, {
             "provider": "heuristic",
-            "model": config.llm.model_name,
+            "model": config.llm.ollama_model,
             "runtime": runtime,
         }
 

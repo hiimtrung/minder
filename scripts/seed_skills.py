@@ -32,7 +32,8 @@ async def seed_skills(store: RelationalStore, config: Settings, source: str) -> 
     imported = 0
     skipped = 0
     embedder = LocalEmbeddingProvider(
-        config.embedding.model_path,
+        ollama_url=config.embedding.ollama_url,
+        ollama_model=config.embedding.ollama_model,
         dimensions=min(config.embedding.dimensions, 16),
         runtime="auto",
     )

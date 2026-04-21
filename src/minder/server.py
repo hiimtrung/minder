@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import sys
-from pathlib import Path
 
 from minder.bootstrap.providers import (
     build_cache,
@@ -33,12 +32,13 @@ __all__ = [
 
 def runtime_summary(config: Settings) -> dict[str, object]:
     llm = LocalModelLLM(
-        config.llm.model_path,
-        runtime="auto",
+        ollama_url=config.llm.ollama_url,
+        ollama_model=config.llm.ollama_model,
         context_length=config.llm.context_length,
     )
     embedder = LocalEmbeddingProvider(
-        config.embedding.model_path,
+        ollama_url=config.embedding.ollama_url,
+        ollama_model=config.embedding.ollama_model,
         dimensions=config.embedding.dimensions,
         runtime="auto",
     )
@@ -53,10 +53,14 @@ def runtime_summary(config: Settings) -> dict[str, object]:
         "orchestration_runtime_effective": graph_runtime_name(
             config.workflow.orchestration_runtime
         ),
-        "llm_model_path": str(Path(config.llm.model_path).expanduser()),
+        "llm_provider": config.llm.provider,
+        "llm_ollama_url": config.llm.ollama_url,
+        "llm_ollama_model": config.llm.ollama_model,
         "llm_runtime_effective": llm.runtime,
         "llm_context_length": config.llm.context_length,
-        "embedding_model_path": str(Path(config.embedding.model_path).expanduser()),
+        "embedding_provider": config.embedding.provider,
+        "embedding_ollama_url": config.embedding.ollama_url,
+        "embedding_ollama_model": config.embedding.ollama_model,
         "embedding_runtime_effective": embedder.runtime,
         "openai_fallback_configured": fallback.available(),
         "openai_fallback_runtime_effective": fallback.runtime,

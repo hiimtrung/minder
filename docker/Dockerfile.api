@@ -1,4 +1,4 @@
-FROM python:3.13-slim AS api-builder
+FROM python:3.14-slim AS api-builder
 
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
@@ -8,7 +8,7 @@ ENV PYTHONPATH=/app/src
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends build-essential cmake ca-certificates \
+    && apt-get install -y --no-install-recommends ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 RUN --mount=type=cache,target=/root/.cache/pip \
@@ -16,11 +16,11 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --extra server --no-dev --no-install-project --no-editable
+    uv sync --frozen --no-dev --no-install-project --no-editable
 
 COPY README.md minder.toml /app/
 
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv

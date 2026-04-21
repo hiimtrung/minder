@@ -206,7 +206,12 @@ async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: 
     _, repo_id, _session_id = await _seed_phase3_context(store, orders_dir)
 
     vector_store = VectorStore(store, store)
-    embedder = LocalEmbeddingProvider(config.embedding.model_path, dimensions=16, runtime="mock")
+    embedder = LocalEmbeddingProvider(
+        ollama_url=config.embedding.ollama_url,
+        ollama_model=config.embedding.ollama_model,
+        dimensions=16,
+        runtime="mock",
+    )
     ingest = IngestTools(store, embedder, vector_store=vector_store)
 
     # 1. Ingestion pipeline processes a real repository.

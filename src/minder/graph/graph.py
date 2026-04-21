@@ -58,7 +58,8 @@ class MinderGraph:
         self._planning = planning or PlanningNode()
         vector_store = VectorStore(store, store)
         embedder = LocalEmbeddingProvider(
-            config.embedding.model_path,
+            ollama_url=config.embedding.ollama_url,
+            ollama_model=config.embedding.ollama_model,
             dimensions=config.embedding.dimensions,
             runtime="auto",
         )
@@ -72,8 +73,8 @@ class MinderGraph:
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
             primary=LocalModelLLM(
-                config.llm.model_path,
-                runtime="auto",
+                ollama_url=config.llm.ollama_url,
+                ollama_model=config.llm.ollama_model,
                 context_length=config.llm.context_length,
             ),
             fallback=OpenAIFallbackLLM(

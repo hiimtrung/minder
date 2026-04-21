@@ -4,10 +4,10 @@ build-backend = "hatchling.build"
 
 [project]
 name = "minder-cli"
-version = "0.2.5"
+version = "0.2.6"
 description = "Minder CLI is the command-line interface for the Minder self-hosted MCP platform."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = ">=3.14"
 keywords = ["mcp", "cli", "ai", "code-search", "workflow"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -15,20 +15,19 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
     "fastapi>=0.136.0",
-    "httpx>=0.27.0",
+    "httpx>=0.28.0",
 ]
 
 [project.optional-dependencies]
 server = [
     "aiosqlite>=0.21.0",
-    "langgraph>=1.1.4",
+    "langgraph>=1.1.8",
     "litellm>=1.83.1",
-    "llama-cpp-python>=0.3.20",
     "mcp>=1.26.0",
     "motor>=3.7.0",
     "passlib[bcrypt]>=1.7.4",
@@ -36,9 +35,11 @@ server = [
     "pydantic>=2.12.5",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
-    "pymilvus>=2.5.0",
-    "redis[hiredis]>=6.0.0",
-    "sqlalchemy[asyncio]>=2.0.48",
+    "pymilvus>=2.6.12",
+    "sqlalchemy[asyncio]>=2.0.49",
+    "yarl>=1.16.0",
+    "zipp>=3.21.0",
+    "zstandard>=0.25.0",
 ]
 
 [project.urls]
@@ -51,8 +52,8 @@ minder = "minder.cli:main"
 
 [dependency-groups]
 dev = [
-    "fakeredis[lua]>=2.26.0",
-    "mypy>=1.20.0",
+    "fakeredis[lua]>=2.27.0",
+    "mypy>=1.20.1",
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "pytest-timeout>=2.3.1",

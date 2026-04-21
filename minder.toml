@@ -21,9 +21,9 @@ default_admin_email = "admin@example.com"
 
 [embedding]
 provider = "ollama"
-model_name = "nomic-embed-text"
+model_name = "embeddinggemma"
 ollama_url = "http://localhost:11434"
-ollama_model = "nomic-embed-text"
+ollama_model = "embeddinggemma"
 dimensions = 768
 openai_api_key = ""
 openai_model = "text-embedding-3-small"

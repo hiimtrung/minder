@@ -33,7 +33,7 @@ class AuthConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "nomic-embed-text"
+    ollama_model: str = "embeddinggemma"
     dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"

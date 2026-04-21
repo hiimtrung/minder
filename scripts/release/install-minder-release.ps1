@@ -42,7 +42,7 @@ $PublicPort  = Get-EnvOrDefault -Name 'MINDER_PORT'        -Default '8800'
 $MilvusPort  = Get-EnvOrDefault -Name 'MILVUS_PORT'        -Default '19530'
 $OpenAiKey   = Get-EnvOrDefault -Name 'OPENAI_API_KEY'     -Default ''
 $LlmModel    = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL'   -Default 'gemma3:4b'
-$EmbedModel  = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'nomic-embed-text'
+$EmbedModel  = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'embeddinggemma'
 
 $ApiImage        = "ghcr.io/$RepoOwner/minder-api:$ReleaseTag"
 $DashboardImage  = "ghcr.io/$RepoOwner/minder-dashboard:$ReleaseTag"

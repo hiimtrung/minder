@@ -29,7 +29,7 @@ flowchart TB
 
 ### Why Ollama instead of in-process inference?
 
-| Aspect | In-process (llama-cpp-python) | Ollama (current) |
+| Aspect | In-process (Ollama-python) | Ollama (current) |
 | --- | --- | --- |
 | Docker build time | 30+ min (ARM emulation) | ~2 min |
 | Multi-platform | ❌ Frequent build failures | ✅ amd64 + arm64 |
@@ -54,7 +54,23 @@ Infrastructure -> src/minder/store                     (MongoDB, Milvus, Redis)
 
 ## Quick Start
 
-### 1) Install Ollama
+### Requirements
+
+- Docker with the Compose plugin
+- `curl`
+
+---
+
+### 1) Automatic Installation (Recommended)
+
+```bash
+# Install Ollama + models + Minder (auto-detects OS)
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/install-minder-release.sh | bash
+```
+
+### 2) Manual Installation
+
+#### 1) Install Ollama
 
 The install script does this automatically, but you can also install manually:
 
@@ -64,22 +80,45 @@ The install script does this automatically, but you can also install manually:
 | Linux | `curl -fsSL https://ollama.com/install.sh \| sh` |
 | Windows | `winget install Ollama.Ollama` |
 
-### 2) Pull models
+#### 2) Pull models
 
 ```bash
 ollama pull gemma3:4b
-ollama pull nomic-embed-text
+ollama pull embeddinggemma
 ```
 
-### 3) Start infra and Minder
+#### 3) Start infra and Minder
 
 ```bash
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-### 4) Bootstrap admin
+#### 4) Bootstrap admin
 
 Open [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup).
+
+---
+
+### 3) Server Management
+
+#### Update
+
+```bash
+# Auto-detect latest version and update:
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/update-minder.sh | bash
+
+# Update to a specific version:
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/update-minder.sh | bash -s -- --tag v0.3.0
+```
+
+#### Uninstall
+
+```bash
+# Keep Ollama, models, and data volumes (re-run install to refresh):
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/uninstall-minder.sh | bash -s -- --keep-data
+
+# Full removal of all Minder components:
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/uninstall-minder.sh | bash
 
 ---
 
@@ -91,7 +130,7 @@ Open [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/set
 | `MINDER_LLM__OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
 | `MINDER_LLM__OLLAMA_MODEL` | `gemma3:4b` | LLM model name |
 | `MINDER_EMBEDDING__OLLAMA_URL` | `http://localhost:11434` | Ollama embedding endpoint |
-| `MINDER_EMBEDDING__OLLAMA_MODEL` | `nomic-embed-text` | Embedding model name |
+| `MINDER_EMBEDDING__OLLAMA_MODEL` | `embeddinggemma` | Embedding model name |
 | `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |
 | `MINDER_REDIS__URI` | `redis://localhost:6379/0` | Redis URI |
 | `MINDER_VECTOR_STORE__URI` | `http://localhost:19530` | Milvus endpoint |

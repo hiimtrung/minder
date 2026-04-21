@@ -32,7 +32,7 @@ services:
       MINDER_LLM__OLLAMA_MODEL: ${MINDER_LLM_MODEL:-gemma3:4b}
       MINDER_EMBEDDING__PROVIDER: ollama
       MINDER_EMBEDDING__OLLAMA_URL: ${MINDER_OLLAMA_URL:-http://host.docker.internal:11434}
-      MINDER_EMBEDDING__OLLAMA_MODEL: ${MINDER_EMBEDDING_MODEL:-nomic-embed-text}
+      MINDER_EMBEDDING__OLLAMA_MODEL: ${MINDER_EMBEDDING_MODEL:-embeddinggemma}
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       mongodb:

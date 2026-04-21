@@ -227,7 +227,7 @@ const fillForm = (prompt?: PromptPayload) => {
       ? prompt.is_builtin
         ? "Loaded built-in prompt. Saving creates a database override with the same name."
         : "Loaded prompt draft."
-      : "New draft. Use Gemma 4 polish before saving if needed.",
+      : "New draft. Use AI polish before saving if needed.",
   );
   setStatus(statusEl, "", "default");
 };

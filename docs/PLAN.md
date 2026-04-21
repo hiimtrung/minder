@@ -31,7 +31,7 @@ Use this `PLAN` index and the `docs/plan/*` files for:
 | Transport              | SSE from Phase 1, stdio for local dev               |
 | Local embedding model  | `ggml-org/embeddinggemma-300M-GGUF` quantized GGUF  |
 | Local LLM              | `ggml-org/gemma-4-E2B-it-GGUF` quantized GGUF       |
-| Runtime                | `llama.cpp` via `llama-cpp-python`                  |
+| Runtime                | `Ollama` via `Ollama-python`                  |
 | Verification           | Docker sandbox in production                        |
 | Workflow governance    | Required                                            |
 | Repository-local state | Required under `.minder/`                           |

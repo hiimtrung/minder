@@ -15,7 +15,7 @@ DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
 LLM_MODEL="${MINDER_LLM_MODEL:-gemma3:4b}"
-EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-nomic-embed-text}"
+EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-embeddinggemma}"
 
 # ------------------------------------------------------------------
 # Helpers

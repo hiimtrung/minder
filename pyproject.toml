@@ -28,7 +28,6 @@ server = [
     "aiosqlite>=0.21.0",
     "langgraph>=1.1.4",
     "litellm>=1.83.1",
-    "llama-cpp-python>=0.3.20",
     "mcp>=1.26.0",
     "motor>=3.7.0",
     "passlib[bcrypt]>=1.7.4",
@@ -36,9 +35,10 @@ server = [
     "pydantic>=2.12.5",
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
-    "pymilvus>=2.5.0",
-    "redis[hiredis]>=6.0.0",
     "sqlalchemy[asyncio]>=2.0.48",
+    "yarl>=1.15.2",
+    "zipp>=3.21.0",
+    "zstandard>=0.23.0",
 ]
 
 [project.urls]

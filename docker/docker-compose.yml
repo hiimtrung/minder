@@ -13,6 +13,8 @@ services:
   minder-api:
     image: ${MINDER_API_IMAGE:-ghcr.io/hiimtrung/minder-api:latest}
     restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
@@ -25,11 +27,13 @@ services:
       MINDER_VECTOR_STORE__PROVIDER: milvus
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
-      MINDER_EMBEDDING__MODEL_PATH: /root/.minder/models/embeddinggemma-300M-Q8_0.gguf
-      MINDER_LLM__MODEL_PATH: /root/.minder/models/gemma-4-e2b-it-Q8_0.gguf
+      MINDER_LLM__PROVIDER: ollama
+      MINDER_LLM__OLLAMA_URL: ${MINDER_OLLAMA_URL:-http://host.docker.internal:11434}
+      MINDER_LLM__OLLAMA_MODEL: ${MINDER_LLM_MODEL:-gemma3:4b}
+      MINDER_EMBEDDING__PROVIDER: ollama
+      MINDER_EMBEDDING__OLLAMA_URL: ${MINDER_OLLAMA_URL:-http://host.docker.internal:11434}
+      MINDER_EMBEDDING__OLLAMA_MODEL: ${MINDER_EMBEDDING_MODEL:-nomic-embed-text}
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    volumes:
-      - ${MINDER_MODELS_DIR:?Set MINDER_MODELS_DIR to the local model directory}:/root/.minder/models:ro
     depends_on:
       mongodb:
         condition: service_healthy

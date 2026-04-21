@@ -13,7 +13,7 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
 
     assert "FROM python:3.13-slim AS api-builder" in api_dockerfile
     assert "UV_PROJECT_ENVIRONMENT=/app/.venv" in api_dockerfile
-    assert "uv sync --frozen --extra server --no-dev --no-install-project --no-editable" in api_dockerfile
+    assert "uv sync --frozen --no-dev --no-install-project --no-editable" in api_dockerfile
     assert "COPY --from=api-builder /app/.venv /app/.venv" in api_dockerfile
     assert 'CMD ["uv", "run", "python", "-m", "minder.server"]' in api_dockerfile
 
@@ -30,9 +30,9 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     assert 'curl -fsSL "$RELEASE_BASE_URL/docker-compose.yml"' in install_script
     assert "MINDER_API_IMAGE" in install_script
     assert "MINDER_DASHBOARD_IMAGE" in install_script
+    assert "ollama" in install_script
     assert 'dockerfile: docker/Dockerfile.api' in full_compose
     assert 'dockerfile: docker/Dockerfile.dashboard' in full_compose
-    assert '${MINDER_MODELS_DIR:-${HOME}/.minder/models}' in full_compose
     assert ".venv" in dockerignore
     assert "dist" in dockerignore
     assert "tests" in dockerignore
@@ -48,6 +48,8 @@ def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -
     assert 'ghcr.io/hiimtrung/minder-dashboard:latest' in compose
     assert '${MINDER_PORT:-8800}:8800' in compose
     assert 'MINDER_SERVER__PORT: 8801' in compose
+    assert 'MINDER_LLM__PROVIDER: ollama' in compose
+    assert 'host.docker.internal' in compose
 
 
 def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
@@ -72,7 +74,7 @@ def test_phase6_powershell_installer_has_release_placeholders_and_core_steps() -
     assert "Caddyfile" in installer
     assert ".minder-release.json" in installer
     assert "MINDER_INSTALL_DIR" in installer
-    assert "MINDER_MODELS_DIR" in installer
+    assert "ollama" in installer.lower()
 
 
 def test_phase6_release_workflow_publishes_both_installers() -> None:

@@ -4,10 +4,9 @@
 .SYNOPSIS
     Installs or upgrades a Minder release on Windows using Docker Desktop.
 .DESCRIPTION
-    PowerShell counterpart to install-minder-release.sh. Placeholders
-    __REPO_OWNER__, __REPO_NAME__, and __RELEASE_TAG__ are substituted at
-    GitHub release publish time by the workflow in
-    .github/workflows/release.yml.
+    Installs Ollama (via winget), pulls required models, then deploys
+    Minder via Docker Compose. Placeholders __REPO_OWNER__, __REPO_NAME__,
+    and __RELEASE_TAG__ are substituted at GitHub release publish time.
 #>
 
 param()
@@ -39,14 +38,19 @@ function Require-Command {
 
 $InstallDir  = Get-EnvOrDefault -Name 'MINDER_INSTALL_DIR' -Default (Join-Path $HOME ".minder\releases\$ReleaseTag")
 $CurrentLink = Get-EnvOrDefault -Name 'MINDER_CURRENT_LINK' -Default (Join-Path $HOME '.minder\current')
-$ModelsDir   = Get-EnvOrDefault -Name 'MINDER_MODELS_DIR'  -Default (Join-Path $HOME '.minder\models')
 $PublicPort  = Get-EnvOrDefault -Name 'MINDER_PORT'        -Default '8800'
 $MilvusPort  = Get-EnvOrDefault -Name 'MILVUS_PORT'        -Default '19530'
 $OpenAiKey   = Get-EnvOrDefault -Name 'OPENAI_API_KEY'     -Default ''
+$LlmModel    = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL'   -Default 'gemma3:4b'
+$EmbedModel  = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'nomic-embed-text'
 
 $ApiImage        = "ghcr.io/$RepoOwner/minder-api:$ReleaseTag"
 $DashboardImage  = "ghcr.io/$RepoOwner/minder-dashboard:$ReleaseTag"
 $ReleaseBaseUrl  = "https://github.com/$RepoOwner/$RepoName/releases/download/$ReleaseTag"
+
+# ------------------------------------------------------------------
+# Step 1: Verify Docker
+# ------------------------------------------------------------------
 
 Require-Command docker
 
@@ -57,11 +61,85 @@ try {
     exit 1
 }
 
-if (-not (Test-Path $ModelsDir)) {
-    Write-Error "Model directory not found: $ModelsDir"
-    Write-Error 'Populate ~/.minder/models or set MINDER_MODELS_DIR before running this installer.'
+# ------------------------------------------------------------------
+# Step 2: Install Ollama if missing
+# ------------------------------------------------------------------
+
+if (-not (Get-Command 'ollama' -ErrorAction SilentlyContinue)) {
+    Write-Host "Ollama not found. Installing via winget..."
+    if (Get-Command 'winget' -ErrorAction SilentlyContinue) {
+        & winget install Ollama.Ollama --accept-package-agreements --accept-source-agreements
+    } else {
+        Write-Error "Please install Ollama manually from https://ollama.com/download"
+        exit 1
+    }
+}
+
+# Wait for Ollama to be ready
+Write-Host "Waiting for Ollama to start..."
+$ollamaReady = $false
+for ($i = 1; $i -le 30; $i++) {
+    try {
+        Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 3 | Out-Null
+        $ollamaReady = $true
+        break
+    } catch {
+        Start-Sleep -Seconds 1
+    }
+}
+
+if (-not $ollamaReady) {
+    Write-Host "Starting Ollama..."
+    Start-Process -FilePath "ollama" -ArgumentList "serve" -WindowStyle Hidden
+    Start-Sleep -Seconds 5
+    for ($i = 1; $i -le 30; $i++) {
+        try {
+            Invoke-WebRequest -Uri "http://localhost:11434/api/tags" -UseBasicParsing -TimeoutSec 3 | Out-Null
+            $ollamaReady = $true
+            break
+        } catch {
+            Start-Sleep -Seconds 1
+        }
+    }
+}
+
+if (-not $ollamaReady) {
+    Write-Error "Ollama did not start within 30 seconds."
     exit 1
 }
+
+Write-Host "Ollama is running."
+
+# ------------------------------------------------------------------
+# Step 3: Pull required models
+# ------------------------------------------------------------------
+
+function Pull-OllamaModel {
+    param([Parameter(Mandatory = $true)][string]$ModelName)
+    Write-Host "Checking model: $ModelName"
+    $models = & ollama list 2>$null
+    if ($models -match "^$ModelName") {
+        Write-Host "  Model $ModelName is already available."
+    } else {
+        Write-Host "  Pulling $ModelName (this may take a few minutes)..."
+        & ollama pull $ModelName
+    }
+}
+
+Pull-OllamaModel $LlmModel
+Pull-OllamaModel $EmbedModel
+
+Write-Host ""
+Write-Host "Pre-flight checks:"
+Write-Host "  [OK] Docker with Compose plugin"
+Write-Host "  [OK] Ollama running at http://localhost:11434"
+Write-Host "  [OK] LLM model: $LlmModel"
+Write-Host "  [OK] Embedding model: $EmbedModel"
+Write-Host ""
+
+# ------------------------------------------------------------------
+# Step 4: Download release assets and start Docker Compose
+# ------------------------------------------------------------------
 
 New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
 $CurrentLinkParent = Split-Path -Parent $CurrentLink
@@ -75,7 +153,9 @@ MINDER_PORT=$PublicPort
 MILVUS_PORT=$MilvusPort
 MINDER_API_IMAGE=$ApiImage
 MINDER_DASHBOARD_IMAGE=$DashboardImage
-MINDER_MODELS_DIR=$ModelsDir
+MINDER_OLLAMA_URL=http://host.docker.internal:11434
+MINDER_LLM_MODEL=$LlmModel
+MINDER_EMBEDDING_MODEL=$EmbedModel
 OPENAI_API_KEY=$OpenAiKey
 "@
 Set-Content -Path (Join-Path $InstallDir '.env') -Value $envContent -Encoding ASCII
@@ -120,6 +200,9 @@ Write-Host "Deployment directory: $InstallDir"
 Write-Host "Current release link: $CurrentLink"
 Write-Host "API image: $ApiImage"
 Write-Host "Dashboard image: $DashboardImage"
+Write-Host "Ollama: http://localhost:11434"
+Write-Host "LLM model: $LlmModel"
+Write-Host "Embedding model: $EmbedModel"
 Write-Host ""
 Write-Host "Open:"
 Write-Host "  http://localhost:$PublicPort/dashboard/setup"

@@ -28,11 +28,15 @@ services:
       MINDER_VECTOR_STORE__PROVIDER: milvus
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
-      MINDER_EMBEDDING__MODEL_PATH: /root/.minder/models/embeddinggemma-300M-Q8_0.gguf
-      MINDER_LLM__MODEL_PATH: /root/.minder/models/gemma-4-e2b-it-Q8_0.gguf
+      MINDER_EMBEDDING__PROVIDER: ollama
+      MINDER_EMBEDDING__OLLAMA_URL: http://host.docker.internal:11434
+      MINDER_EMBEDDING__OLLAMA_MODEL: nomic-embed-text
+      MINDER_LLM__PROVIDER: ollama
+      MINDER_LLM__OLLAMA_URL: http://host.docker.internal:11434
+      MINDER_LLM__OLLAMA_MODEL: gemma3:4b
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    volumes:
-      - ${MINDER_MODELS_DIR:-${HOME}/.minder/models}:/root/.minder/models:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
         condition: service_healthy

@@ -60,3 +60,6 @@ make build-docker
 ```
 
 This builds `minder-api:latest` and `minder-dashboard:latest` using the optimized production Dockerfiles.
+
+> [!TIP]
+> Minder is optimized for multi-platform support (`amd64` and `arm64`). The default installation is lightweight and pure-python. For local model inference, we recommend using [Ollama](https://ollama.com) as an external provider. If you choose to run GGUF models directly within Minder, you can install the optional backend with `uv sync --extra local-inf`.

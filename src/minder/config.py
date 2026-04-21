@@ -31,18 +31,18 @@ class AuthConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    provider: str = "llamacpp"
-    model_name: str = "ggml-org/embeddinggemma-300M-GGUF"
-    model_path: str = "~/.minder/models/embeddinggemma-300M-Q8_0.gguf"
+    provider: str = "ollama"
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "nomic-embed-text"
     dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
 
 
 class LLMConfig(BaseModel):
-    provider: str = "llamacpp"
-    model_name: str = "ggml-org/gemma-4-E2B-it-GGUF"
-    model_path: str = "~/.minder/models/gemma-4-e2b-it-Q8_0.gguf"
+    provider: str = "ollama"
+    ollama_url: str = "http://localhost:11434"
+    ollama_model: str = "gemma3:4b"
     context_length: int = 131072
     temperature: float = 0.1
     openai_api_key: Optional[str] = None

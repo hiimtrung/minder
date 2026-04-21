@@ -272,8 +272,8 @@ class ContinuitySynthesizer:
 
         self._config = config
         self._llm = LocalModelLLM(
-            config.llm.model_path,
-            runtime="auto",
+            ollama_url=config.llm.ollama_url,
+            ollama_model=config.llm.ollama_model,
             context_length=config.llm.context_length,
         )
 

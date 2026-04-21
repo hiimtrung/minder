@@ -35,7 +35,8 @@ class QueryTools:
         self._graph = graph or MinderGraph(store, config)
         self._vector_store = vector_store or VectorStore(store, store)
         self._embedding_provider = LocalEmbeddingProvider(
-            config.embedding.model_path,
+            ollama_url=config.embedding.ollama_url,
+            ollama_model=config.embedding.ollama_model,
             dimensions=config.embedding.dimensions,
             runtime="auto",
         )
@@ -132,7 +133,7 @@ class QueryTools:
             "evaluation": result.evaluation,
             "provider": result.llm_output.get("provider"),
             "model": result.llm_output.get(
-                "model", result.llm_output.get("model_path")
+                "model", result.llm_output.get("ollama_model")
             ),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
@@ -237,7 +238,7 @@ class QueryTools:
             "evaluation": result.evaluation,
             "provider": result.llm_output.get("provider"),
             "model": result.llm_output.get(
-                "model", result.llm_output.get("model_path")
+                "model", result.llm_output.get("ollama_model")
             ),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),

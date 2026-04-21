@@ -140,7 +140,8 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if "title" in update_data or "content" in update_data:
                 config = _config_from_request(request)
                 embedder = LocalEmbeddingProvider(
-                    config.embedding.model_path,
+                    ollama_url=config.embedding.ollama_url,
+                    ollama_model=config.embedding.ollama_model,
                     dimensions=min(config.embedding.dimensions, 16),
                     runtime="auto",
                 )

@@ -19,7 +19,8 @@ class MemoryTools:
         self._store = store
         self._config = config
         self._embedder = LocalEmbeddingProvider(
-            config.embedding.model_path,
+            ollama_url=config.embedding.ollama_url,
+            ollama_model=config.embedding.ollama_model,
             dimensions=min(config.embedding.dimensions, 16),
             runtime="auto",
         )

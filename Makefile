@@ -49,8 +49,10 @@ release-start:
 	git pull origin main --rebase; \
 	echo "Updating version to $$CLEAN_VERSION in pyproject.toml..."; \
 	sed -i.bak -e "s/^version = \".*\"/version = \"$$CLEAN_VERSION\"/" pyproject.toml && rm pyproject.toml.bak; \
-	if ! git diff --quiet pyproject.toml; then \
-		git add pyproject.toml; \
+	echo "Updating uv.lock..."; \
+	uv lock; \
+	if ! git diff --quiet pyproject.toml uv.lock; then \
+		git add pyproject.toml uv.lock; \
 		git commit -m "chore(release): update version to v$$CLEAN_VERSION"; \
 		git push -u origin $$BRANCH_NAME; \
 		if command -v gh >/dev/null 2>&1; then \

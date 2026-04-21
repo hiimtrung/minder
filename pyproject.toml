@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "minder-cli"
-version = "0.2.3"
+version = "0.2.5"
 description = "Minder CLI is the command-line interface for the Minder self-hosted MCP platform."
 readme = "README.md"
 requires-python = ">=3.13"

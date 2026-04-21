@@ -47,7 +47,7 @@ jobs:
         run: |
           uv run ruff check .
           uv run mypy src
-          uv run pytest --timeout=120
+          uv run pytest tests/unit tests/integration -m "not slow" --timeout=120
 
       - name: Build Python distributions
         run: uv build

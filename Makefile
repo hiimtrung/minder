@@ -33,6 +33,8 @@ release-start:
 		echo "Error: You must provide a VERSION, e.g., make release-start VERSION=0.0.1"; \
 		exit 1; \
 	fi; \
+	echo "Running local verification (lint + tests)..."; \
+	make lint test; \
 	CLEAN_VERSION=$$(echo $(VERSION) | sed 's/^v//'); \
 	BRANCH_NAME="chore/release-v$$CLEAN_VERSION"; \
 	echo "Checking out main and pulling latest changes..."; \

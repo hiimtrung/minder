@@ -11,10 +11,14 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential cmake ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock README.md minder.toml /app/
-RUN uv sync --frozen --extra server --no-dev --no-install-project
+COPY pyproject.toml uv.lock /app/
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --extra server --no-dev --no-install-project --no-editable
+
+COPY README.md minder.toml /app/
 
 FROM python:3.14-slim
 

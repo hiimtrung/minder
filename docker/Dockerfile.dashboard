@@ -5,7 +5,8 @@ WORKDIR /dashboard
 COPY src/dashboard/package.json src/dashboard/bun.lock src/dashboard/astro.config.mjs src/dashboard/tsconfig.json /dashboard/
 COPY src/dashboard/src /dashboard/src
 
-RUN bun install --frozen-lockfile
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
 RUN bun run build
 
 FROM node:22-bookworm-slim

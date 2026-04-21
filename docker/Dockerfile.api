@@ -1,4 +1,4 @@
-FROM python:3.13-slim AS api-builder
+FROM python:3.14-slim AS api-builder
 
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 COPY README.md minder.toml /app/
 
-FROM python:3.13-slim
+FROM python:3.14-slim
 
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv

@@ -140,66 +140,67 @@ jobs:
             scripts/release/install-minder-release.ps1 > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
 
           cat > dist/release/release-notes.md <<EOF
-          ## Quick Start
+## Quick Start
 
-          Install or upgrade the CLI from PyPI:
+Install or upgrade the CLI from PyPI:
 
-          ```bash
-          uv tool install --upgrade minder-cli
-          # or: pipx install minder-cli
-          ```
+\`\`\`bash
+uv tool install --upgrade minder-cli
+# or: pipx install minder-cli
+\`\`\`
 
-          Bootstrap the current repository for local IDE usage:
+Bootstrap the current repository for local IDE usage:
 
-          ```bash
-          minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
-          minder install-ide --target vscode --target claude-code
-          ```
+\`\`\`bash
+minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+minder install-ide --target vscode --target claude-code
+\`\`\`
 
-          One command install from this release on Linux or macOS:
+One command install from this release on Linux or macOS:
 
-          ```bash
-          curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh | bash
-          ```
+\`\`\`bash
+curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh | bash
+\`\`\`
 
-          One command install on Windows PowerShell (requires Docker Desktop):
+One command install on Windows PowerShell (requires Docker Desktop):
 
-          ```powershell
-          iwr -useb https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1 | iex
-          ```
+\`\`\`powershell
+iwr -useb https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1 | iex
+\`\`\`
 
-          The installer will automatically:
+The installer will automatically:
 
-          - Install [Ollama](https://ollama.com) if not present (Linux/macOS/Windows)
-          - Pull required AI models (\`gemma3:4b\` and \`nomic-embed-text\`)
-          - Create a deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
-          - Fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
-          - Start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
+- Install [Ollama](https://ollama.com) if not present (Linux/macOS/Windows)
+- Pull required AI models (\`gemma3:4b\` and \`embeddinggemma\`)
+- Create a deployment directory under \`~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}\`
+- Fetch \`docker-compose.yml\` and \`Caddyfile\` from this GitHub Release
+- Start Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose
 
-          Requirements:
+Requirements:
 
-          - Docker with the Compose plugin
+- Docker with the Compose plugin
+- \`curl\`
 
-          Uninstall:
+Uninstall:
 
-          ```bash
-          # Keep Ollama, models, and data volumes:
-          curl -fsSL .../uninstall-minder.sh | bash -s -- --keep-data
+\`\`\`bash
+# Keep Ollama, models, and data volumes:
+curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash -s -- --keep-data
 
-          # Full removal:
-          curl -fsSL .../uninstall-minder.sh | bash
-          ```
+# Full removal:
+curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash
+\`\`\`
 
-          Update:
+Update:
 
-          ```bash
-          # Auto-detect latest:
-          curl -fsSL .../update-minder.sh | bash
+\`\`\`bash
+# Auto-detect latest:
+curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.sh | bash
 
-          # Specific version:
-          curl -fsSL .../update-minder.sh | bash -s -- --tag v0.3.0
-          ```
-          EOF
+# Specific version:
+curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.sh | bash -s -- --tag v0.3.0
+\`\`\`
+EOF
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

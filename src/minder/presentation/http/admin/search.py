@@ -73,8 +73,8 @@ def _rank_serialized_items(
         return items
 
     embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
+        fastembed_model=config.embedding.fastembed_model,
+        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
         dimensions=min(config.embedding.dimensions, 16),
         runtime="auto",
     )
@@ -109,8 +109,8 @@ def _rank_skill_items(
         return items
 
     embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
+        fastembed_model=config.embedding.fastembed_model,
+        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
         dimensions=min(config.embedding.dimensions, 16),
         runtime="auto",
     )

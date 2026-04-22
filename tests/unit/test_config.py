@@ -7,7 +7,7 @@ def test_default_config_loading():
     settings = Settings(_env_file=None)
     assert settings.server.name == "minder"
     assert settings.auth.enabled is True
-    assert settings.embedding.dimensions == 768
+    assert settings.embedding.dimensions == 1024
     assert settings.dashboard.dev_server_url in {None, ""}
     assert settings.dashboard.api_url in {None, ""}
 

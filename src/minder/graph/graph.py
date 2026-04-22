@@ -58,8 +58,8 @@ class MinderGraph:
         self._planning = planning or PlanningNode()
         vector_store = VectorStore(store, store)
         embedder = LocalEmbeddingProvider(
-            ollama_url=config.embedding.ollama_url,
-            ollama_model=config.embedding.ollama_model,
+            fastembed_model=config.embedding.fastembed_model,
+            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
             dimensions=config.embedding.dimensions,
             runtime="auto",
         )

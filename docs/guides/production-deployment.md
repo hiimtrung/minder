@@ -47,7 +47,7 @@ Expected local model file:
 ~/.minder/models/gemma-4-E2B-it.litertlm
 ```
 
-Embedding model (`embeddinggemma:300m`) is auto-pulled by the Docker Ollama container — no manual download needed.
+Embedding model (`mixedbread-ai/mxbai-embed-large-v1`) is auto-downloaded by FastEmbed — no manual download needed.
 
 ## 1. Recommended Release Install
 

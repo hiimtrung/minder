@@ -638,7 +638,7 @@ def _repo_name_from_remote(remote_url: str | None) -> str | None:
 def _git_file_delta(
     repo_root: Path, diff_base: str | None = None
 ) -> tuple[list[str], list[str]]:
-    diff_command = ["git", "diff", "--name-only", "--diff-filter=ACMRD"]
+    diff_command = ["diff", "--name-only", "--diff-filter=ACMRD"]
     if diff_base:
         diff_command.append(f"{diff_base}...HEAD")
     else:

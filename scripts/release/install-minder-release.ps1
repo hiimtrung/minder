@@ -5,8 +5,8 @@
     Installs or upgrades a Minder release on Windows using Docker Desktop.
 .DESCRIPTION
     Downloads the LiteRT-LM model, then deploys Minder via Docker Compose.
-    The embedding model (embeddinggemma:300m) is pulled automatically by the
-    Docker Ollama container — no host-native Ollama installation required.
+    The embedding model (mixedbread-ai/mxbai-embed-large-v1) is downloaded automatically
+    by FastEmbed — no host-native or Docker Ollama installation required.
     Placeholders __REPO_OWNER__, __REPO_NAME__, and __RELEASE_TAG__ are
     substituted at GitHub release publish time.
 #>
@@ -44,7 +44,7 @@ $ModelsDir     = Get-EnvOrDefault -Name 'MINDER_MODELS_DIR'       -Default (Join
 $PublicPort    = Get-EnvOrDefault -Name 'MINDER_PORT'             -Default '8800'
 $MilvusPort    = Get-EnvOrDefault -Name 'MILVUS_PORT'             -Default '19530'
 $OpenAiKey     = Get-EnvOrDefault -Name 'OPENAI_API_KEY'          -Default ''
-$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'embeddinggemma:300m'
+$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'mixedbread-ai/mxbai-embed-large-v1'
 $LiteRTModelUrl = Get-EnvOrDefault -Name 'MINDER_LITERT_MODEL_URL' `
     -Default 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true'
 $LiteRTModelFile = 'gemma-4-E2B-it.litertlm'
@@ -90,7 +90,7 @@ Write-Host ""
 Write-Host "Pre-flight checks:"
 Write-Host "  [OK] Docker with Compose plugin"
 Write-Host "  [OK] LiteRT-LM model: $LiteRTModelFile"
-Write-Host "  [OK] Embedding model (Docker Ollama auto-pull): $EmbedModel"
+Write-Host "  [OK] Embedding model (FastEmbed): $EmbedModel"
 Write-Host ""
 
 # ------------------------------------------------------------------
@@ -156,7 +156,7 @@ Write-Host "Current release link: $CurrentLink"
 Write-Host "API image: $ApiImage"
 Write-Host "Dashboard image: $DashboardImage"
 Write-Host "LiteRT-LM model: $LiteRTModelPath"
-Write-Host "Embedding: Docker Ollama auto-pull ($EmbedModel)"
+Write-Host "Embedding: FastEmbed ($EmbedModel)"
 Write-Host ""
 Write-Host "Open:"
 Write-Host "  http://localhost:$PublicPort/dashboard/setup"

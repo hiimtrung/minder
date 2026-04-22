@@ -27,7 +27,7 @@ async def test_ingest_directory_upserts_supported_files(store: RelationalStore, 
     (repo / "b.md").write_text("# Title\n", encoding="utf-8")
     (repo / "ignored.bin").write_bytes(b"\x00\x01")
 
-    tools = IngestTools(DocumentStore(store), LocalEmbeddingProvider("~/.minder/models/local.gguf"))
+    tools = IngestTools(DocumentStore(store), LocalEmbeddingProvider())
     result = await tools.minder_ingest_directory(str(repo), project=repo.name)
 
     assert result["ingested_count"] == 2
@@ -43,7 +43,7 @@ async def test_ingest_directory_removes_stale_documents(store: RelationalStore, 
     file_path.write_text("def a():\n    return 1\n", encoding="utf-8")
 
     document_store = DocumentStore(store)
-    tools = IngestTools(document_store, LocalEmbeddingProvider("~/.minder/models/local.gguf"))
+    tools = IngestTools(document_store, LocalEmbeddingProvider())
     await tools.minder_ingest_directory(str(repo), project=repo.name)
 
     file_path.unlink()

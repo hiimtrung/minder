@@ -36,10 +36,7 @@ Expected files:
 
 ```text
 ~/.minder/models/gemma-4-E2B-it.litertlm
-~/.minder/models/embeddinggemma-300M-Q8_0.gguf  (offline fallback)
-```
-
-Note: The primary embedding model (`embeddinggemma:300m`) is auto-pulled by the Docker Ollama container. The GGUF file above is an offline fallback only.
+Note: The primary embedding model (`mixedbread-ai/mxbai-embed-large-v1`) is auto-downloaded by FastEmbed on first run.
 
 ## 1a. Create local env files
 
@@ -85,8 +82,7 @@ docker compose -f docker/docker-compose.local.yml ps
 
 Local Docker now provides the shared infra runtime:
 
-- `ollama` (embedding inference)
-- `ollama-init` (auto-pull embedding model)
+
 - `mongodb`
 - `redis`
 - `etcd`

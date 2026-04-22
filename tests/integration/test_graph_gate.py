@@ -6,7 +6,7 @@ import pytest
 from minder.config import MinderConfig
 from minder.graph import MinderGraph
 from minder.graph.nodes import LLMNode, VerificationNode, WorkflowPlannerNode
-from minder.llm.local import LocalModelLLM
+from minder.llm.litert import LiteRTModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.graph import KnowledgeGraphStore
 from minder.store.error import ErrorStore
@@ -135,9 +135,9 @@ async def test_phase2_gate(
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(
-                ollama_url=config.llm.ollama_url,
-                ollama_model=config.llm.ollama_model,
+            primary=LiteRTModelLLM(
+                model_path=config.llm.litert_model_path,
+                backend=config.llm.litert_backend,
             ),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key, config.llm.openai_model
@@ -269,9 +269,9 @@ async def test_minder_query_includes_cross_repo_landscape_context(
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(
-                ollama_url=config.llm.ollama_url,
-                ollama_model=config.llm.ollama_model,
+            primary=LiteRTModelLLM(
+                model_path=config.llm.litert_model_path,
+                backend=config.llm.litert_backend,
             ),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key, config.llm.openai_model

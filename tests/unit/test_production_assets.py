@@ -49,7 +49,7 @@ def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -
     assert '${MINDER_PORT:-8800}:8800' in compose
     assert 'MINDER_SERVER__PORT: 8801' in compose
     assert 'MINDER_LLM__PROVIDER: litert' in compose
-    assert 'ollama:' in compose  # Ollama Docker service for embedding
+    assert 'minder-api:' in compose  # FastEmbed runs inside the API container
 
 
 def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
@@ -74,7 +74,7 @@ def test_phase6_powershell_installer_has_release_placeholders_and_core_steps() -
     assert "Caddyfile" in installer
     assert ".minder-release.json" in installer
     assert "MINDER_INSTALL_DIR" in installer
-    assert "litert" in installer.lower() or "ollama" in installer.lower()
+    assert "litert" in installer.lower()
 
 
 def test_phase6_release_workflow_publishes_both_installers() -> None:

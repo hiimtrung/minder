@@ -123,7 +123,7 @@ def test_polish_prompt_returns_llm_metadata(monkeypatch) -> None:
     def fake_polish_prompt_draft(draft, config):
         del config
         return draft, {
-            "provider": "local_llm",
+            "provider": "litert_lm",
             "model": "gemma-4-e2b-it",
             "runtime": "llama_cpp",
         }

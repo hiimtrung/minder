@@ -3,10 +3,6 @@ set -euo pipefail
 
 MODEL_DIR="${HOME}/.minder/models"
 
-# Embedding model (still GGUF for offline/fallback, but primary embedding now uses Docker Ollama)
-EMBED_URL="${MINDER_EMBED_MODEL_URL:-https://huggingface.co/ggml-org/embeddinggemma-300M-GGUF/resolve/main/embeddinggemma-300M-Q8_0.gguf?download=true}"
-EMBED_FILE="${MODEL_DIR}/embeddinggemma-300M-Q8_0.gguf"
-EMBED_SHA256="${MINDER_EMBED_MODEL_SHA256:-}"
 
 # LiteRT-LM model for local LLM inference
 LITERT_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
@@ -39,9 +35,7 @@ verify_checksum() {
   fi
 }
 
-download_if_missing "$EMBED_URL" "$EMBED_FILE"
 download_if_missing "$LITERT_URL" "$LITERT_FILE"
-verify_checksum "$EMBED_FILE" "$EMBED_SHA256"
 verify_checksum "$LITERT_FILE" "$LITERT_SHA256"
 
 echo "models ready in $MODEL_DIR"

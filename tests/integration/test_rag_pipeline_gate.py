@@ -207,8 +207,8 @@ async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: 
 
     vector_store = VectorStore(store, store)
     embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
+        fastembed_model=config.embedding.fastembed_model,
+        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
         dimensions=16,
         runtime="mock",
     )

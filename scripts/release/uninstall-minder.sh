@@ -17,7 +17,7 @@ for arg in "$@"; do
     --help|-h)
       echo "Usage: $0 [--keep-data]"
       echo ""
-      echo "  --keep-data   Keep Ollama, models, Docker volumes, and config files"
+      echo "  --keep-data   Keep downloaded models, Docker volumes, and config files"
       echo "                Only removes Minder containers and release directories"
       exit 0
       ;;
@@ -65,7 +65,7 @@ if [ "$KEEP_DATA" = true ]; then
   echo "Uninstall complete (--keep-data mode)."
   echo ""
   echo "Kept:"
-  echo "  - Ollama and its models"
+  echo "  - Downloaded models"
   echo "  - Docker volumes (mongodb-data, redis-data, milvus-data, etc.)"
   echo "  - Config files in ${MINDER_DIR}/"
   echo ""
@@ -88,32 +88,11 @@ done
 echo "Removing Minder config directory..."
 rm -rf "$MINDER_DIR"
 
-echo "Removing Ollama and models..."
-if command -v ollama >/dev/null 2>&1; then
-  # Stop Ollama service
-  case "$(uname -s)" in
-    Linux*)
-      if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl stop ollama 2>/dev/null || true
-        sudo systemctl disable ollama 2>/dev/null || true
-      fi
-      # Remove Ollama binary and data
-      sudo rm -f /usr/local/bin/ollama 2>/dev/null || true
-      sudo rm -rf /usr/share/ollama 2>/dev/null || true
-      rm -rf "${HOME}/.ollama" 2>/dev/null || true
-      ;;
-    Darwin*)
-      if command -v brew >/dev/null 2>&1; then
-        brew uninstall ollama 2>/dev/null || true
-      fi
-      rm -rf "${HOME}/.ollama" 2>/dev/null || true
-      ;;
-  esac
-fi
+
 
 echo ""
 echo "Minder has been fully uninstalled."
 echo "  - All containers stopped and removed"
 echo "  - Docker volumes removed"
-echo "  - Ollama removed"
+
 echo "  - Config directory removed: ${MINDER_DIR}"

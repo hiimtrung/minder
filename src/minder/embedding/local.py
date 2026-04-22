@@ -1,15 +1,15 @@
 """
-Local Embedding provider — delegates to Ollama HTTP API.
+Local Embedding provider — delegates to FastEmbed using ONNX runtime.
 
-Falls back to a deterministic hash-based stub when Ollama is unreachable.
+Falls back to a deterministic hash-based stub if initialization fails.
 """
 
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
-from urllib.request import Request, urlopen
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,33 +17,51 @@ logger = logging.getLogger(__name__)
 class LocalEmbeddingProvider:
     def __init__(
         self,
-        ollama_url: str = "http://localhost:11434",
-        ollama_model: str = "embeddinggemma:300m",
-        dimensions: int = 768,
+        fastembed_model: str = "mixedbread-ai/mxbai-embed-large-v1",
+        fastembed_cache_dir: str = "~/.minder/cache/fastembed",
+        dimensions: int = 1024,
         runtime: str = "auto",
     ) -> None:
-        self._ollama_url = ollama_url.rstrip("/")
-        self._ollama_model = ollama_model
+        self._model_name = fastembed_model
+        self._cache_dir = str(Path(fastembed_cache_dir).expanduser())
         self._dimensions = dimensions
         self._runtime = runtime
+        self._model: Any | None = None
+        self._init_model()
+
+    def _init_model(self) -> None:
+        if self._runtime == "mock":
+            return
+
+        try:
+            from fastembed import TextEmbedding  # type: ignore[import-not-found]
+
+            self._model = TextEmbedding(
+                model_name=self._model_name,
+                cache_dir=self._cache_dir,
+            )
+        except Exception as e:
+            logger.warning(
+                f"Failed to initialize FastEmbed model {self._model_name}: {e}. Using mock."
+            )
+            self._model = None
 
     @property
     def runtime(self) -> str:
-        runtime = self._runtime
-        if runtime == "auto":
-            try:
-                req = Request(f"{self._ollama_url}/api/tags", method="GET")
-                with urlopen(req, timeout=3):
-                    return "ollama"
-            except Exception:
-                return "mock"
-        return runtime
+        if self._runtime != "auto":
+            return self._runtime
+        return "fastembed" if self._model is not None else "mock"
 
     def embed(self, text: str) -> list[float]:
-        if self.runtime == "ollama":
-            embedded = self._embed_with_ollama(text)
-            if embedded is not None:
-                return embedded[: self._dimensions]
+        if self.runtime == "fastembed" and self._model is not None:
+            try:
+                # FastEmbed returns a generator of numpy arrays
+                embeddings = list(self._model.embed([text]))
+                if embeddings and len(embeddings) > 0:
+                    return embeddings[0].tolist()[: self._dimensions]
+            except Exception as e:
+                logger.warning(f"FastEmbed failed during inference: {e}")
+
         # Deterministic hash-based fallback
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         values: list[float] = []
@@ -51,26 +69,3 @@ class LocalEmbeddingProvider:
             byte = digest[index % len(digest)]
             values.append(round(byte / 255.0, 6))
         return values
-
-    def _embed_with_ollama(self, text: str) -> list[float] | None:
-        payload = {
-            "model": self._ollama_model,
-            "input": text,
-        }
-        data = json.dumps(payload).encode()
-        req = Request(
-            f"{self._ollama_url}/api/embed",
-            data=data,
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        try:
-            with urlopen(req, timeout=30) as resp:
-                body = json.loads(resp.read())
-            embeddings = body.get("embeddings", [])
-            if embeddings and isinstance(embeddings[0], list):
-                return [float(v) for v in embeddings[0]]
-            return None
-        except Exception:
-            logger.warning("Ollama embedding failed, using hash fallback")
-            return None

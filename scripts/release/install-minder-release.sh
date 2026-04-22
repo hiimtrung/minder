@@ -15,7 +15,7 @@ API_IMAGE="ghcr.io/${REPO_OWNER}/minder-api:${RELEASE_TAG}"
 DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
-EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-embeddinggemma:300m}"
+EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-mixedbread-ai/mxbai-embed-large-v1}"
 LITERT_MODEL_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
 LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
 
@@ -65,7 +65,7 @@ echo ""
 echo "Pre-flight checks:"
 echo "  [✓] Docker with Compose plugin"
 echo "  [✓] LiteRT-LM model: $LITERT_MODEL_FILE"
-echo "  [✓] Embedding model (Docker Ollama auto-pull): $EMBEDDING_MODEL"
+echo "  [✓] Embedding model (FastEmbed): $EMBEDDING_MODEL"
 echo ""
 
 # ------------------------------------------------------------------
@@ -109,7 +109,7 @@ Current release link: $CURRENT_LINK
 API image: $API_IMAGE
 Dashboard image: $DASHBOARD_IMAGE
 LiteRT-LM model: $MODELS_DIR/$LITERT_MODEL_FILE
-Embedding: Docker Ollama auto-pull ($EMBEDDING_MODEL)
+Embedding: FastEmbed ($EMBEDDING_MODEL)
 
 Open:
   http://localhost:$PUBLIC_PORT/dashboard/setup

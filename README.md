@@ -32,7 +32,7 @@ Developer → minder-cli → Minder Server ←→ AI agents (Codex / Copilot / C
 ```
 
 - **LLM inference**: LiteRT-LM (Google AI Edge) — on-device, hardware-accelerated, no HTTP overhead
-- **Embedding inference**: Ollama running as a Docker container (`ollama/ollama:latest`) — isolated, auto-managed
+- **Embedding inference**: FastEmbed running natively in-process (`mxbai-embed-large-v1`) — zero-dependency ONNX acceleration
 
 ## Quick Start
 

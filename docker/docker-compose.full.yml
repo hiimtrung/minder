@@ -36,9 +36,9 @@ services:
       MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E2B-it.litertlm
       MINDER_LLM__LITERT_BACKEND: cpu
       MINDER_LLM__LITERT_CACHE_DIR: /tmp/litert-cache
-      MINDER_EMBEDDING__PROVIDER: ollama
-      MINDER_EMBEDDING__OLLAMA_URL: http://ollama:11434
-      MINDER_EMBEDDING__OLLAMA_MODEL: embeddinggemma:300m
+      MINDER_EMBEDDING__PROVIDER: fastembed
+      MINDER_EMBEDDING__FASTEMBED_MODEL: mixedbread-ai/mxbai-embed-large-v1
+      MINDER_EMBEDDING__FASTEMBED_CACHE_DIR: /models/fastembed
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       mongodb:
@@ -47,8 +47,7 @@ services:
         condition: service_healthy
       milvus-standalone:
         condition: service_healthy
-      ollama-init:
-        condition: service_completed_successfully
+
 
   dashboard:
     container_name: minder-dashboard
@@ -60,28 +59,7 @@ services:
     depends_on:
       - minder-api
 
-  ollama:
-    container_name: minder-ollama
-    image: ollama/ollama:latest
-    restart: unless-stopped
-    volumes:
-      - ollama-data:/root/.ollama
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
 
-  ollama-init:
-    container_name: minder-ollama-init
-    image: ollama/ollama:latest
-    depends_on:
-      ollama:
-        condition: service_healthy
-    restart: "no"
-    entrypoint: ["ollama", "pull", "embeddinggemma:300m"]
-    environment:
-      OLLAMA_HOST: http://ollama:11434
 
   mongodb:
     container_name: minder-mongodb
@@ -167,7 +145,6 @@ services:
       retries: 3
 
 volumes:
-  ollama-data:
   mongodb-data:
   redis-data:
   etcd-data:

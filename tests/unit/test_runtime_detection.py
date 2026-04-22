@@ -23,7 +23,7 @@ from minder.graph.nodes import (
 )
 from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
-from minder.llm.local import LocalModelLLM
+from minder.llm.litert import LiteRTModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.relational import RelationalStore
 
@@ -33,23 +33,6 @@ IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 def test_graph_runtime_reports_supported_mode() -> None:
     assert graph_runtime_name() in {"internal", "langgraph"}
 
-
-def test_local_model_runtime_auto_reports_supported_mode() -> None:
-    llm = LocalModelLLM(ollama_url="http://invalid:11434")
-    result = llm.generate(
-        type(
-            "StubState",
-            (),
-            {
-                "reranked_docs": [],
-                "retrieved_docs": [],
-                "workflow_context": {},
-                "plan": {},
-                "query": "hello",
-            },
-        )()
-    )
-    assert result["runtime"] in {"mock", "ollama"}
 
 
 def test_openai_runtime_auto_reports_supported_mode() -> None:
@@ -116,7 +99,7 @@ async def test_internal_executor_sets_internal_runtime(store: RelationalStore) -
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -135,7 +118,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -192,7 +175,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -218,7 +201,7 @@ async def test_minder_graph_defaults_to_auto_runtimes(
             return {
                 "text": "ok",
                 "sources": [],
-                "provider": "local_llm",
+                "provider": "litert_lm",
                 "model": "gemma-4-E2B-it",
                 "runtime": "mock",
                 "stream": ["ok"],

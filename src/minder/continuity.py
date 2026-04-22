@@ -325,7 +325,7 @@ class ContinuitySynthesizer:
                 ).items()
             },
         }, {
-            "provider": "local_llm",
+            "provider": "litert_lm",
             "model": self._config.llm.provider,
             "runtime": self._llm.runtime,
         }

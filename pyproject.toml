@@ -26,6 +26,7 @@ dependencies = [
 [project.optional-dependencies]
 server = [
     "aiosqlite>=0.21.0",
+    "fastembed>=0.5.1",
     "langgraph>=1.1.8",
     "litellm>=1.83.1",
     "litert-lm-api-nightly>=0.10",

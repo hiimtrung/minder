@@ -132,7 +132,7 @@ Make the prompt direct, structured, and useful for a coding workflow.
         arguments=polished.arguments,
     )
     return merged, {
-        "provider": "local_llm",
+        "provider": "litert_lm",
         "model": config.llm.provider,
         "runtime": runtime,
     }

@@ -165,4 +165,4 @@ async def test_memory_recall_prioritizes_step_compatibility(
     assert recalled[0]["step_compatibility"] > recalled[1]["step_compatibility"]
     assert isinstance(recalled[0]["recall_summary"], str)
     assert recalled[0]["recall_summary"].strip()
-    assert recalled[0]["synthesis"]["provider"] in {"heuristic", "local_llm"}
+    assert recalled[0]["synthesis"]["provider"] in {"heuristic", "litert_lm"}

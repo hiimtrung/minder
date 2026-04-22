@@ -24,7 +24,7 @@ async def store() -> RelationalStore:
 async def test_vector_store_searches_documents(store: RelationalStore) -> None:
     document_store = DocumentStore(store)
     error_store = ErrorStore(store)
-    embedder = LocalEmbeddingProvider("~/.minder/models/local.gguf")
+    embedder = LocalEmbeddingProvider()
     vector_store = VectorStore(document_store, error_store)
 
     await document_store.create_document(
@@ -49,7 +49,7 @@ async def test_vector_store_searches_documents(store: RelationalStore) -> None:
 async def test_retriever_prefers_vector_hits(store: RelationalStore, tmp_path: Path) -> None:
     document_store = DocumentStore(store)
     error_store = ErrorStore(store)
-    embedder = LocalEmbeddingProvider("~/.minder/models/local.gguf")
+    embedder = LocalEmbeddingProvider()
     vector_store = VectorStore(document_store, error_store)
 
     repo_path = tmp_path / "repo"

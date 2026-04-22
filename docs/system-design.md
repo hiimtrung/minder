@@ -25,7 +25,7 @@ Minder is an MCP-first engineering assistant platform with:
 - cache, rate limiting, and client sessions in `Redis`
 - vector search in `Milvus Standalone`
 - LLM inference via host-native LiteRT-LM (Gemma 4)
-- Embedding inference via Dockerized Ollama (`embeddinggemma`)
+- Embedding inference via in-process FastEmbed (`mxbai-embed-large-v1`)
 
 ## 2. Runtime Architecture
 
@@ -63,13 +63,13 @@ Minder splits AI inference into two dedicated backends:
 | Concern | Backend | Runtime | Why |
 |---------|---------|---------|-----|
 | **LLM (text generation)** | LiteRT-LM | Host-native, in-process Python | Hardware-accelerated (Metal/CPU), no HTTP overhead, ~3s cold start |
-| **Embedding** | Ollama (Docker) | `ollama/ollama:latest` container | Lightweight, self-contained, auto-pull models, no host install needed |
+| **Embedding** | FastEmbed | `mxbai-embed-large-v1` | Lightweight, runs in-process with ONNX runtime, zero extra dependencies |
 
 This split eliminates the previous single-Ollama bottleneck where both embedding and LLM competed for the same Ollama process, causing severe performance degradation with larger models.
 
 ### Review Note
 
-Gemma 4 remains the reasoning model for orchestration and synthesis via LiteRT-LM. The semantic index uses a dedicated embedding model (`embeddinggemma:300m`) through Dockerized Ollama instead of sharing the LLM process.
+Gemma 4 remains the reasoning model for orchestration and synthesis via LiteRT-LM. The semantic index uses a dedicated embedding model (`mxbai-embed-large-v1`) through in-process FastEmbed ONNX runtime.
 
 ## 3. Dashboard Runtime Modes
 
@@ -434,8 +434,7 @@ Key paths:
   - `gateway` on public `8800`
   - `dashboard` on internal `8808`
   - `minder-api` on internal `8801`
-  - `ollama` for embedding inference (internal network)
-  - `ollama-init` for model auto-pull
+
 
 ## 12. Related Design Documents
 

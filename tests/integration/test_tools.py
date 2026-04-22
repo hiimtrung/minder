@@ -289,7 +289,7 @@ async def test_phase1_tool_modules_round_trip(
     stored_skill = await skill_tools.minder_skill_store(
         title="Testing workflow skill",
         content="Capture failing tests and only then move into implementation.",
-        language="markdown",
+        language="python",
         tags=["tdd"],
         workflow_steps=["Test Writing"],
         artifact_types=["test_plan"],

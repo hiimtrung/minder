@@ -51,7 +51,7 @@ class LiteRTModelLLM:
     def runtime(self) -> str:
         """Return ``"litert"`` if the engine can be initialised, else ``"mock"``."""
         try:
-            import litert_lm  # type: ignore[import-not-found]  # noqa: F401
+            import litert_lm  # type: ignore[import-not-found, import-untyped]  # noqa: F401
 
             if not Path(self._model_path).exists():
                 logger.warning("LiteRT-LM model not found at %s", self._model_path)

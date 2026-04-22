@@ -20,7 +20,7 @@ def _skill(**overrides: object) -> SimpleNamespace:
         "id": uuid.uuid4(),
         "title": "Testing workflow skill",
         "content": "Write failing tests before implementation.",
-        "language": "markdown",
+        "language": "python",
         "tags": ["tdd", "test_plan", "source:phase_4_4"],
         "usage_count": 3,
         "quality_score": 0.9,

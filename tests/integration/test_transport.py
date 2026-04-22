@@ -280,7 +280,7 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
             "title": "Transport memory",
             "content": "client principal can store memory",
             "tags": ["transport", "memory"],
-            "language": "en",
+            "language": "markdown",
         },
         client_key=client_api_key,
     )
@@ -294,7 +294,7 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
             "title": "Transport memory",
             "content": "client principal can store memory",
             "tags": ["transport", "memory", "duplicate"],
-            "language": "en",
+            "language": "markdown",
         },
         client_key=client_api_key,
     )
@@ -392,7 +392,7 @@ async def test_build_transport_rejects_client_tool_outside_scope(
                 "title": "Forbidden memory",
                 "content": "should fail",
                 "tags": ["transport"],
-                "language": "en",
+                "language": "markdown",
             },
             client_key=client_api_key,
         )

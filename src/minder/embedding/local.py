@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import math
 from pathlib import Path
 from typing import Any
 
@@ -91,10 +92,23 @@ class LocalEmbeddingProvider:
         return [self._hash_embed(text) for text in texts]
 
     def _hash_embed(self, text: str) -> list[float]:
-        # Deterministic hash-based fallback
-        digest = hashlib.sha256(text.encode("utf-8")).digest()
-        values: list[float] = []
-        for index in range(self._dimensions):
-            byte = digest[index % len(digest)]
-            values.append(round(byte / 255.0, 6))
-        return values
+        """Generate a deterministic but word-aware mock embedding."""
+        # Split into words to allow some overlap similarity
+        words = text.lower().split()
+        if not words:
+            return [0.0] * self._dimensions
+
+        vector = [0.0] * self._dimensions
+        for word in words:
+            # Simple deterministic hash per word
+            h = hashlib.sha256(word.encode()).digest()
+            for i in range(self._dimensions):
+                # Use bytes of the hash to influence the vector
+                byte_val = h[i % len(h)]
+                vector[i] += (byte_val / 255.0) - 0.5
+
+        # Normalize the vector
+        norm = math.sqrt(sum(v * v for v in vector))
+        if norm > 0:
+            return [v / norm for v in vector]
+        return vector

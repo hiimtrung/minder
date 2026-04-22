@@ -89,7 +89,7 @@ class SkillTools:
             fastembed_model=config.embedding.fastembed_model,
             fastembed_cache_dir=config.embedding.fastembed_cache_dir,
             dimensions=min(config.embedding.dimensions, 16),
-            runtime="auto",
+            runtime=config.embedding.runtime,
         )
 
     async def minder_skill_store(

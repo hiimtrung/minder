@@ -32,6 +32,7 @@ def _isolate_minder_env_from_dotenv() -> Iterator[None]:
     
     # Force mock modes for tests to save RAM and time
     os.environ["MINDER_EMBEDDING__RUNTIME"] = "mock"
+    os.environ["MINDER_LLM__LITERT_BACKEND"] = "mock"
     os.environ["MINDER_VECTOR_STORE__PROVIDER"] = "memory"
     
     try:

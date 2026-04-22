@@ -1432,10 +1432,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    version_cmd = subparsers.add_parser(
-        "version", help="Show the Minder CLI version."
-    )
-    check_version = subparsers.add_parser(
+    subparsers.add_parser("version", help="Show the Minder CLI version.")
+    subparsers.add_parser(
         "check-version",
         help="Show installed CLI version and latest published version.",
     )

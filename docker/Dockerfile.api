@@ -16,7 +16,7 @@ RUN --mount=type=cache,target=/root/.cache/pip \
 
 COPY pyproject.toml uv.lock /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project --no-editable
+    uv sync --frozen --no-dev --no-install-project --no-editable --extra server
 
 COPY README.md minder.toml /app/
 
@@ -43,4 +43,4 @@ COPY scripts /app/scripts
 
 EXPOSE 8801
 
-CMD ["uv", "run", "python", "-m", "minder.server"]
+CMD ["uv", "run", "--extra", "server", "python", "-m", "minder.server"]

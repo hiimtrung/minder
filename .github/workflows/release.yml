@@ -173,7 +173,7 @@ jobs:
           What the installer does automatically:
 
           - Installs [Ollama](https://ollama.com) if missing (Linux/macOS/Windows)
-          - Pulls required AI models (`gemma4:e4b` and `embeddinggemma`)
+          - Pulls required AI models (`gemma4:e2b` and `embeddinggemma`)
           - Creates `~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}`
           - Downloads `docker-compose.yml` and `Caddyfile` from this GitHub Release
           - Starts Minder, dashboard, MongoDB, Redis, and Milvus with Docker Compose

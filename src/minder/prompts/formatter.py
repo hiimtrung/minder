@@ -137,6 +137,6 @@ Make the prompt direct, structured, and useful for a coding workflow.
     )
     return merged, {
         "provider": "local_llm",
-        "model": "gemma-4-e2b-it",
+        "model": config.llm.ollama_model,
         "runtime": runtime,
     }

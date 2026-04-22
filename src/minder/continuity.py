@@ -330,7 +330,7 @@ class ContinuitySynthesizer:
             },
         }, {
             "provider": "local_llm",
-            "model": "gemma-4-e2b-it",
+            "model": self._config.llm.ollama_model,
             "runtime": self._llm.runtime,
         }
 

@@ -1,40 +1,39 @@
 {
-  "task": "github actions release workflow",
+  "task": "đổi model mặc định sang qwen3.5:4b và qwen3-embedding:0.6b",
   "trigger": "initial",
   "budget": 3,
-  "resolved_at": "2026-04-21T16:42:13.709516+07:00",
-  "keep": [],
+  "resolved_at": "2026-04-22T10:04:01.757567+07:00",
+  "keep": [
+    "embedding-strategies",
+    "context-management-context-restore"
+  ],
   "add": [
-    "bash-pro",
-    "cicd-automation-workflow-automate",
-    "makepad-deployment"
+    "llm-app-patterns"
   ],
   "drop": [
-    "temporal-python-testing",
-    "python-testing-patterns",
-    "python-patterns"
+    "code-refactoring-context-restore"
   ],
   "skills": [
     {
-      "name": "bash-pro",
+      "name": "embedding-strategies",
       "category": "general",
-      "score": 0.028588565,
-      "chunk_count": 2,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "score": 0.016393442,
+      "chunk_count": 10,
+      "reason": "kept active: still relevant after re-resolve"
     },
     {
-      "name": "cicd-automation-workflow-automate",
-      "category": "general",
-      "score": 0.024325754,
+      "name": "llm-app-patterns",
+      "category": "frontend",
+      "score": 0.015625,
       "chunk_count": 1,
       "reason": "added: fallback skill for low-confidence coverage"
     },
     {
-      "name": "makepad-deployment",
+      "name": "context-management-context-restore",
       "category": "general",
-      "score": 0.01971362,
+      "score": 0.015151516,
       "chunk_count": 1,
-      "reason": "added: fallback skill for low-confidence coverage"
+      "reason": "kept active: still relevant after re-resolve"
     }
   ]
 }

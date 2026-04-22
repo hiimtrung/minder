@@ -214,7 +214,7 @@ async def test_minder_graph_defaults_to_auto_runtimes(
         def __init__(
             self,
             ollama_url: str = "http://localhost:11434",
-            ollama_model: str = "gemma4:e4b",
+            ollama_model: str = "gemma4:e2b",
             fail: bool = False,
             context_length: int = 4096,
         ) -> None:

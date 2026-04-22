@@ -83,8 +83,8 @@ The install script does this automatically, but you can also install manually:
 #### 2) Pull models
 
 ```bash
-ollama pull gemma4:e4b
-ollama pull embeddinggemma
+ollama pull qwen3.5:4b
+ollama pull qwen3-embedding:0.6b
 ```
 
 #### 3) Start infra and Minder
@@ -128,9 +128,9 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | --- | --- | --- |
 | `MINDER_SERVER__PORT` | `8800` | HTTP listen port |
 | `MINDER_LLM__OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `MINDER_LLM__OLLAMA_MODEL` | `gemma4:e4b` | LLM model name |
+| `MINDER_LLM__OLLAMA_MODEL` | `qwen3.5:4b` | LLM model name |
 | `MINDER_EMBEDDING__OLLAMA_URL` | `http://localhost:11434` | Ollama embedding endpoint |
-| `MINDER_EMBEDDING__OLLAMA_MODEL` | `embeddinggemma` | Embedding model name |
+| `MINDER_EMBEDDING__OLLAMA_MODEL` | `qwen3-embedding:0.6b` | Embedding model name |
 | `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |
 | `MINDER_REDIS__URI` | `redis://localhost:6379/0` | Redis URI |
 | `MINDER_VECTOR_STORE__URI` | `http://localhost:19530` | Milvus endpoint |

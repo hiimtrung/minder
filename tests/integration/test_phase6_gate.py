@@ -9,7 +9,7 @@ This gate verifies the shipped Phase 6 surface:
   placeholder tokens that the release workflow substitutes at publish time
   (P6-T06).
 - Release workflow publishes both installers under the tagged file names the
-  self-update flow expects (P6-T07).
+  update flow expects (P6-T07).
 - The production deployment guide documents both bash and PowerShell install
   one-liners (P6-T07).
 """
@@ -120,4 +120,4 @@ def test_phase6_gate_production_guide_documents_both_install_paths() -> None:
     assert "install-minder-<tag>.ps1" in guide
     assert "MINDER_INSTALL_DIR" in guide
     assert "MINDER_MODELS_DIR" in guide
-    assert "minder self-update --component server" in guide
+    assert "minder update --component server" in guide

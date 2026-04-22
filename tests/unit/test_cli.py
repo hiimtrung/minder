@@ -15,6 +15,8 @@ def test_login_persists_client_config(tmp_path, capsys) -> None:  # noqa: ANN001
             "login",
             "--client-key",
             "mkc_test_client_key_123",
+            "--protocol",
+            "sse",
             "--server-url",
             "http://localhost:8801/sse",
             "--config-path",
@@ -25,6 +27,7 @@ def test_login_persists_client_config(tmp_path, capsys) -> None:  # noqa: ANN001
     assert exit_code == 0
     payload = json.loads(config_path.read_text(encoding="utf-8"))
     assert payload["client_api_key"] == "mkc_test_client_key_123"
+    assert payload["protocol"] == "sse"
     assert payload["server_url"] == "http://localhost:8801/sse"
     assert (
         payload["default_headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
@@ -33,6 +36,51 @@ def test_login_persists_client_config(tmp_path, capsys) -> None:  # noqa: ANN001
     output = capsys.readouterr().out
     assert "Stored client credentials" in output
     assert "MINDER_CLIENT_API_KEY" in output
+
+
+def test_login_with_stdio_protocol_installs_stdio_mcp_entry(
+    tmp_path, capsys
+) -> None:  # noqa: ANN001
+    config_path = tmp_path / "client.json"
+
+    login_exit = main(
+        [
+            "login",
+            "--client-key",
+            "mkc_test_client_key_123",
+            "--protocol",
+            "stdio",
+            "--config-path",
+            str(config_path),
+        ]
+    )
+    assert login_exit == 0
+
+    install_exit = main(
+        [
+            "install-mcp",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+    assert install_exit == 0
+
+    vscode_payload = json.loads(
+        (tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8")
+    )
+    minder = vscode_payload["servers"]["minder"]
+    assert minder["type"] == "stdio"
+    assert minder["command"] == "uv"
+    assert minder["args"] == ["run", "python", "-m", "minder.server"]
+    assert minder["env"]["MINDER_SERVER__TRANSPORT"] == "stdio"
+    assert minder["env"]["MINDER_CLIENT_API_KEY"] == "mkc_test_client_key_123"
+
+    output = capsys.readouterr().out
+    assert "Protocol: stdio" in output
 
 
 def test_install_and_uninstall_local_mcp_configs(
@@ -276,7 +324,23 @@ def test_check_update_reports_cli_and_server_versions(
     assert "status: update available (v0.1.0 -> v0.2.0)" in output
 
 
-def test_self_update_cli_uses_available_manager(
+def test_check_version_reports_installed_and_latest(
+    monkeypatch, capsys
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.3.2")
+    monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.3.4")
+
+    exit_code = main(["check-version"])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    assert "CLI version:" in output
+    assert "installed: 0.3.2" in output
+    assert "latest: 0.3.4" in output
+    assert "status: update available (0.3.2 -> 0.3.4)" in output
+
+
+def test_update_cli_uses_available_manager(
     monkeypatch, capsys
 ) -> None:  # noqa: ANN001
     captured: dict[str, object] = {}
@@ -297,15 +361,16 @@ def test_self_update_cli_uses_available_manager(
 
     monkeypatch.setattr(cli.subprocess, "run", _fake_run)
 
-    exit_code = main(["self-update", "--component", "cli", "--manager", "uv"])
+    exit_code = main(["update", "--component", "cli", "--manager", "uv"])
 
     assert exit_code == 0
     assert captured["command"] == ["uv", "tool", "upgrade", "minder"]
     output = capsys.readouterr().out
-    assert "CLI self-update completed via: uv tool upgrade minder" in output
+    assert "CLI update completed:" in output
+    assert "via uv tool upgrade minder" in output
 
 
-def test_self_update_server_downloads_release_installer_and_reuses_env(
+def test_update_server_downloads_release_installer_and_reuses_env(
     tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001
     install_dir = tmp_path / "release"
@@ -351,7 +416,7 @@ def test_self_update_server_downloads_release_installer_and_reuses_env(
     monkeypatch.setattr(cli.subprocess, "run", _fake_run)
 
     exit_code = main(
-        ["self-update", "--component", "server", "--install-dir", str(install_dir)]
+        ["update", "--component", "server", "--install-dir", str(install_dir)]
     )
 
     assert exit_code == 0
@@ -365,7 +430,7 @@ def test_self_update_server_downloads_release_installer_and_reuses_env(
     assert env["MILVUS_PORT"] == "19530"
     assert env["OPENAI_API_KEY"] == "test-key"
     output = capsys.readouterr().out
-    assert "Server self-update completed" in output
+    assert "Server update completed" in output
     assert "Rollback guidance" in output
 
 
@@ -901,7 +966,7 @@ def test_detect_branch_relationships_dedupes_submodule_and_override(tmp_path) ->
     assert relationship["metadata"]["submodule_path"] == "vendor/other"
 
 
-def test_self_update_server_uses_powershell_installer_on_windows(
+def test_update_server_uses_powershell_installer_on_windows(
     tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001
     install_dir = tmp_path / "release"
@@ -952,7 +1017,7 @@ def test_self_update_server_uses_powershell_installer_on_windows(
 
     exit_code = main(
         [
-            "self-update",
+            "update",
             "--component",
             "server",
             "--install-dir",

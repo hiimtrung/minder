@@ -294,12 +294,17 @@ class SkillTools:
             if ref:
                 command += ["--branch", ref]
             command += [repo_url, tmp_dir]
-            result = subprocess.run(
-                command,
-                capture_output=True,
-                text=True,
-                check=False,
-            )
+            try:
+                result = subprocess.run(
+                    command,
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+            except FileNotFoundError:
+                raise RuntimeError(
+                    "Git executable not found. Please install git to support skill importation from remote repositories."
+                ) from None
             if result.returncode != 0:
                 message = (
                     result.stderr.strip() or result.stdout.strip() or "git clone failed"

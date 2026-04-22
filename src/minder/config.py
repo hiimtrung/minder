@@ -33,7 +33,7 @@ class AuthConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "embeddinggemma"
+    ollama_model: str = "qwen3-embedding:0.6b"
     dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
@@ -42,7 +42,7 @@ class EmbeddingConfig(BaseModel):
 class LLMConfig(BaseModel):
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "gemma4:e4b"
+    ollama_model: str = "qwen3.5:4b"
     context_length: int = 131072
     temperature: float = 0.1
     openai_api_key: Optional[str] = None

@@ -140,6 +140,14 @@ class SkillTools:
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue
+
+            # Differentiation: Skills are code OR have source metadata
+            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
+                getattr(skill, "source_metadata", None) is None
+            )
+            if is_memory:
+                continue
+
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
             if not embedding:
                 continue
@@ -193,6 +201,14 @@ class SkillTools:
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue
+
+            # Differentiation: Skills are code OR have source metadata
+            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
+                getattr(skill, "source_metadata", None) is None
+            )
+            if is_memory:
+                continue
+
             normalized_tags = {
                 str(item).strip().lower()
                 for item in list(getattr(skill, "tags", []) or [])

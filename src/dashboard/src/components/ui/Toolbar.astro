@@ -78,11 +78,16 @@ const resolvedNextId = nextId ?? (idPrefix ? `${idPrefix}-page-next` : undefined
     (showSearch || showPagination) && (
       <div class="u-toolbar-row">
         {showSearch && resolvedSearchId && (
-          <input
-            id={resolvedSearchId}
-            class="u-input min-w-[260px] flex-1"
-            placeholder={searchPlaceholder}
-          />
+          <div class="relative flex-1 min-w-[260px]">
+            <input
+              id={resolvedSearchId}
+              class="u-input w-full"
+              placeholder={searchPlaceholder}
+            />
+            <div id={`${resolvedSearchId}-loading`} class="absolute right-3 top-1/2 -translate-y-1/2 hidden">
+              <div class="h-4 w-4 animate-spin rounded-full border-2 border-stone-300 border-t-amber-600"></div>
+            </div>
+          </div>
         )}
         {showPagination && (
           <div class="flex items-center gap-3">

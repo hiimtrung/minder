@@ -37,12 +37,15 @@ const quickSearchEl = document.querySelector(
 const paginationStatusEl = document.querySelector("#memory-pagination-status");
 const pagePrevButton = document.querySelector("#memory-page-prev");
 const pageNextButton = document.querySelector("#memory-page-next");
+const quickSearchLoadingEl = document.querySelector(
+  "#memory-quick-search-loading",
+);
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 20;
 
-let allMemories: MemoryPayload[] = [];
 let visibleMemories: MemoryPayload[] = [];
+let totalCount = 0;
 let selectedMemoryId: string | null = null;
 let currentQuery = "";
 let currentPage = 1;
@@ -119,19 +122,24 @@ const fillForm = (memory?: MemoryPayload) => {
 
 const renderRegistry = () => {
   if (!(registryEl instanceof HTMLElement)) return;
-  const slice = paginateItems(visibleMemories, currentPage, PAGE_SIZE);
-  currentPage = slice.page;
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+
   setPagerStatus(paginationStatusEl, {
-    slice,
+    slice: {
+      items: visibleMemories,
+      page: currentPage,
+      pageCount,
+      total: totalCount,
+      start,
+      end,
+    },
     label: "memories",
     query: currentQuery,
   });
-  updatePagerButtons(
-    pagePrevButton,
-    pageNextButton,
-    slice.page,
-    slice.pageCount,
-  );
+  updatePagerButtons(pagePrevButton, pageNextButton, currentPage, pageCount);
 
   if (!visibleMemories.length) {
     registryEl.innerHTML = `
@@ -142,7 +150,7 @@ const renderRegistry = () => {
     return;
   }
 
-  registryEl.innerHTML = slice.items
+  registryEl.innerHTML = visibleMemories
     .map((memory) => {
       const activeClass =
         memory.id === selectedMemoryId
@@ -157,7 +165,7 @@ const renderRegistry = () => {
               data-memory-select="${escapeHtml(memory.id)}"
             >
               <p class="eyebrow">${escapeHtml(memory.language)}</p>
-              <h2 class="mt-2 break-words text-xl font-semibold tracking-tight text-stone-950">
+              <h2 class="mt-2 wrap-break-word text-xl font-semibold tracking-tight text-stone-950">
                 ${escapeHtml(memory.title)}
               </h2>
               <p class="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">
@@ -184,7 +192,7 @@ const renderRegistry = () => {
     .querySelectorAll<HTMLButtonElement>("[data-memory-select]")
     .forEach((button) => {
       button.addEventListener("click", () => {
-        const memory = allMemories.find(
+        const memory = visibleMemories.find(
           (item) => item.id === button.dataset.memorySelect,
         );
         if (!memory) return;
@@ -198,13 +206,13 @@ const renderRegistry = () => {
     .forEach((button) => {
       button.addEventListener("click", async () => {
         const memoryId = button.dataset.memoryDelete;
-        const memory = allMemories.find((item) => item.id === memoryId);
+        const memory = visibleMemories.find((item) => item.id === memoryId);
         if (!memoryId || !memory) return;
         if (!window.confirm(`Delete memory ${memory.title}?`)) return;
         try {
           await deleteMemory(memoryId);
           if (selectedMemoryId === memoryId) fillForm();
-          await refreshMemories();
+          await syncVisibleMemories();
           showToast(`Deleted ${memory.title}.`, "success");
         } catch (error) {
           showToast(
@@ -217,32 +225,19 @@ const renderRegistry = () => {
 };
 
 const syncVisibleMemories = async () => {
-  if (!currentQuery) {
-    visibleMemories = allMemories;
-    renderRegistry();
-    return;
-  }
-  const result = await searchAdminCatalog<MemoryPayload>(
-    "memories",
-    currentQuery,
-    200,
-    0,
-  );
-  visibleMemories = result.items;
-  renderRegistry();
-};
-
-const refreshMemories = async () => {
   if (registryEl instanceof HTMLElement) {
     registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading memories...</article>`;
   }
   try {
-    allMemories = await listMemories();
-    if (selectedMemoryId) {
-      const selected = allMemories.find((item) => item.id === selectedMemoryId);
-      if (selected) fillForm(selected);
-    }
-    await syncVisibleMemories();
+    const result = await searchAdminCatalog<MemoryPayload>(
+      "memories",
+      currentQuery,
+      PAGE_SIZE,
+      (currentPage - 1) * PAGE_SIZE,
+    );
+    visibleMemories = result.items;
+    totalCount = result.total;
+    renderRegistry();
   } catch (error) {
     if (registryEl instanceof HTMLElement) {
       registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${escapeHtml(error instanceof Error ? error.message : "Unable to load memories.")}</article>`;
@@ -253,7 +248,7 @@ const refreshMemories = async () => {
 document
   .querySelector("#memory-refresh-button")
   ?.addEventListener("click", () => {
-    void refreshMemories();
+    void syncVisibleMemories();
   });
 
 document
@@ -265,22 +260,25 @@ document
 
 pagePrevButton?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
-  renderRegistry();
+  void syncVisibleMemories();
 });
 
 pageNextButton?.addEventListener("click", () => {
   currentPage += 1;
-  renderRegistry();
+  void syncVisibleMemories();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisibleMemories();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisibleMemories();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 formEl?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -301,7 +299,7 @@ formEl?.addEventListener("submit", async (event) => {
       ? await updateMemory(currentMemoryId, draft)
       : await createMemory(draft);
     fillForm(saved);
-    await refreshMemories();
+    await syncVisibleMemories();
     showToast(
       `${isUpdate ? "Saved" : "Created"} memory ${saved.title}.`,
       "success",
@@ -316,4 +314,4 @@ formEl?.addEventListener("submit", async (event) => {
 });
 
 fillForm();
-void refreshMemories();
+void syncVisibleMemories();

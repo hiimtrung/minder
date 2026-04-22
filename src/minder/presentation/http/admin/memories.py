@@ -62,8 +62,14 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
             store=context.store,
         )
         try:
+            all_skills = await context.store.list_skills()
             skills = sorted(
-                await context.store.list_skills(),
+                [
+                    s
+                    for s in all_skills
+                    if getattr(s, "language", "") in ("markdown", "text", "", None)
+                    and getattr(s, "source_metadata", None) is None
+                ],
                 key=lambda skill: (
                     str(getattr(skill, "title", "")).lower(),
                     str(getattr(skill, "language", "")).lower(),

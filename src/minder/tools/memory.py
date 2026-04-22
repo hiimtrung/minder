@@ -80,6 +80,13 @@ class MemoryTools:
         skills = await self._store.list_skills()
         ranked: list[dict[str, Any]] = []
         for skill in skills:
+            # Differentiation: Memories are markdown/text AND have NO source metadata
+            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
+                getattr(skill, "source_metadata", None) is None
+            )
+            if not is_memory:
+                continue
+
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
             if not embedding:
                 continue
@@ -101,6 +108,7 @@ class MemoryTools:
                     "semantic_score": round(semantic_score, 4),
                     "step_compatibility": round(compatibility_score, 4),
                     "continuity_reasons": compatibility_reasons,
+                    "language": str(getattr(skill, "language", "") or "markdown"),
                     "score": round(score, 4),
                 }
             )
@@ -132,6 +140,8 @@ class MemoryTools:
                 "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
             }
             for skill in skills
+            if (getattr(skill, "language", "") in ("markdown", "text", "", None))
+            and (getattr(skill, "source_metadata", None) is None)
         ]
 
     async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:

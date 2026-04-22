@@ -48,12 +48,13 @@ const quickSearchEl = document.querySelector(
 const paginationStatusEl = document.querySelector("#prompt-pagination-status");
 const pagePrevButton = document.querySelector("#prompt-page-prev");
 const pageNextButton = document.querySelector("#prompt-page-next");
+const quickSearchLoadingEl = document.querySelector("#prompt-quick-search-loading");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 20;
 
-let allPrompts: PromptPayload[] = [];
 let visiblePrompts: PromptPayload[] = [];
+let totalCount = 0;
 let selectedPromptKey: string | null = null;
 let currentQuery = "";
 let currentPage = 1;
@@ -267,18 +268,28 @@ const renderPreview = () => {
 
 const renderRegistry = () => {
   if (!(registryEl instanceof HTMLElement)) return;
-  const slice = paginateItems(visiblePrompts, currentPage, PAGE_SIZE);
-  currentPage = slice.page;
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+
   setPagerStatus(paginationStatusEl, {
-    slice,
+    slice: {
+      items: visiblePrompts,
+      page: currentPage,
+      pageCount,
+      total: totalCount,
+      start,
+      end,
+    },
     label: "prompts",
     query: currentQuery,
   });
   updatePagerButtons(
     pagePrevButton,
     pageNextButton,
-    slice.page,
-    slice.pageCount,
+    currentPage,
+    pageCount,
   );
 
   if (!visiblePrompts.length) {
@@ -290,7 +301,7 @@ const renderRegistry = () => {
     return;
   }
 
-  registryEl.innerHTML = slice.items
+  registryEl.innerHTML = visiblePrompts
     .map((prompt) => {
       const activeClass =
         promptKey(prompt) === selectedPromptKey
@@ -339,7 +350,7 @@ const renderRegistry = () => {
     .querySelectorAll<HTMLButtonElement>("[data-prompt-select]")
     .forEach((button) => {
       button.addEventListener("click", () => {
-        const prompt = allPrompts.find(
+        const prompt = visiblePrompts.find(
           (item) => item.id === button.dataset.promptSelect,
         );
         if (!prompt) return;
@@ -354,7 +365,7 @@ const renderRegistry = () => {
     .forEach((button) => {
       button.addEventListener("click", async () => {
         const promptId = button.dataset.promptDelete;
-        const prompt = allPrompts.find((item) => item.id === promptId);
+        const prompt = visiblePrompts.find((item) => item.id === promptId);
         if (!promptId || !prompt) return;
         const confirmed = window.confirm(`Delete prompt ${prompt.name}?`);
         if (!confirmed) return;
@@ -363,7 +374,7 @@ const renderRegistry = () => {
           if (selectedPromptKey === promptId) {
             fillForm();
           }
-          await refreshPrompts();
+          await syncVisiblePrompts();
           showToast(`Deleted ${prompt.name}.`, "success");
         } catch (error) {
           showToast(
@@ -376,36 +387,19 @@ const renderRegistry = () => {
 };
 
 const syncVisiblePrompts = async () => {
-  if (!currentQuery) {
-    visiblePrompts = allPrompts;
-    renderRegistry();
-    return;
-  }
-  const result = await searchAdminCatalog<PromptPayload>(
-    "prompts",
-    currentQuery,
-    200,
-    0,
-  );
-  visiblePrompts = result.items;
-  renderRegistry();
-};
-
-const refreshPrompts = async () => {
   if (registryEl instanceof HTMLElement) {
     registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading prompts...</article>`;
   }
   try {
-    allPrompts = await listPrompts();
-    if (selectedPromptKey) {
-      const selected = allPrompts.find(
-        (item) => promptKey(item) === selectedPromptKey,
-      );
-      if (selected) {
-        fillForm(selected);
-      }
-    }
-    await syncVisiblePrompts();
+    const result = await searchAdminCatalog<PromptPayload>(
+      "prompts",
+      currentQuery,
+      PAGE_SIZE,
+      (currentPage - 1) * PAGE_SIZE,
+    );
+    visiblePrompts = result.items;
+    totalCount = result.total;
+    renderRegistry();
   } catch (error) {
     if (registryEl instanceof HTMLElement) {
       registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${escapeHtml(error instanceof Error ? error.message : "Unable to load prompts.")}</article>`;
@@ -416,7 +410,7 @@ const refreshPrompts = async () => {
 document
   .querySelector("#prompt-refresh-button")
   ?.addEventListener("click", () => {
-    void refreshPrompts();
+    void syncVisiblePrompts();
   });
 
 document
@@ -429,22 +423,25 @@ document
 
 pagePrevButton?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
-  renderRegistry();
+  void syncVisiblePrompts();
 });
 
 pageNextButton?.addEventListener("click", () => {
   currentPage += 1;
-  renderRegistry();
+  void syncVisiblePrompts();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisiblePrompts();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisiblePrompts();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 document
   .querySelector("#prompt-preview-button")
@@ -518,7 +515,7 @@ formEl?.addEventListener("submit", async (event) => {
       : await createPrompt(draft);
     selectedPromptKey = saved.id;
     fillForm(saved);
-    await refreshPrompts();
+    await syncVisiblePrompts();
     renderPreview();
     showToast(
       `${isUpdate ? "Saved" : "Created"} prompt ${saved.name}.`,
@@ -534,5 +531,5 @@ formEl?.addEventListener("submit", async (event) => {
 });
 
 fillForm();
-void refreshPrompts();
+void syncVisiblePrompts();
 renderPreview();

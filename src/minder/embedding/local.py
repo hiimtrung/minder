@@ -63,6 +63,26 @@ class LocalEmbeddingProvider:
                 logger.warning(f"FastEmbed failed during inference: {e}")
 
         # Deterministic hash-based fallback
+        return self._hash_embed(text)
+
+    def embed_many(self, texts: list[str]) -> list[list[float]]:
+        if not texts:
+            return []
+
+        if self.runtime == "fastembed" and self._model is not None:
+            try:
+                # FastEmbed returns a generator of numpy arrays
+                embeddings = list(self._model.embed(texts))
+                return [
+                    emb.tolist()[: self._dimensions] for emb in embeddings
+                ]
+            except Exception as e:
+                logger.warning(f"FastEmbed batch failed during inference: {e}")
+
+        return [self._hash_embed(text) for text in texts]
+
+    def _hash_embed(self, text: str) -> list[float]:
+        # Deterministic hash-based fallback
         digest = hashlib.sha256(text.encode("utf-8")).digest()
         values: list[float] = []
         for index in range(self._dimensions):

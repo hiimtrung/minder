@@ -19,6 +19,9 @@ const paginationStatusEl = document.querySelector(
 );
 const pagePrevButton = document.querySelector("#repo-list-page-prev");
 const pageNextButton = document.querySelector("#repo-list-page-next");
+const quickSearchLoadingEl = document.querySelector(
+  "#repo-list-quick-search-loading",
+);
 
 const PAGE_SIZE = 8;
 
@@ -67,7 +70,7 @@ function renderRegistry(): void {
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
               <p class="eyebrow">${escapeHtml(repo.workflow_name ?? "Repository")}</p>
-              <h2 class="mt-3 break-words text-2xl font-semibold tracking-tight text-stone-950">${escapeHtml(repo.name)}</h2>
+              <h2 class="mt-3 wrap-break-word text-2xl font-semibold tracking-tight text-stone-950">${escapeHtml(repo.name)}</h2>
             </div>
             <span class="rounded-full border border-stone-200 bg-stone-50 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">
               ${escapeHtml(repo.default_branch ?? "no-branch")}
@@ -130,13 +133,16 @@ pageNextButton?.addEventListener("click", () => {
   renderRegistry();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisibleRepositories();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisibleRepositories();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 void refreshRepositories();

@@ -100,8 +100,14 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
             store=context.store,
         )
         try:
+            all_skills = await context.store.list_skills()
             skills = sorted(
-                await context.store.list_skills(),
+                [
+                    s
+                    for s in all_skills
+                    if (getattr(s, "language", "") not in ("markdown", "text", "", None))
+                    or (getattr(s, "source_metadata", None) is not None)
+                ],
                 key=lambda skill: (
                     -float(getattr(skill, "quality_score", 0.0) or 0.0),
                     str(getattr(skill, "title", "")).lower(),

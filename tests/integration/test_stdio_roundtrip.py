@@ -67,6 +67,8 @@ async def test_stdio_roundtrip(tmp_path, uv_path):
     # We'll use a mocked in-memory DB for this test to avoid needing a real MongoDB
     env["MINDER_RELATIONAL_STORE__PROVIDER"] = "sqlite"
     env["MINDER_RELATIONAL_STORE__DB_PATH"] = ":memory:"
+    # Keep vector store local-only so repo .env overrides (e.g. milvus) do not block startup.
+    env["MINDER_VECTOR_STORE__PROVIDER"] = "milvus_lite"
 
     process = subprocess.Popen(
         [sys.executable, "-u", "-m", "minder.server"],

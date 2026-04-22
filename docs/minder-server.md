@@ -83,7 +83,7 @@ The install script does this automatically, but you can also install manually:
 #### 2) Pull models
 
 ```bash
-ollama pull gemma4:e4b
+ollama pull gemma4:e2b
 ollama pull embeddinggemma
 ```
 
@@ -128,7 +128,7 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | --- | --- | --- |
 | `MINDER_SERVER__PORT` | `8800` | HTTP listen port |
 | `MINDER_LLM__OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
-| `MINDER_LLM__OLLAMA_MODEL` | `gemma4:e4b` | LLM model name |
+| `MINDER_LLM__OLLAMA_MODEL` | `gemma4:e2b` | LLM model name |
 | `MINDER_EMBEDDING__OLLAMA_URL` | `http://localhost:11434` | Ollama embedding endpoint |
 | `MINDER_EMBEDDING__OLLAMA_MODEL` | `embeddinggemma` | Embedding model name |
 | `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |

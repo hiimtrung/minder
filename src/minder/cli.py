@@ -399,22 +399,15 @@ def _self_update_cli(manager: str) -> None:
         if executable != sys.executable and shutil.which(executable) is None:
             failures.append(f"{' '.join(command)} -> command not available")
             continue
+        print(f"Executing CLI self-update: {' '.join(command)}")
         result = subprocess.run(
             command,
-            capture_output=True,
-            text=True,
             check=False,
         )
         if result.returncode == 0:
-            output = result.stdout.strip()
-            if output:
-                print(output)
             print(f"CLI self-update completed via: {' '.join(command)}")
             return
-        details = (
-            result.stderr.strip() or result.stdout.strip() or str(result.returncode)
-        )
-        failures.append(f"{' '.join(command)} -> {details}")
+        failures.append(f"{' '.join(command)} -> failed with exit code {result.returncode}")
     raise RuntimeError("CLI self-update failed: " + "; ".join(failures))
 
 
@@ -448,7 +441,6 @@ def _run_bash_installer(script: str, env: dict[str, str]) -> subprocess.Complete
     return subprocess.run(
         ["bash"],
         input=script,
-        capture_output=True,
         text=True,
         env=env,
         check=False,
@@ -462,7 +454,6 @@ def _run_powershell_installer(
     return subprocess.run(
         [executable, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "-"],
         input=script,
-        capture_output=True,
         text=True,
         env=env,
         check=False,
@@ -491,18 +482,14 @@ def _self_update_server(install_dir: Path) -> None:
         value = env_payload.get(key)
         if value:
             update_env[key] = value
+    print(f"Executing server self-update for {install_dir}...")
     if installer_variant == "powershell":
         result = _run_powershell_installer(installer_script, update_env)
     else:
         result = _run_bash_installer(installer_script, update_env)
     if result.returncode != 0:
-        details = (
-            result.stderr.strip() or result.stdout.strip() or str(result.returncode)
-        )
-        raise RuntimeError(f"Server self-update failed: {details}")
-    output = result.stdout.strip()
-    if output:
-        print(output)
+        raise RuntimeError(f"Server self-update failed with exit code {result.returncode}")
+    # Output is already streamed to stdout/stderr in installer helpers if not captured
     print(
         f"Server self-update completed for {install_dir}: "
         f"{current or 'unknown'} -> {latest}"
@@ -1332,9 +1319,28 @@ def _sync(args: argparse.Namespace) -> int:
     return 0
 
 
+def _version(args: argparse.Namespace) -> int:
+    version = _installed_package_version()
+    if version:
+        print(f"minder {version}")
+    else:
+        print("minder version unknown (not installed as a package)")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Minder CLI")
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"minder {_installed_package_version() or 'unknown'}",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
+
+    version_cmd = subparsers.add_parser(
+        "version", help="Show the Minder CLI version."
+    )
 
     login = subparsers.add_parser(
         "login",
@@ -1533,6 +1539,8 @@ def main(argv: list[str] | None = None) -> int:
         return _self_update(args)
     if args.command == "sync":
         return _sync(args)
+    if args.command == "version":
+        return _version(args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

@@ -14,7 +14,7 @@ API_IMAGE="ghcr.io/${REPO_OWNER}/minder-api:${RELEASE_TAG}"
 DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
-LLM_MODEL="${MINDER_LLM_MODEL:-gemma4:e4b}"
+LLM_MODEL="${MINDER_LLM_MODEL:-gemma4:e2b}"
 EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-embeddinggemma}"
 
 # ------------------------------------------------------------------

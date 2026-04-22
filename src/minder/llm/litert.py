@@ -60,7 +60,7 @@ class LiteRTModelLLM:
             return
 
         try:
-            import litert_lm
+            import litert_lm  # type: ignore[import-untyped]
             
             # Map string backend to LiteRT-LM enum with platform-aware defaults
             backend_str = self._backend.lower()

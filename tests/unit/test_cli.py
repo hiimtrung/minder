@@ -3,13 +3,9 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import minder.cli as cli
 from minder.cli import main
 import minder.presentation.cli.utils.git as cli_git
-import minder.presentation.cli.utils.version as cli_version
-import minder.presentation.cli.utils.common as cli_common
 import minder.presentation.cli.commands.mcp as cli_mcp
-import minder.presentation.cli.commands.ide as cli_ide
 import minder.presentation.cli.commands.update as cli_update
 import minder.presentation.cli.commands.sync as cli_sync
 

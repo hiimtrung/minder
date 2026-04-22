@@ -50,7 +50,7 @@ def login_command(args: argparse.Namespace) -> int:
     write_json(config_path, payload)
     print(f"\nSuccess! Stored client credentials in {config_path}")
     print(f"Protocol: {payload['protocol']}")
-    print(f"\nYou can also set these via environment variables:")
+    print("\nYou can also set these via environment variables:")
     print(f"  export MINDER_CLIENT_API_KEY={client_key}")
     if payload['protocol'] == "sse":
         print(f"  export MINDER_SERVER_URL={payload.get('server_url')}")

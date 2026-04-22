@@ -194,7 +194,7 @@ def _self_update_server(install_dir: Path) -> None:
     )
     print(result.stdout)
     print(f"Server update completed: Minder server updated to {version}")
-    print(f"Rollback guidance: To revert, run the installer with the previous version tag.")
+    print("Rollback guidance: To revert, run the installer with the previous version tag.")
 
 
 def update_command(args: argparse.Namespace) -> int:

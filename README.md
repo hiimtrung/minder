@@ -25,10 +25,10 @@ Developer → minder-cli → Minder Server ←→ AI agents (Codex / Copilot / C
            MongoDB          Redis         Milvus
          (graph/memory)   (cache)      (vector search)
                │
-         ┌─────┴──────┐
-         │            │
-      LiteRT-LM   Ollama (Docker)
-      (LLM gen)   (embedding)
+          ┌─────┴──────┐
+          │            │
+       LiteRT-LM    FastEmbed
+       (LLM gen)   (embedding)
 ```
 
 - **LLM inference**: LiteRT-LM (Google AI Edge) — on-device, hardware-accelerated, no HTTP overhead
@@ -42,7 +42,7 @@ Developer → minder-cli → Minder Server ←→ AI agents (Codex / Copilot / C
 # 1. Download the LiteRT-LM model
 ./scripts/download_models.sh
 
-# 2. Start infra (Ollama + MongoDB + Redis + Milvus)
+# 2. Start infra (MongoDB + Redis + Milvus)
 docker compose -f docker/docker-compose.local.yml up -d
 
 # 3. Run Minder Server

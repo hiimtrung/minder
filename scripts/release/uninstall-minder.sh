@@ -7,7 +7,7 @@ set -euo pipefail
 #
 # Usage:
 #   ./uninstall-minder.sh               # Full uninstall (removes everything)
-#   ./uninstall-minder.sh --keep-data   # Keeps Ollama, models, Docker volumes, config
+#   ./uninstall-minder.sh --keep-data   # Keeps models, Docker volumes, config
 # ------------------------------------------------------------------
 
 KEEP_DATA=false

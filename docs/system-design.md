@@ -53,7 +53,7 @@ flowchart TB
   Workflow --> Redis["Redis"]
   Workflow --> Milvus["Milvus Standalone\nSemantic Index"]
   Orchestrator --> LiteRT["LiteRT-LM\n(host-native, in-process)"]
-  Embedder --> OllamaDocker["Ollama\n(Docker container)"]
+  Embedder --> FastEmbed["FastEmbed\n(in-process ONNX)"]
 ```
 
 ### AI Inference Architecture
@@ -65,7 +65,7 @@ Minder splits AI inference into two dedicated backends:
 | **LLM (text generation)** | LiteRT-LM | Host-native, in-process Python | Hardware-accelerated (Metal/CPU), no HTTP overhead, ~3s cold start |
 | **Embedding** | FastEmbed | `mxbai-embed-large-v1` | Lightweight, runs in-process with ONNX runtime, zero extra dependencies |
 
-This split eliminates the previous single-Ollama bottleneck where both embedding and LLM competed for the same Ollama process, causing severe performance degradation with larger models.
+This split eliminates the previous single-process bottleneck where both embedding and LLM competed for the same resource, causing severe performance degradation with larger models.
 
 ### Review Note
 
@@ -420,7 +420,7 @@ Key paths:
 ### Local / Dev
 
 - [`docker/docker-compose.local.yml`](../docker/docker-compose.local.yml)
-- infra-only Docker services for Ollama (embedding), MongoDB, Redis, Milvus, etcd, and minio
+- infra-only Docker services for MongoDB, Redis, Milvus, etcd, and minio
 - Minder and Astro run outside Docker for interactive debugging
 - LLM inference uses host-native LiteRT-LM (no Docker required for LLM)
 

@@ -23,6 +23,9 @@ from minder.graph.state import GraphState
 logger = logging.getLogger(__name__)
 
 
+_ENGINE_CACHE: dict[str, Any] = {}
+
+
 class LiteRTModelLLM:
     """LLM provider backed by Google LiteRT-LM (on-device inference)."""
 
@@ -66,6 +69,11 @@ class LiteRTModelLLM:
         if self._engine is not None:
             return self._engine
 
+        cache_key = f"{self._model_path}:{self._backend}"
+        if cache_key in _ENGINE_CACHE:
+            self._engine = _ENGINE_CACHE[cache_key]
+            return self._engine
+
         import litert_lm  # type: ignore[import-not-found]
 
         backend = litert_lm.Backend.CPU
@@ -75,6 +83,7 @@ class LiteRTModelLLM:
             backend=backend,
             cache_dir=self._cache_dir,
         )
+        _ENGINE_CACHE[cache_key] = self._engine
         return self._engine
 
     def close(self) -> None:

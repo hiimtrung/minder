@@ -16,7 +16,7 @@ System-level architecture lives in:
 
 - Docker Desktop or compatible Docker runtime
 - `uv`
-- enough disk for MongoDB, Redis, Milvus, Ollama container, and LiteRT-LM model files
+- enough disk for MongoDB, Redis, Milvus, and LiteRT-LM model files
 
 ## 1. Download the LiteRT-LM model
 

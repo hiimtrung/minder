@@ -32,6 +32,7 @@ class AuthConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     provider: str = "fastembed"
+    runtime: str = "auto"  # "auto" | "fastembed" | "mock"
     fastembed_model: str = "mixedbread-ai/mxbai-embed-large-v1"
     fastembed_cache_dir: str = "~/.minder/cache/fastembed"
     dimensions: int = 1024

@@ -14,6 +14,9 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 
+_MODEL_CACHE: dict[str, Any] = {}
+
+
 class LocalEmbeddingProvider:
     def __init__(
         self,
@@ -33,6 +36,11 @@ class LocalEmbeddingProvider:
         if self._runtime == "mock":
             return
 
+        cache_key = f"{self._model_name}:{self._cache_dir}"
+        if cache_key in _MODEL_CACHE:
+            self._model = _MODEL_CACHE[cache_key]
+            return
+
         try:
             from fastembed import TextEmbedding  # type: ignore[import-not-found]
 
@@ -40,6 +48,7 @@ class LocalEmbeddingProvider:
                 model_name=self._model_name,
                 cache_dir=self._cache_dir,
             )
+            _MODEL_CACHE[cache_key] = self._model
         except Exception as e:
             logger.warning(
                 f"Failed to initialize FastEmbed model {self._model_name}: {e}. Using mock."

@@ -29,6 +29,11 @@ def _isolate_minder_env_from_dotenv() -> Iterator[None]:
     for key in list(os.environ):
         if key.startswith("MINDER_"):
             removed[key] = os.environ.pop(key)
+    
+    # Force mock modes for tests to save RAM and time
+    os.environ["MINDER_EMBEDDING__RUNTIME"] = "mock"
+    os.environ["MINDER_VECTOR_STORE__PROVIDER"] = "memory"
+    
     try:
         yield
     finally:

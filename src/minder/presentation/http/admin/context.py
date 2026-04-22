@@ -49,7 +49,7 @@ class AdminRouteContext:
             fastembed_model=config.embedding.fastembed_model,
             fastembed_cache_dir=config.embedding.fastembed_cache_dir,
             dimensions=config.embedding.dimensions,
-            runtime="auto",
+            runtime=config.embedding.runtime,
         )
         return cls(
             config=config,

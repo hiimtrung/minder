@@ -398,19 +398,16 @@ api_key_prefix = "mk_"
 default_admin_email = "${MINDER_ADMIN_EMAIL}"
 
 [embedding]
-provider = "ollama"
-model_name = "embeddinggemma"
-ollama_url = "http://localhost:11434"
-ollama_model = "embeddinggemma"
-dimensions = 768
+provider = "fastembed"
+runtime = "auto"
+fastembed_model = "mixedbread-ai/mxbai-embed-large-v1"
+dimensions = 1024
 openai_api_key = "${OPENAI_API_KEY}"
 openai_model = "text-embedding-3-small"
 
 [llm]
-provider = "ollama"
-model_name = "gemma4:e2b"
-ollama_url = "http://localhost:11434"
-ollama_model = "gemma4:e2b"
+provider = "litert"
+litert_model_path = "~/.minder/models/gemma-4-E2B-it.litertlm"
 context_length = 131072
 temperature = 0.1
 openai_api_key = "${OPENAI_API_KEY}"

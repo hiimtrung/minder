@@ -1,5 +1,6 @@
 services:
   gateway:
+    container_name: minder-gateway
     image: caddy:2.11.2-alpine
     restart: unless-stopped
     ports:
@@ -11,11 +12,14 @@ services:
       - minder-api
 
   minder-api:
+    container_name: minder-server
     build:
       context: ..
       dockerfile: docker/Dockerfile.api
     image: minder-api:full
     restart: unless-stopped
+    volumes:
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
@@ -28,15 +32,14 @@ services:
       MINDER_VECTOR_STORE__PROVIDER: milvus
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
+      MINDER_LLM__PROVIDER: litert
+      MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E2B-it.litertlm
+      MINDER_LLM__LITERT_BACKEND: cpu
+      MINDER_LLM__LITERT_CACHE_DIR: /tmp/litert-cache
       MINDER_EMBEDDING__PROVIDER: ollama
-      MINDER_EMBEDDING__OLLAMA_URL: http://host.docker.internal:11434
-      MINDER_EMBEDDING__OLLAMA_MODEL: qwen3-embedding:0.6b
-      MINDER_LLM__PROVIDER: ollama
-      MINDER_LLM__OLLAMA_URL: http://host.docker.internal:11434
-      MINDER_LLM__OLLAMA_MODEL: qwen3.5:4b
+      MINDER_EMBEDDING__OLLAMA_URL: http://ollama:11434
+      MINDER_EMBEDDING__OLLAMA_MODEL: embeddinggemma:300m
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     depends_on:
       mongodb:
         condition: service_healthy
@@ -44,8 +47,11 @@ services:
         condition: service_healthy
       milvus-standalone:
         condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
 
   dashboard:
+    container_name: minder-dashboard
     build:
       context: ..
       dockerfile: docker/Dockerfile.dashboard
@@ -54,7 +60,31 @@ services:
     depends_on:
       - minder-api
 
+  ollama:
+    container_name: minder-ollama
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama-data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  ollama-init:
+    container_name: minder-ollama-init
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+    entrypoint: ["ollama", "pull", "embeddinggemma:300m"]
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+
   mongodb:
+    container_name: minder-mongodb
     image: mongo:8.2.6
     restart: unless-stopped
     volumes:
@@ -66,6 +96,7 @@ services:
       retries: 5
 
   redis:
+    container_name: minder-redis
     image: redis:8.6.2-alpine
     restart: unless-stopped
     volumes:
@@ -77,6 +108,7 @@ services:
       retries: 5
 
   etcd:
+    container_name: minder-etcd
     image: quay.io/coreos/etcd:v3.6.10
     restart: unless-stopped
     environment:
@@ -94,6 +126,7 @@ services:
       retries: 3
 
   minio:
+    container_name: minder-minio
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
     environment:
@@ -109,6 +142,7 @@ services:
       retries: 3
 
   milvus-standalone:
+    container_name: minder-milvus
     image: milvusdb/milvus:v2.6.14
     restart: unless-stopped
     command: ["milvus", "run", "standalone"]
@@ -133,6 +167,7 @@ services:
       retries: 3
 
 volumes:
+  ollama-data:
   mongodb-data:
   redis-data:
   etcd-data:

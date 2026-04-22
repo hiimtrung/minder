@@ -16,9 +16,9 @@ System-level architecture lives in:
 
 - Docker Desktop or compatible Docker runtime
 - `uv`
-- enough disk for MongoDB, Redis, Milvus, and GGUF model files
+- enough disk for MongoDB, Redis, Milvus, Ollama container, and LiteRT-LM model files
 
-## 1. Download the local models
+## 1. Download the LiteRT-LM model
 
 Run:
 
@@ -35,9 +35,11 @@ This script stores models in:
 Expected files:
 
 ```text
-~/.minder/models/embeddinggemma-300M-Q8_0.gguf
-~/.minder/models/gemma-4-e2b-it-Q8_0.gguf
+~/.minder/models/gemma-4-E2B-it.litertlm
+~/.minder/models/embeddinggemma-300M-Q8_0.gguf  (offline fallback)
 ```
+
+Note: The primary embedding model (`embeddinggemma:300m`) is auto-pulled by the Docker Ollama container. The GGUF file above is an offline fallback only.
 
 ## 1a. Create local env files
 
@@ -83,6 +85,8 @@ docker compose -f docker/docker-compose.local.yml ps
 
 Local Docker now provides the shared infra runtime:
 
+- `ollama` (embedding inference)
+- `ollama-init` (auto-pull embedding model)
 - `mongodb`
 - `redis`
 - `etcd`
@@ -90,6 +94,8 @@ Local Docker now provides the shared infra runtime:
 - `milvus-standalone`
 
 It intentionally does not start the Minder app or the Astro dashboard. You run those locally so you can debug them directly.
+
+LLM inference runs on the host via LiteRT-LM (no Docker required for LLM).
 
 ## 2a. Start Minder locally against the Docker infra
 

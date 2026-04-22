@@ -18,7 +18,7 @@ class LocalEmbeddingProvider:
     def __init__(
         self,
         ollama_url: str = "http://localhost:11434",
-        ollama_model: str = "qwen3-embedding:0.6b",
+        ollama_model: str = "embeddinggemma:300m",
         dimensions: int = 768,
         runtime: str = "auto",
     ) -> None:

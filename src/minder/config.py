@@ -33,14 +33,19 @@ class AuthConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     provider: str = "ollama"
     ollama_url: str = "http://localhost:11434"
-    ollama_model: str = "qwen3-embedding:0.6b"
+    ollama_model: str = "embeddinggemma:300m"
     dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
 
 
 class LLMConfig(BaseModel):
-    provider: str = "ollama"
+    provider: str = "litert"  # "litert" | "ollama" | "openai"
+    # LiteRT-LM fields
+    litert_model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm"
+    litert_backend: str = "cpu"  # "cpu" | "gpu" (gpu upcoming)
+    litert_cache_dir: str = "~/.minder/cache/litert"
+    # Ollama fields (kept for fallback)
     ollama_url: str = "http://localhost:11434"
     ollama_model: str = "qwen3.5:4b"
     context_length: int = 131072

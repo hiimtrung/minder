@@ -8,14 +8,16 @@ RELEASE_TAG="__RELEASE_TAG__"
 
 INSTALL_DIR="${MINDER_INSTALL_DIR:-$HOME/.minder/releases/$RELEASE_TAG}"
 CURRENT_LINK="${MINDER_CURRENT_LINK:-$HOME/.minder/current}"
+MODELS_DIR="${MINDER_MODELS_DIR:-$HOME/.minder/models}"
 PUBLIC_PORT="${MINDER_PORT:-8800}"
 MILVUS_PORT="${MILVUS_PORT:-19530}"
 API_IMAGE="ghcr.io/${REPO_OWNER}/minder-api:${RELEASE_TAG}"
 DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
-LLM_MODEL="${MINDER_LLM_MODEL:-qwen3.5:4b}"
-EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-qwen3-embedding:0.6b}"
+EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-embeddinggemma:300m}"
+LITERT_MODEL_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
+LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
 
 # ------------------------------------------------------------------
 # Helpers
@@ -26,15 +28,6 @@ require_command() {
     echo "Missing required command: $1" >&2
     exit 1
   fi
-}
-
-detect_os() {
-  case "$(uname -s)" in
-    Linux*)  echo "linux" ;;
-    Darwin*) echo "macos" ;;
-    MINGW*|MSYS*|CYGWIN*) echo "windows" ;;
-    *) echo "unknown" ;;
-  esac
 }
 
 # ------------------------------------------------------------------
@@ -50,105 +43,33 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------
-# Step 2: Install Ollama if missing
+# Step 2: Download LiteRT-LM model
 # ------------------------------------------------------------------
 
-install_ollama() {
-  local os="$1"
-  echo "Ollama not found. Installing..."
+mkdir -p "$MODELS_DIR"
 
-  case "$os" in
-    linux)
-      curl -fsSL https://ollama.com/install.sh | sh
-      ;;
-    macos)
-      if command -v brew >/dev/null 2>&1; then
-        brew install ollama
-      else
-        echo "Please install Ollama manually from https://ollama.com/download" >&2
-        echo "After installing, run this script again." >&2
-        exit 1
-      fi
-      ;;
-    *)
-      echo "Unsupported OS for automatic Ollama installation." >&2
-      echo "Please install Ollama manually from https://ollama.com/download" >&2
-      exit 1
-      ;;
-  esac
-}
-
-OS="$(detect_os)"
-
-if ! command -v ollama >/dev/null 2>&1; then
-  install_ollama "$OS"
+if [ -f "$MODELS_DIR/$LITERT_MODEL_FILE" ]; then
+  echo "LiteRT-LM model already exists: $MODELS_DIR/$LITERT_MODEL_FILE"
+else
+  echo "Downloading LiteRT-LM model (this may take a few minutes)..."
+  curl -L "$LITERT_MODEL_URL" -o "$MODELS_DIR/$LITERT_MODEL_FILE"
 fi
 
-# Ensure Ollama is running
-if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
-  echo "Starting Ollama service..."
-  case "$OS" in
-    linux)
-      if command -v systemctl >/dev/null 2>&1; then
-        sudo systemctl start ollama 2>/dev/null || ollama serve &
-      else
-        ollama serve &
-      fi
-      ;;
-    macos)
-      ollama serve &
-      ;;
-  esac
-  # Wait for Ollama to be ready
-  echo "Waiting for Ollama to start..."
-  for i in $(seq 1 30); do
-    if curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
-      break
-    fi
-    if [ "$i" -eq 30 ]; then
-      echo "Ollama did not start within 30 seconds." >&2
-      exit 1
-    fi
-    sleep 1
-  done
-fi
-
-echo "Ollama is running."
+echo "LiteRT-LM model ready."
 
 # ------------------------------------------------------------------
-# Step 3: Pull required models
-# ------------------------------------------------------------------
-
-pull_model() {
-  local model_name="$1"
-  echo "Checking model: $model_name"
-  if ollama list 2>/dev/null | grep -q "^${model_name}"; then
-    echo "  Model $model_name is already available."
-  else
-    echo "  Pulling $model_name (this may take a few minutes)..."
-    ollama pull "$model_name"
-  fi
-}
-
-pull_model "$LLM_MODEL"
-pull_model "$EMBEDDING_MODEL"
-
-echo "All required models are ready."
-
-# ------------------------------------------------------------------
-# Step 4: Verify pre-conditions
+# Step 3: Verify pre-conditions
 # ------------------------------------------------------------------
 
 echo ""
 echo "Pre-flight checks:"
 echo "  [✓] Docker with Compose plugin"
-echo "  [✓] Ollama running at http://localhost:11434"
-echo "  [✓] LLM model: $LLM_MODEL"
-echo "  [✓] Embedding model: $EMBEDDING_MODEL"
+echo "  [✓] LiteRT-LM model: $LITERT_MODEL_FILE"
+echo "  [✓] Embedding model (Docker Ollama auto-pull): $EMBEDDING_MODEL"
 echo ""
 
 # ------------------------------------------------------------------
-# Step 5: Download release assets and start Docker Compose
+# Step 4: Download release assets and start Docker Compose
 # ------------------------------------------------------------------
 
 mkdir -p "$INSTALL_DIR"
@@ -162,8 +83,7 @@ MINDER_PORT=$PUBLIC_PORT
 MILVUS_PORT=$MILVUS_PORT
 MINDER_API_IMAGE=$API_IMAGE
 MINDER_DASHBOARD_IMAGE=$DASHBOARD_IMAGE
-MINDER_OLLAMA_URL=http://host.docker.internal:11434
-MINDER_LLM_MODEL=$LLM_MODEL
+MINDER_MODELS_DIR=$MODELS_DIR
 MINDER_EMBEDDING_MODEL=$EMBEDDING_MODEL
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 EOF
@@ -188,9 +108,8 @@ Deployment directory: $INSTALL_DIR
 Current release link: $CURRENT_LINK
 API image: $API_IMAGE
 Dashboard image: $DASHBOARD_IMAGE
-Ollama: http://localhost:11434
-LLM model: $LLM_MODEL
-Embedding model: $EMBEDDING_MODEL
+LiteRT-LM model: $MODELS_DIR/$LITERT_MODEL_FILE
+Embedding: Docker Ollama auto-pull ($EMBEDDING_MODEL)
 
 Open:
   http://localhost:$PUBLIC_PORT/dashboard/setup

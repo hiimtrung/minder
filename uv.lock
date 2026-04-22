@@ -967,6 +967,16 @@ wheels = [
 ]
 
 [[package]]
+name = "litert-lm-api-nightly"
+version = "0.11.0.dev20260421"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/50/9a/5ea25d60af5c4cc54530b396f9ef0c09fe750c254a72fe41120dbdabd0dd/litert_lm_api_nightly-0.11.0.dev20260421-cp314-cp314-macosx_12_0_arm64.whl", hash = "sha256:1e30dd6213fd4535e36b282e80c3cd6169356ddd77f6c801e1cf898f5a6f622d", size = 30986807, upload-time = "2026-04-22T05:15:44.05Z" },
+    { url = "https://files.pythonhosted.org/packages/73/8e/f51d661b4acae86c37ae6d1536c3879ca18d67f7cbdbcd96150dd5af6548/litert_lm_api_nightly-0.11.0.dev20260421-cp314-cp314-manylinux_2_35_aarch64.whl", hash = "sha256:5d4ffe3ce1d3b7efcbd3ce90ad0382acb52f6c8173b82d919d1135634a524e96", size = 30095416, upload-time = "2026-04-22T05:14:59.928Z" },
+    { url = "https://files.pythonhosted.org/packages/33/be/a19e15073fb2fd900b1f86c081aec1c9947db0da05d9596f4a1d5abd1e7d/litert_lm_api_nightly-0.11.0.dev20260421-cp314-cp314-manylinux_2_35_x86_64.whl", hash = "sha256:6b0afcc7ce59d238ba7d42354fcc60279c2cabfa4d5184b3f59f33dd4e3a5b4f", size = 33067917, upload-time = "2026-04-22T05:19:29.433Z" },
+]
+
+[[package]]
 name = "lupa"
 version = "2.6"
 source = { registry = "https://pypi.org/simple" }
@@ -1086,6 +1096,7 @@ server = [
     { name = "aiosqlite" },
     { name = "langgraph" },
     { name = "litellm" },
+    { name = "litert-lm-api-nightly" },
     { name = "mcp" },
     { name = "motor" },
     { name = "passlib", extra = ["bcrypt"] },
@@ -1118,6 +1129,7 @@ requires-dist = [
     { name = "httpx", specifier = ">=0.28.0" },
     { name = "langgraph", marker = "extra == 'server'", specifier = ">=1.1.8" },
     { name = "litellm", marker = "extra == 'server'", specifier = ">=1.83.1" },
+    { name = "litert-lm-api-nightly", marker = "extra == 'server'", specifier = ">=0.10" },
     { name = "mcp", marker = "extra == 'server'", specifier = ">=1.26.0" },
     { name = "motor", marker = "extra == 'server'", specifier = ">=3.7.0" },
     { name = "passlib", extras = ["bcrypt"], marker = "extra == 'server'", specifier = ">=1.7.4" },

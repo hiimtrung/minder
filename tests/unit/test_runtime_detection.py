@@ -210,23 +210,16 @@ async def test_minder_graph_defaults_to_auto_runtimes(
 ) -> None:
     captured: dict[str, object] = {}
 
-    class CaptureLocalModel:
-        def __init__(
-            self,
-            ollama_url: str = "http://localhost:11434",
-            ollama_model: str = "gemma4:e2b",
-            fail: bool = False,
-            context_length: int = 4096,
-        ) -> None:
-            captured["local_model_url"] = ollama_url
-            captured["local_model_context_length"] = context_length
+    class CapturedLLM:
+        def __init__(self) -> None:
+            pass
 
         def generate(self, state):  # noqa: ANN001, ANN201
             return {
                 "text": "ok",
                 "sources": [],
                 "provider": "local_llm",
-                "model": "gemma-4-e2b-it",
+                "model": "gemma-4-E2B-it",
                 "runtime": "mock",
                 "stream": ["ok"],
             }
@@ -240,11 +233,16 @@ async def test_minder_graph_defaults_to_auto_runtimes(
         def available(self) -> bool:
             return False
 
-    monkeypatch.setattr(graph_module, "LocalModelLLM", CaptureLocalModel)
+    def fake_create_llm(config):  # noqa: ANN001, ANN201
+        captured["provider"] = config.provider
+        captured["context_length"] = config.context_length
+        return CapturedLLM()
+
+    monkeypatch.setattr(graph_module, "create_llm", fake_create_llm)
     monkeypatch.setattr(graph_module, "OpenAIFallbackLLM", CaptureFallback)
 
     MinderGraph(store, MinderConfig())
 
-    assert captured["local_model_url"] == "http://localhost:11434"
-    assert captured["local_model_context_length"] == MinderConfig().llm.context_length
+    assert captured["provider"] == "litert"
+    assert captured["context_length"] == MinderConfig().llm.context_length
     assert captured["fallback_runtime"] == "auto"

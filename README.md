@@ -1,82 +1,95 @@
-# Minder CLI
+# Minder
 
 [![PyPI version](https://img.shields.io/pypi/v/minder-cli.svg)](https://pypi.org/project/minder-cli/)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-**Minder CLI** is the command-line interface for the Minder platform—a self-hosted MCP (Model Context Protocol) platform for repository-aware engineering intelligence.
+**Minder** is a self-hosted MCP (Model Context Protocol) platform for repository-aware engineering intelligence.
 
-## Features
+It combines a local-first inference stack, a persistent memory and workflow engine, and a developer-facing CLI into a single deployable unit.
 
-- **IDE Integration**: Scaffold repository-local MCP assets for VS Code, Cursor, and Claude Code.
-- **Repository Sync**: Auto-detect cross-repo dependencies and synchronize project knowledge.
-- **Self-Management**: Check for updates and upgrade both CLI and Server components in place.
-- **Unified Auth**: Simple login flow to connect your local development environment to your Minder Server.
+## What's in this repo
 
-## Installation
+| Component | Description |
+|-----------|-------------|
+| **Minder Server** | MCP gateway — SSE + stdio transport, RAG pipeline, workflow engine, memory, admin HTTP |
+| **Minder CLI** (`minder-cli` on PyPI) | Edge CLI — IDE scaffold, repo sync, login, self-update |
+| **Minder Dashboard** | Astro admin console — client management, onboarding, skill catalog |
 
-Install the CLI from PyPI using `uv` (recommended) or `pipx`:
+## Architecture
 
-```bash
-uv tool install minder-cli
-# or
-pipx install minder-cli
 ```
+Developer → minder-cli → Minder Server ←→ AI agents (Codex / Copilot / Claude)
+                              │
+               ┌──────────────┼──────────────┐
+               │              │              │
+           MongoDB          Redis         Milvus
+         (graph/memory)   (cache)      (vector search)
+               │
+         ┌─────┴──────┐
+         │            │
+      LiteRT-LM   Ollama (Docker)
+      (LLM gen)   (embedding)
+```
+
+- **LLM inference**: LiteRT-LM (Google AI Edge) — on-device, hardware-accelerated, no HTTP overhead
+- **Embedding inference**: Ollama running as a Docker container (`ollama/ollama:latest`) — isolated, auto-managed
 
 ## Quick Start
 
-### 1. Connect to your Minder Server
-
-Once you have a [Minder Server](docs/minder-server.md) running, log in with your client key:
+### Run the server
 
 ```bash
-minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+# 1. Download the LiteRT-LM model
+./scripts/download_models.sh
+
+# 2. Start infra (Ollama + MongoDB + Redis + Milvus)
+docker compose -f docker/docker-compose.local.yml up -d
+
+# 3. Run Minder Server
+uv run python -m minder.server
 ```
 
-### 2. Prepare your IDE
-
-Set up MCP tools and instructions for your favorite editor:
+Or use the one-command release installer (Docker only, no local uv needed):
 
 ```bash
-# In your project root
+curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/install-minder-release.sh | bash
+```
+
+### Connect the CLI
+
+```bash
+# Install
+uv tool install minder-cli
+
+# Log in with your client key
+minder login --client-key mkc_your_key --server-url http://localhost:8800/sse
+
+# Set up IDE integration (VS Code, Cursor, Claude Code)
 minder install-ide --target vscode --target claude-code
+
+# Sync a repository
+minder sync --repo-id <uuid>
 ```
 
-### 3. Sync Repository
+## MCP Tools
 
-Index your code and documentation to enable semantic search and RAG tools:
-
-```bash
-minder sync --repo-id <repository-uuid>
-```
-
-## Available Tool Surface
-
-When connected, Minder provides powerful tools to your AI agents:
+When connected, Minder exposes these tools to your AI agents:
 
 | Tool | Description |
-| --- | --- |
-| `minder_query` | End-to-end RAG pipeline: retrieve + reason + verify |
-| `minder_search_code` | Semantic code retrieval across indexed repositories |
-| `minder_memory_recall` | Retrieve persisted memory entries |
+|------|-------------|
+| `minder_query` | Full RAG pipeline: retrieve → reason → verify → respond |
+| `minder_search_code` | Semantic code search across indexed repos |
+| `minder_memory_recall` | Retrieve persisted engineering memory |
 | `minder_workflow_get` | Read current workflow state |
+| `minder_session_restore` | Restore session continuity across context windows |
 
-## Maintenance
+## Documentation
 
-Keep your tools up to date:
-
-```bash
-minder check-update
-minder self-update --component cli
-minder self-update --component server
-```
-
-## Related Links
-
-- [Development Workflow](docs/guides/development.md)
-- [Minder Server Setup](docs/minder-server.md)
+- [System Design](docs/system-design.md)
+- [Server Setup](docs/minder-server.md)
+- [Local Dev Setup](docs/guides/local-setup.md)
+- [Production Deployment](docs/guides/production-deployment.md)
 - [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md)
-- [Local Setup Guide](docs/guides/local-setup.md)
-- [System Architecture](docs/system-design.md)
 
 ## License
 

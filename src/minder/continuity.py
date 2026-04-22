@@ -268,14 +268,10 @@ def _extract_json_object(raw: str) -> dict[str, Any] | None:
 
 class ContinuitySynthesizer:
     def __init__(self, config: MinderConfig) -> None:
-        from minder.llm.local import LocalModelLLM
+        from minder.llm.factory import create_llm
 
         self._config = config
-        self._llm = LocalModelLLM(
-            ollama_url=config.llm.ollama_url,
-            ollama_model=config.llm.ollama_model,
-            context_length=config.llm.context_length,
-        )
+        self._llm = create_llm(config.llm)
 
     def synthesize_memory_hits(
         self,
@@ -312,7 +308,7 @@ class ContinuitySynthesizer:
         if not parsed:
             return fallback, {
                 "provider": "heuristic",
-                "model": self._config.llm.ollama_model,
+                "model": self._config.llm.provider,
                 "runtime": self._llm.runtime,
             }
         return {
@@ -330,7 +326,7 @@ class ContinuitySynthesizer:
             },
         }, {
             "provider": "local_llm",
-            "model": self._config.llm.ollama_model,
+            "model": self._config.llm.provider,
             "runtime": self._llm.runtime,
         }
 

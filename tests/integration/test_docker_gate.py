@@ -166,7 +166,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
     )
 
     assert result["provider"] == "local_llm"
-    assert result["runtime"] in {"auto", "mock", "llama_cpp"}
+    assert result["runtime"] in {"auto", "mock", "llama_cpp", "ollama"}
     assert result["transition_log"]
     assert result["transition_log"][0]["edge"] == "verification_failed"
     assert result["transition_log"][-1]["edge"] == "complete"

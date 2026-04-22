@@ -53,8 +53,11 @@ class LocalModelLLM:
             raise RuntimeError("Local model unavailable")
 
         runtime = self.runtime
-        source_paths = [doc["path"] for doc in state.reranked_docs[:3]]
-        guidance = state.workflow_context.get("guidance", "")
+        reranked = getattr(state, "reranked_docs", []) or []
+        retrieved = getattr(state, "retrieved_docs", []) or []
+        docs = reranked or retrieved
+        source_paths = [doc["path"] for doc in docs[:3]]
+        guidance = getattr(state, "workflow_context", {}).get("guidance", "")
         fallback = (
             f"{guidance}\n"
             f"Plan intent: {state.plan.get('intent', 'unknown')}.\n"
@@ -82,8 +85,11 @@ class LocalModelLLM:
             raise RuntimeError("Local model unavailable")
 
         runtime = self.runtime
-        source_paths = [doc["path"] for doc in state.reranked_docs[:3]]
-        guidance = state.workflow_context.get("guidance", "")
+        reranked = getattr(state, "reranked_docs", []) or []
+        retrieved = getattr(state, "retrieved_docs", []) or []
+        docs = reranked or retrieved
+        source_paths = [doc["path"] for doc in docs[:3]]
+        guidance = getattr(state, "workflow_context", {}).get("guidance", "")
         fallback = (
             f"{guidance}\n"
             f"Plan intent: {state.plan.get('intent', 'unknown')}.\n"
@@ -132,7 +138,8 @@ class LocalModelLLM:
             return fallback
 
         try:
-            return self._chat_ollama(prompt, max_tokens=max_tokens, temperature=temperature)
+            res = self._chat_ollama(prompt, max_tokens=max_tokens, temperature=temperature)
+            return res or fallback
         except Exception:
             logger.warning("Ollama completion failed, using fallback")
             return fallback

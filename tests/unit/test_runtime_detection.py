@@ -42,6 +42,7 @@ def test_local_model_runtime_auto_reports_supported_mode() -> None:
             (),
             {
                 "reranked_docs": [],
+                "retrieved_docs": [],
                 "workflow_context": {},
                 "plan": {},
                 "query": "hello",
@@ -59,6 +60,7 @@ def test_openai_runtime_auto_reports_supported_mode() -> None:
             (),
             {
                 "reranked_docs": [],
+                "retrieved_docs": [],
                 "workflow_context": {},
                 "query": "hello",
             },
@@ -88,6 +90,7 @@ def test_openai_litellm_path_uses_loaded_completion(
             (),
             {
                 "reranked_docs": [],
+                "retrieved_docs": [],
                 "workflow_context": {},
                 "reasoning_output": {"prompt": "hello"},
                 "query": "hello",

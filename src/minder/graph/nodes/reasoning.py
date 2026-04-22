@@ -9,12 +9,15 @@ from minder.tools.registry import tool_capability_manifest, tool_data_access_pol
 
 class ReasoningNode:
     def run(self, state: GraphState) -> GraphState:
+        reranked = getattr(state, "reranked_docs", []) or []
+        retrieved = getattr(state, "retrieved_docs", []) or []
+        docs = reranked or retrieved
         sources = [
             {"path": doc["path"], "title": doc["title"], "score": doc["score"]}
-            for doc in state.reranked_docs
+            for doc in docs
         ]
         snippets = []
-        for doc in state.reranked_docs[:3]:
+        for doc in docs[:3]:
             content = str(doc["content"]).strip()
             snippets.append(f"Source: {doc['path']}\n{content[:240]}")
 

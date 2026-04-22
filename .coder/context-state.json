@@ -1,135 +1,139 @@
 {
-  "updated_at": "2026-04-21T16:42:17.204469+07:00",
+  "updated_at": "2026-04-22T10:04:01.859414+07:00",
   "skills": {
-    "task": "github actions release workflow",
+    "task": "đổi model mặc định sang qwen3.5:4b và qwen3-embedding:0.6b",
     "trigger": "initial",
     "budget": 3,
-    "resolved_at": "2026-04-21T16:42:13.709516+07:00",
-    "keep": [],
+    "resolved_at": "2026-04-22T10:04:01.757567+07:00",
+    "keep": [
+      "embedding-strategies",
+      "context-management-context-restore"
+    ],
     "add": [
-      "bash-pro",
-      "cicd-automation-workflow-automate",
-      "makepad-deployment"
+      "llm-app-patterns"
     ],
     "drop": [
-      "temporal-python-testing",
-      "python-testing-patterns",
-      "python-patterns"
+      "code-refactoring-context-restore"
     ],
     "skills": [
       {
-        "name": "bash-pro",
+        "name": "embedding-strategies",
         "category": "general",
-        "score": 0.028588565,
-        "chunk_count": 2,
-        "reason": "added: fallback skill for low-confidence coverage"
+        "score": 0.016393442,
+        "chunk_count": 10,
+        "reason": "kept active: still relevant after re-resolve"
       },
       {
-        "name": "cicd-automation-workflow-automate",
-        "category": "general",
-        "score": 0.024325754,
+        "name": "llm-app-patterns",
+        "category": "frontend",
+        "score": 0.015625,
         "chunk_count": 1,
         "reason": "added: fallback skill for low-confidence coverage"
       },
       {
-        "name": "makepad-deployment",
+        "name": "context-management-context-restore",
         "category": "general",
-        "score": 0.01971362,
+        "score": 0.015151516,
         "chunk_count": 1,
-        "reason": "added: fallback skill for low-confidence coverage"
+        "reason": "kept active: still relevant after re-resolve"
       }
     ]
   },
   "memory": {
     "mode": "search",
-    "query": "release workflow quick start notes",
+    "query": "đổi default model qwen3.5:4b qwen3-embedding:0.6b",
     "limit": 5,
     "include_stale": false,
     "history": false,
-    "searched_at": "2026-04-21T16:42:17.202963+07:00",
+    "searched_at": "2026-04-22T10:04:01.858761+07:00",
     "results": [
       {
-        "id": "b281a9c8-2190-445b-ae1d-8f523ef5f792",
-        "title": "README + CLI docs + dashboard-plan cleanup",
+        "id": "07298612-d3cc-440c-b871-06aafc1715c0",
+        "title": "Switch default local models to EmbeddingGemma and Gemma 4",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:readme-cli-docs-dashboard-plan-cleanup",
+        "canonical_key": "document:switch-default-local-models-to-embeddinggemma-and-gemma-4",
         "score": 0.086393446,
         "tags": [
-          "coder-cli",
-          "docs",
-          "readme",
-          "cleanup"
+          "minder",
+          "python",
+          "models",
+          "gguf",
+          "config"
         ],
         "conflict_detected": false,
-        "content": "Updated docs/cli.md: full command reference for all 3 groups (A=quick AI: chat/review/debug/plan/qa/session/workflow, B=lifecycle: new-project/map-codebase/discuss-phase/plan-phase/execute-phase/ship/progress/next/milestone, C=utilities: todo/stats/health/note/do). Updated README.md: fixed broken links (skill_architecture.md→skill_system.md, memory.md→memory_system.md), added GUIDE.md to docs table, updated Features table (+AI Workflow Commands +Project Lifecycle +Web Dashboard), updated Key Commands section with 3 groups, added 5 Steps quick start (with lifecycle example), updated tagline, added Intelligence Roadmap link. Deleted docs/dashboard-plan.md (feature already implemented and documented in docs/dashboard.md). Build OK."
+        "content": "Updated config defaults, compose envs, download script, docs, and runtime metadata from Qwen GGUFs to ggml-org/embeddinggemma-300M-GGUF and ggml-org/gemma-4-E2B-it-GGUF. Also changed default embedding dimension from 1024 to 768 and aligned Milvus collection defaults plus config tests."
       },
       {
-        "id": "54266a2b-8393-4d7a-933f-9cd0e836d500",
-        "title": "Docs refactor: split progress trackers by phase",
+        "id": "2ad67a2a-6d1d-48e1-a424-efe2c059450a",
+        "title": "Qwen references cleaned after local-model rename",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:docs-refactor-split-progress-trackers-by-phase",
+        "canonical_key": "document:qwen-references-cleaned-after-local-model-rename",
         "score": 0.086129025,
         "tags": [
           "minder",
+          "python",
           "docs",
-          "progress",
-          "tracking",
-          "architecture"
+          "models",
+          "rename"
         ],
         "conflict_detected": false,
-        "content": "Refactored monolithic docs/TASK_BREAKDOWN.md and docs/PROJECT_PROGRESS.md into an index + overview model. Added docs/progress/ with phase- and phase-part-specific markdown tables, each row linking to related requirements, design, architecture, or test docs to keep task context clean. Root docs now route readers into the relevant phase tracker instead of carrying the full backlog inline."
+        "content": "Replaced stale minder.embedding.qwen import in scripts/seed_skills.py with minder.embedding.local.LocalEmbeddingProvider and updated remaining docs to use local/Gemma/EmbeddingGemma terminology plus local.py paths. Files: scripts/seed_skills.py, README.md, docs/system-design.md, docs/plan/06-operations-and-delivery.md, docs/TASK_BREAKDOWN.md, docs/PROJECT_PROGRESS.md, docs/guides/production-deployment.md."
       },
       {
-        "id": "f7f25b0e-0726-41b5-9d7f-64d890a0e091",
-        "title": "Archived milestone v1.0 with planning compaction",
+        "id": "878f7a08-f444-43ee-9c44-f90e9bfd1b56",
+        "title": "Compose runtime activation uses auto runtimes with safe fallback",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:archived-milestone-v1-0-with-planning-compaction",
+        "canonical_key": "document:compose-runtime-activation-uses-auto-runtimes-with-safe-fallback",
         "score": 0.08587302,
         "tags": [
-          "milestone",
-          "archive",
-          "v1.0",
-          "planning"
+          "minder",
+          "phase1",
+          "phase2",
+          "compose",
+          "runtime",
+          "llama-cpp",
+          "langgraph",
+          "litellm"
         ],
         "conflict_detected": false,
-        "content": "Completed the v1.0 milestone archival workflow by creating .planning/milestones/v1.0-ROADMAP.md and v1.0-REQUIREMENTS.md, collapsing ROADMAP.md to an archived-milestones index, deleting the root REQUIREMENTS.md, evolving PROJECT.md to post-ship state, updating STATE.md to milestone archived, committing as chore: archive v1.0 milestone, and tagging the repo with v1.0. This is the handoff point before starting a fresh requirements file for the next milestone."
+        "content": "Enabled langgraph, litellm, and llama-cpp-python in the Minder dev stack. Compose now sets explicit orchestration and model-path env vars, MinderGraph instantiates Qwen/OpenAI runtimes with runtime=auto, and server startup prints a runtime summary. Hardened QwenLocalLLM, QwenEmbeddingProvider, and OpenAIFallbackLLM so provider initialization or network failures fall back cleanly instead of crashing boot, seed scripts, or tests."
       },
       {
-        "id": "4bc6707e-c67c-4152-8a90-d2e860fbc87c",
-        "title": "Phase 1 task breakdown audit",
+        "id": "d027a22e-f933-407e-909c-40e0c02a93e1",
+        "title": "Minder switched to Qwen plan split",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:phase-1-task-breakdown-audit",
+        "canonical_key": "document:minder-switched-to-qwen-plan-split",
         "score": 0.08562499,
         "tags": [
+          "minder",
+          "plan",
+          "qwen",
           "docs",
-          "planning",
-          "phase1",
-          "audit",
-          "deployment",
-          "workflow"
+          "split"
         ],
         "conflict_detected": false,
-        "content": "Audited docs/TASK_BREAKDOWN.md against the actual minder repository state. Added a Phase 1 implementation audit, a per-task status map, a current runnable local flow section, and an explicit closure checklist. Key finding: Phase 1 is still open despite strong foundation code. Missing or partial areas are MCP transports (SSE/stdio), repo-local .minder state, standalone workflow/memory/auth/session tool modules, bootstrap scripts, docker development stack, GitHub Actions CI/release workflows, and tests/integration/test_phase1_gate.py. Also removed a stale reference to docs/PHASE2_MANUAL_TEST.md because that file does not exist in the workspace."
+        "content": "Updated the Minder planning docs to use Qwen/Qwen3-Embedding-0.6B quantized GGUF for embeddings and Qwen3.5-0.8B quantized GGUF for the local LLM, both intended to run through llama.cpp via llama-cpp-python. Split docs/PLAN.md into an index plus docs/plan/01-06 focused documents covering scope, architecture, data/tools, workflow governance, implementation phases, and operations/delivery."
       },
       {
-        "id": "f37b2634-98bd-42ef-95b4-06e7c43c6ec9",
-        "title": "Docs cleanup and dynamic skill retrieval plan",
+        "id": "42859ffc-cc6f-4d41-b4a5-544cb895d86a",
+        "title": "Public channel response includes deepLinkUrl",
         "type": "document",
         "status": "active",
-        "canonical_key": "document:docs-cleanup-and-dynamic-skill-retrieval-plan",
+        "canonical_key": "document:public-channel-response-includes-deeplinkurl",
         "score": 0.08538462,
         "tags": [
-          "docs",
-          "skills",
-          "planning",
-          "roadmap"
+          "omi-channel-be",
+          "configurations",
+          "channels",
+          "deeplink",
+          "response"
         ],
         "conflict_detected": false,
-        "content": "Cleaned the core docs so README, docs/GUIDE.md, docs/cli.md, and the coder-cli skill now reflect the current command surface from cmd/coder/main.go and explicitly label roadmap-only commands as future design. Added docs/dynamic_skill_retrieval_plan.md proposing a phased upgrade: structured skill output for LLMs, a server-side skill resolver, session-scoped active skills, re-resolve triggers during work, and context budgeting so agents can fetch and swap skills mid-task instead of locking retrieval at submit time."
+        "content": "Extended public channel projection to return deepLinkUrl for supported channel types in public/admin configuration responses. Implemented mapping in PublicChannelProjectionService: ZALO -\u003e https://zalo.me/\u003coaId\u003e, LINE -\u003e https://line.me/R/ti/p/@\u003cbasicId\u003e, WHATSAPP -\u003e https://wa.me/\u003cdigits\u003e, FACEBOOK -\u003e https://m.me/\u003cpageUsername or fallback id\u003e. Added deepLinkUrl to PublicChannelResponseDto. Verified with yarn build and eslint."
       }
     ]
   }

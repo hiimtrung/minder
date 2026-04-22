@@ -64,7 +64,7 @@ On Windows (PowerShell, with Docker Desktop running):
 iwr -useb https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.ps1 | iex
 ```
 
-Both installers create a deployment directory, download `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, write a local `.env` with the release image tags, start the full stack, and refresh the `~/.minder/current` pointer used by `minder check-update` and `minder self-update`.
+Both installers create a deployment directory, download `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, write a local `.env` with the release image tags, start the full stack, and refresh the `~/.minder/current` pointer used by `minder check-update` and `minder update`.
 
 Overridable environment variables (identical across platforms):
 
@@ -90,7 +90,7 @@ pipx install minder
 After a client key is provisioned, the same machine can run:
 
 ```bash
-minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
+minder login --client-key mkc_your_client_key --protocol sse --server-url http://localhost:8800/sse
 minder sync --repo-id <repository-uuid>
 ```
 
@@ -215,14 +215,14 @@ Or use Minder's unified update surface:
 
 ```bash
 minder check-update
-minder self-update --component cli
+minder update --component cli
 ```
 
 Check and upgrade the deployed server release in place:
 
 ```bash
 minder check-update --component server --install-dir ~/.minder/current
-minder self-update --component server --install-dir ~/.minder/current
+minder update --component server --install-dir ~/.minder/current
 ```
 
 The release installer now keeps a stable `~/.minder/current` link and writes release metadata into each deployment directory so the CLI can resolve the current server version before applying an upgrade.

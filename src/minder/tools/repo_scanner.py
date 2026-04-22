@@ -132,6 +132,28 @@ class RepoScanner:
         self._git_metadata_cache: dict[str, dict[str, Any]] = {}
         self._git_line_commit_cache: dict[tuple[str, int], dict[str, str] | None] = {}
         self._git_commit_detail_cache: dict[str, dict[str, str]] = {}
+        self._git_enabled = True
+
+    def _run_git(
+        self,
+        args: list[str],
+        *,
+        capture_output: bool = True,
+        check: bool = True,
+    ) -> subprocess.CompletedProcess[str]:
+        if not self._git_enabled:
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="")
+        try:
+            return subprocess.run(
+                ["git", *args],
+                cwd=self._root,
+                capture_output=capture_output,
+                text=True,
+                check=check,
+            )
+        except FileNotFoundError:
+            self._git_enabled = False
+            return subprocess.CompletedProcess(args, 1, stdout="", stderr="")
 
     async def scan(self) -> dict[str, Any]:
         service_dirs = self._discover_service_boundaries()
@@ -526,9 +548,8 @@ class RepoScanner:
         }
 
     def _git_recent_commits(self, rel_path: str, limit: int = 5) -> list[dict[str, str]]:
-        result = subprocess.run(
+        result = self._run_git(
             [
-                "git",
                 "log",
                 "--follow",
                 "--format=%H%x1f%cI%x1f%s",
@@ -537,9 +558,6 @@ class RepoScanner:
                 "--",
                 rel_path,
             ],
-            cwd=self._root,
-            capture_output=True,
-            text=True,
             check=False,
         )
         if result.returncode != 0:
@@ -564,9 +582,8 @@ class RepoScanner:
         if cache_key in self._git_line_commit_cache:
             return self._git_line_commit_cache[cache_key]
 
-        result = subprocess.run(
+        result = self._run_git(
             [
-                "git",
                 "blame",
                 "--line-porcelain",
                 "-L",
@@ -574,9 +591,6 @@ class RepoScanner:
                 "--",
                 rel_path,
             ],
-            cwd=self._root,
-            capture_output=True,
-            text=True,
             check=False,
         )
         if result.returncode != 0:
@@ -598,11 +612,8 @@ class RepoScanner:
         if cached is not None:
             return cached
 
-        result = subprocess.run(
-            ["git", "show", "-s", "--format=%H%x1f%cI%x1f%s", sha],
-            cwd=self._root,
-            capture_output=True,
-            text=True,
+        result = self._run_git(
+            ["show", "-s", "--format=%H%x1f%cI%x1f%s", sha],
             check=False,
         )
         if result.returncode != 0:
@@ -627,11 +638,8 @@ class RepoScanner:
         return details
 
     def _git_status(self, rel_path: str, *, tracked: bool) -> str:
-        result = subprocess.run(
-            ["git", "status", "--short", "--", rel_path],
-            cwd=self._root,
-            capture_output=True,
-            text=True,
+        result = self._run_git(
+            ["status", "--short", "--", rel_path],
             check=False,
         )
         if result.returncode != 0:

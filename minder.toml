@@ -21,18 +21,18 @@ default_admin_email = "admin@example.com"
 
 [embedding]
 provider = "ollama"
-model_name = "embeddinggemma"
+model_name = "qwen3-embedding:0.6b"
 ollama_url = "http://localhost:11434"
-ollama_model = "embeddinggemma"
+ollama_model = "qwen3-embedding:0.6b"
 dimensions = 768
 openai_api_key = ""
 openai_model = "text-embedding-3-small"
 
 [llm]
 provider = "ollama"
-model_name = "gemma4:e2b"
+model_name = "qwen3.5:4b"
 ollama_url = "http://localhost:11434"
-ollama_model = "gemma4:e2b"
+ollama_model = "qwen3.5:4b"
 context_length = 131072
 temperature = 0.1
 openai_api_key = ""

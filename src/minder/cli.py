@@ -24,6 +24,7 @@ import httpx
 from minder.tools.repo_scanner import RepoScanner
 
 _DEFAULT_SERVER_URL = "http://localhost:8801/sse"
+_DEFAULT_PROTOCOL = "sse"
 _LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code")
 _PYPI_JSON_URL = "https://pypi.org/pypi/minder/json"
 _IDE_GITIGNORE_KEY = "minder-ide-bootstrap"
@@ -120,14 +121,28 @@ def _prompt_client_key() -> str:
     return client_key
 
 
+def _prompt_protocol(default: str = _DEFAULT_PROTOCOL) -> str:
+    value = input(f"Minder protocol [sse/stdio] (default: {default}): ").strip().lower()
+    return value or default
+
+
+def _normalize_protocol(raw_protocol: str | None) -> str:
+    protocol = (raw_protocol or "").strip().lower() or _DEFAULT_PROTOCOL
+    if protocol not in {"sse", "stdio"}:
+        raise ValueError("Protocol must be either 'sse' or 'stdio'")
+    return protocol
+
+
 def _require_client_settings(config_path: Path) -> dict[str, Any]:
     payload = _load_json(config_path)
+    protocol = _normalize_protocol(str(payload.get("protocol", _DEFAULT_PROTOCOL)))
     client_key = str(payload.get("client_api_key", "")).strip()
     server_url = str(payload.get("server_url", "")).strip()
     if not client_key:
         raise ValueError(f"No client_api_key found in {config_path}")
-    if not server_url:
+    if protocol == "sse" and not server_url:
         raise ValueError(f"No server_url found in {config_path}")
+    payload["protocol"] = protocol
     return payload
 
 
@@ -393,22 +408,31 @@ def _cli_update_commands(manager: str) -> list[list[str]]:
 
 
 def _self_update_cli(manager: str) -> None:
+    before_version = _installed_package_version()
+    target_version = _latest_pypi_version()
     failures: list[str] = []
     for command in _cli_update_commands(manager):
         executable = command[0]
         if executable != sys.executable and shutil.which(executable) is None:
             failures.append(f"{' '.join(command)} -> command not available")
             continue
-        print(f"Executing CLI self-update: {' '.join(command)}")
+        print(f"Executing CLI update: {' '.join(command)}")
         result = subprocess.run(
             command,
+            capture_output=False,
+            text=True,
             check=False,
         )
         if result.returncode == 0:
-            print(f"CLI self-update completed via: {' '.join(command)}")
+            after_version = _installed_package_version() or target_version
+            print(
+                "CLI update completed: "
+                f"{before_version or 'unknown'} -> {after_version or 'unknown'} "
+                f"via {' '.join(command)}"
+            )
             return
         failures.append(f"{' '.join(command)} -> failed with exit code {result.returncode}")
-    raise RuntimeError("CLI self-update failed: " + "; ".join(failures))
+    raise RuntimeError("CLI update failed: " + "; ".join(failures))
 
 
 def _installer_asset_filename(release_tag: str, *, installer: str) -> str:
@@ -441,6 +465,7 @@ def _run_bash_installer(script: str, env: dict[str, str]) -> subprocess.Complete
     return subprocess.run(
         ["bash"],
         input=script,
+        capture_output=False,
         text=True,
         env=env,
         check=False,
@@ -454,6 +479,7 @@ def _run_powershell_installer(
     return subprocess.run(
         [executable, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", "-"],
         input=script,
+        capture_output=False,
         text=True,
         env=env,
         check=False,
@@ -482,16 +508,16 @@ def _self_update_server(install_dir: Path) -> None:
         value = env_payload.get(key)
         if value:
             update_env[key] = value
-    print(f"Executing server self-update for {install_dir}...")
+    print(f"Executing server update for {install_dir}...")
     if installer_variant == "powershell":
         result = _run_powershell_installer(installer_script, update_env)
     else:
         result = _run_bash_installer(installer_script, update_env)
     if result.returncode != 0:
-        raise RuntimeError(f"Server self-update failed with exit code {result.returncode}")
+        raise RuntimeError(f"Server update failed with exit code {result.returncode}")
     # Output is already streamed to stdout/stderr in installer helpers if not captured
     print(
-        f"Server self-update completed for {install_dir}: "
+        f"Server update completed for {install_dir}: "
         f"{current or 'unknown'} -> {latest}"
     )
     print(f"Release installer: {installer_url}")
@@ -516,7 +542,7 @@ def _check_update(args: argparse.Namespace) -> int:
     return 0
 
 
-def _self_update(args: argparse.Namespace) -> int:
+def _update(args: argparse.Namespace) -> int:
     components = ["cli", "server"] if args.component == "all" else [args.component]
     if "cli" in components:
         _self_update_cli(args.manager)
@@ -530,35 +556,42 @@ def _self_update(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_git(
+    args: list[str],
+    *,
+    cwd: Path | str | None = None,
+    capture_output: bool = True,
+    check: bool = True,
+) -> subprocess.CompletedProcess[str]:
+    try:
+        return subprocess.run(
+            ["git", *args],
+            cwd=cwd,
+            capture_output=capture_output,
+            text=True,
+            check=check,
+        )
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Git executable not found. Please install git to support this command."
+        ) from None
+
+
 def _repo_root(path: str) -> Path:
-    result = subprocess.run(
-        ["git", "rev-parse", "--show-toplevel"],
-        cwd=path,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    result = _run_git(["rev-parse", "--show-toplevel"], cwd=path)
     return Path(result.stdout.strip()).resolve()
 
 
 def _git_branch(repo_root: Path) -> str | None:
-    result = subprocess.run(
-        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    result = _run_git(["rev-parse", "--abbrev-ref", "HEAD"], cwd=repo_root)
     branch = result.stdout.strip()
     return branch or None
 
 
 def _git_remote_url(repo_root: Path) -> str | None:
-    result = subprocess.run(
-        ["git", "config", "--get", "remote.origin.url"],
+    result = _run_git(
+        ["config", "--get", "remote.origin.url"],
         cwd=repo_root,
-        capture_output=True,
-        text=True,
         check=False,
     )
     remote_url = result.stdout.strip()
@@ -610,39 +643,26 @@ def _git_file_delta(
         diff_command.append(f"{diff_base}...HEAD")
     else:
         diff_command.append("HEAD")
-    diff_result = subprocess.run(
-        diff_command,
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
-    )
+    diff_result = _run_git(diff_command, cwd=repo_root)
     changed = {line.strip() for line in diff_result.stdout.splitlines() if line.strip()}
 
-    deleted_result = subprocess.run(
+    deleted_result = _run_git(
         [
-            "git",
             "diff",
             "--name-only",
             "--diff-filter=D",
             *([f"{diff_base}...HEAD"] if diff_base else ["HEAD"]),
         ],
         cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
     )
     deleted = {
         line.strip() for line in deleted_result.stdout.splitlines() if line.strip()
     }
     changed.difference_update(deleted)
 
-    untracked_result = subprocess.run(
-        ["git", "ls-files", "--others", "--exclude-standard"],
+    untracked_result = _run_git(
+        ["ls-files", "--others", "--exclude-standard"],
         cwd=repo_root,
-        capture_output=True,
-        text=True,
-        check=True,
     )
     changed.update(
         line.strip() for line in untracked_result.stdout.splitlines() if line.strip()
@@ -1065,7 +1085,29 @@ def _target_root_key(target: str) -> str:
     return "mcpServers"
 
 
-def _target_entry(target: str, server_url: str, client_key: str) -> dict[str, Any]:
+def _target_entry(
+    target: str,
+    *,
+    protocol: str,
+    server_url: str,
+    client_key: str,
+    cwd: Path,
+) -> dict[str, Any]:
+    normalized_protocol = _normalize_protocol(protocol)
+    if normalized_protocol == "stdio":
+        entry: dict[str, Any] = {
+            "command": "uv",
+            "args": ["run", "python", "-m", "minder.server"],
+            "cwd": str(cwd),
+            "env": {
+                "MINDER_SERVER__TRANSPORT": "stdio",
+                "MINDER_CLIENT_API_KEY": client_key,
+            },
+        }
+        if target in {"vscode", "cursor"}:
+            entry["type"] = "stdio"
+        return entry
+
     sse_url = _sse_url(server_url)
     mcp_url = _mcp_url(server_url)
     if target == "vscode":
@@ -1088,11 +1130,25 @@ def _target_entry(target: str, server_url: str, client_key: str) -> dict[str, An
     raise ValueError(f"Unsupported MCP target: {target}")
 
 
-def _install_target(path: Path, target: str, server_url: str, client_key: str) -> None:
+def _install_target(
+    path: Path,
+    target: str,
+    *,
+    protocol: str,
+    server_url: str,
+    client_key: str,
+    cwd: Path,
+) -> None:
     payload = _load_json(path)
     root_key = _target_root_key(target)
     payload.setdefault(root_key, {})
-    payload[root_key]["minder"] = _target_entry(target, server_url, client_key)
+    payload[root_key]["minder"] = _target_entry(
+        target,
+        protocol=protocol,
+        server_url=server_url,
+        client_key=client_key,
+        cwd=cwd,
+    )
     if target == "vscode":
         payload.setdefault("inputs", [])
     _write_json(path, payload)
@@ -1146,9 +1202,19 @@ def _login(args: argparse.Namespace) -> int:
 
     config_path = Path(args.config_path).expanduser()
     existing = _load_json(config_path)
+    default_protocol = _normalize_protocol(
+        str(existing.get("protocol", _DEFAULT_PROTOCOL))
+    )
+    protocol = _normalize_protocol(args.protocol or _prompt_protocol(default_protocol))
+    default_server_url = str(existing.get("server_url", _DEFAULT_SERVER_URL)).strip()
+    if protocol == "sse":
+        server_url = (args.server_url or "").strip() or default_server_url
+    else:
+        server_url = (args.server_url or "").strip() or default_server_url
     payload = {
         **existing,
-        "server_url": args.server_url,
+        "protocol": protocol,
+        "server_url": server_url,
         "client_api_key": client_key,
         "default_headers": {
             "X-Minder-Client-Key": client_key,
@@ -1156,6 +1222,8 @@ def _login(args: argparse.Namespace) -> int:
     }
     _write_json(config_path, payload)
     print(f"Stored client credentials in {config_path}")
+    print(f"Protocol: {protocol}")
+    print(f"Server URL: {server_url}")
     print(f"export MINDER_CLIENT_API_KEY={client_key}")
     return 0
 
@@ -1163,6 +1231,7 @@ def _login(args: argparse.Namespace) -> int:
 def _install_mcp(args: argparse.Namespace) -> int:
     config_path = Path(args.config_path).expanduser()
     settings = _require_client_settings(config_path)
+    protocol = str(settings.get("protocol", _DEFAULT_PROTOCOL))
     targets = _parse_targets(args.target)
     install_root = Path(args.cwd).resolve()
     installed_paths: list[Path] = []
@@ -1176,8 +1245,10 @@ def _install_mcp(args: argparse.Namespace) -> int:
         _install_target(
             path,
             target,
-            str(settings["server_url"]),
-            str(settings["client_api_key"]),
+            protocol=protocol,
+            server_url=str(settings.get("server_url", "")),
+            client_key=str(settings["client_api_key"]),
+            cwd=install_root,
         )
         installed_paths.append(path)
 
@@ -1209,6 +1280,7 @@ def _uninstall_mcp(args: argparse.Namespace) -> int:
 def _install_ide(args: argparse.Namespace) -> int:
     config_path = Path(args.config_path).expanduser()
     settings = _require_client_settings(config_path)
+    protocol = str(settings.get("protocol", _DEFAULT_PROTOCOL))
     targets = _parse_targets(args.target)
     install_root = Path(args.cwd).resolve()
     installed_paths: list[Path] = []
@@ -1218,8 +1290,10 @@ def _install_ide(args: argparse.Namespace) -> int:
         _install_target(
             path,
             target,
-            str(settings["server_url"]),
-            str(settings["client_api_key"]),
+            protocol=protocol,
+            server_url=str(settings.get("server_url", "")),
+            client_key=str(settings["client_api_key"]),
+            cwd=install_root,
         )
         installed_paths.append(path)
 
@@ -1285,6 +1359,11 @@ def _resolve_repo_id(
 def _sync(args: argparse.Namespace) -> int:
     config_path = Path(args.config_path).expanduser()
     settings = _require_client_settings(config_path)
+    protocol = str(settings.get("protocol", _DEFAULT_PROTOCOL))
+    if protocol != "sse":
+        raise ValueError(
+            "minder sync requires protocol 'sse' with a reachable server_url."
+        )
     if not args.skip_upgrade_check:
         _maybe_print_upgrade_notice()
     repo_root = _repo_root(args.repo_path)
@@ -1328,6 +1407,21 @@ def _version(args: argparse.Namespace) -> int:
     return 0
 
 
+def _check_version(args: argparse.Namespace) -> int:  # noqa: ARG001
+    installed, latest, has_update = _cli_update_available()
+    print("CLI version:")
+    print(f"  installed: {installed or 'unknown'}")
+    print(f"  latest: {latest or 'unknown'}")
+    if installed and latest:
+        if has_update:
+            print(f"  status: update available ({installed} -> {latest})")
+        else:
+            print("  status: up to date")
+    else:
+        print("  status: unable to determine latest version")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Minder CLI")
     parser.add_argument(
@@ -1341,10 +1435,14 @@ def build_parser() -> argparse.ArgumentParser:
     version_cmd = subparsers.add_parser(
         "version", help="Show the Minder CLI version."
     )
+    check_version = subparsers.add_parser(
+        "check-version",
+        help="Show installed CLI version and latest published version.",
+    )
 
     login = subparsers.add_parser(
         "login",
-        help="Store a Minder client API key for CLI-authenticated commands.",
+        help="Store Minder client auth + transport settings for CLI commands.",
     )
     login.add_argument(
         "--client-key",
@@ -1352,9 +1450,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Client API key in mkc_... format. If omitted, prompt securely.",
     )
     login.add_argument(
+        "--protocol",
+        choices=("sse", "stdio"),
+        default=None,
+        help="Client protocol mode: sse (remote) or stdio (local process).",
+    )
+    login.add_argument(
         "--server-url",
-        default=_DEFAULT_SERVER_URL,
-        help="Default Minder server URL to pair with the stored client key.",
+        default=None,
+        help="Minder server URL. Used for SSE mode and remote sync APIs.",
     )
     login.add_argument(
         "--config-path",
@@ -1460,26 +1564,48 @@ def build_parser() -> argparse.ArgumentParser:
         help="Server install directory to inspect. Defaults to ~/.minder/current or the newest release directory.",
     )
 
+    update = subparsers.add_parser(
+        "update",
+        help="Apply an update for the Minder CLI, server deployment, or both.",
+    )
+    update.add_argument(
+        "--component",
+        choices=("cli", "server", "all"),
+        default="cli",
+        help="Which component to update.",
+    )
+    update.add_argument(
+        "--manager",
+        choices=("auto", "uv", "pipx", "pip"),
+        default="auto",
+        help="Preferred package manager for CLI update.",
+    )
+    update.add_argument(
+        "--install-dir",
+        default=None,
+        help="Server install directory to update. Defaults to ~/.minder/current or the newest release directory.",
+    )
+
     self_update = subparsers.add_parser(
         "self-update",
-        help="Apply a self-update for the Minder CLI, server deployment, or both.",
+        help=argparse.SUPPRESS,
     )
     self_update.add_argument(
         "--component",
         choices=("cli", "server", "all"),
         default="cli",
-        help="Which component to self-update.",
+        help=argparse.SUPPRESS,
     )
     self_update.add_argument(
         "--manager",
         choices=("auto", "uv", "pipx", "pip"),
         default="auto",
-        help="Preferred package manager for CLI self-update.",
+        help=argparse.SUPPRESS,
     )
     self_update.add_argument(
         "--install-dir",
         default=None,
-        help="Server install directory to update. Defaults to ~/.minder/current or the newest release directory.",
+        help=argparse.SUPPRESS,
     )
 
     sync = subparsers.add_parser(
@@ -1535,12 +1661,14 @@ def main(argv: list[str] | None = None) -> int:
         return _uninstall_ide(args)
     if args.command == "check-update":
         return _check_update(args)
-    if args.command == "self-update":
-        return _self_update(args)
+    if args.command in {"update", "self-update"}:
+        return _update(args)
     if args.command == "sync":
         return _sync(args)
     if args.command == "version":
         return _version(args)
+    if args.command == "check-version":
+        return _check_version(args)
 
     parser.error(f"Unknown command: {args.command}")
     return 2

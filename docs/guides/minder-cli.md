@@ -25,17 +25,19 @@ uv tool upgrade minder
 Or let Minder manage both the check and upgrade flow:
 
 ```bash
+minder check-version
 minder check-update --component cli
-minder self-update --component cli
+minder update --component cli
 ```
 
 ## Login
 
-Store the client key and default server URL locally:
+Store the client key, protocol, and server URL locally:
 
 ```bash
 minder login \
   --client-key mkc_your_client_key \
+  --protocol sse \
   --server-url http://localhost:8800/sse
 ```
 
@@ -208,35 +210,35 @@ If the server release lives outside the default `~/.minder/current` or `~/.minde
 minder check-update --component server --install-dir ~/.minder/releases/v0.1.0
 ```
 
-## Self Update
+## Update
 
 Upgrade the CLI in place:
 
 ```bash
-minder self-update --component cli
+minder update --component cli
 ```
 
 Choose a specific package manager if your environment is pinned to one tool:
 
 ```bash
-minder self-update --component cli --manager pipx
+minder update --component cli --manager pipx
 ```
 
 Upgrade a local server deployment in place by reusing the published GitHub release installer for the newest tag:
 
 ```bash
-minder self-update --component server
+minder update --component server
 ```
 
 Or target a specific deployment directory:
 
 ```bash
-minder self-update --component server --install-dir ~/.minder/current
+minder update --component server --install-dir ~/.minder/current
 ```
 
-The server self-update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR`, `MINDER_PORT`, and `MILVUS_PORT`, then prints rollback guidance for the previous release.
+The server update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR`, `MINDER_PORT`, and `MILVUS_PORT`, then prints rollback guidance for the previous release.
 
-On Windows, `self-update --component server` downloads and runs the PowerShell release installer (`install-minder-<tag>.ps1`) through `powershell.exe -ExecutionPolicy Bypass`. On macOS and Linux it downloads and runs the bash installer (`install-minder-<tag>.sh`). Both installers publish `docker-compose.yml`, `Caddyfile`, and a refreshed `.env` into the deployment directory, then refresh the `~/.minder/current` pointer used by `check-update`.
+On Windows, `update --component server` downloads and runs the PowerShell release installer (`install-minder-<tag>.ps1`) through `powershell.exe -ExecutionPolicy Bypass`. On macOS and Linux it downloads and runs the bash installer (`install-minder-<tag>.sh`). Both installers publish `docker-compose.yml`, `Caddyfile`, and a refreshed `.env` into the deployment directory, then refresh the `~/.minder/current` pointer used by `check-update`.
 
 ## Supported Extraction Coverage
 

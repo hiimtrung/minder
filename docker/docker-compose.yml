@@ -29,10 +29,10 @@ services:
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       MINDER_LLM__PROVIDER: ollama
       MINDER_LLM__OLLAMA_URL: ${MINDER_OLLAMA_URL:-http://host.docker.internal:11434}
-      MINDER_LLM__OLLAMA_MODEL: ${MINDER_LLM_MODEL:-gemma4:e2b}
+      MINDER_LLM__OLLAMA_MODEL: ${MINDER_LLM_MODEL:-qwen3.5:4b}
       MINDER_EMBEDDING__PROVIDER: ollama
       MINDER_EMBEDDING__OLLAMA_URL: ${MINDER_OLLAMA_URL:-http://host.docker.internal:11434}
-      MINDER_EMBEDDING__OLLAMA_MODEL: ${MINDER_EMBEDDING_MODEL:-embeddinggemma}
+      MINDER_EMBEDDING__OLLAMA_MODEL: ${MINDER_EMBEDDING_MODEL:-qwen3-embedding:0.6b}
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       mongodb:

@@ -39,7 +39,7 @@ class LiteRTModelLLM:
         model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm",
         backend: str = "cpu",
         cache_dir: str = "~/.minder/cache/litert",
-        context_length: int = 131072,
+        context_length: int = 32768,
     ) -> None:
         self._model_path = str(Path(model_path).expanduser())
         self._backend = backend

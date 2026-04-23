@@ -46,7 +46,7 @@ class LLMConfig(BaseModel):
     litert_model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm"
     litert_backend: str = "auto"  # "auto" (GPU on Mac, CPU elsewhere) | "cpu" | "gpu"
     litert_cache_dir: str = "~/.minder/cache/litert"
-    context_length: int = 131072
+    context_length: int = 32768
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"

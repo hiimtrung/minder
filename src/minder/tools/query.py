@@ -86,6 +86,21 @@ class QueryTools:
             "query_reasoning",
             self._store,
         )
+        chat_history = []
+        if session_id:
+            try:
+                history_docs = await self._store.list_history_for_session(session_id)
+                chat_history = [
+                    {
+                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
+                        "content": str(getattr(doc, "content", "")),
+                    }
+                    for doc in history_docs
+                    if getattr(doc, "role", "") and getattr(doc, "content", "")
+                ]
+            except Exception:
+                pass
+
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -93,6 +108,7 @@ class QueryTools:
             repo_id=repo_id,
             repo_path=repo_path,
             workflow_context=workflow_context,
+            chat_history=chat_history,
             metadata={
                 "verification_payload": verification_payload,
                 "max_attempts": max_attempts,
@@ -181,6 +197,21 @@ class QueryTools:
             "query_reasoning",
             self._store,
         )
+        chat_history = []
+        if session_id:
+            try:
+                history_docs = await self._store.list_history_for_session(session_id)
+                chat_history = [
+                    {
+                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
+                        "content": str(getattr(doc, "content", "")),
+                    }
+                    for doc in history_docs
+                    if getattr(doc, "role", "") and getattr(doc, "content", "")
+                ]
+            except Exception:
+                pass
+
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -188,6 +219,7 @@ class QueryTools:
             repo_id=repo_id,
             repo_path=repo_path,
             workflow_context=workflow_context,
+            chat_history=chat_history,
             metadata={
                 "verification_payload": verification_payload,
                 "max_attempts": max_attempts,

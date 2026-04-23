@@ -7,6 +7,6 @@
     }
 
     handle {
-        reverse_proxy minder-server:8801
+        reverse_proxy minder-api:8801
     }
 }

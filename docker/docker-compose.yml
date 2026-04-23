@@ -30,7 +30,7 @@ services:
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       MINDER_LLM__PROVIDER: litert
-      MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E4B-it.litertlm
+      MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E2B-it.litertlm
       MINDER_LLM__LITERT_BACKEND: cpu
       MINDER_LLM__LITERT_CACHE_DIR: /tmp/litert-cache
       MINDER_EMBEDDING__PROVIDER: fastembed

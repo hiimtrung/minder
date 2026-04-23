@@ -46,8 +46,8 @@ $MilvusPort    = Get-EnvOrDefault -Name 'MILVUS_PORT'             -Default '1953
 $OpenAiKey     = Get-EnvOrDefault -Name 'OPENAI_API_KEY'          -Default ''
 $EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'mixedbread-ai/mxbai-embed-large-v1'
 $LiteRTModelUrl = Get-EnvOrDefault -Name 'MINDER_LITERT_MODEL_URL' `
-    -Default 'https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true'
-$LiteRTModelFile = 'gemma-4-E4B-it.litertlm'
+    -Default 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true'
+$LiteRTModelFile = 'gemma-4-E2B-it.litertlm'
 
 $ApiImage       = "ghcr.io/$RepoOwner/minder-api:$ReleaseTag"
 $DashboardImage = "ghcr.io/$RepoOwner/minder-dashboard:$ReleaseTag"

@@ -104,35 +104,45 @@ async def _rank_skill_items(
     # For mxbai and similar models, queries often perform better with a prefix.
     query_text = f"Represent this sentence for searching relevant passages: {query}"
     query_embedding = context.embedder.embed(query_text)
-    candidates: list[tuple[dict[str, Any], str]] = []
+    candidate_texts: list[str] = []
+    candidates_with_embeddings: list[tuple[dict[str, Any], list[float]]] = []
+
     for item in items:
+        # Use stored embedding if available to avoid expensive re-embedding
+        stored_emb = item.get("_embedding")
+        if isinstance(stored_emb, list) and stored_emb:
+            candidates_with_embeddings.append((item, stored_emb))
+            continue
+
         title = str(item.get("title", "") or "")
         language = str(item.get("language", "") or "")
         tags = [str(tag) for tag in list(item.get("tags", []) or [])]
-
-        # Build a more balanced candidate text for skills
-        # We give weight to title and tags, and truncate content to avoid diluting semantic focus
         content_snippet = str(item.get("content", "") or "")[:2000]
         candidate_text = f"Title: {title}\nLanguage: {language}\nTags: {', '.join(tags)}\nContent: {content_snippet}".strip()
-
         if candidate_text:
-            candidates.append((item, candidate_text))
+            candidate_texts.append(candidate_text)
+            candidates_with_embeddings.append((item, []))
 
-    if not candidates:
+    if not candidates_with_embeddings:
         return items
 
-    candidate_texts = [c[1] for c in candidates]
-    candidate_embeddings = context.embedder.embed_many(candidate_texts)
+    # Only embed the ones that don't have stored embeddings
+    if candidate_texts:
+        new_embeddings = context.embedder.embed_many(candidate_texts)
+        new_emb_idx = 0
+        for i, (item, emb) in enumerate(candidates_with_embeddings):
+            if not emb:
+                candidates_with_embeddings[i] = (item, new_embeddings[new_emb_idx])
+                new_emb_idx += 1
 
     ranked: list[dict[str, Any]] = []
-    for (item, _), candidate_embedding in zip(
-        candidates, candidate_embeddings, strict=False
-    ):
+    for item, candidate_embedding in candidates_with_embeddings:
         semantic_score = _cosine_similarity(query_embedding, candidate_embedding)
-        # We keep a tiny quality boost but rely on semantic similarity for the core ranking.
         score = semantic_score + (
             min(float(item.get("quality_score", 0.0) or 0.0), 1.0) * 0.01
         )
+        # Clean up internal fields
+        item.pop("_embedding", None)
         ranked.append(
             {
                 **item,
@@ -309,7 +319,9 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if query:
                 memory_tools = MemoryTools(context.store, context.config)
                 ranked = await memory_tools.minder_memory_recall(
-                    query, limit=max(len(all_memory_items), 1)
+                    query,
+                    limit=max(len(all_memory_items), 1),
+                    skip_synthesis=True,
                 )
                 ranked = [
                     item

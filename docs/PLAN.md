@@ -30,7 +30,7 @@ Use this `PLAN` index and the `docs/plan/*` files for:
 | Authentication         | API key plus JWT with RBAC                          |
 | Transport              | SSE from Phase 1, stdio for local dev               |
 | Local embedding model  | `mixedbread-ai/mxbai-embed-large-v1` (FastEmbed)   |
-| Local LLM              | `gemma-4-E4B-it.litertlm` (LiteRT-LM)               |
+| Local LLM              | `gemma-4-E2B-it.litertlm` (LiteRT-LM)               |
 | Runtime                | `LiteRT-LM` + `FastEmbed` (in-process)              |
 | Verification           | Docker sandbox in production                        |
 | Workflow governance    | Required                                            |

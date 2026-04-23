@@ -36,7 +36,7 @@ class LiteRTModelLLM:
 
     def __init__(
         self,
-        model_path: str = "~/.minder/models/gemma-4-E4B-it.litertlm",
+        model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm",
         backend: str = "cpu",
         cache_dir: str = "~/.minder/cache/litert",
         context_length: int = 131072,

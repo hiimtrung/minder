@@ -124,7 +124,7 @@ def test_polish_prompt_returns_llm_metadata(monkeypatch) -> None:
         del config
         return draft, {
             "provider": "litert_lm",
-            "model": "gemma-4-e4b-it",
+            "model": "gemma-4-e2b-it",
             "runtime": "llama_cpp",
         }
 
@@ -146,5 +146,5 @@ def test_polish_prompt_returns_llm_metadata(monkeypatch) -> None:
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["llm"]["model"] == "gemma-4-e4b-it"
+    assert payload["llm"]["model"] == "gemma-4-e2b-it"
     assert payload["name"] == "explain_plus"

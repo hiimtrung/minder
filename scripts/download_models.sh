@@ -5,8 +5,8 @@ MODEL_DIR="${HOME}/.minder/models"
 
 
 # LiteRT-LM model for local LLM inference
-LITERT_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true}"
-LITERT_FILE="${MODEL_DIR}/gemma-4-E4B-it.litertlm"
+LITERT_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
+LITERT_FILE="${MODEL_DIR}/gemma-4-E2B-it.litertlm"
 LITERT_SHA256="${MINDER_LITERT_MODEL_SHA256:-}"
 
 download_if_missing() {

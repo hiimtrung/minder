@@ -479,6 +479,7 @@ class SkillTools:
             "excerpt_kind": self._validated_excerpt_kind(
                 str(getattr(skill, "excerpt_kind", "none") or "none")
             ),
+            "_embedding": getattr(skill, "embedding", None),
         }
 
     @classmethod

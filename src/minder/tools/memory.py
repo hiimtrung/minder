@@ -75,6 +75,7 @@ class MemoryTools:
         limit: int = 5,
         current_step: str | None = None,
         artifact_type: str | None = None,
+        skip_synthesis: bool = False,
     ) -> list[dict[str, Any]]:
         query_embedding = self._embedder.embed(query)
         skills = await self._store.list_skills()
@@ -114,6 +115,10 @@ class MemoryTools:
             )
         ranked.sort(key=lambda item: float(item["score"]), reverse=True)
         limited = ranked[:limit]
+
+        if skip_synthesis:
+            return limited
+
         synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
             query=query,
             hits=limited,

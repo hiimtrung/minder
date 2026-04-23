@@ -407,7 +407,7 @@ openai_model = "text-embedding-3-small"
 
 [llm]
 provider = "litert"
-litert_model_path = "~/.minder/models/gemma-4-E4B-it.litertlm"
+litert_model_path = "~/.minder/models/gemma-4-E2B-it.litertlm"
 context_length = 131072
 temperature = 0.1
 openai_api_key = "${OPENAI_API_KEY}"

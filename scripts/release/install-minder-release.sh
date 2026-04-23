@@ -16,8 +16,8 @@ DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
 EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-mixedbread-ai/mxbai-embed-large-v1}"
-LITERT_MODEL_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true}"
-LITERT_MODEL_FILE="gemma-4-E4B-it.litertlm"
+LITERT_MODEL_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
+LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
 
 # ------------------------------------------------------------------
 # Helpers

@@ -68,7 +68,7 @@ def auth(store: RelationalStore, config: MinderConfig, cache: LRUCacheProvider) 
 
 
 @pytest.mark.asyncio
-async def test_phase4_1_gate(
+async def test_dashboard_setup_and_auth(
     store: RelationalStore,
     config: MinderConfig,
     cache: LRUCacheProvider,

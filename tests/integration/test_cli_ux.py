@@ -22,7 +22,7 @@ async def store() -> RelationalStore:
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_serves_static_dashboard_and_drops_legacy_console_routes(
+async def test_cli_serves_static_dashboard_and_drops_legacy_console_routes(
     store: RelationalStore,
     tmp_path: Path,
 ) -> None:
@@ -72,7 +72,7 @@ async def test_phase4_3_console_gate_serves_static_dashboard_and_drops_legacy_co
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_serves_root_favicon_png(
+async def test_cli_serves_root_favicon_png(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -90,7 +90,7 @@ async def test_phase4_3_console_gate_serves_root_favicon_png(
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_serves_health_endpoint(
+async def test_cli_serves_health_endpoint(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -108,7 +108,7 @@ async def test_phase4_3_console_gate_serves_health_endpoint(
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_redirects_root_favicon_ico_to_png(
+async def test_cli_redirects_root_favicon_ico_to_png(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -145,7 +145,7 @@ async def test_phase4_3_console_gate_redirects_dashboard_favicon_ico_to_png(
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_state(
+async def test_cli_routes_dashboard_flow_by_setup_and_session_state(
     store: RelationalStore,
     tmp_path: Path,
 ) -> None:
@@ -204,7 +204,7 @@ async def test_phase4_3_console_gate_routes_dashboard_flow_by_setup_and_session_
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_redirects_to_separate_dev_console_when_configured(
+async def test_cli_redirects_to_separate_dev_console_when_configured(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -230,7 +230,7 @@ async def test_phase4_3_console_gate_redirects_to_separate_dev_console_when_conf
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_enables_cors_for_split_dev_origin(
+async def test_cli_enables_cors_for_split_dev_origin(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -255,7 +255,7 @@ async def test_phase4_3_console_gate_enables_cors_for_split_dev_origin(
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_enables_default_cors_for_local_astro_dev(
+async def test_cli_enables_default_cors_for_local_astro_dev(
     store: RelationalStore,
 ) -> None:
     config = MinderConfig(_env_file=None)
@@ -279,7 +279,7 @@ async def test_phase4_3_console_gate_enables_default_cors_for_local_astro_dev(
 
 
 @pytest.mark.asyncio
-async def test_phase4_3_console_gate_serves_astro_client_bundle_layout(
+async def test_cli_serves_astro_client_bundle_layout(
     store: RelationalStore,
     tmp_path: Path,
 ) -> None:

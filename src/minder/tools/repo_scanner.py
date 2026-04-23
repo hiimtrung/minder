@@ -132,6 +132,7 @@ class RepoScanner:
         self._git_metadata_cache: dict[str, dict[str, Any]] = {}
         self._git_line_commit_cache: dict[tuple[str, int], dict[str, str] | None] = {}
         self._git_commit_detail_cache: dict[str, dict[str, str]] = {}
+        self._git_file_blame_cache: dict[str, dict[int, str]] = {}
         self._git_enabled = True
 
     def _run_git(
@@ -280,6 +281,7 @@ class RepoScanner:
         builder._git_metadata_cache = {}
         builder._git_line_commit_cache = {}
         builder._git_commit_detail_cache = {}
+        builder._git_file_blame_cache = {}
         builder._git_enabled = True
 
         service_dirs = builder._discover_service_boundaries()
@@ -374,24 +376,21 @@ class RepoScanner:
         }
 
     def _discover_service_boundaries(self) -> list[Path]:
-        service_dirs: list[Path] = []
-        for marker in _SERVICE_MARKERS:
-            for marker_path in self._root.rglob(marker):
-                if any(part.startswith(".") for part in marker_path.parts):
-                    continue
-                svc_dir = marker_path.parent
-                if svc_dir not in service_dirs:
-                    service_dirs.append(svc_dir)
-        return sorted(service_dirs, key=lambda path: len(path.parts), reverse=True)
+        service_dirs: set[Path] = set()
+        for path in self._root.rglob("*"):
+            if any(part.startswith(".") for part in path.parts):
+                continue
+            if path.is_file() and path.name in _SERVICE_MARKERS:
+                service_dirs.add(path.parent)
+        return sorted(list(service_dirs), key=lambda path: len(path.parts), reverse=True)
 
     def _discover_source_files(self) -> list[Path]:
         files: list[Path] = []
-        for suffix in _SOURCE_SUFFIXES:
-            for path in self._root.rglob(f"*{suffix}"):
-                if any(part.startswith(".") or part == "__pycache__" for part in path.parts):
-                    continue
-                if path.is_file():
-                    files.append(path)
+        for path in self._root.rglob("*"):
+            if any(part.startswith(".") or part == "__pycache__" for part in path.parts):
+                continue
+            if path.is_file() and path.suffix.lower() in _SOURCE_SUFFIXES:
+                files.append(path)
         return sorted(set(files))
 
     def _resolve_source_files(self, changed_files: list[str] | None) -> list[Path]:
@@ -579,34 +578,32 @@ class RepoScanner:
         return commits
 
     def _git_line_commit(self, rel_path: str, line_number: int) -> dict[str, str] | None:
-        cache_key = (rel_path, line_number)
-        if cache_key in self._git_line_commit_cache:
-            return self._git_line_commit_cache[cache_key]
+        if rel_path not in self._git_file_blame_cache:
+            result = self._run_git(["blame", "--line-porcelain", "--", rel_path], check=False)
+            if result.returncode != 0:
+                self._git_file_blame_cache[rel_path] = {}
+            else:
+                blame_data: dict[int, str] = {}
+                current_sha = None
+                for line in result.stdout.splitlines():
+                    if not line:
+                        continue
+                    if current_sha is None:
+                        current_sha = line.split(" ", 1)[0]
+                    elif line.startswith("\t"):
+                        # This line indicates the end of a porcelain block
+                        current_sha = None
+                    elif line.startswith("result-line "):
+                        target_line = int(line.split(" ")[1])
+                        if current_sha and set(current_sha) != {"0"}:
+                            blame_data[target_line] = current_sha
+                self._git_file_blame_cache[rel_path] = blame_data
 
-        result = self._run_git(
-            [
-                "blame",
-                "--line-porcelain",
-                "-L",
-                f"{line_number},{line_number}",
-                "--",
-                rel_path,
-            ],
-            check=False,
-        )
-        if result.returncode != 0:
-            self._git_line_commit_cache[cache_key] = None
+        sha = self._git_file_blame_cache.get(rel_path, {}).get(line_number)
+        if not sha:
             return None
 
-        first_line = next((line for line in result.stdout.splitlines() if line.strip()), "")
-        sha = first_line.split(" ", 1)[0].strip()
-        if not sha or set(sha) == {"0"}:
-            self._git_line_commit_cache[cache_key] = None
-            return None
-
-        details = self._git_commit_details(sha)
-        self._git_line_commit_cache[cache_key] = details
-        return details
+        return self._git_commit_details(sha)
 
     def _git_commit_details(self, sha: str) -> dict[str, str]:
         cached = self._git_commit_detail_cache.get(sha)

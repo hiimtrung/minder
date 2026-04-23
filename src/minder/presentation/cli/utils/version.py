@@ -6,11 +6,12 @@ from importlib.metadata import (
     version as package_version,
 )
 
+from pathlib import Path
 import httpx
 
 logger = logging.getLogger(__name__)
 
-_PYPI_JSON_URL = "https://pypi.org/pypi/minder/json"
+_PYPI_JSON_URL = "https://pypi.org/pypi/minder-cli/json"
 
 
 def parse_version(raw_version: str) -> tuple[int, ...]:
@@ -26,8 +27,20 @@ def parse_version(raw_version: str) -> tuple[int, ...]:
 
 def installed_package_version() -> str | None:
     try:
-        return package_version("minder")
+        return package_version("minder-cli")
     except PackageNotFoundError:
+        # Fallback for development mode: try to read from pyproject.toml
+        try:
+            # Look for pyproject.toml in the repo root (5 levels up from this file)
+            pyproject_path = Path(__file__).parents[5] / "pyproject.toml"
+            if pyproject_path.exists():
+                content = pyproject_path.read_text()
+                import re
+                match = re.search(r'^version\s*=\s*["\']([^"\']+)["\']', content, re.MULTILINE)
+                if match:
+                    return match.group(1) + "-dev"
+        except Exception:
+            pass
         return None
 
 

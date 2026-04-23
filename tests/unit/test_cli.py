@@ -379,10 +379,10 @@ def test_update_cli_uses_available_manager(
     exit_code = main(["update", "--component", "cli", "--manager", "uv"])
 
     assert exit_code == 0
-    assert captured["command"] == ["uv", "tool", "upgrade", "minder"]
+    assert captured["command"] == ["uv", "tool", "upgrade", "minder-cli"]
     output = capsys.readouterr().out
     assert "CLI update completed:" in output
-    assert "via uv tool upgrade minder" in output
+    assert "via uv tool upgrade minder-cli" in output
 
 
 def test_update_server_downloads_release_installer_and_reuses_env(

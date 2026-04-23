@@ -8,6 +8,7 @@ from minder.auth.principal import ClientPrincipal, Principal
 from minder.auth.middleware import AuthMiddleware
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.embedding.local import LocalEmbeddingProvider
 from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore
 from starlette.requests import Request
 
@@ -23,6 +24,7 @@ class AdminRouteContext:
     auth_service: AuthService
     middleware: AuthMiddleware
     use_cases: AdminConsoleUseCases
+    embedder: LocalEmbeddingProvider
     prompt_sync_hook: Callable[[], Awaitable[None]] | None = None
 
     @classmethod
@@ -43,6 +45,12 @@ class AdminRouteContext:
             config=config,
             graph_store=graph_store,
         )
+        embedder = LocalEmbeddingProvider(
+            fastembed_model=config.embedding.fastembed_model,
+            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+            dimensions=config.embedding.dimensions,
+            runtime=config.embedding.runtime,
+        )
         return cls(
             config=config,
             store=store,
@@ -51,6 +59,7 @@ class AdminRouteContext:
             auth_service=auth_service,
             middleware=middleware,
             use_cases=use_cases,
+            embedder=embedder,
             prompt_sync_hook=prompt_sync_hook,
         )
 

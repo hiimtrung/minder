@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import argparse
+
+from .utils.version import installed_package_version
+from .utils.common import client_config_path
+from .commands.auth import login_command
+from .commands.mcp import install_mcp_command, uninstall_mcp_command
+from .commands.ide import install_ide_command, uninstall_ide_command
+from .commands.update import version_command, check_update_command, update_command
+from .commands.sync import sync_command
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="minder",
+        description="Minder CLI - Agentic Development Infrastructure",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    
+    # Global version flag
+    parser.add_argument(
+        "-v",
+        "--version",
+        action="version",
+        version=f"minder {installed_package_version() or 'dev'}",
+    )
+    
+    subparsers = parser.add_subparsers(dest="command", title="commands", metavar="<command>")
+    
+    # --- Auth ---
+    login = subparsers.add_parser("login", help="Authenticate with Minder server.")
+    login.add_argument("--client-key", help="Client API key (mkc_...).")
+    login.add_argument("--protocol", choices=("sse", "stdio"), help="Transport protocol.")
+    login.add_argument("--server-url", help="Minder server URL.")
+    login.add_argument("--config-path", default=str(client_config_path()), help="Path to save config.")
+    login.set_defaults(func=login_command)
+    
+    # --- IDE / MCP ---
+    install = subparsers.add_parser("install", help="Install Minder integration (MCP/IDE).")
+    install_subs = install.add_subparsers(dest="subcommand", required=True)
+    
+    mcp_in = install_subs.add_parser("mcp", help="Install MCP server config.")
+    mcp_in.add_argument("--target", action="append", help="Target IDE (vscode, cursor, claude-code, all).")
+    mcp_in.add_argument("--global", dest="global_install", action="store_true", help="Install globally.")
+    mcp_in.add_argument("--cwd", default=".", help="Workspace directory.")
+    mcp_in.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
+    mcp_in.set_defaults(func=install_mcp_command)
+    
+    ide_in = install_subs.add_parser("ide", help="Install full IDE bootstrap (MCP + Assets).")
+    ide_in.add_argument("--target", action="append", help="Target IDE.")
+    ide_in.add_argument("--cwd", default=".", help="Workspace directory.")
+    ide_in.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
+    ide_in.set_defaults(func=install_ide_command)
+    
+    uninstall = subparsers.add_parser("uninstall", help="Remove Minder integration.")
+    uninstall_subs = uninstall.add_subparsers(dest="subcommand", required=True)
+    
+    mcp_un = uninstall_subs.add_parser("mcp", help="Remove MCP server config.")
+    mcp_un.add_argument("--target", action="append", help="Target IDE.")
+    mcp_un.add_argument("--global", dest="global_install", action="store_true", help="Remove from global config.")
+    mcp_un.add_argument("--cwd", default=".", help="Workspace directory.")
+    mcp_un.set_defaults(func=uninstall_mcp_command)
+    
+    ide_un = uninstall_subs.add_parser("ide", help="Remove IDE bootstrap assets.")
+    ide_un.add_argument("--target", action="append", help="Target IDE.")
+    ide_un.add_argument("--cwd", default=".", help="Workspace directory.")
+    ide_un.set_defaults(func=uninstall_ide_command)
+    
+    # --- Sync ---
+    sync = subparsers.add_parser("sync", help="Sync repository state with Minder server.")
+    sync.add_argument("--repo-id", help="Repository UUID.")
+    sync.add_argument("--repo-path", default=".", help="Path to sync.")
+    sync.add_argument("--diff-base", help="Git base ref for delta.")
+    sync.add_argument("--dry-run", action="store_true", help="Preview payload.")
+    sync.add_argument("--skip-upgrade-check", action="store_true", help="Don't check for CLI updates.")
+    sync.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
+    sync.set_defaults(func=sync_command)
+    
+    # --- Maintenance ---
+    update = subparsers.add_parser("update", help="Check for or apply updates.")
+    update.add_argument("--check", action="store_true", help="Only check for updates, don't apply.")
+    update.add_argument("--component", choices=("cli", "server", "all"), default="cli")
+    update.add_argument("--manager", choices=("auto", "uv", "pipx", "pip"), default="auto")
+    update.add_argument("--install-dir", help="Installation directory for server updates.")
+    update.set_defaults(func=lambda args: check_update_command(args) if args.check else update_command(args))
+    
+    # --- Version ---
+    version = subparsers.add_parser("version", help="Show version information.")
+    version.add_argument("--check", action="store_true", help="Check for newer version on PyPI.")
+    version.set_defaults(func=version_command)
+    
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    
+    if not args.command:
+        parser.print_help()
+        return 0
+        
+    if hasattr(args, "func"):
+        return args.func(args)
+        
+    return 0

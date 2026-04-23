@@ -38,13 +38,14 @@ const pagePrevButton = document.querySelector("#client-page-prev");
 const pageNextButton = document.querySelector("#client-page-next");
 const rotatedKeyResult = document.querySelector("#rotated-key-result");
 const rotatedKeyValue = document.querySelector("#rotated-key-value");
+const quickSearchLoadingEl = document.querySelector("#client-quick-search-loading");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 let lastSelectedClientName = "";
 let cachedTools: ToolInfo[] = [];
 
-const PAGE_SIZE = 6;
-let allClients: ClientPayload[] = [];
+const PAGE_SIZE = 20;
 let visibleClients: ClientPayload[] = [];
+let totalCount = 0;
 let currentQuery = "";
 let currentPage = 1;
 
@@ -823,84 +824,92 @@ if (selectedClientId) {
 
 const renderClients = () => {
   if (!registry) return;
-  const slice = paginateItems(visibleClients, currentPage, PAGE_SIZE);
-  currentPage = slice.page;
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+
   setPagerStatus(paginationStatusEl, {
-    slice,
+    slice: {
+      items: visibleClients,
+      page: currentPage,
+      pageCount,
+      total: totalCount,
+      start,
+      end,
+    },
     label: "clients",
     query: currentQuery,
   });
   updatePagerButtons(
     pagePrevButton,
     pageNextButton,
-    slice.page,
-    slice.pageCount,
+    currentPage,
+    pageCount,
   );
 
-  registry.innerHTML = visibleClients.length
-    ? slice.items
-        .map(
-          (client) => `
-              <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
-                <p class="eyebrow">${client.slug}</p>
-                <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
-                <p class="mt-3 text-sm leading-6 text-stone-700">${client.description || "No description yet."}</p>
-                <p class="mt-5 text-sm text-stone-500">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
-              </a>
-            `,
-        )
-        .join("")
-    : `<article class="shell-card p-6 text-sm text-stone-600">${currentQuery ? `No clients matched \"${escapeHtml(currentQuery)}\".` : "No clients yet. Create the first one from this page."}</article>`;
+  registry.innerHTML = visibleClients
+    .map(
+      (client) => `
+          <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+            <p class="eyebrow">${client.slug}</p>
+            <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
+            <p class="mt-3 text-sm leading-6 text-stone-700">${client.description || "No description yet."}</p>
+            <p class="mt-5 text-sm text-stone-500">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
+          </a>
+        `,
+    )
+    .join("");
 };
 
 const syncVisibleClients = async () => {
-  if (!currentQuery) {
-    visibleClients = allClients;
-    renderClients();
-    return;
+  if (registry) {
+    registry.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading client registry...</article>`;
   }
-  const result = await searchAdminCatalog<ClientPayload>(
-    "clients",
-    currentQuery,
-    200,
-    0,
-  );
-  visibleClients = result.items;
-  renderClients();
+  try {
+    const result = await searchAdminCatalog<ClientPayload>(
+      "clients",
+      currentQuery,
+      PAGE_SIZE,
+      (currentPage - 1) * PAGE_SIZE,
+    );
+    visibleClients = result.items;
+    totalCount = result.total;
+    renderClients();
+  } catch (error) {
+    if (registry) {
+      registry.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${escapeHtml(error instanceof Error ? error.message : "Unable to load clients.")}</article>`;
+    }
+  }
 };
 
-const refreshClients = async () => {
-  if (!registry) return;
-  registry.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading client registry...</article>`;
-  try {
-    const payload = await listClients();
-    allClients = payload.clients;
-    await syncVisibleClients();
-  } catch (error) {
-    registry.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${
-      error instanceof Error ? error.message : "Unable to load clients."
-    }</article>`;
-  }
-};
+document
+  .querySelector("#client-refresh-button")
+  ?.addEventListener("click", () => {
+    void syncVisibleClients();
+  });
 
 pagePrevButton?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
-  renderClients();
+  void syncVisibleClients();
 });
 
 pageNextButton?.addEventListener("click", () => {
   currentPage += 1;
-  renderClients();
+  void syncVisibleClients();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisibleClients();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisibleClients();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 const renderDetail = async () => {
   if (!detailShell || !detailTitle || !snippets || !activity) {
@@ -1185,7 +1194,7 @@ document
       createdResult?.classList.remove("hidden");
       if (status) status.textContent = `Created ${created.client.slug}.`;
       showToast(`Created client ${created.client.slug}.`, "success");
-      await refreshClients();
+      await syncVisibleClients();
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Unable to create client.";
@@ -1330,7 +1339,8 @@ document
     if (editToolScopes) {
       editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
     }
-    await loadAndRenderTools(currentScopes);
+    await loadAndRenderTools();
+    await syncVisibleClients();
     showToast("Tool list refreshed.", "success");
   });
 
@@ -1360,7 +1370,7 @@ editClientForm?.addEventListener("submit", async (event) => {
     document.title = `${result.client.name} · Minder`;
     setEditStatus("Changes saved.", "success");
     showToast(`Saved ${result.client.slug}.`, "success");
-    await refreshClients();
+    await syncVisibleClients();
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Unable to save changes.";
@@ -1369,6 +1379,6 @@ editClientForm?.addEventListener("submit", async (event) => {
   }
 });
 
-void refreshClients();
+void syncVisibleClients();
 void renderDetail();
 if (createToolScopes) void loadCreateTools();

@@ -85,14 +85,10 @@ def _extract_json_object(raw: str) -> dict[str, object] | None:
 def polish_prompt_draft(
     draft: PromptDraft, config: MinderConfig
 ) -> tuple[PromptDraft, dict[str, str]]:
-    from minder.llm.local import LocalModelLLM
+    from minder.llm.factory import create_llm
 
     polished = _heuristic_polish(draft)
-    llm = LocalModelLLM(
-        ollama_url=config.llm.ollama_url,
-        ollama_model=config.llm.ollama_model,
-        context_length=config.llm.context_length,
-    )
+    llm = create_llm(config.llm)
     runtime = llm.runtime
 
     instruction = """You are polishing an MCP prompt template for an engineering assistant.
@@ -118,7 +114,7 @@ Make the prompt direct, structured, and useful for a coding workflow.
     if not parsed:
         return polished, {
             "provider": "heuristic",
-            "model": config.llm.ollama_model,
+            "model": config.llm.provider,
             "runtime": runtime,
         }
 
@@ -136,7 +132,7 @@ Make the prompt direct, structured, and useful for a coding workflow.
         arguments=polished.arguments,
     )
     return merged, {
-        "provider": "local_llm",
-        "model": config.llm.ollama_model,
+        "provider": "litert_lm",
+        "model": config.llm.provider,
         "runtime": runtime,
     }

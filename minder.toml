@@ -20,19 +20,18 @@ api_key_prefix = "mk_"
 default_admin_email = "admin@example.com"
 
 [embedding]
-provider = "ollama"
-model_name = "qwen3-embedding:0.6b"
-ollama_url = "http://localhost:11434"
-ollama_model = "qwen3-embedding:0.6b"
-dimensions = 768
+provider = "fastembed"
+fastembed_model = "mixedbread-ai/mxbai-embed-large-v1"
+fastembed_cache_dir = "~/.minder/cache/fastembed"
+dimensions = 1024
 openai_api_key = ""
 openai_model = "text-embedding-3-small"
 
 [llm]
-provider = "ollama"
-model_name = "qwen3.5:4b"
-ollama_url = "http://localhost:11434"
-ollama_model = "qwen3.5:4b"
+provider = "litert"
+litert_model_path = "~/.minder/models/gemma-4-E2B-it.litertlm"
+litert_backend = "cpu"
+litert_cache_dir = "~/.minder/cache/litert"
 context_length = 131072
 temperature = 0.1
 openai_api_key = ""

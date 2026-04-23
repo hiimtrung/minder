@@ -53,12 +53,14 @@ def test_skill_search_prefers_exact_language_and_tag_matches() -> None:
         "minder.presentation.http.admin.search.SkillTools.minder_skill_list",
         new=AsyncMock(return_value=skills),
     ), patch(
-        "minder.presentation.http.admin.search.LocalEmbeddingProvider.embed",
-        new=lambda self, value: [1.0, 0.0],
+        "minder.embedding.local.LocalEmbeddingProvider.embed",
+        new=lambda self, value: [1.0 if "RUST" in value else 0.0, 0.0],
+    ), patch(
+        "minder.embedding.local.LocalEmbeddingProvider.embed_many",
+        new=lambda self, values: [[1.0 if "rust" in v.lower() else 0.0, 0.0] for v in values],
     ):
         response = client.get("/v1/admin/search/skills?query=RUST")
 
-    assert response.status_code == 200
-    payload = response.json()
-    assert payload["items"][0]["id"] == "rust-1"
-    assert all(item["id"] != "react-1" for item in payload["items"])
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["items"][0]["id"] == "rust-1"

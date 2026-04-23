@@ -3,8 +3,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import minder.cli as cli
 from minder.cli import main
+import minder.presentation.cli.utils.git as cli_git
+import minder.presentation.cli.commands.mcp as cli_mcp
+import minder.presentation.cli.commands.update as cli_update
+import minder.presentation.cli.commands.sync as cli_sync
 
 
 def test_login_persists_client_config(tmp_path, capsys) -> None:  # noqa: ANN001
@@ -58,7 +61,8 @@ def test_login_with_stdio_protocol_installs_stdio_mcp_entry(
 
     install_exit = main(
         [
-            "install-mcp",
+            "install",
+            "mcp",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -99,7 +103,8 @@ def test_install_and_uninstall_local_mcp_configs(
 
     exit_code = main(
         [
-            "install-mcp",
+            "install",
+            "mcp",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -127,7 +132,8 @@ def test_install_and_uninstall_local_mcp_configs(
 
     uninstall_exit = main(
         [
-            "uninstall-mcp",
+            "uninstall",
+            "mcp",
             "--cwd",
             str(tmp_path),
         ]
@@ -159,7 +165,8 @@ def test_install_ide_creates_repo_local_assets_and_gitignore(
 
     exit_code = main(
         [
-            "install-ide",
+            "install",
+            "ide",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -223,7 +230,8 @@ def test_install_ide_updates_managed_blocks_without_removing_custom_text(
 
     exit_code = main(
         [
-            "install-ide",
+            "install",
+            "ide",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -255,7 +263,8 @@ def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa
 
     install_exit = main(
         [
-            "install-ide",
+            "install",
+            "ide",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -270,7 +279,8 @@ def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa
 
     uninstall_exit = main(
         [
-            "uninstall-ide",
+            "uninstall",
+            "ide",
             "--cwd",
             str(tmp_path),
             "--target",
@@ -303,10 +313,13 @@ def test_check_update_reports_cli_and_server_versions(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.1.0")
-    monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.2.0")
+    monkeypatch.setenv("MINDER_INSTALL_DIR", str(install_dir))
+    monkeypatch.setattr("minder.presentation.cli.utils.version.installed_package_version", lambda: "0.1.0")
+    monkeypatch.setattr("minder.presentation.cli.utils.version.latest_pypi_version", lambda: "0.2.0")
+    monkeypatch.setattr(cli_update, "installed_package_version", lambda: "0.1.0")
+    monkeypatch.setattr(cli_update, "latest_pypi_version", lambda: "0.2.0")
     monkeypatch.setattr(
-        cli,
+        cli_update,
         "_latest_github_release",
         lambda slug: {
             "version": "v0.2.0",
@@ -314,7 +327,7 @@ def test_check_update_reports_cli_and_server_versions(
         },
     )
 
-    exit_code = main(["check-update", "--install-dir", str(install_dir)])
+    exit_code = main(["update", "--check", "--component", "all"])
 
     assert exit_code == 0
     output = capsys.readouterr().out
@@ -327,10 +340,12 @@ def test_check_update_reports_cli_and_server_versions(
 def test_check_version_reports_installed_and_latest(
     monkeypatch, capsys
 ) -> None:  # noqa: ANN001
-    monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.3.2")
-    monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.3.4")
+    monkeypatch.setattr("minder.presentation.cli.utils.version.installed_package_version", lambda: "0.3.2")
+    monkeypatch.setattr("minder.presentation.cli.utils.version.latest_pypi_version", lambda: "0.3.4")
+    monkeypatch.setattr(cli_update, "installed_package_version", lambda: "0.3.2")
+    monkeypatch.setattr(cli_update, "latest_pypi_version", lambda: "0.3.4")
 
-    exit_code = main(["check-version"])
+    exit_code = main(["version", "--check"])
 
     assert exit_code == 0
     output = capsys.readouterr().out
@@ -350,7 +365,7 @@ def test_update_cli_uses_available_manager(
         stdout = "updated"
         stderr = ""
 
-    monkeypatch.setattr(cli.shutil, "which", lambda name: f"/usr/bin/{name}")
+    monkeypatch.setattr(cli_update.shutil, "which", lambda name: f"/usr/bin/{name}")
 
     def _fake_run(command, capture_output, text, check):  # noqa: ANN001
         captured["command"] = command
@@ -359,7 +374,7 @@ def test_update_cli_uses_available_manager(
         captured["check"] = check
         return _Result()
 
-    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+    monkeypatch.setattr(cli_update.subprocess, "run", _fake_run)
 
     exit_code = main(["update", "--component", "cli", "--manager", "uv"])
 
@@ -381,7 +396,7 @@ def test_update_server_downloads_release_installer_and_reuses_env(
     )
 
     monkeypatch.setattr(
-        cli,
+        cli_update,
         "_latest_github_release",
         lambda slug: {
             "version": "v0.2.0",
@@ -395,7 +410,7 @@ def test_update_server_downloads_release_installer_and_reuses_env(
         def raise_for_status(self) -> None:
             return None
 
-    monkeypatch.setattr(cli.httpx, "get", lambda url, timeout: _HttpResponse())
+    monkeypatch.setattr(cli_update.httpx, "get", lambda url, timeout: _HttpResponse())
 
     captured: dict[str, object] = {}
 
@@ -413,14 +428,14 @@ def test_update_server_downloads_release_installer_and_reuses_env(
         captured["check"] = check
         return _RunResult()
 
-    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+    monkeypatch.setattr(cli_update.subprocess, "run", _fake_run)
 
     exit_code = main(
         ["update", "--component", "server", "--install-dir", str(install_dir)]
     )
 
     assert exit_code == 0
-    assert captured["command"] == ["bash"]
+    assert captured["command"] == ["bash", "-"]
     assert captured["input"] == "#!/usr/bin/env bash\necho server-updated\n"
     env = captured["env"]
     assert isinstance(env, dict)
@@ -456,11 +471,11 @@ def test_sync_dry_run_prints_delta_payload(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "feature/sync")
     monkeypatch.setattr(
-        cli,
-        "_git_file_delta",
+        cli_sync,
+        "git_file_delta",
         lambda repo, diff_base=None: (["notes.md", "config.json"], ["removed.py"]),
     )
 
@@ -496,39 +511,39 @@ def test_sync_dry_run_prints_delta_payload(
 def test_global_target_paths_resolve_across_platforms(
     monkeypatch,
 ) -> None:  # noqa: ANN001
-    monkeypatch.setattr(cli.Path, "home", lambda: Path("/home/tester"))
+    monkeypatch.setattr("pathlib.Path.home", lambda: Path("/home/tester"))
 
-    monkeypatch.setattr(cli.platform, "system", lambda: "Darwin")
-    assert cli._global_target_path("vscode") == Path(
-        "/home/tester/Library/Application Support/Code/User/mcp.json"
+    monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Darwin")
+    assert cli_mcp._global_target_path("vscode") == Path(
+        "/home/tester/Library/Application Support/Code/User/globalStorage/mcp-servers.json"
     )
-    assert cli._global_target_path("cursor") == Path(
-        "/home/tester/Library/Application Support/Cursor/User/mcp.json"
+    assert cli_mcp._global_target_path("cursor") == Path(
+        "/home/tester/Library/Application Support/Cursor/User/globalStorage/mcp-servers.json"
     )
-    assert cli._global_target_path("claude-code") == Path(
-        "/home/tester/.claude/mcp.json"
-    )
-
-    monkeypatch.setattr(cli.platform, "system", lambda: "Linux")
-    assert cli._global_target_path("vscode") == Path(
-        "/home/tester/.config/Code/User/mcp.json"
-    )
-    assert cli._global_target_path("cursor") == Path(
-        "/home/tester/.config/Cursor/User/mcp.json"
+    assert cli_mcp._global_target_path("claude-code") == Path(
+        "/home/tester/Library/Application Support/Claude/claude_desktop_config.json"
     )
 
-    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Linux")
+    assert cli_mcp._global_target_path("vscode") == Path(
+        "/home/tester/.config/Code/User/globalStorage/mcp-servers.json"
+    )
+    assert cli_mcp._global_target_path("cursor") == Path(
+        "/home/tester/.config/Cursor/User/globalStorage/mcp-servers.json"
+    )
+
+    monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Windows")
     monkeypatch.setattr(
-        cli, "_appdata_dir", lambda: Path("C:/Users/tester/AppData/Roaming")
+        cli_mcp, "appdata_dir", lambda: Path("C:/Users/tester/AppData/Roaming")
     )
-    assert cli._global_target_path("vscode") == Path(
-        "C:/Users/tester/AppData/Roaming/Code/User/mcp.json"
+    assert cli_mcp._global_target_path("vscode") == Path(
+        "C:/Users/tester/AppData/Roaming/Code/User/globalStorage/mcp-servers.json"
     )
-    assert cli._global_target_path("cursor") == Path(
-        "C:/Users/tester/AppData/Roaming/Cursor/User/mcp.json"
+    assert cli_mcp._global_target_path("cursor") == Path(
+        "C:/Users/tester/AppData/Roaming/Cursor/User/globalStorage/mcp-servers.json"
     )
-    assert cli._global_target_path("claude-code") == Path(
-        "/home/tester/.claude/mcp.json"
+    assert cli_mcp._global_target_path("claude-code") == Path(
+        "C:/Users/tester/AppData/Roaming/Claude/claude_desktop_config.json"
     )
 
 
@@ -551,14 +566,14 @@ def test_sync_posts_payload_to_server(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "feature/sync")
     monkeypatch.setattr(
-        cli,
-        "_git_file_delta",
+        cli_sync,
+        "git_file_delta",
         lambda repo, diff_base=None: (["notes.md"], ["removed.py"]),
     )
-    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
     captured: dict[str, object] = {}
 
@@ -583,7 +598,7 @@ def test_sync_posts_payload_to_server(
         captured["timeout"] = timeout
         return _FakeResponse()
 
-    monkeypatch.setattr(cli.httpx, "post", _fake_post)
+    monkeypatch.setattr(cli_sync.httpx, "post", _fake_post)
 
     exit_code = main(
         [
@@ -633,13 +648,15 @@ def test_sync_prints_upgrade_notice_when_newer_pypi_version_exists(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "feature/sync")
     monkeypatch.setattr(
-        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+        cli_sync, "git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
     )
-    monkeypatch.setattr(cli, "_installed_package_version", lambda: "0.1.0")
-    monkeypatch.setattr(cli, "_latest_pypi_version", lambda: "0.2.0")
+    monkeypatch.setattr("minder.presentation.cli.utils.version.installed_package_version", lambda: "0.1.0")
+    monkeypatch.setattr("minder.presentation.cli.utils.version.latest_pypi_version", lambda: "0.2.0")
+    monkeypatch.setattr(cli_update, "installed_package_version", lambda: "0.1.0")
+    monkeypatch.setattr(cli_update, "latest_pypi_version", lambda: "0.2.0")
 
     class _FakeResponse:
         def raise_for_status(self) -> None:
@@ -648,7 +665,7 @@ def test_sync_prints_upgrade_notice_when_newer_pypi_version_exists(
         def json(self) -> dict[str, object]:
             return {"ok": True}
 
-    monkeypatch.setattr(cli.httpx, "post", lambda *args, **kwargs: _FakeResponse())
+    monkeypatch.setattr(cli_sync.httpx, "post", lambda *args, **kwargs: _FakeResponse())
 
     exit_code = main(
         [
@@ -684,15 +701,15 @@ def test_sync_auto_resolves_repo_id_when_omitted(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "develop")
     monkeypatch.setattr(
-        cli, "_git_remote_url", lambda repo: "git@github.com:example/minder.git"
+        cli_sync, "git_remote_url", lambda repo: "git@github.com:example/minder.git"
     )
     monkeypatch.setattr(
-        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+        cli_sync, "git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
     )
-    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
     captured: list[dict[str, object]] = []
 
@@ -731,7 +748,7 @@ def test_sync_auto_resolves_repo_id_when_omitted(
             {"repo_id": "22222222-2222-2222-2222-222222222222", "nodes_upserted": 1}
         )
 
-    monkeypatch.setattr(cli.httpx, "post", _fake_post)
+    monkeypatch.setattr(cli_sync.httpx, "post", _fake_post)
 
     exit_code = main(
         [
@@ -779,13 +796,13 @@ def test_sync_requires_remote_origin_when_repo_id_omitted(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "develop")
-    monkeypatch.setattr(cli, "_git_remote_url", lambda repo: None)
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "develop")
+    monkeypatch.setattr(cli_sync, "git_remote_url", lambda repo: None)
     monkeypatch.setattr(
-        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+        cli_sync, "git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
     )
-    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", lambda: None)
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
     try:
         main(
@@ -825,16 +842,16 @@ def test_sync_can_skip_upgrade_notice(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "feature/sync")
     monkeypatch.setattr(
-        cli, "_git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
+        cli_sync, "git_file_delta", lambda repo, diff_base=None: (["notes.md"], [])
     )
 
     def _boom() -> None:
         raise AssertionError("upgrade check should be skipped")
 
-    monkeypatch.setattr(cli, "_maybe_print_upgrade_notice", _boom)
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", _boom)
 
     class _FakeResponse:
         def raise_for_status(self) -> None:
@@ -843,7 +860,7 @@ def test_sync_can_skip_upgrade_notice(
         def json(self) -> dict[str, object]:
             return {"ok": True}
 
-    monkeypatch.setattr(cli.httpx, "post", lambda *args, **kwargs: _FakeResponse())
+    monkeypatch.setattr(cli_sync.httpx, "post", lambda *args, **kwargs: _FakeResponse())
 
     exit_code = main(
         [
@@ -875,7 +892,7 @@ def test_detect_branch_relationships_from_gitmodules(tmp_path) -> None:  # noqa:
         encoding="utf-8",
     )
 
-    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+    relationships = cli_git.detect_branch_relationships(repo_root, "feature/sync")
 
     assert len(relationships) == 1
     relationship = relationships[0]
@@ -913,7 +930,7 @@ def test_detect_branch_relationships_merges_override_file(tmp_path) -> None:  # 
         encoding="utf-8",
     )
 
-    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+    relationships = cli_git.detect_branch_relationships(repo_root, "feature/sync")
 
     assert {entry["target_repo_name"] for entry in relationships} == {
         "other",
@@ -956,7 +973,7 @@ def test_detect_branch_relationships_dedupes_submodule_and_override(tmp_path) ->
         encoding="utf-8",
     )
 
-    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+    relationships = cli_git.detect_branch_relationships(repo_root, "feature/sync")
 
     assert len(relationships) == 1
     relationship = relationships[0]
@@ -976,9 +993,10 @@ def test_update_server_uses_powershell_installer_on_windows(
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli.platform, "system", lambda: "Windows")
+    monkeypatch.setattr("sys.platform", "win32")
+    monkeypatch.setattr("platform.system", lambda: "Windows")
     monkeypatch.setattr(
-        cli,
+        cli_update,
         "_latest_github_release",
         lambda slug: {
             "version": "v0.2.0",
@@ -998,7 +1016,7 @@ def test_update_server_uses_powershell_installer_on_windows(
         captured_urls.append(url)
         return _HttpResponse()
 
-    monkeypatch.setattr(cli.httpx, "get", _fake_get)
+    monkeypatch.setattr(cli_update.httpx, "get", _fake_get)
 
     captured: dict[str, object] = {}
 
@@ -1013,7 +1031,7 @@ def test_update_server_uses_powershell_installer_on_windows(
         captured["env"] = env
         return _RunResult()
 
-    monkeypatch.setattr(cli.subprocess, "run", _fake_run)
+    monkeypatch.setattr(cli_update.subprocess, "run", _fake_run)
 
     exit_code = main(
         [
@@ -1059,11 +1077,11 @@ def test_sync_dry_run_includes_branch_relationships(tmp_path, monkeypatch, capsy
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(cli, "_repo_root", lambda path: Path(path).resolve())
-    monkeypatch.setattr(cli, "_git_branch", lambda repo: "feature/sync")
+    monkeypatch.setattr(cli_sync, "repo_root", lambda path: Path(path).resolve())
+    monkeypatch.setattr(cli_sync, "git_branch", lambda repo: "feature/sync")
     monkeypatch.setattr(
-        cli,
-        "_git_file_delta",
+        cli_sync,
+        "git_file_delta",
         lambda repo, diff_base=None: (["notes.md"], []),
     )
 

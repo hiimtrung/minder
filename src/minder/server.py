@@ -13,7 +13,7 @@ from minder.bootstrap.transport import build_transport
 from minder.config import Settings
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
-from minder.llm.local import LocalModelLLM
+from minder.llm.factory import create_llm
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.presentation.http.admin.routes import build_http_app, build_http_routes
 
@@ -31,14 +31,10 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    llm = LocalModelLLM(
-        ollama_url=config.llm.ollama_url,
-        ollama_model=config.llm.ollama_model,
-        context_length=config.llm.context_length,
-    )
+    llm = create_llm(config.llm)
     embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
+        fastembed_model=config.embedding.fastembed_model,
+        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
         dimensions=config.embedding.dimensions,
         runtime="auto",
     )
@@ -54,13 +50,10 @@ def runtime_summary(config: Settings) -> dict[str, object]:
             config.workflow.orchestration_runtime
         ),
         "llm_provider": config.llm.provider,
-        "llm_ollama_url": config.llm.ollama_url,
-        "llm_ollama_model": config.llm.ollama_model,
         "llm_runtime_effective": llm.runtime,
         "llm_context_length": config.llm.context_length,
         "embedding_provider": config.embedding.provider,
-        "embedding_ollama_url": config.embedding.ollama_url,
-        "embedding_ollama_model": config.embedding.ollama_model,
+        "embedding_fastembed_model": config.embedding.fastembed_model,
         "embedding_runtime_effective": embedder.runtime,
         "openai_fallback_configured": fallback.available(),
         "openai_fallback_runtime_effective": fallback.runtime,

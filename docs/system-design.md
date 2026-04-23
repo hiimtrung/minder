@@ -24,7 +24,8 @@ Minder is an MCP-first engineering assistant platform with:
 - operational data in `MongoDB`
 - cache, rate limiting, and client sessions in `Redis`
 - vector search in `Milvus Standalone`
-- LLM and Embedding inference via host-native Ollama (Gemma 3/4)
+- LLM inference via host-native LiteRT-LM (Gemma 4)
+- Embedding inference via in-process FastEmbed (`mxbai-embed-large-v1`)
 
 ## 2. Runtime Architecture
 
@@ -51,13 +52,24 @@ flowchart TB
   Workflow --> Mongo["MongoDB\nStructural Graph + Env Mapping"]
   Workflow --> Redis["Redis"]
   Workflow --> Milvus["Milvus Standalone\nSemantic Index"]
-  Orchestrator --> LLM["Ollama LLM"]
-  Embedder --> OllamaE["Ollama Embedding"]
+  Orchestrator --> LiteRT["LiteRT-LM\n(host-native, in-process)"]
+  Embedder --> FastEmbed["FastEmbed\n(in-process ONNX)"]
 ```
+
+### AI Inference Architecture
+
+Minder splits AI inference into two dedicated backends:
+
+| Concern | Backend | Runtime | Why |
+|---------|---------|---------|-----|
+| **LLM (text generation)** | LiteRT-LM | Host-native, in-process Python | Hardware-accelerated (Metal/CPU), no HTTP overhead, ~3s cold start |
+| **Embedding** | FastEmbed | `mxbai-embed-large-v1` | Lightweight, runs in-process with ONNX runtime, zero extra dependencies |
+
+This split eliminates the previous single-process bottleneck where both embedding and LLM competed for the same resource, causing severe performance degradation with larger models.
 
 ### Review Note
 
-Gemma 3/4 remains the reasoning model for orchestration and synthesis. The semantic index should continue to use a dedicated embedding model instead of treating Gemma 3/4 as the primary vector generator.
+Gemma 4 remains the reasoning model for orchestration and synthesis via LiteRT-LM. The semantic index uses a dedicated embedding model (`mxbai-embed-large-v1`) through in-process FastEmbed ONNX runtime.
 
 ## 3. Dashboard Runtime Modes
 
@@ -104,7 +116,8 @@ In this mode:
 - dashboard API calls go to `API_URL`
 - Astro maps `API_URL` into the client-visible `PUBLIC_API_URL` during dev/build
 - onboarding snippets use the backend origin seen on the API request, which makes local snippets point to `8800`
-- when `dashboard.dev_server_url` is configured, backend dashboard routes redirect to the Astro dev server instead of serving compatibility static files
+- when Astro is not running, Minder can still serve the built dashboard on the same origin if you already built `src/dashboard`
+- in production, `/dashboard/*` is served by the dedicated Astro service behind the gateway
 
 ### Compatibility Static Serving
 
@@ -268,7 +281,7 @@ Primary objective:
 flowchart LR
     ToolCalls["MCP tool calls<br/>workflow/query/code ops"] --> EventLog["Session + memory events"]
     EventLog --> Recall["Top-K memory recall<br/>embedding similarity"]
-    Recall --> Synth["Ollama synthesis<br/>issue framing + summary + next actions"]
+    Recall --> Synth["LiteRT-LM synthesis<br/>issue framing + summary + next actions"]
     Synth --> Brief["Session brief / continuity packet"]
     Brief --> Primary["Primary LLM prompt context"]
     Brief --> Store["Mongo session snapshot + memory artifacts"]
@@ -282,7 +295,7 @@ flowchart LR
 - `minder_session_*` remains the session state primitive:
   - persist active state, context, and working set
   - restore progress deterministically
-- Ollama acts as a context synthesizer:
+- LiteRT-LM acts as the context synthesizer:
   - convert raw recalled items into concise issue-centric summaries
   - highlight unresolved blockers, decisions, and assumptions
   - suggest next valid actions aligned with workflow state
@@ -316,7 +329,7 @@ Required behavior:
 - `minder_memory_recall` filters/ranks by `current_step` compatibility first, then semantic similarity
 - `minder_session_restore` returns both raw state and step-specific continuity brief
 - skill retrieval (new `minder_skill_*` surface) prioritizes skills tagged for the active step/artifact type
-- Ollama synthesizes a step-scoped brief for the primary LLM, not a generic summary
+- LiteRT-LM synthesizes a step-scoped brief for the primary LLM, not a generic summary
 
 This ensures the primary LLM remains aligned with implementation phase and does not drift across large contexts.
 
@@ -409,6 +422,7 @@ Key paths:
 - [`docker/docker-compose.local.yml`](../docker/docker-compose.local.yml)
 - infra-only Docker services for MongoDB, Redis, Milvus, etcd, and minio
 - Minder and Astro run outside Docker for interactive debugging
+- LLM inference uses host-native LiteRT-LM (no Docker required for LLM)
 
 ### Production
 
@@ -420,6 +434,7 @@ Key paths:
   - `gateway` on public `8800`
   - `dashboard` on internal `8808`
   - `minder-api` on internal `8801`
+
 
 ## 12. Related Design Documents
 

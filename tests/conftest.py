@@ -29,7 +29,29 @@ def _isolate_minder_env_from_dotenv() -> Iterator[None]:
     for key in list(os.environ):
         if key.startswith("MINDER_"):
             removed[key] = os.environ.pop(key)
+    
+    # Force mock modes for tests to save RAM and time
+    os.environ["MINDER_EMBEDDING__RUNTIME"] = "mock"
+    os.environ["MINDER_LLM__LITERT_BACKEND"] = "mock"
+    os.environ["MINDER_VECTOR_STORE__PROVIDER"] = "memory"
+    
     try:
         yield
     finally:
         os.environ.update(removed)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_minder_caches() -> Iterator[None]:
+    """Clear memory-heavy caches after each module to stay under 8GB RAM."""
+    yield
+    try:
+        from minder.llm import litert
+        litert.clear_caches()
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from minder.embedding import local
+        local.clear_caches()
+    except (ImportError, AttributeError):
+        pass

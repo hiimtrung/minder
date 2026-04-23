@@ -23,7 +23,7 @@ from minder.graph.nodes import (
 )
 from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
-from minder.llm.local import LocalModelLLM
+from minder.llm.litert import LiteRTModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.relational import RelationalStore
 
@@ -33,23 +33,6 @@ IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 def test_graph_runtime_reports_supported_mode() -> None:
     assert graph_runtime_name() in {"internal", "langgraph"}
 
-
-def test_local_model_runtime_auto_reports_supported_mode() -> None:
-    llm = LocalModelLLM(ollama_url="http://invalid:11434")
-    result = llm.generate(
-        type(
-            "StubState",
-            (),
-            {
-                "reranked_docs": [],
-                "retrieved_docs": [],
-                "workflow_context": {},
-                "plan": {},
-                "query": "hello",
-            },
-        )()
-    )
-    assert result["runtime"] in {"mock", "ollama"}
 
 
 def test_openai_runtime_auto_reports_supported_mode() -> None:
@@ -116,7 +99,7 @@ async def test_internal_executor_sets_internal_runtime(store: RelationalStore) -
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -135,7 +118,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -192,7 +175,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         planning=PlanningNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LocalModelLLM()),
+        llm=LLMNode(primary=LiteRTModelLLM()),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -210,23 +193,16 @@ async def test_minder_graph_defaults_to_auto_runtimes(
 ) -> None:
     captured: dict[str, object] = {}
 
-    class CaptureLocalModel:
-        def __init__(
-            self,
-            ollama_url: str = "http://localhost:11434",
-            ollama_model: str = "gemma4:e2b",
-            fail: bool = False,
-            context_length: int = 4096,
-        ) -> None:
-            captured["local_model_url"] = ollama_url
-            captured["local_model_context_length"] = context_length
+    class CapturedLLM:
+        def __init__(self) -> None:
+            pass
 
         def generate(self, state):  # noqa: ANN001, ANN201
             return {
                 "text": "ok",
                 "sources": [],
-                "provider": "local_llm",
-                "model": "gemma-4-e2b-it",
+                "provider": "litert_lm",
+                "model": "gemma-4-E2B-it",
                 "runtime": "mock",
                 "stream": ["ok"],
             }
@@ -240,11 +216,16 @@ async def test_minder_graph_defaults_to_auto_runtimes(
         def available(self) -> bool:
             return False
 
-    monkeypatch.setattr(graph_module, "LocalModelLLM", CaptureLocalModel)
+    def fake_create_llm(config):  # noqa: ANN001, ANN201
+        captured["provider"] = config.provider
+        captured["context_length"] = config.context_length
+        return CapturedLLM()
+
+    monkeypatch.setattr(graph_module, "create_llm", fake_create_llm)
     monkeypatch.setattr(graph_module, "OpenAIFallbackLLM", CaptureFallback)
 
     MinderGraph(store, MinderConfig())
 
-    assert captured["local_model_url"] == "http://localhost:11434"
-    assert captured["local_model_context_length"] == MinderConfig().llm.context_length
+    assert captured["provider"] == "litert"
+    assert captured["context_length"] == MinderConfig().llm.context_length
     assert captured["fallback_runtime"] == "auto"

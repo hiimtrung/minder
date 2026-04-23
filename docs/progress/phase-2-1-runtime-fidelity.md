@@ -14,7 +14,7 @@
 | ---------- | ----- | ------ | -------------------------------- | -------------------------------------------------------------------------------------------- |
 | `P2.1-T01` | `ML`  | `DONE` | LangGraph runtime replacement    | [../plan/02-architecture.md](../plan/02-architecture.md)                                     |
 | `P2.1-T02` | `ML`  | `DONE` | State contract normalization     | [../plan/02-architecture.md](../plan/02-architecture.md)                                     |
-| `P2.1-T03` | `ML`  | `DONE` | Real Ollama local LLM runtime | [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                   |
+| `P2.1-T03` | `ML`  | `DONE` | Real LiteRT-LM local LLM runtime | [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                   |
 | `P2.1-T04` | `ML`  | `DONE` | LiteLLM OpenAI fallback          | [../plan/05-implementation-phases.md](../plan/05-implementation-phases.md)                   |
 | `P2.1-T05` | `ML`  | `DONE` | LLM node fallback/error policy   | [../plan/02-architecture.md](../plan/02-architecture.md)                                     |
 | `P2.1-T06` | `ML`  | `DONE` | Conditional graph routing        | [../plan/02-architecture.md](../plan/02-architecture.md)                                     |

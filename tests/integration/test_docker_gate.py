@@ -6,7 +6,7 @@ import pytest
 from minder.config import MinderConfig
 from minder.graph import MinderGraph
 from minder.graph.nodes import LLMNode, VerificationNode, WorkflowPlannerNode
-from minder.llm.local import LocalModelLLM
+from minder.llm.litert import LiteRTModelLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.error import ErrorStore
 from minder.store.history import HistoryStore
@@ -30,6 +30,18 @@ class FakeDockerRunner:
             "retryable": False,
         }
 
+
+class FailingLLM:
+    @property
+    def runtime(self) -> str:
+        return "mock"
+
+    def generate(self, state):
+        raise RuntimeError("simulated failure")
+
+    def stream_generate(self, state):
+        raise RuntimeError("simulated failure")
+        yield {}
 
 class FailOnceDockerRunner:
     def __init__(self) -> None:
@@ -143,9 +155,9 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LocalModelLLM(
-                ollama_url=config.llm.ollama_url,
-                ollama_model=config.llm.ollama_model,
+            primary=LiteRTModelLLM(
+                model_path=config.llm.litert_model_path,
+                backend=config.llm.litert_backend,
             ),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
@@ -165,8 +177,8 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         verification_payload={"language": "python", "code": "print('ok')"},
     )
 
-    assert result["provider"] == "local_llm"
-    assert result["runtime"] in {"auto", "mock", "llama_cpp", "ollama"}
+    assert result["provider"] == "litert_lm"
+    assert result["runtime"] in {"auto", "mock", "litert"}
     assert result["transition_log"]
     assert result["transition_log"][0]["edge"] == "verification_failed"
     assert result["transition_log"][-1]["edge"] == "complete"
@@ -181,11 +193,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
         store,
         config,
         llm=LLMNode(
-            primary=LocalModelLLM(
-                ollama_url=config.llm.ollama_url,
-                ollama_model=config.llm.ollama_model,
-                fail=True,
-            ),
+            primary=FailingLLM(),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
         verification=VerificationNode(sandbox="docker", docker_runner=FakeDockerRunner()),
@@ -207,7 +215,7 @@ async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: Mind
 
     history_entries = await HistoryStore(store).list_history_for_session(session_id)
     assert history_entries
-    assert history_entries[-1].tool_calls["provider"] in {"local_llm", "openai_fallback"}
+    assert history_entries[-1].tool_calls["provider"] in {"litert_lm", "openai_fallback"}
 
     error_hits = await ErrorStore(store).search_errors("first run failed")
     assert error_hits

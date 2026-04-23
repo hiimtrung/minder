@@ -23,7 +23,7 @@ from minder.graph.nodes import (
     WorkflowPlannerNode,
 )
 from minder.graph.state import GraphState
-from minder.llm.local import LocalModelLLM
+from minder.llm.factory import create_llm
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.interfaces import (
     IOperationalStore,
@@ -58,8 +58,8 @@ class MinderGraph:
         self._planning = planning or PlanningNode()
         vector_store = VectorStore(store, store)
         embedder = LocalEmbeddingProvider(
-            ollama_url=config.embedding.ollama_url,
-            ollama_model=config.embedding.ollama_model,
+            fastembed_model=config.embedding.fastembed_model,
+            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
             dimensions=config.embedding.dimensions,
             runtime="auto",
         )
@@ -72,11 +72,7 @@ class MinderGraph:
         self._reranker = reranker  # None by default; pass RerankerNode(...) to activate
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
-            primary=LocalModelLLM(
-                ollama_url=config.llm.ollama_url,
-                ollama_model=config.llm.ollama_model,
-                context_length=config.llm.context_length,
-            ),
+            primary=create_llm(config.llm),
             fallback=OpenAIFallbackLLM(
                 config.llm.openai_api_key,
                 config.llm.openai_model,

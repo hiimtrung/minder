@@ -86,10 +86,10 @@ class SkillTools:
     def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
         self._store = store
         self._embedder = LocalEmbeddingProvider(
-            ollama_url=config.embedding.ollama_url,
-            ollama_model=config.embedding.ollama_model,
+            fastembed_model=config.embedding.fastembed_model,
+            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
             dimensions=min(config.embedding.dimensions, 16),
-            runtime="auto",
+            runtime=config.embedding.runtime,
         )
 
     async def minder_skill_store(
@@ -140,6 +140,14 @@ class SkillTools:
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue
+
+            # Differentiation: Skills are code OR have source metadata
+            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
+                getattr(skill, "source_metadata", None) is None
+            )
+            if is_memory:
+                continue
+
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
             if not embedding:
                 continue
@@ -193,6 +201,14 @@ class SkillTools:
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue
+
+            # Differentiation: Skills are code OR have source metadata
+            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
+                getattr(skill, "source_metadata", None) is None
+            )
+            if is_memory:
+                continue
+
             normalized_tags = {
                 str(item).strip().lower()
                 for item in list(getattr(skill, "tags", []) or [])
@@ -463,6 +479,7 @@ class SkillTools:
             "excerpt_kind": self._validated_excerpt_kind(
                 str(getattr(skill, "excerpt_kind", "none") or "none")
             ),
+            "_embedding": getattr(skill, "embedding", None),
         }
 
     @classmethod

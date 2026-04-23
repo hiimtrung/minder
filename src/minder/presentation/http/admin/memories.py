@@ -62,8 +62,14 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
             store=context.store,
         )
         try:
+            all_skills = await context.store.list_skills()
             skills = sorted(
-                await context.store.list_skills(),
+                [
+                    s
+                    for s in all_skills
+                    if getattr(s, "language", "") in ("markdown", "text", "", None)
+                    and getattr(s, "source_metadata", None) is None
+                ],
                 key=lambda skill: (
                     str(getattr(skill, "title", "")).lower(),
                     str(getattr(skill, "language", "")).lower(),
@@ -140,8 +146,8 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if "title" in update_data or "content" in update_data:
                 config = _config_from_request(request)
                 embedder = LocalEmbeddingProvider(
-                    ollama_url=config.embedding.ollama_url,
-                    ollama_model=config.embedding.ollama_model,
+                    fastembed_model=config.embedding.fastembed_model,
+                    fastembed_cache_dir=config.embedding.fastembed_cache_dir,
                     dimensions=min(config.embedding.dimensions, 16),
                     runtime="auto",
                 )

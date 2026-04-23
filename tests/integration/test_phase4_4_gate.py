@@ -154,7 +154,7 @@ async def test_phase4_4_continuity_gate(
     skill = await skill_tools.minder_skill_store(
         title="Phase 4.4 skill",
         content="Use continuity packets and prompt correction retries when the workflow contract fails.",
-        language="markdown",
+        language="python",
         workflow_steps=["Test Writing"],
         artifact_types=["test_plan"],
         provenance="phase_4_4_gate",

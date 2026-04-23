@@ -8,7 +8,6 @@ from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
 
 from minder.config import MinderConfig
-from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_admin_operation
 from minder.prompts import PromptRegistry
 from minder.tools.memory import MemoryTools
@@ -49,47 +48,41 @@ def _cosine_similarity(left: list[float], right: list[float]) -> float:
     return numerator / (left_norm * right_norm)
 
 
-def _lexical_score(query: str, candidate: str) -> float:
-    query_lower = query.lower()
-    candidate_lower = candidate.lower()
-    query_tokens = _tokenize(query)
-    candidate_tokens = _tokenize(candidate)
-    overlap = 0.0
-    if query_tokens:
-        overlap = len(query_tokens & candidate_tokens) / max(len(query_tokens), 1)
-    contains = 1.0 if query_lower in candidate_lower else 0.0
-    prefix = 1.0 if candidate_lower.startswith(query_lower) else 0.0
-    return (overlap * 0.6) + (contains * 0.25) + (prefix * 0.15)
+# Lexical scoring removed in favor of semantic-only search as requested.
 
 
-def _rank_serialized_items(
+async def _rank_serialized_items(
     *,
     items: list[Any],
     query: str,
     text_builder: Callable[[Any], str],
-    config: MinderConfig,
+    context: AdminRouteContext,
 ) -> list[Any]:
-    if not query.strip():
+    if not query.strip() or not items:
         return items
 
-    embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
-        dimensions=min(config.embedding.dimensions, 16),
-        runtime="auto",
-    )
-    query_embedding = embedder.embed(query)
-    ranked: list[Any] = []
+    # For mxbai and similar models, queries often perform better with a prefix.
+    query_text = f"Represent this sentence for searching relevant passages: {query}"
+    query_embedding = context.embedder.embed(query_text)
+    candidates: list[tuple[Any, str]] = []
     for item in items:
-        candidate_text = text_builder(item).strip()
-        if not candidate_text:
-            continue
-        candidate_embedding = embedder.embed(candidate_text)
-        semantic_score = _cosine_similarity(query_embedding, candidate_embedding)
-        lexical_score = _lexical_score(query, candidate_text)
-        score = (semantic_score * 0.72) + (lexical_score * 0.28)
-        next_item = {**item, "search_score": round(score, 4)}
-        ranked.append(next_item)
+        text = text_builder(item).strip()
+        if text:
+            candidates.append((item, text))
+
+    if not candidates:
+        return items
+
+    candidate_texts = [c[1] for c in candidates]
+    candidate_embeddings = context.embedder.embed_many(candidate_texts)
+
+    ranked: list[Any] = []
+    for (item, _), candidate_embedding in zip(
+        candidates, candidate_embeddings, strict=False
+    ):
+        score = _cosine_similarity(query_embedding, candidate_embedding)
+        ranked.append({**item, "search_score": round(score, 4)})
+
     ranked.sort(
         key=lambda item: (
             -float(item.get("search_score", 0.0) or 0.0),
@@ -99,99 +92,69 @@ def _rank_serialized_items(
     return ranked
 
 
-def _rank_skill_items(
+async def _rank_skill_items(
     *,
     items: list[dict[str, Any]],
     query: str,
-    config: MinderConfig,
+    context: AdminRouteContext,
 ) -> list[dict[str, Any]]:
-    if not query.strip():
+    if not query.strip() or not items:
         return items
 
-    embedder = LocalEmbeddingProvider(
-        ollama_url=config.embedding.ollama_url,
-        ollama_model=config.embedding.ollama_model,
-        dimensions=min(config.embedding.dimensions, 16),
-        runtime="auto",
-    )
-    query_embedding = embedder.embed(query)
-    query_lower = query.strip().lower()
-    query_tokens = _tokenize(query)
-    ranked: list[dict[str, Any]] = []
+    # For mxbai and similar models, queries often perform better with a prefix.
+    query_text = f"Represent this sentence for searching relevant passages: {query}"
+    query_embedding = context.embedder.embed(query_text)
+    candidate_texts: list[str] = []
+    candidates_with_embeddings: list[tuple[dict[str, Any], list[float]]] = []
 
     for item in items:
+        # Use stored embedding if available to avoid expensive re-embedding
+        stored_emb = item.get("_embedding")
+        if isinstance(stored_emb, list) and stored_emb:
+            candidates_with_embeddings.append((item, stored_emb))
+            continue
+
         title = str(item.get("title", "") or "")
         language = str(item.get("language", "") or "")
         tags = [str(tag) for tag in list(item.get("tags", []) or [])]
-        candidate_text = " ".join(
-            [
-                title,
-                language,
-                " ".join(tags),
-                " ".join(item.get("workflow_step_tags", [])),
-                " ".join(item.get("artifact_type_tags", [])),
-                str(item.get("content", "") or ""),
-            ]
-        ).strip()
-        if not candidate_text:
-            continue
-        semantic_score = _cosine_similarity(
-            query_embedding,
-            embedder.embed(candidate_text),
+        content_snippet = str(item.get("content", "") or "")[:2000]
+        candidate_text = f"Title: {title}\nLanguage: {language}\nTags: {', '.join(tags)}\nContent: {content_snippet}".strip()
+        if candidate_text:
+            candidate_texts.append(candidate_text)
+            candidates_with_embeddings.append((item, []))
+
+    if not candidates_with_embeddings:
+        return items
+
+    # Only embed the ones that don't have stored embeddings
+    if candidate_texts:
+        new_embeddings = context.embedder.embed_many(candidate_texts)
+        new_emb_idx = 0
+        for i, (item, emb) in enumerate(candidates_with_embeddings):
+            if not emb:
+                candidates_with_embeddings[i] = (item, new_embeddings[new_emb_idx])
+                new_emb_idx += 1
+
+    ranked: list[dict[str, Any]] = []
+    for item, candidate_embedding in candidates_with_embeddings:
+        semantic_score = _cosine_similarity(query_embedding, candidate_embedding)
+        score = semantic_score + (
+            min(float(item.get("quality_score", 0.0) or 0.0), 1.0) * 0.01
         )
-        lexical_score = _lexical_score(query, candidate_text)
-        title_lower = title.lower()
-        language_lower = language.lower()
-        tag_tokens = {tag.lower() for tag in tags}
-        exact_boost = 0.0
-        if title_lower == query_lower:
-            exact_boost += 2.2
-        if language_lower == query_lower:
-            exact_boost += 2.8
-        if query_lower in tag_tokens:
-            exact_boost += 1.9
-        if title_lower.startswith(query_lower):
-            exact_boost += 0.8
-        if any(token == language_lower for token in query_tokens):
-            exact_boost += 1.4
-        if any(token in tag_tokens for token in query_tokens):
-            exact_boost += 0.8
-        score = (
-            (lexical_score * 0.62)
-            + (semantic_score * 0.18)
-            + exact_boost
-            + (min(float(item.get("quality_score", 0.0) or 0.0), 1.0) * 0.05)
-        )
+        # Clean up internal fields
+        item.pop("_embedding", None)
         ranked.append(
             {
                 **item,
                 "search_score": round(score, 4),
-                "lexical_score": round(lexical_score, 4),
                 "semantic_score": round(semantic_score, 4),
-                "exact_match_score": round(exact_boost, 4),
+                "lexical_score": 0.0,
             }
         )
-
-    if (
-        query_tokens
-        and len(query_tokens) <= 2
-        and any(
-            float(item.get("exact_match_score", 0.0) or 0.0) > 0
-            or float(item.get("lexical_score", 0.0) or 0.0) >= 0.45
-            for item in ranked
-        )
-    ):
-        ranked = [
-            item
-            for item in ranked
-            if float(item.get("exact_match_score", 0.0) or 0.0) > 0
-            or float(item.get("lexical_score", 0.0) or 0.0) > 0
-        ]
 
     ranked.sort(
         key=lambda item: (
             -float(item.get("search_score", 0.0) or 0.0),
-            -float(item.get("exact_match_score", 0.0) or 0.0),
             str(item.get("title") or "").lower(),
         )
     )
@@ -241,7 +204,7 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
         resource = str(request.path_params.get("resource", "")).strip().lower()
         query = (request.query_params.get("query") or "").strip()
         try:
-            limit = max(1, min(int(request.query_params.get("limit", "100")), 200))
+            limit = max(1, min(int(request.query_params.get("limit", "20")), 100))
             offset = max(0, int(request.query_params.get("offset", "0")))
         except ValueError:
             return JSONResponse({"error": "Invalid limit or offset"}, status_code=400)
@@ -253,13 +216,11 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
             store=context.store,
         )
 
-        config = _config_from_request(request)
-
         ranked: list[Any] = []
 
         if resource == "clients":
             client_items = (await context.use_cases.list_clients())["clients"]
-            ranked = _rank_serialized_items(
+            ranked = await _rank_serialized_items(
                 items=client_items,
                 query=query,
                 text_builder=lambda item: " ".join(
@@ -272,11 +233,11 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                         " ".join(item.get("workflow_scopes", [])),
                     ]
                 ),
-                config=config,
+                context=context,
             )
         elif resource == "repositories":
             repo_items = (await context.use_cases.list_repositories())["repositories"]
-            ranked = _rank_serialized_items(
+            ranked = await _rank_serialized_items(
                 items=repo_items,
                 query=query,
                 text_builder=lambda item: " ".join(
@@ -291,11 +252,11 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                         " ".join(item.get("tracked_branches", [])),
                     ]
                 ),
-                config=config,
+                context=context,
             )
         elif resource == "workflows":
             workflow_items = (await context.use_cases.list_workflows())["workflows"]
-            ranked = _rank_serialized_items(
+            ranked = await _rank_serialized_items(
                 items=workflow_items,
                 query=query,
                 text_builder=lambda item: " ".join(
@@ -315,11 +276,11 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                         ),
                     ]
                 ),
-                config=config,
+                context=context,
             )
         elif resource == "prompts":
             prompt_items = await _prompt_items(context)
-            ranked = _rank_serialized_items(
+            ranked = await _rank_serialized_items(
                 items=prompt_items,
                 query=query,
                 text_builder=lambda item: " ".join(
@@ -331,32 +292,48 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                         " ".join(item.get("arguments", [])),
                     ]
                 ),
-                config=config,
+                context=context,
             )
         elif resource == "skills":
-            skill_tools = SkillTools(context.store, config)
+            skill_tools = SkillTools(context.store, context.config)
             all_skill_items = await skill_tools.minder_skill_list()
-            ranked = _rank_skill_items(
+            all_skill_items = [
+                s
+                for s in all_skill_items
+                if s.get("language") not in ("markdown", "text", "")
+                or s.get("source") is not None
+            ]
+            ranked = await _rank_skill_items(
                 items=all_skill_items,
                 query=query,
-                config=config,
+                context=context,
             )
         elif resource == "memories":
-            memory_tools = MemoryTools(context.store, config)
+            all_skills = await context.store.list_skills()
             all_memory_items = [
                 _serialize_memory(skill)
-                for skill in sorted(
-                    await context.store.list_skills(),
-                    key=lambda skill: str(getattr(skill, "title", "")).lower(),
-                )
+                for skill in all_skills
+                if getattr(skill, "language", "") in ("markdown", "text", "", None)
+                and getattr(skill, "source_metadata", None) is None
             ]
-            ranked = (
-                await memory_tools.minder_memory_recall(
-                    query, limit=max(len(all_memory_items), 1)
+            if query:
+                memory_tools = MemoryTools(context.store, context.config)
+                ranked = await memory_tools.minder_memory_recall(
+                    query,
+                    limit=max(len(all_memory_items), 1),
+                    skip_synthesis=True,
                 )
-                if query
-                else all_memory_items
-            )
+                ranked = [
+                    item
+                    for item in ranked
+                    if item.get("language") in ("markdown", "text", "", None)
+                    and item.get("source") is None
+                ]
+            else:
+                ranked = sorted(
+                    all_memory_items,
+                    key=lambda m: str(m.get("title", "")).lower(),
+                )
         else:
             return JSONResponse({"error": "Unsupported resource"}, status_code=404)
 

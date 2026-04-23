@@ -36,17 +36,18 @@ At runtime:
 ## Prerequisites
 
 - Docker Engine or Docker Desktop
-- local EmbeddingGemma and Gemma GGUF files under `~/.minder/models`
-- enough memory for MongoDB, Redis, Milvus, and local inference
+- LiteRT-LM model file under `~/.minder/models`
+- enough memory for MongoDB, Redis, Milvus, and LiteRT-LM inference
 - `Bun 1.2.21` for local dashboard work
 - `Node 22.12+` only if you run frontend tooling outside Bun
 
-Expected local model files:
+Expected local model file:
 
 ```text
-~/.minder/models/embeddinggemma-300M-Q8_0.gguf
-~/.minder/models/gemma-4-e2b-it-Q8_0.gguf
+~/.minder/models/gemma-4-E2B-it.litertlm
 ```
+
+Embedding model (`mixedbread-ai/mxbai-embed-large-v1`) is auto-downloaded by FastEmbed — no manual download needed.
 
 ## 1. Recommended Release Install
 
@@ -118,7 +119,7 @@ If you want Docker Compose to build everything from the checked-out source inste
 docker compose -f docker/docker-compose.full.yml up --build -d
 ```
 
-`docker-compose.full.yml` falls back to `${HOME}/.minder/models` automatically, so `MINDER_MODELS_DIR` is only needed when your models live elsewhere.
+`docker-compose.full.yml` mounts `${MINDER_MODELS_DIR:-~/.minder/models}` as a read-only volume for LiteRT-LM, so `MINDER_MODELS_DIR` is only needed when your models live elsewhere.
 
 The public gateway will listen on:
 

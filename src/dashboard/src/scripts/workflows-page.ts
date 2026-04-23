@@ -145,6 +145,7 @@ const paginationStatusEl = document.querySelector(
 );
 const pagePrevButton = document.querySelector("#workflow-page-prev");
 const pageNextButton = document.querySelector("#workflow-page-next");
+const quickSearchLoadingEl = document.querySelector("#workflow-quick-search-loading");
 
 const PAGE_SIZE = 6;
 let allWorkflows: WorkflowPayload[] = [];
@@ -304,14 +305,17 @@ pageNextButton?.addEventListener("click", () => {
   renderWorkflows();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisibleWorkflows();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisibleWorkflows();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 // ---------------------------------------------------------------------------
 // Detail page — workflow editor

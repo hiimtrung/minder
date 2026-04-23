@@ -1,0 +1,97 @@
+from __future__ import annotations
+
+import argparse
+import json
+from pathlib import Path
+
+import httpx
+
+from ..utils.git import repo_root, git_branch, git_remote_url, git_file_delta, detect_branch_relationships, normalize_repo_remote, repo_name_from_remote
+from ..utils.config import require_client_settings
+from ..utils.version import maybe_print_upgrade_notice
+from ..utils.common import base_http_url
+from minder.tools.repo_scanner import RepoScanner
+
+
+def _resolve_repo_id(
+    *,
+    base_url: str,
+    client_key: str,
+    repo_root_path: Path,
+    default_branch: str | None,
+) -> str:
+    remote_url = normalize_repo_remote(git_remote_url(repo_root_path))
+    if remote_url is None:
+        raise ValueError(
+            "Repository remote origin SSH URL is required when --repo-id is omitted"
+        )
+    response = httpx.post(
+        f"{base_url}/v1/client/repositories/resolve",
+        headers={"X-Minder-Client-Key": client_key},
+        json={
+            "repo_name": repo_name_from_remote(remote_url) or repo_root_path.name,
+            "repo_path": str(repo_root_path),
+            "repo_url": remote_url,
+            "default_branch": default_branch,
+        },
+        timeout=15,
+    )
+    response.raise_for_status()
+    payload = response.json()
+    repository = payload.get("repository") if isinstance(payload, dict) else None
+    repo_id = repository.get("id") if isinstance(repository, dict) else None
+    if not isinstance(repo_id, str) or not repo_id.strip():
+        raise ValueError("Repository resolve response did not include a repository id")
+    return repo_id.strip()
+
+
+def sync_command(args: argparse.Namespace) -> int:
+    """Build a delta payload from git diff and sync graph metadata."""
+    if not args.skip_upgrade_check:
+        maybe_print_upgrade_notice()
+        
+    config_path = Path(args.config_path).expanduser().resolve()
+    settings = require_client_settings(config_path)
+    
+    root = repo_root(args.repo_path)
+    branch = git_branch(root)
+    changed, deleted = git_file_delta(root, args.diff_base)
+    relationships = detect_branch_relationships(root, branch)
+    
+    payload = RepoScanner.build_sync_payload(
+        str(root),
+        branch=branch,
+        diff_base=args.diff_base,
+        changed_files=changed,
+        deleted_files=deleted,
+        branch_relationships=relationships,
+    )
+    
+    if args.dry_run:
+        print(json.dumps(payload, indent=2))
+        return 0
+        
+    server_url = settings.get("server_url")
+    if not server_url:
+        print("Error: server_url is required for sync. Run 'minder login' to configure.")
+        return 1
+        
+    base_url = base_http_url(str(server_url))
+    headers = {"X-Minder-Client-Key": str(settings["client_api_key"])}
+    
+    try:
+        repo_id = args.repo_id or _resolve_repo_id(
+            base_url=base_url,
+            client_key=headers["X-Minder-Client-Key"],
+            repo_root_path=root,
+            default_branch=branch,
+        )
+        sync_url = f"{base_url}/v1/client/repositories/{repo_id}/graph-sync"
+        response = httpx.post(sync_url, headers=headers, json=payload, timeout=30)
+        response.raise_for_status()
+        print(json.dumps(response.json(), indent=2))
+    except (httpx.HTTPError, RuntimeError) as e:
+        print(f"Sync failed: {e}")
+        return 1
+    
+    return 0

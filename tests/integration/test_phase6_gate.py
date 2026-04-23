@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from minder import cli
+from minder.presentation.cli.utils.git import detect_branch_relationships
 from minder.tools.repo_scanner import RepoScanner
 
 
@@ -48,7 +48,7 @@ def test_phase6_gate_branch_relationships_detected_and_in_payload(
         encoding="utf-8",
     )
 
-    relationships = cli._detect_branch_relationships(repo_root, "feature/sync")
+    relationships = detect_branch_relationships(repo_root, "feature/sync")
     payload = RepoScanner.build_sync_payload(
         str(repo_root),
         branch="feature/sync",

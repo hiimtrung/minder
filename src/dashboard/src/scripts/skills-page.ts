@@ -58,6 +58,9 @@ const quickSearchEl = document.querySelector(
 const paginationStatusEl = document.querySelector("#skill-pagination-status");
 const pagePrevButton = document.querySelector("#skill-page-prev");
 const pageNextButton = document.querySelector("#skill-page-next");
+const quickSearchLoadingEl = document.querySelector(
+  "#skill-quick-search-loading",
+);
 const statusEl = document.querySelector("#skill-editor-status");
 const importFormEl = document.querySelector(
   "#skill-import-form",
@@ -95,13 +98,13 @@ const importJobListEl = document.querySelector("#skill-import-job-list");
 const importJobSummaryEl = document.querySelector("#skill-import-job-summary");
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 20;
 
 type SkillExcerptKind = "none" | "reusable_excerpt";
 type SkillImportProvider = "github" | "gitlab" | "generic_git";
 
-let allSkills: SkillPayload[] = [];
 let visibleSkills: SkillPayload[] = [];
+let totalCount = 0;
 let selectedSkillId: string | null = null;
 let currentQuery = "";
 let currentPage = 1;
@@ -220,7 +223,7 @@ const updateSourceSummary = (skill?: SkillPayload) => {
 
   sourceSummaryEl.innerHTML = `
     <p class="eyebrow">Imported source</p>
-    <p class="mt-2 break-words text-sm font-medium text-stone-800">${escapeHtml(skill.source.repo_url)}</p>
+    <p class="mt-2 wrap-break-word text-sm font-medium text-stone-800">${escapeHtml(skill.source.repo_url)}</p>
     <p class="mt-1 text-sm text-stone-600">${escapeHtml(summarizeSource(skill.source))}</p>
   `;
   sourceSummaryEl.classList.remove("hidden");
@@ -252,7 +255,7 @@ const fillForm = (skill?: SkillPayload) => {
 
 const selectSkillById = (skillId: string | null) => {
   if (!skillId) return;
-  const skill = allSkills.find((item) => item.id === skillId);
+  const skill = visibleSkills.find((item) => item.id === skillId);
   if (!skill) return;
   fillForm(skill);
 };
@@ -300,8 +303,8 @@ const renderImportSummaryBanner = () => {
   const runningJobs = recentImportJobs.filter(isRunningJob);
   const latest = recentImportJobs[0];
   importJobSummaryEl.innerHTML = runningJobs.length
-    ? `<p class="font-medium">${runningJobs.length} import job${runningJobs.length === 1 ? " is" : "s are"} still active.</p><p class="mt-1 break-words text-amber-900/80">Latest: ${escapeHtml(summarizeJob(latest))}</p>`
-    : `<p class="font-medium">Latest import job</p><p class="mt-1 break-words text-amber-900/80">${escapeHtml(summarizeJob(latest))}</p>`;
+    ? `<p class="font-medium">${runningJobs.length} import job${runningJobs.length === 1 ? " is" : "s are"} still active.</p><p class="mt-1 wrap-break-word text-amber-900/80">Latest: ${escapeHtml(summarizeJob(latest))}</p>`
+    : `<p class="font-medium">Latest import job</p><p class="mt-1 wrap-break-word text-amber-900/80">${escapeHtml(summarizeJob(latest))}</p>`;
   importJobSummaryEl.classList.remove("hidden");
 };
 
@@ -317,7 +320,7 @@ const renderProgressLog = (job: AdminJobPayload | null) => {
     .reverse()
     .map(
       (event) =>
-        `<div class="border-b border-stone-800 py-2 last:border-b-0"><div class="flex items-center justify-between gap-3"><span class="break-words font-medium text-stone-100">${escapeHtml(event.message)}</span><span class="text-[11px] uppercase tracking-[0.18em] text-stone-400">${escapeHtml(event.status)}</span></div><div class="mt-1 break-words text-stone-400">${escapeHtml(event.created_at ?? "")}${typeof event.progress_current === "number" && typeof event.progress_total === "number" && event.progress_total > 0 ? ` · ${event.progress_current}/${event.progress_total}` : ""}</div></div>`,
+        `<div class="border-b border-stone-800 py-2 last:border-b-0"><div class="flex items-center justify-between gap-3"><span class="wrap-break-word font-medium text-stone-100">${escapeHtml(event.message)}</span><span class="text-[11px] uppercase tracking-[0.18em] text-stone-400">${escapeHtml(event.status)}</span></div><div class="mt-1 wrap-break-word text-stone-400">${escapeHtml(event.created_at ?? "")}${typeof event.progress_current === "number" && typeof event.progress_total === "number" && event.progress_total > 0 ? ` · ${event.progress_current}/${event.progress_total}` : ""}</div></div>`,
     )
     .join("");
   importProgressLogEl.classList.remove("hidden");
@@ -336,8 +339,8 @@ const renderActiveImportJob = (job: AdminJobPayload | null) => {
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div class="min-w-0 flex-1">
         <p class="eyebrow">Tracked job</p>
-        <h3 class="mt-2 break-words text-lg font-semibold tracking-tight text-stone-950">${escapeHtml(job.title)}</h3>
-        <p class="mt-2 break-words text-sm leading-6 text-stone-600">${escapeHtml(summarizeJob(job))}</p>
+        <h3 class="mt-2 wrap-break-word text-lg font-semibold tracking-tight text-stone-950">${escapeHtml(job.title)}</h3>
+        <p class="mt-2 wrap-break-word text-sm leading-6 text-stone-600">${escapeHtml(summarizeJob(job))}</p>
       </div>
       <span class="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] ${jobStatusTone(job.status)}">${escapeHtml(job.status)}</span>
     </div>
@@ -371,8 +374,8 @@ const renderImportJobList = () => {
         >
           <div class="flex items-start justify-between gap-3">
             <div class="min-w-0 flex-1">
-              <p class="break-words text-sm font-medium text-stone-100">${escapeHtml(job.title)}</p>
-              <p class="mt-1 break-words text-xs leading-5 text-stone-400">${escapeHtml(summarizeJob(job))}</p>
+              <p class="wrap-break-word text-sm font-medium text-stone-100">${escapeHtml(job.title)}</p>
+              <p class="mt-1 wrap-break-word text-xs leading-5 text-stone-400">${escapeHtml(summarizeJob(job))}</p>
             </div>
             <span class="rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${jobStatusTone(job.status)}">${escapeHtml(job.status)}</span>
           </div>
@@ -411,8 +414,9 @@ const upsertImportJob = (job: AdminJobPayload) => {
     const summary = job.result_payload as unknown as SkillImportSummaryPayload;
     setImportStatus(importSummaryMessage(summary), "success");
     showToast(importSummaryMessage(summary), "success");
-    void refreshSkills();
+    void syncVisibleSkills();
     if (summary.imported[0]?.id) {
+      // Note: we might need to search for it if it's not on the current page
       selectSkillById(summary.imported[0].id);
     }
   }
@@ -506,19 +510,24 @@ const closeImportModal = () => {
 
 const renderRegistry = () => {
   if (!(registryEl instanceof HTMLElement)) return;
-  const slice = paginateItems(visibleSkills, currentPage, PAGE_SIZE);
-  currentPage = slice.page;
+
+  const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
+  const end = Math.min(currentPage * PAGE_SIZE, totalCount);
+
   setPagerStatus(paginationStatusEl, {
-    slice,
+    slice: {
+      items: visibleSkills,
+      page: currentPage,
+      pageCount,
+      total: totalCount,
+      start,
+      end,
+    },
     label: "skills",
     query: currentQuery,
   });
-  updatePagerButtons(
-    pagePrevButton,
-    pageNextButton,
-    slice.page,
-    slice.pageCount,
-  );
+  updatePagerButtons(pagePrevButton, pageNextButton, currentPage, pageCount);
 
   if (!visibleSkills.length) {
     registryEl.innerHTML = `
@@ -529,7 +538,7 @@ const renderRegistry = () => {
     return;
   }
 
-  registryEl.innerHTML = slice.items
+  registryEl.innerHTML = visibleSkills
     .map((skill) => {
       const activeClass =
         skill.id === selectedSkillId
@@ -544,7 +553,7 @@ const renderRegistry = () => {
               data-skill-select="${escapeHtml(skill.id)}"
             >
               <p class="eyebrow">${escapeHtml(skill.language)}</p>
-              <h2 class="mt-2 break-words text-xl font-semibold tracking-tight text-stone-950">
+              <h2 class="mt-2 wrap-break-word text-xl font-semibold tracking-tight text-stone-950">
                 ${escapeHtml(skill.title)}
               </h2>
               <div class="mt-2 flex flex-wrap gap-2">
@@ -556,7 +565,7 @@ const renderRegistry = () => {
               <p class="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">
                 ${escapeHtml(skill.content)}
               </p>
-              ${skill.source ? `<p class="mt-3 break-words text-xs text-stone-500">${escapeHtml(summarizeSource(skill.source))}</p>` : ""}
+              ${skill.source ? `<p class="mt-3 wrap-break-word text-xs text-stone-500">${escapeHtml(summarizeSource(skill.source))}</p>` : ""}
               <div class="mt-4 flex flex-wrap gap-2">
                 ${(skill.workflow_step_tags ?? []).map((tag) => `<span class="rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] text-amber-700">${escapeHtml(tag)}</span>`).join("")}
                 ${(skill.artifact_type_tags ?? []).map((tag) => `<span class="rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] text-blue-700">${escapeHtml(tag)}</span>`).join("")}
@@ -579,7 +588,7 @@ const renderRegistry = () => {
     .querySelectorAll<HTMLButtonElement>("[data-skill-select]")
     .forEach((button) => {
       button.addEventListener("click", () => {
-        const skill = allSkills.find(
+        const skill = visibleSkills.find(
           (item) => item.id === button.dataset.skillSelect,
         );
         if (!skill) return;
@@ -593,13 +602,13 @@ const renderRegistry = () => {
     .forEach((button) => {
       button.addEventListener("click", async () => {
         const skillId = button.dataset.skillDelete;
-        const skill = allSkills.find((item) => item.id === skillId);
+        const skill = visibleSkills.find((item) => item.id === skillId);
         if (!skillId || !skill) return;
         if (!window.confirm(`Delete skill ${skill.title}?`)) return;
         try {
           await deleteSkill(skillId);
           if (selectedSkillId === skillId) fillForm();
-          await refreshSkills();
+          await syncVisibleSkills();
           showToast(`Deleted ${skill.title}.`, "success");
         } catch (error) {
           showToast(
@@ -612,33 +621,19 @@ const renderRegistry = () => {
 };
 
 const syncVisibleSkills = async () => {
-  if (!currentQuery) {
-    visibleSkills = allSkills;
-    renderRegistry();
-    return;
-  }
-  const result = await searchAdminCatalog<SkillPayload>(
-    "skills",
-    currentQuery,
-    200,
-    0,
-  );
-  visibleSkills = result.items;
-  renderRegistry();
-};
-
-const refreshSkills = async () => {
   if (registryEl instanceof HTMLElement) {
     registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading skills...</article>`;
   }
   try {
-    allSkills = await listSkills();
-    if (selectedSkillId) {
-      const selected = allSkills.find((item) => item.id === selectedSkillId);
-      if (selected) fillForm(selected);
-      else fillForm();
-    }
-    await syncVisibleSkills();
+    const result = await searchAdminCatalog<SkillPayload>(
+      "skills",
+      currentQuery,
+      PAGE_SIZE,
+      (currentPage - 1) * PAGE_SIZE,
+    );
+    visibleSkills = result.items;
+    totalCount = result.total;
+    renderRegistry();
   } catch (error) {
     if (registryEl instanceof HTMLElement) {
       registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-red-700">${escapeHtml(error instanceof Error ? error.message : "Unable to load skills.")}</article>`;
@@ -649,7 +644,7 @@ const refreshSkills = async () => {
 document
   .querySelector("#skill-refresh-button")
   ?.addEventListener("click", () => {
-    void refreshSkills();
+    void syncVisibleSkills();
   });
 
 document.querySelector("#skill-reset-button")?.addEventListener("click", () => {
@@ -659,22 +654,25 @@ document.querySelector("#skill-reset-button")?.addEventListener("click", () => {
 
 pagePrevButton?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
-  renderRegistry();
+  void syncVisibleSkills();
 });
 
 pageNextButton?.addEventListener("click", () => {
   currentPage += 1;
-  renderRegistry();
+  void syncVisibleSkills();
 });
 
-quickSearchEl?.addEventListener(
-  "input",
-  createDebouncedHandler(async () => {
-    currentQuery = quickSearchEl.value.trim();
-    currentPage = 1;
-    await syncVisibleSkills();
-  }),
-);
+const debouncedSearch = createDebouncedHandler(async () => {
+  currentQuery = quickSearchEl?.value.trim() ?? "";
+  currentPage = 1;
+  await syncVisibleSkills();
+  quickSearchLoadingEl?.classList.add("hidden");
+});
+
+quickSearchEl?.addEventListener("input", () => {
+  quickSearchLoadingEl?.classList.remove("hidden");
+  debouncedSearch();
+});
 
 formEl?.addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -694,7 +692,7 @@ formEl?.addEventListener("submit", async (event) => {
     const saved = isUpdate
       ? await updateSkill(currentSkillId, draft)
       : await createSkill(draft);
-    await refreshSkills();
+    await syncVisibleSkills();
     selectSkillById(saved.id);
     showToast(
       `${isUpdate ? "Saved" : "Ingested"} skill ${saved.title}.`,
@@ -749,5 +747,5 @@ importModalEl?.addEventListener("close", () => {
 
 fillForm();
 setImportStatus("");
-void refreshSkills();
+void syncVisibleSkills();
 void refreshImportJobs();

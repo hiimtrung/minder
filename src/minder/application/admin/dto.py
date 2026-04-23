@@ -276,6 +276,7 @@ class ClientRepositoryResolveRequest(BaseModel):
 class ClientRepositoryResolvePayload(TypedDict):
     repository: RepositoryPayload
     created: bool
+    last_sync: dict[str, Any] | None
 
 
 class GraphSyncNodeRefRequest(BaseModel):
@@ -314,7 +315,9 @@ class GraphSyncRequest(BaseModel):
     repo_path: str | None = None
     branch: str | None = None
     diff_base: str | None = None
+    changed_files: list[str] = Field(default_factory=list)
     deleted_files: list[str] = Field(default_factory=list)
+    commit_hash: str | None = None
     sync_metadata: dict[str, Any] = Field(default_factory=dict)
     nodes: list[GraphSyncNodeRequest] = Field(default_factory=list)
     edges: list[GraphSyncEdgeRequest] = Field(default_factory=list)

@@ -13,6 +13,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { showDangerConfirm } from "./modal-controller";
 
 const registryEl = document.querySelector("#prompt-registry");
 const formEl = document.querySelector("#prompt-form") as HTMLFormElement | null;
@@ -367,7 +368,7 @@ const renderRegistry = () => {
         const promptId = button.dataset.promptDelete;
         const prompt = visiblePrompts.find((item) => item.id === promptId);
         if (!promptId || !prompt) return;
-        const confirmed = window.confirm(`Delete prompt ${prompt.name}?`);
+        const confirmed = await showDangerConfirm(`Delete prompt ${prompt.name}?`);
         if (!confirmed) return;
         try {
           await deletePrompt(promptId);

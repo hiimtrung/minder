@@ -727,10 +727,47 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
         repo_id = uuid.UUID(str(request.path_params["repo_id"]))
         branch = (request.query_params.get("branch") or "").strip() or None
+        node_types = [
+            value.strip()
+            for value in request.query_params.getlist("node_type")
+            if value.strip()
+        ]
         try:
             return JSONResponse(
                 await context.use_cases.get_repository_graph_map(
-                    repo_id=repo_id, branch=branch
+                    repo_id=repo_id,
+                    branch=branch,
+                    node_types=node_types or None,
+                )
+            )
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+
+    async def repository_node_neighborhood(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        node_id = uuid.UUID(str(request.path_params["node_id"]))
+        try:
+            depth = int(request.query_params.get("depth", "4"))
+            limit = int(request.query_params.get("limit", "200"))
+        except ValueError:
+            return JSONResponse({"error": "Invalid depth or limit"}, status_code=400)
+
+        try:
+            return JSONResponse(
+                await context.use_cases.get_repository_node_neighborhood(
+                    repo_id=repo_id,
+                    node_id=node_id,
+                    depth=depth,
+                    limit=limit,
                 )
             )
         except LookupError:
@@ -1272,6 +1309,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route(
             "/v1/admin/repositories/{repo_id:uuid}/graph-map",
             repository_graph_map,
+            methods=["GET"],
+        ),
+        Route(
+            "/v1/admin/repositories/{repo_id:uuid}/nodes/{node_id:uuid}/neighborhood",
+            repository_node_neighborhood,
             methods=["GET"],
         ),
         Route(

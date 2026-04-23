@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import Counter
 from datetime import UTC, datetime
@@ -77,6 +78,8 @@ DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
         "minder_workflow_step",
     ],
 }
+
+logger = logging.getLogger(__name__)
 
 
 class AdminConsoleUseCases:
@@ -743,7 +746,7 @@ class AdminConsoleUseCases:
             )
             if existing_remote != normalized_url:
                 updates["repo_url"] = normalized_url
-            if str(getattr(repository, "state_path", "") or "") != state_path:
+            if not str(getattr(repository, "state_path", "") or "").strip() and state_path:
                 updates["state_path"] = state_path
             if (
                 normalized_branch
@@ -760,6 +763,7 @@ class AdminConsoleUseCases:
         return {
             "repository": self.serialize_repository(repository),
             "created": created,
+            "last_sync": self._repository_last_sync(repository),
         }
 
     @staticmethod
@@ -810,9 +814,33 @@ class AdminConsoleUseCases:
         deleted_nodes = 0
         nodes_upserted = 0
         edges_upserted = 0
-
+        
+        # --- Check for redundant sync using commit_hash ---
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        graph_sync = dict(relationships.get("graph_sync", {}) or {})
+        last_sync = dict(graph_sync.get("last_sync", {}) or {})
+        
+        if (
+            payload.commit_hash 
+            and payload.commit_hash == last_sync.get("commit_hash")
+            and not payload.nodes 
+            and not payload.edges
+            and not payload.deleted_files
+        ):
+            return {
+                "repo_id": str(repo_id),
+                "repository_name": repo_name,
+                "payload_version": payload.payload_version,
+                "source": payload.source,
+                "branch": branch,
+                "deleted_nodes": 0,
+                "nodes_upserted": 0,
+                "edges_upserted": 0,
+                "accepted_at": accepted_at,
+            }
+ 
         # --- Scoped deletion: prune stale nodes for changed/deleted files ---
-        changed_files = payload.sync_metadata.get("changed_files", [])
+        changed_files = payload.changed_files
         paths_to_prune: set[str] = set(payload.deleted_files)
         if isinstance(changed_files, list):
             paths_to_prune.update(
@@ -851,6 +879,13 @@ class AdminConsoleUseCases:
         # --- Upsert nodes with proper repo/branch scope (v2) ---
         _branch = branch or ""
         _repo_id_str = str(repo_id)
+        
+        # We strip large collections from sync_metadata before broadcasting to nodes
+        _filtered_sync_meta = {
+            k: v for k, v in payload.sync_metadata.items()
+            if k not in {"changed_files", "deleted_files"}
+        }
+
         _common_meta = {
             "repo_id": _repo_id_str,
             "repository_name": repo_name,
@@ -860,20 +895,8 @@ class AdminConsoleUseCases:
             "branch": _branch,
             "repo_path": payload.repo_path,
             "diff_base": payload.diff_base,
-            **payload.sync_metadata,
+            **_filtered_sync_meta,
         }
-
-        for node in payload.nodes:
-            persisted = await self._graph_store.upsert_node(
-                node.node_type,
-                node.name,
-                metadata={**_common_meta, **node.metadata},
-                repo_id=_repo_id_str,
-                branch=_branch,
-            )
-            node_ids[(node.node_type, node.name)] = persisted.id
-            nodes_upserted += 1
-
         _edge_common_meta = {
             "repo_id": _repo_id_str,
             "repository_name": repo_name,
@@ -884,40 +907,54 @@ class AdminConsoleUseCases:
             "repo_path": payload.repo_path,
         }
 
+        # --- Bulk upsert nodes ---
+        # Use a dict to deduplicate nodes by (type, name)
+        deduped_nodes: dict[tuple[str, str], dict[str, Any]] = {}
+        
+        for node in payload.nodes:
+            key = (node.node_type, node.name)
+            deduped_nodes[key] = {
+                "node_type": node.node_type,
+                "name": node.name,
+                "metadata": {**_common_meta, **node.metadata},
+            }
+        
+        # Also need to collect nodes mentioned in edges that might not be in payload.nodes
         for edge in payload.edges:
-            source_key = (edge.source.node_type, edge.source.name)
-            target_key = (edge.target.node_type, edge.target.name)
+            for side in [edge.source, edge.target]:
+                key = (side.node_type, side.name)
+                if key not in deduped_nodes:
+                    deduped_nodes[key] = {
+                        "node_type": side.node_type,
+                        "name": side.name,
+                        "metadata": _edge_common_meta,
+                    }
+        
+        node_ids = await self._graph_store.bulk_upsert_nodes(
+            list(deduped_nodes.values()),
+            repo_id=_repo_id_str,
+            branch=_branch,
+        )
+        nodes_upserted = len(deduped_nodes)
 
-            if source_key not in node_ids:
-                source_node = await self._graph_store.upsert_node(
-                    edge.source.node_type,
-                    edge.source.name,
-                    metadata=_edge_common_meta,
-                    repo_id=_repo_id_str,
-                    branch=_branch,
-                )
-                node_ids[source_key] = source_node.id
-                nodes_upserted += 1
-
-            if target_key not in node_ids:
-                target_node = await self._graph_store.upsert_node(
-                    edge.target.node_type,
-                    edge.target.name,
-                    metadata=_edge_common_meta,
-                    repo_id=_repo_id_str,
-                    branch=_branch,
-                )
-                node_ids[target_key] = target_node.id
-                nodes_upserted += 1
-
-            await self._graph_store.upsert_edge(
-                source_id=node_ids[source_key],
-                target_id=node_ids[target_key],
-                relation=edge.relation,
-                weight=edge.weight,
-                repo_id=_repo_id_str,
-            )
-            edges_upserted += 1
+        # --- Bulk upsert edges ---
+        deduped_edges: dict[tuple[uuid.UUID, uuid.UUID, str], dict[str, Any]] = {}
+        for edge in payload.edges:
+            source_id = node_ids.get((edge.source.node_type, edge.source.name))
+            target_id = node_ids.get((edge.target.node_type, edge.target.name))
+            if source_id and target_id:
+                edge_key = (source_id, target_id, edge.relation)
+                deduped_edges[edge_key] = {
+                    "source_id": source_id,
+                    "target_id": target_id,
+                    "relation": edge.relation,
+                    "weight": edge.weight,
+                }
+        
+        edges_upserted = await self._graph_store.bulk_upsert_edges(
+            list(deduped_edges.values()),
+            repo_id=_repo_id_str,
+        )
 
         # --- Update repository: tracked_branches + graph_sync metadata ---
         relationships = dict(getattr(repository, "relationships", {}) or {})
@@ -929,12 +966,12 @@ class AdminConsoleUseCases:
             "repo_remote": repo_remote,
             "diff_base": payload.diff_base,
             "deleted_files": payload.deleted_files,
+            "commit_hash": payload.commit_hash,
             "deleted_nodes": deleted_nodes,
             "nodes_upserted": nodes_upserted,
             "edges_upserted": edges_upserted,
             "accepted_at": accepted_at,
         }
-        graph_sync = dict(relationships.get("graph_sync", {}) or {})
         graph_sync["last_sync"] = graph_sync_state
         graph_sync.update(graph_sync_state)
         branch_registry = dict(graph_sync.get("branches", {}) or {})
@@ -982,6 +1019,9 @@ class AdminConsoleUseCases:
             relationships=relationships,
             tracked_branches=raw_branches,
         )
+
+        # Auto-prune stale branches that are no longer tracked
+        await self.prune_repository_stale_data(repo_id)
 
         return {
             "repo_id": str(repo_id),
@@ -1087,6 +1127,8 @@ class AdminConsoleUseCases:
         *,
         repo_id: uuid.UUID,
         branch: str | None = None,
+        node_types: list[str] | None = None,
+        limit: int | None = 1000,
     ) -> RepositoryGraphMapPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
@@ -1124,7 +1166,41 @@ class AdminConsoleUseCases:
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
             branch=effective_branch,
+            node_types=node_types,
         )
+
+        total_nodes = len(repo_nodes)
+        total_edges = len(repo_edges)
+
+        # If too many nodes, we limit the return set to prevent browser freeze
+        # We prioritize nodes by their 'importance' (node_type)
+        if limit and len(repo_nodes) > limit:
+            # Simple heuristic: prioritize non-file nodes first (higher level abstraction)
+            type_priority = {
+                "repository": 0,
+                "service": 1,
+                "module": 2,
+                "controller": 3,
+                "route": 4,
+                "api_endpoint": 5,
+                "websocket_endpoint": 6,
+                "mq_topic": 7,
+                "external_service_api": 8,
+                "workflow": 9,
+                "folder": 10,
+                "file": 11,
+                "todo": 12,
+                "class": 20,
+                "interface": 21,
+                "abstract_class": 22,
+                "function": 23,
+            }
+            repo_nodes.sort(key=lambda n: type_priority.get(getattr(n, "node_type", ""), 15))
+            repo_nodes = repo_nodes[:limit]
+            
+            # Filter edges to only those connecting remaining nodes
+            node_ids = {n.id for n in repo_nodes}
+            repo_edges = [e for e in repo_edges if e.source_id in node_ids and e.target_id in node_ids]
         node_counts = Counter(
             str(getattr(node, "node_type", "")) for node in repo_nodes
         )
@@ -1140,12 +1216,90 @@ class AdminConsoleUseCases:
             "nodes": [self._serialize_graph_node(node) for node in repo_nodes],
             "edges": [self._serialize_graph_edge(edge) for edge in repo_edges],
             "summary": {
-                "node_count": len(repo_nodes),
-                "edge_count": len(repo_edges),
+                "node_count": total_nodes,
+                "edge_count": total_edges,
+                "returned_node_count": len(repo_nodes),
+                "returned_edge_count": len(repo_edges),
                 "counts_by_type": dict(node_counts),
                 "counts_by_relation": dict(relation_counts),
             },
         }
+
+    async def get_repository_node_neighborhood(
+        self,
+        *,
+        repo_id: uuid.UUID,
+        node_id: uuid.UUID,
+        depth: int = 4,
+        limit: int = 200,
+    ) -> RepositoryGraphMapPayload:
+        """Fetch a subgraph around a specific node with limited depth/count."""
+        repository = await self._store.get_repository_by_id(repo_id)
+        if repository is None:
+            raise LookupError("Repository not found")
+
+        if self._graph_store is None:
+            raise RuntimeError("Graph store is not configured")
+
+        repo_nodes, repo_edges = await self._graph_store.get_neighborhood(
+            node_id=node_id,
+            max_depth=depth,
+            max_nodes=limit,
+        )
+
+        repository_payload = self.serialize_repository(repository)
+        
+        # Calculate summary
+        node_counts = Counter(
+            str(getattr(node, "node_type", "")) for node in repo_nodes
+        )
+        relation_counts = Counter(
+            str(getattr(edge, "relation", "")) for edge in repo_edges
+        )
+
+        return {
+            "repository": repository_payload,
+            "graph_available": bool(repo_nodes),
+            "branch": getattr(repo_nodes[0], "branch", None) if repo_nodes else None,
+            "branch_state": None,
+            "branch_links": [],
+            "nodes": [self._serialize_graph_node(node) for node in repo_nodes],
+            "edges": [self._serialize_graph_edge(edge) for edge in repo_edges],
+            "summary": {
+                "node_count": len(repo_nodes),
+                "edge_count": len(repo_edges),
+                "returned_node_count": len(repo_nodes),
+                "returned_edge_count": len(repo_edges),
+                "counts_by_type": dict(node_counts),
+                "counts_by_relation": dict(relation_counts),
+            },
+        }
+
+    async def prune_repository_stale_data(self, repo_id: uuid.UUID) -> dict[str, Any]:
+        """Delete graph data for branches that are no longer tracked."""
+        if self._graph_store is None:
+            return {"deleted": 0}
+        
+        repository = await self._store.get_repository_by_id(repo_id)
+        if not repository:
+            return {"deleted": 0}
+
+        tracked = set(getattr(repository, "tracked_branches", []) or [])
+        if not tracked:
+            return {"deleted": 0}
+
+        repo_id_str = str(repo_id)
+        branches_in_graph = await self._graph_store.list_repo_branches(repo_id_str)
+        
+        deleted_total = 0
+        for branch in branches_in_graph:
+            if branch not in tracked:
+                logger.info(f"Pruning stale branch data: {repo_id_str}/{branch}")
+                deleted_total += await self._graph_store.delete_nodes_by_scope(
+                    repo_id=repo_id_str, branch=branch
+                )
+        
+        return {"deleted": deleted_total}
 
     async def search_repository_graph(
         self,

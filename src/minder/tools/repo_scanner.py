@@ -6,10 +6,11 @@ import ast
 import json
 import re
 import subprocess
+import concurrent.futures
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Callable
 
 if TYPE_CHECKING:
     from minder.store.graph import KnowledgeGraphStore
@@ -38,6 +39,10 @@ _SERVICE_MARKERS = {"pyproject.toml", "package.json", "go.mod", "Cargo.toml"}
 _HTTP_ROUTE_DECORATORS = {"get", "post", "put", "patch", "delete", "route"}
 _MQ_PUBLISH_CALLS = {"publish", "send", "produce", "emit"}
 _MQ_CONSUME_CALLS = {"consume", "subscribe", "listen"}
+_DEFAULT_IGNORE_DIRS = {
+    "node_modules", "dist", "build", "target", "vendor", "venv", ".venv",
+    ".git", ".idea", ".vscode", "__pycache__", ".next", ".cache", "out"
+}
 
 # Spring Boot route annotation detection (Java)
 _SPRING_ROUTE_PATTERN = re.compile(
@@ -274,6 +279,8 @@ class RepoScanner:
         branch_relationships: list[dict[str, Any]] | None = None,
         payload_version: str = "2026-04-15",
         source: str = "minder-cli",
+        commit_hash: str | None = None,
+        progress_callback: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         builder = cls.__new__(cls)
         builder._root = Path(repo_root).resolve()
@@ -284,8 +291,14 @@ class RepoScanner:
         builder._git_file_blame_cache = {}
         builder._git_enabled = True
 
+        if progress_callback:
+            progress_callback("Discovering service boundaries...")
         service_dirs = builder._discover_service_boundaries()
+        if progress_callback:
+            progress_callback(f"Resolving source files (diff_base={diff_base})...")
         source_files = builder._resolve_source_files(changed_files)
+        if progress_callback:
+            progress_callback(f"Found {len(source_files)} files to scan.")
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
         seen_nodes: set[tuple[str, str]] = set()
@@ -321,8 +334,24 @@ class RepoScanner:
                 }
             )
 
-        for file_path in source_files:
+        def process_file(i: int, file_path: Path) -> tuple[int, list[dict[str, Any]], list[dict[str, Any]]]:
             rel_path = str(file_path.relative_to(builder._root))
+            file_nodes: list[dict[str, Any]] = []
+            file_edges: list[dict[str, Any]] = []
+
+            def local_add_node(node_type: str, name: str, metadata: dict[str, Any]) -> None:
+                file_nodes.append({"node_type": node_type, "name": name, "metadata": metadata})
+
+            def local_add_edge(edge_spec: _EdgeSpec) -> None:
+                file_edges.append(
+                    {
+                        "source": {"node_type": edge_spec.source_type, "name": edge_spec.source_name},
+                        "target": {"node_type": edge_spec.target_type, "name": edge_spec.target_name},
+                        "relation": edge_spec.relation,
+                        "weight": edge_spec.weight,
+                    }
+                )
+
             file_metadata, extracted_nodes, extracted_edges = builder._extract_file_metadata(file_path, rel_path)
             change_metadata = builder._git_file_change_metadata(rel_path)
             common_metadata = builder._build_file_scoped_metadata(
@@ -330,17 +359,17 @@ class RepoScanner:
                 language=str(file_metadata.get("language", "text") or "text"),
                 change_metadata=change_metadata,
             )
-            add_node("file", rel_path, {"project": builder._project, **common_metadata, **file_metadata})
+            local_add_node("file", rel_path, {"project": builder._project, **common_metadata, **file_metadata})
 
             owning_svc = builder._find_owning_service(file_path, service_dirs)
             if owning_svc is not None:
-                service_name = str(owning_svc.relative_to(builder._root))
-                add_node("service", service_name, {"project": builder._project, "path": str(owning_svc)})
-                add_edge(_EdgeSpec("service", service_name, "file", rel_path, "contains"))
+                service_rel_path = str(owning_svc.relative_to(builder._root))
+                local_add_node("service", service_rel_path, {"project": builder._project, "path": service_rel_path})
+                local_add_edge(_EdgeSpec("service", service_rel_path, "file", rel_path, "contains"))
 
             for module_name in builder._extract_imports(file_path):
-                add_node("module", module_name, {"project": builder._project})
-                add_edge(_EdgeSpec("file", rel_path, "module", module_name, "imports"))
+                local_add_node("module", module_name, {"project": builder._project})
+                local_add_edge(_EdgeSpec("file", rel_path, "module", module_name, "imports"))
 
             for node_spec in extracted_nodes:
                 node_common_metadata = builder._build_node_scoped_metadata(
@@ -348,13 +377,47 @@ class RepoScanner:
                     base_metadata=common_metadata,
                     node_metadata=node_spec.metadata,
                 )
-                add_node(
+                local_add_node(
                     node_spec.node_type,
                     node_spec.name,
-                    {"project": builder._project, **node_common_metadata, **node_spec.metadata},
+                    {"project": builder._project, **node_common_metadata, **node_spec.metadata}
                 )
+
             for edge_spec in extracted_edges:
-                add_edge(edge_spec)
+                local_add_edge(edge_spec)
+            
+            return i, file_nodes, file_edges
+
+        # Use ThreadPoolExecutor for parallel scanning
+        import os
+        max_workers = min(32, (os.cpu_count() or 4) * 4)
+        completed_count = 0
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            futures = [executor.submit(process_file, i, file_path) for i, file_path in enumerate(source_files)]
+            for future in concurrent.futures.as_completed(futures):
+                i, file_nodes, file_edges = future.result()
+                completed_count += 1
+                if progress_callback and completed_count % 10 == 0:
+                    progress_callback(f"[{completed_count}/{len(source_files)}] Scanned {str(source_files[i].relative_to(builder._root))}")
+                
+                for node in file_nodes:
+                    add_node(node["node_type"], node["name"], node["metadata"])
+                for edge in file_edges:
+                    # Construct _EdgeSpec from dict for add_edge
+                    spec = _EdgeSpec(
+                        source_type=edge["source"]["node_type"],
+                        source_name=edge["source"]["name"],
+                        target_type=edge["target"]["node_type"],
+                        target_name=edge["target"]["name"],
+                        relation=edge["relation"],
+                        weight=edge["weight"]
+                    )
+                    add_edge(spec)
+
+        if progress_callback:
+            progress_callback(
+                f"Scan complete. Found {len(nodes)} nodes and {len(edges)} edges."
+            )
 
         return {
             "payload_version": payload_version,
@@ -362,11 +425,12 @@ class RepoScanner:
             "repo_path": str(builder._root),
             "branch": branch,
             "diff_base": diff_base,
+            "changed_files": [str(file_path.relative_to(builder._root)) for file_path in source_files],
             "deleted_files": sorted(deleted_files or []),
+            "commit_hash": commit_hash,
             "sync_metadata": {
                 "project": builder._project,
                 "changed_file_count": len(source_files),
-                "changed_files": [str(file_path.relative_to(builder._root)) for file_path in source_files],
                 "deleted_file_count": len(deleted_files or []),
                 "branch_relationship_count": len(branch_relationships or []),
             },
@@ -377,24 +441,57 @@ class RepoScanner:
 
     def _discover_service_boundaries(self) -> list[Path]:
         service_dirs: set[Path] = set()
-        for path in self._root.rglob("*"):
-            if any(part.startswith(".") for part in path.parts):
-                continue
-            if path.is_file() and path.name in _SERVICE_MARKERS:
-                service_dirs.add(path.parent)
+        
+        if self._git_enabled:
+            # Use git ls-files for much better performance on large repos
+            patterns = [f"**/{m}" for m in _SERVICE_MARKERS]
+            result = self._run_git(["ls-files", "--", *patterns], check=False)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    if line:
+                        service_dirs.add((self._root / line).parent)
+                if service_dirs:
+                    return sorted(list(service_dirs), key=lambda path: len(path.parts), reverse=True)
+
+        # Fallback with manual walk to prune ignored directories efficiently
+        import os
+        for root, dirs, files in os.walk(self._root):
+            # Prune ignored directories in-place to avoid descending into them
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in _DEFAULT_IGNORE_DIRS]
+            for file in files:
+                if file in _SERVICE_MARKERS:
+                    service_dirs.add(Path(root))
+                    
         return sorted(list(service_dirs), key=lambda path: len(path.parts), reverse=True)
 
     def _discover_source_files(self) -> list[Path]:
         files: list[Path] = []
-        for path in self._root.rglob("*"):
-            if any(part.startswith(".") or part == "__pycache__" for part in path.parts):
-                continue
-            if path.is_file() and path.suffix.lower() in _SOURCE_SUFFIXES:
-                files.append(path)
+        
+        if self._git_enabled:
+            # Combined tracked and untracked files with matching suffixes
+            patterns = [f"**/*{s}" for s in _SOURCE_SUFFIXES]
+            result = self._run_git(["ls-files", "--cached", "--others", "--exclude-standard", "--", *patterns], check=False)
+            if result.returncode == 0:
+                for line in result.stdout.splitlines():
+                    line = line.strip()
+                    if line:
+                        files.append(self._root / line)
+                if files:
+                    return sorted(set(files))
+
+        # Fallback with pruned walk
+        import os
+        for root, dirs, filenames in os.walk(self._root):
+            dirs[:] = [d for d in dirs if not d.startswith(".") and d not in _DEFAULT_IGNORE_DIRS]
+            for filename in filenames:
+                path = Path(root) / filename
+                if path.suffix.lower() in _SOURCE_SUFFIXES:
+                    files.append(path)
         return sorted(set(files))
 
     def _resolve_source_files(self, changed_files: list[str] | None) -> list[Path]:
-        if not changed_files:
+        if changed_files is None:
             return self._discover_source_files()
         files: list[Path] = []
         for changed_file in changed_files:

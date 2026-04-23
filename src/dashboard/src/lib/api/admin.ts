@@ -1092,6 +1092,7 @@ export type RepositoryGraphMapPayload = {
     edge_count: number;
     counts_by_type: Record<string, number>;
     counts_by_relation: Record<string, number>;
+    returned_node_count: number;
   };
 };
 
@@ -1262,6 +1263,17 @@ export async function getRepositoryGraphMap(
   const qs = params.toString();
   return requestJson<RepositoryGraphMapPayload>(
     `/v1/admin/repositories/${repoId}/graph-map${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function getRepositoryNodeNeighborhood(
+  repoId: string,
+  nodeId: string,
+  depth: number = 4,
+  limit: number = 200,
+): Promise<RepositoryGraphMapPayload> {
+  return requestJson<RepositoryGraphMapPayload>(
+    `/v1/admin/repositories/${repoId}/nodes/${nodeId}/neighborhood?depth=${depth}&limit=${limit}`,
   );
 }
 

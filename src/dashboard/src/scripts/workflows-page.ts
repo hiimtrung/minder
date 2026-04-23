@@ -14,6 +14,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
 
 // ---------------------------------------------------------------------------
 // Shared element refs
@@ -119,12 +120,12 @@ const renderStepList = (
     });
 };
 
-const promptAddStep = (onConfirm: (step: WorkflowStepPayload) => void) => {
-  const name = window.prompt("Step name (e.g. write_test):", "")?.trim() ?? "";
+const promptAddStep = async (onConfirm: (step: WorkflowStepPayload) => void) => {
+  const name = (await showPrompt("Step name (e.g. write_test):", ""))?.trim() ?? "";
   if (!name) return;
-  const description = window.prompt("Step description:", "")?.trim() ?? "";
+  const description = (await showPrompt("Step description:", ""))?.trim() ?? "";
   const gate =
-    window.prompt("Gate condition (leave blank for none):", "")?.trim() || null;
+    (await showPrompt("Gate condition (leave blank for none):", ""))?.trim() || null;
   onConfirm({ name, description, gate });
 };
 
@@ -172,8 +173,8 @@ const refreshCreateStepList = () => {
   });
 };
 
-addStepButton?.addEventListener("click", () => {
-  promptAddStep((step) => {
+addStepButton?.addEventListener("click", async () => {
+  await promptAddStep((step) => {
     createSteps.push(step);
     refreshCreateStepList();
   });
@@ -371,8 +372,8 @@ const refreshDetailStepList = () => {
   });
 };
 
-addStepDetailButton?.addEventListener("click", () => {
-  promptAddStep((step) => {
+addStepDetailButton?.addEventListener("click", async () => {
+  await promptAddStep((step) => {
     detailSteps.push(step);
     refreshDetailStepList();
   });
@@ -449,7 +450,7 @@ editWorkflowForm?.addEventListener("submit", async (event) => {
 
 deleteWorkflowButton?.addEventListener("click", async () => {
   if (!selectedWorkflowId) return;
-  const confirmed = window.confirm(
+  const confirmed = await showDangerConfirm(
     "Delete this workflow? This cannot be undone and will remove the workflow assignment from all repositories using it.",
   );
   if (!confirmed) return;

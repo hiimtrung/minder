@@ -24,6 +24,7 @@ class GraphTools:
         repo_name: str | None = None,
         repo_path: str | None = None,
         branch: str | None = None,
+        node_types: list[str] | None = None,
     ) -> tuple[str, list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -36,7 +37,9 @@ class GraphTools:
         # Fast path: if repo_id is known use the scoped query
         if repo_id and hasattr(self._graph_store, "list_nodes_by_scope"):
             repo_nodes = await self._graph_store.list_nodes_by_scope(
-                repo_id=repo_id, branch=branch
+                repo_id=repo_id,
+                branch=branch,
+                node_types=set(node_types) if node_types else None,
             )
             return effective_repo_name, repo_nodes
 
@@ -52,6 +55,7 @@ class GraphTools:
                 repo_root=repo_root,
                 branch=branch,
             )
+            and (not node_types or getattr(node, "node_type", "") in node_types)
         ]
         return effective_repo_name, repo_nodes
 
@@ -62,6 +66,7 @@ class GraphTools:
         repo_name: str | None = None,
         repo_path: str | None = None,
         branch: str | None = None,
+        node_types: list[str] | None = None,
     ) -> tuple[str, list[Any], list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -71,6 +76,7 @@ class GraphTools:
             repo_name=repo_name,
             repo_path=repo_path,
             branch=branch,
+            node_types=node_types,
         )
         repo_node_ids = {getattr(node, "id") for node in repo_nodes}
 
@@ -133,12 +139,24 @@ class GraphTools:
 
         matches: list[dict[str, Any]] = []
         for scope in scopes:
-            _, repo_nodes = await self.list_repo_nodes(
-                repo_id=scope["repo_id"],
-                repo_name=scope["repo_name"],
-                repo_path=scope["repo_path"],
-                branch=scope["branch"],
-            )
+            # v2: Use database-level search if available
+            if hasattr(self._graph_store, "search_nodes"):
+                repo_nodes = await self._graph_store.search_nodes(
+                    query=query,
+                    repo_id=scope["repo_id"],
+                    branch=scope["branch"],
+                    node_types=list(allowed_types) if allowed_types else None,
+                    limit=limit * 10,  # Fetch more for re-scoring
+                )
+            else:
+                # Fallback to legacy full scan
+                _, repo_nodes = await self.list_repo_nodes(
+                    repo_id=scope["repo_id"],
+                    repo_name=scope["repo_name"],
+                    repo_path=scope["repo_path"],
+                    branch=scope["branch"],
+                )
+            
             for node in repo_nodes:
                 node_type = str(getattr(node, "node_type", ""))
                 if allowed_types and node_type not in allowed_types:

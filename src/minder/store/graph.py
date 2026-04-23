@@ -342,12 +342,16 @@ class KnowledgeGraphStore:
         *,
         repo_id: str,
         branch: str | None = None,
+        node_types: set[str] | None = None,
     ) -> list[GraphNode]:
-        """Return nodes scoped to a specific repo_id, optionally filtered by branch."""
+        """Fetch nodes scoped to a repository and optionally a branch."""
         async with self._session() as sess:
             stmt = select(GraphNode).where(GraphNode.repo_id == repo_id)
             if branch is not None:
                 stmt = stmt.where(GraphNode.branch == branch)
+            if node_types:
+                stmt = stmt.where(GraphNode.node_type.in_(list(node_types)))
+            
             result = await sess.execute(stmt)
             return list(result.scalars().all())
 
@@ -390,22 +394,62 @@ class KnowledgeGraphStore:
         branch: str | None = None,
         paths: set[str] | None = None,
     ) -> int:
-        """Delete nodes for a given repo/branch scope.
-
-        If *paths* is provided only nodes whose metadata.path matches are removed.
-        Returns the number of nodes deleted.
-        """
-        nodes = await self.list_nodes_by_scope(repo_id=repo_id, branch=branch)
-        deleted = 0
-        for node in nodes:
-            meta = dict(getattr(node, "node_metadata", {}) or {})
+        """Delete nodes for a given repo/branch scope efficiently."""
+        async with self._session() as sess:
+            # 1. Build the base statement
+            stmt = select(GraphNode).where(GraphNode.repo_id == repo_id)
+            if branch is not None:
+                stmt = stmt.where(GraphNode.branch == branch)
+            
+            # If we are deleting by paths, we must fetch and filter
             if paths is not None:
-                node_path = str(meta.get("path", "") or "")
-                if node_path not in paths:
-                    continue
-            await self.delete_node(node.id)
-            deleted += 1
-        return deleted
+                result = await sess.execute(stmt)
+                to_delete_ids: set[uuid.UUID] = set()
+                for node in result.scalars().all():
+                    meta = dict(node.node_metadata or {})
+                    if str(meta.get("path", "") or "") in paths:
+                        to_delete_ids.add(node.id)
+                
+                if not to_delete_ids:
+                    return 0
+
+                # Delete edges incident to these nodes
+                edge_stmt = delete(GraphEdge).where(
+                    (GraphEdge.source_id.in_(list(to_delete_ids))) | 
+                    (GraphEdge.target_id.in_(list(to_delete_ids)))
+                )
+                await sess.execute(edge_stmt)
+
+                # Delete the nodes
+                node_del_stmt = delete(GraphNode).where(GraphNode.id.in_(list(to_delete_ids)))
+                del_result = await sess.execute(node_del_stmt)
+                return int(del_result.rowcount)  # type: ignore
+            else:
+                # Optimized branch-wide deletion (no path filter)
+                # First delete edges
+                edge_stmt = delete(GraphEdge).where(GraphEdge.repo_id == repo_id)
+                # Note: if branch is specified, we can't easily delete edges by branch 
+                # unless we join with graph_nodes, or we add branch to graph_edges column.
+                # Since graph_edges v2 has repo_id but NOT branch, we'll fetch IDs if branch is specified.
+                if branch is not None:
+                    result = await sess.execute(select(GraphNode.id).where(GraphNode.repo_id == repo_id, GraphNode.branch == branch))
+                    node_ids = [r for r in result.scalars().all()]
+                    if not node_ids:
+                        return 0
+                    await sess.execute(delete(GraphEdge).where((GraphEdge.source_id.in_(node_ids)) | (GraphEdge.target_id.in_(node_ids))))
+                    del_result = await sess.execute(delete(GraphNode).where(GraphNode.id.in_(node_ids)))
+                else:
+                    await sess.execute(edge_stmt)
+                    del_result = await sess.execute(delete(GraphNode).where(GraphNode.repo_id == repo_id))
+                
+                return int(del_result.rowcount)  # type: ignore
+
+    async def list_repo_branches(self, repo_id: str) -> list[str]:
+        """Return unique branches that have nodes for this repository."""
+        async with self._session() as sess:
+            stmt = select(GraphNode.branch).where(GraphNode.repo_id == repo_id).distinct()
+            result = await sess.execute(stmt)
+            return [str(b) for b in result.scalars().all() if b]
 
     # ------------------------------------------------------------------
     # Edge operations
@@ -476,6 +520,130 @@ class KnowledgeGraphStore:
             await sess.flush()
             await sess.refresh(edge)
             return edge
+
+    async def bulk_upsert_nodes(
+        self,
+        nodes: list[dict[str, Any]],
+        *,
+        repo_id: str,
+        branch: str = "",
+    ) -> dict[tuple[str, str], uuid.UUID]:
+        """Upsert many nodes in a single transaction.
+        
+        Returns a mapping of (node_type, name) -> id.
+        """
+        async with self._session() as sess:
+            # 1. Fetch existing nodes to handle merging if needed
+            # For simplicity and performance, we'll fetch all nodes for this repo/branch
+            stmt = select(GraphNode).where(
+                GraphNode.repo_id == repo_id,
+                GraphNode.branch == branch
+            )
+            result = await sess.execute(stmt)
+            existing_map = {
+                (n.node_type, n.name): n for n in result.scalars().all()
+            }
+            
+            id_map: dict[tuple[str, str], uuid.UUID] = {}
+            
+            for node_data in nodes:
+                node_type = node_data["node_type"]
+                name = node_data["name"]
+                metadata = node_data.get("metadata") or {}
+                key = (node_type, name)
+                
+                if key in existing_map:
+                    existing = existing_map[key]
+                    if metadata:
+                        # Merge metadata
+                        existing.node_metadata = {**dict(existing.node_metadata), **metadata}
+                    id_map[key] = existing.id
+                else:
+                    new_node = GraphNode(
+                        id=uuid.uuid4(),
+                        repo_id=repo_id,
+                        branch=branch,
+                        node_type=node_type,
+                        name=name,
+                        node_metadata=metadata,
+                    )
+                    sess.add(new_node)
+                    id_map[key] = new_node.id
+            
+            await sess.flush()
+            return id_map
+
+    async def bulk_upsert_edges(
+        self,
+        edges: list[dict[str, Any]],
+        *,
+        repo_id: str,
+    ) -> int:
+        """Upsert many edges in a single transaction."""
+        async with self._session() as sess:
+            # Edges are tricky because they link by UUID.
+            # We assume source_id and target_id are already resolved.
+            
+            # Fetch existing edges for this repo to avoid duplicates
+            stmt = select(GraphEdge).where(GraphEdge.repo_id == repo_id)
+            result = await sess.execute(stmt)
+            existing_edges = {
+                (e.source_id, e.target_id, e.relation): e for e in result.scalars().all()
+            }
+            
+            upserted = 0
+            for edge_data in edges:
+                source_id = edge_data["source_id"]
+                target_id = edge_data["target_id"]
+                relation = edge_data["relation"]
+                weight = edge_data.get("weight", 1.0)
+                key = (source_id, target_id, relation)
+                
+                if key in existing_edges:
+                    existing = existing_edges[key]
+                    existing.weight = weight
+                else:
+                    new_edge = GraphEdge(
+                        id=uuid.uuid4(),
+                        repo_id=repo_id,
+                        source_id=source_id,
+                        target_id=target_id,
+                        relation=relation,
+                        weight=weight,
+                    )
+                    sess.add(new_edge)
+                upserted += 1
+            
+            return upserted
+
+    async def search_nodes(
+        self,
+        query: str,
+        *,
+        repo_id: str | None = None,
+        branch: str | None = None,
+        node_types: list[str] | None = None,
+        limit: int = 50,
+    ) -> list[GraphNode]:
+        """Search nodes by name or metadata using database-level filtering."""
+        async with self._session() as sess:
+            # Simple LIKE search on name
+            stmt = select(GraphNode).where(GraphNode.name.ilike(f"%{query}%"))
+            
+            if repo_id:
+                stmt = stmt.where(GraphNode.repo_id == repo_id)
+            if branch:
+                stmt = stmt.where(GraphNode.branch == branch)
+            if node_types:
+                stmt = stmt.where(GraphNode.node_type.in_(node_types))
+                
+            stmt = stmt.limit(limit)
+            result = await sess.execute(stmt)
+            return list(result.scalars().all())
+
+    async def list_repositories(self) -> list[Any]:
+        # This is just a placeholder if needed, usually handled by IRepositoryRepo
+        return []
 
     async def delete_edge(self, edge_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -586,3 +754,60 @@ class KnowledgeGraphStore:
                     queue.append((nid, path + [nid]))
 
         return []
+
+    async def get_neighborhood(
+        self,
+        node_id: uuid.UUID,
+        *,
+        max_depth: int = 4,
+        max_nodes: int = 100,
+    ) -> tuple[list[GraphNode], list[GraphEdge]]:
+        """
+        Return nodes and edges in the neighborhood of a seed node using BFS.
+        """
+        async with self._session() as sess:
+            nodes_map: dict[uuid.UUID, GraphNode] = {}
+            edges_map: dict[uuid.UUID, GraphEdge] = {}
+            
+            current_level_ids: set[uuid.UUID] = {node_id}
+            visited_ids: set[uuid.UUID] = set()
+            
+            for depth in range(max_depth + 1):
+                if not current_level_ids or len(nodes_map) >= max_nodes:
+                    break
+                
+                # Fetch nodes for current level
+                node_ids_to_fetch = [nid for nid in current_level_ids if nid not in nodes_map]
+                if node_ids_to_fetch:
+                    n_res = await sess.execute(
+                        select(GraphNode).where(GraphNode.id.in_(node_ids_to_fetch))
+                    )
+                    for node in n_res.scalars().all():
+                        if len(nodes_map) < max_nodes:
+                            nodes_map[node.id] = node
+                
+                if depth < max_depth:
+                    # Fetch edges incident to current level nodes
+                    e_res = await sess.execute(
+                        select(GraphEdge).where(
+                            (GraphEdge.source_id.in_(list(current_level_ids))) | 
+                            (GraphEdge.target_id.in_(list(current_level_ids)))
+                        )
+                    )
+                    next_level_ids: set[uuid.UUID] = set()
+                    for edge in e_res.scalars().all():
+                        edges_map[edge.id] = edge
+                        next_level_ids.add(edge.source_id)
+                        next_level_ids.add(edge.target_id)
+                    
+                    visited_ids.update(current_level_ids)
+                    current_level_ids = next_level_ids - visited_ids
+            
+            # Ensure edges only connect nodes we actually kept
+            final_node_ids = set(nodes_map.keys())
+            final_edges = [
+                e for e in edges_map.values() 
+                if e.source_id in final_node_ids and e.target_id in final_node_ids
+            ]
+            
+            return list(nodes_map.values()), final_edges

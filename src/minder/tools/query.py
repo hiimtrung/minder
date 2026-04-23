@@ -337,4 +337,15 @@ class QueryTools:
 
     @staticmethod
     def discover_repo_files(repo_path: str) -> list[str]:
-        return [str(path) for path in Path(repo_path).rglob("*") if path.is_file()]
+        import os
+        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
+        discovered: list[str] = []
+        root_path = os.path.abspath(repo_path)
+        for dirpath, dirnames, filenames in os.walk(root_path):
+            dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+            for filename in filenames:
+                if filename.startswith("."):
+                    continue
+                abs_path = os.path.join(dirpath, filename)
+                discovered.append(os.path.relpath(abs_path, root_path))
+        return discovered

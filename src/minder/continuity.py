@@ -300,7 +300,7 @@ class ContinuitySynthesizer:
         )
         raw = self._llm.complete_text(
             prompt,
-            max_tokens=700,
+            max_tokens=1000,
             temperature=min(max(self._config.llm.temperature, 0.05), 0.3),
             fallback="",
         )

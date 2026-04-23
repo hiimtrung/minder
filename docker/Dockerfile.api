@@ -14,11 +14,11 @@ RUN apt-get update \
 RUN --mount=type=cache,target=/root/.cache/pip \
     pip install --no-cache-dir uv
 
-COPY pyproject.toml uv.lock /app/
+COPY pyproject.toml uv.lock README.md README-pypi.md /app/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev --no-install-project --no-editable --extra server
 
-COPY README.md minder.toml /app/
+COPY minder.toml /app/
 
 FROM python:3.14-slim
 
@@ -37,7 +37,7 @@ RUN apt-get update \
 RUN pip install --no-cache-dir uv
 
 COPY --from=api-builder /app/.venv /app/.venv
-COPY pyproject.toml uv.lock README.md minder.toml /app/
+COPY pyproject.toml uv.lock README.md README-pypi.md minder.toml /app/
 COPY src /app/src
 COPY scripts /app/scripts
 

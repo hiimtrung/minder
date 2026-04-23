@@ -1,3 +1,4 @@
+name: minder-full
 services:
   gateway:
     container_name: minder-gateway
@@ -48,7 +49,6 @@ services:
       milvus-standalone:
         condition: service_healthy
 
-
   dashboard:
     container_name: minder-dashboard
     build:
@@ -58,8 +58,6 @@ services:
     restart: unless-stopped
     depends_on:
       - minder-api
-
-
 
   mongodb:
     container_name: minder-mongodb

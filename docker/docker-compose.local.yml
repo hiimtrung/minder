@@ -1,6 +1,6 @@
+name: minder-local
+
 services:
-
-
   mongodb:
     container_name: minder-mongodb
     image: mongo:8.2.6

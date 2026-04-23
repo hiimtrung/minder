@@ -13,6 +13,7 @@ services:
       - minder-api
 
   minder-api:
+    container_name: minder-server
     image: ${MINDER_API_IMAGE:-ghcr.io/hiimtrung/minder-api:latest}
     restart: unless-stopped
     volumes:

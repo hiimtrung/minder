@@ -35,7 +35,7 @@ This script stores models in:
 Expected files:
 
 ```text
-~/.minder/models/gemma-4-E2B-it.litertlm
+~/.minder/models/gemma-4-E4B-it.litertlm
 Note: The primary embedding model (`mixedbread-ai/mxbai-embed-large-v1`) is auto-downloaded by FastEmbed on first run.
 
 ## 1a. Create local env files

@@ -159,7 +159,7 @@ minder/
 | Risk                                                                     | Impact | Mitigation                                                                   |
 | ------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------- |
 | `ggml-org/embeddinggemma-300M-GGUF` is too heavy for some local machines | High   | Optimize quantization, document hardware requirements, allow OpenAI fallback |
-| `ggml-org/gemma-4-E2B-it-GGUF` quality is insufficient for complex tasks | Medium | Route allowed complex queries to OpenAI                                      |
+| `ggml-org/gemma-4-E4B-it-GGUF` quality is insufficient for complex tasks | Medium | Route allowed complex queries to OpenAI                                      |
 | Milvus Lite performance is not enough for team scale                     | Medium | Upgrade to Milvus Standalone in Phase 4                                      |
 | Workflow enforcement becomes too rigid                                   | Medium | Support strict and advisory modes                                            |
 | Repository-local state drifts from centralized state                     | High   | Add sync and conflict detection between repo and server                      |

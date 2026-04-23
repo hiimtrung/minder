@@ -11,6 +11,7 @@ Install the runtime with::
 """
 
 from __future__ import annotations
+import gc
 import logging
 import platform
 import uuid
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 _ENGINE_CACHE: dict[str, Any] = {}
 _CONVERSATION_CACHE: OrderedDict[uuid.UUID, Any] = OrderedDict()
-MAX_CACHED_CONVERSATIONS = 10
+MAX_CACHED_CONVERSATIONS = 5
 
 
 class LiteRTModelLLM:
@@ -35,7 +36,7 @@ class LiteRTModelLLM:
 
     def __init__(
         self,
-        model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm",
+        model_path: str = "~/.minder/models/gemma-4-E4B-it.litertlm",
         backend: str = "cpu",
         cache_dir: str = "~/.minder/cache/litert",
         context_length: int = 131072,
@@ -298,3 +299,22 @@ class LiteRTModelLLM:
             "runtime": runtime,
             "stream": stream if stream else ([text] if text else []),
         }
+
+def clear_caches() -> None:
+    """Clear global engine and conversation caches to reclaim memory."""
+    global _ENGINE_CACHE, _CONVERSATION_CACHE
+    
+    # Try to close conversations
+    for conv in _CONVERSATION_CACHE.values():
+        try:
+            if hasattr(conv, "__exit__"):
+                conv.__exit__(None, None, None)
+        except Exception:
+            pass
+    
+    _CONVERSATION_CACHE.clear()
+    
+    # Engines are harder to close explicitly in current API, but we drop references
+    _ENGINE_CACHE.clear()
+    gc.collect()
+    logger.debug("Cleared LiteRT-LM global caches.")

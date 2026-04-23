@@ -43,7 +43,7 @@ class EmbeddingConfig(BaseModel):
 class LLMConfig(BaseModel):
     provider: str = "litert"  # "litert" | "openai"
     # LiteRT-LM fields
-    litert_model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm"
+    litert_model_path: str = "~/.minder/models/gemma-4-E4B-it.litertlm"
     litert_backend: str = "auto"  # "auto" (GPU on Mac, CPU elsewhere) | "cpu" | "gpu"
     litert_cache_dir: str = "~/.minder/cache/litert"
     context_length: int = 131072

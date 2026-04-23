@@ -81,8 +81,8 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 
 ```bash
 mkdir -p ~/.minder/models
-curl -L "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true" \
-  -o ~/.minder/models/gemma-4-E2B-it.litertlm
+curl -L "https://huggingface.co/litert-community/gemma-4-E4B-it-litert-lm/resolve/main/gemma-4-E4B-it.litertlm?download=true" \
+  -o ~/.minder/models/gemma-4-E4B-it.litertlm
 ```
 
 #### 2) Start infra and Minder
@@ -129,7 +129,7 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | --- | --- | --- |
 | `MINDER_SERVER__PORT` | `8800` | HTTP listen port |
 | `MINDER_LLM__PROVIDER` | `litert` | LLM provider (`litert` / `openai`) |
-| `MINDER_LLM__LITERT_MODEL_PATH` | `~/.minder/models/gemma-4-E2B-it.litertlm` | LiteRT-LM model file |
+| `MINDER_LLM__LITERT_MODEL_PATH` | `~/.minder/models/gemma-4-E4B-it.litertlm` | LiteRT-LM model file |
 | `MINDER_LLM__LITERT_BACKEND` | `cpu` | LiteRT hardware backend |
 | `MINDER_LLM__LITERT_CACHE_DIR` | `~/.minder/cache/litert` | Compiled artifact cache |
 | `MINDER_EMBEDDING__PROVIDER` | `fastembed` | Embedding provider (`fastembed` / `openai`) |

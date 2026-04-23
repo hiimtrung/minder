@@ -12,7 +12,7 @@
 | Embedding          | `mixedbread-ai/mxbai-embed-large-v1` (FastEmbed)    | Lightweight, in-process            |
 | Embedding runtime  | `FastEmbed` (in-process ONNX)                      | Zero extra dependencies            |
 | Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback            |
-| LLM                | `gemma-4-E2B-it.litertlm` (LiteRT-LM)               | Offline-first, CPU-friendly        |
+| LLM                | `gemma-4-E4B-it.litertlm` (LiteRT-LM)               | Offline-first, CPU-friendly        |
 | LLM runtime        | `LiteRT-LM` (in-process)                           | Native hardware-accelerated        |
 | LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                             |
 | Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                         |
@@ -83,7 +83,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 1. Define LangGraph state.
 2. Build Workflow Planner, Planning, Retriever, Reasoning, LLM, Guard, Verification, and Evaluator nodes.
-3. Integrate mandatory `gemma-4-E2B-it.litertlm` through `LiteRT-LM`.
+3. Integrate mandatory `gemma-4-E4B-it.litertlm` through `LiteRT-LM`.
 4. Add optional OpenAI fallback through LiteLLM.
 5. Implement Docker sandbox verification.
 6. Keep subprocess verification available in dev mode only.

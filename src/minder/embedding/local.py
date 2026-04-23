@@ -6,6 +6,7 @@ Falls back to a deterministic hash-based stub if initialization fails.
 
 from __future__ import annotations
 
+import gc
 import hashlib
 import logging
 import math
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 _MODEL_CACHE: dict[str, Any] = {}
 _EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
-MAX_CACHE_SIZE = 1000
+MAX_CACHE_SIZE = 100
 MAX_TEXT_LENGTH = 8000  # Safety truncation to avoid over-context (~2000 tokens)
 
 
@@ -173,3 +174,11 @@ class LocalEmbeddingProvider:
         if norm > 1e-9:
             return [v / norm for v in vector]
         return [0.0] * self._dimensions
+
+def clear_caches() -> None:
+    """Clear global model and embedding caches to reclaim memory."""
+    global _MODEL_CACHE, _EMBEDDING_CACHE
+    _MODEL_CACHE.clear()
+    _EMBEDDING_CACHE.clear()
+    gc.collect()
+    logger.debug("Cleared FastEmbed global caches.")

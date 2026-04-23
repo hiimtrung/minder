@@ -39,3 +39,19 @@ def _isolate_minder_env_from_dotenv() -> Iterator[None]:
         yield
     finally:
         os.environ.update(removed)
+
+
+@pytest.fixture(scope="module", autouse=True)
+def _clear_minder_caches() -> Iterator[None]:
+    """Clear memory-heavy caches after each module to stay under 8GB RAM."""
+    yield
+    try:
+        from minder.llm import litert
+        litert.clear_caches()
+    except (ImportError, AttributeError):
+        pass
+    try:
+        from minder.embedding import local
+        local.clear_caches()
+    except (ImportError, AttributeError):
+        pass

@@ -202,7 +202,7 @@ async def test_minder_graph_defaults_to_auto_runtimes(
                 "text": "ok",
                 "sources": [],
                 "provider": "litert_lm",
-                "model": "gemma-4-E2B-it",
+                "model": "gemma-4-E4B-it",
                 "runtime": "mock",
                 "stream": ["ok"],
             }

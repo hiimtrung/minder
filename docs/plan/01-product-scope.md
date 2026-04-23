@@ -64,7 +64,7 @@ This makes Minder both a knowledge system and a process orchestration layer for 
 | --- | -------------------- | ------------------------------------------------------------------------------------------- |
 | 1   | Target users         | Team, shared server, multi-user                                                             |
 | 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback                                |
-| 3   | Model priority       | `gemma-4-E2B-it.litertlm` (LiteRT-LM) and `mxbai-embed-large-v1` (FastEmbed) are mandatory |
+| 3   | Model priority       | `gemma-4-E4B-it.litertlm` (LiteRT-LM) and `mxbai-embed-large-v1` (FastEmbed) are mandatory |
 | 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                                       |
 | 5   | Knowledge graph      | Included in Phase 3                                                                         |
 | 6   | Verification sandbox | Docker is mandatory in production                                                           |

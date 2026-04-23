@@ -143,7 +143,7 @@ async def _seed(
 
 
 @pytest.mark.asyncio
-async def test_phase2x_gate(tmp_path: Path, store: RelationalStore, config: MinderConfig) -> None:
+async def test_docker_infrastructure_setup(tmp_path: Path, store: RelationalStore, config: MinderConfig) -> None:
     repo_path = tmp_path / "repo"
     repo_path.mkdir()
     (repo_path / "feature.py").write_text("def work():\n    return 'ok'\n", encoding="utf-8")

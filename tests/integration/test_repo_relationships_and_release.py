@@ -1,17 +1,4 @@
-"""Phase 6 acceptance gate.
-
-This gate verifies the shipped Phase 6 surface:
-
-- CLI + repo scanner auto-detect cross-repo ``branch_relationships`` from
-  ``.gitmodules`` and an optional ``.minder/branch-topology.toml`` override
-  (P6-T01).
-- Release assets include a bash installer *and* a PowerShell installer with
-  placeholder tokens that the release workflow substitutes at publish time
-  (P6-T06).
-- Release workflow publishes both installers under the tagged file names the
-  update flow expects (P6-T07).
-- The production deployment guide documents both bash and PowerShell install
-  one-liners (P6-T07).
+"""Integration tests for cross-repo relationships and release asset consistency.
 """
 
 from __future__ import annotations
@@ -22,7 +9,7 @@ from minder.presentation.cli.utils.git import detect_branch_relationships
 from minder.tools.repo_scanner import RepoScanner
 
 
-def test_phase6_gate_branch_relationships_detected_and_in_payload(
+def test_cross_repo_relationships_detected_and_in_payload(
     tmp_path: Path,
 ) -> None:
     repo_root = tmp_path / "repo"
@@ -83,7 +70,7 @@ def test_phase6_gate_branch_relationships_detected_and_in_payload(
     assert override_entry["direction"] == "inbound"
 
 
-def test_phase6_gate_release_assets_have_cross_platform_installers() -> None:
+def test_release_assets_contain_cross_platform_installers() -> None:
     bash_installer = Path("scripts/release/install-minder-release.sh").read_text()
     powershell_installer = Path(
         "scripts/release/install-minder-release.ps1"
@@ -113,7 +100,7 @@ def test_phase6_gate_release_assets_have_cross_platform_installers() -> None:
     assert "& docker @composeArgs up -d" in powershell_installer
 
 
-def test_phase6_gate_production_guide_documents_both_install_paths() -> None:
+def test_production_guide_documents_both_install_paths() -> None:
     guide = Path("docs/guides/production-deployment.md").read_text()
 
     assert "install-minder-<tag>.sh" in guide

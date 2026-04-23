@@ -93,7 +93,7 @@ async def infrastructure(config: MinderConfig):
 
 
 @pytest.mark.asyncio
-async def test_phase1_gate(
+async def test_mcp_auth_and_session_flow(
     tmp_path: Path,
     config: MinderConfig,
     infrastructure: dict[str, object],

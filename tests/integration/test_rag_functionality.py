@@ -198,7 +198,7 @@ async def _seed_phase3_context(store: RelationalStore, repo_path: Path) -> tuple
 
 
 @pytest.mark.asyncio
-async def test_phase3_gate(tmp_path: Path, store: RelationalStore, graph_store: KnowledgeGraphStore, config: MinderConfig) -> None:
+async def test_rag_pipeline_end_to_end(tmp_path: Path, store: RelationalStore, graph_store: KnowledgeGraphStore, config: MinderConfig) -> None:
     monorepo_root = tmp_path / "monorepo"
     repo_root, orders_dir, _billing_dir = _make_repo_fixture(monorepo_root)
     _init_local_git_repo(repo_root)

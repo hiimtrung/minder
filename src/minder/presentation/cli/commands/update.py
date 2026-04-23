@@ -35,7 +35,7 @@ def version_command(args: argparse.Namespace) -> int:
             else:
                 print("  status: up to date")
     else:
-        print("minder version unknown (not installed as a package)")
+        print("minder-cli version unknown (not installed as a package)")
     return 0
 
 
@@ -109,15 +109,15 @@ def check_update_command(args: argparse.Namespace) -> int:
 
 def _cli_update_commands(manager: str) -> list[list[str]]:
     if manager == "uv":
-        return [["uv", "tool", "upgrade", "minder"]]
+        return [["uv", "tool", "upgrade", "minder-cli"]]
     if manager == "pipx":
-        return [["pipx", "upgrade", "minder"]]
+        return [["pipx", "upgrade", "minder-cli"]]
     if manager == "pip":
-        return [[sys.executable, "-m", "pip", "install", "--upgrade", "minder"]]
+        return [[sys.executable, "-m", "pip", "install", "--upgrade", "minder-cli"]]
     return [
-        ["uv", "tool", "upgrade", "minder"],
-        ["pipx", "upgrade", "minder"],
-        [sys.executable, "-m", "pip", "install", "--upgrade", "minder"],
+        ["uv", "tool", "upgrade", "minder-cli"],
+        ["pipx", "upgrade", "minder-cli"],
+        [sys.executable, "-m", "pip", "install", "--upgrade", "minder-cli"],
     ]
 
 

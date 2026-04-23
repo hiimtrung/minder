@@ -54,14 +54,14 @@ def repo_state_store(config: MinderConfig) -> RepoStateStore:
     return RepoStateStore(config.workflow.repo_state_dir)
 
 
-async def _seed_phase4_4_context(
+async def _seed_workflow_context(
     store: RelationalStore,
     repo_path: Path,
 ) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID]:
     workflow = await store.create_workflow(
         id=uuid.uuid4(),
-        name="phase-4-4",
-        version=4,
+        name="test-workflow",
+        version=1,
         enforcement="strict",
         steps=[
             {"name": "Problem Analysis"},
@@ -73,8 +73,8 @@ async def _seed_phase4_4_context(
     )
     repo = await store.create_repository(
         id=uuid.uuid4(),
-        repo_name="phase4-4-repo",
-        repo_url="https://example.com/phase4-4",
+        repo_name="workflow-repo",
+        repo_url="https://example.com/workflow-repo",
         default_branch="main",
         workflow_id=workflow.id,
         state_path=str(repo_path / ".minder"),
@@ -87,7 +87,7 @@ async def _seed_phase4_4_context(
         repo_id=repo.id,
         project_context={"repo_path": str(repo_path), "branch": "main"},
         active_skills={"continuity": True},
-        state={"task": "Close P4.4 backlog"},
+        state={"task": "Complete workflow task"},
         ttl=3600,
     )
     await store.create_workflow_state(
@@ -104,7 +104,7 @@ async def _seed_phase4_4_context(
 
 
 @pytest.mark.asyncio
-async def test_phase4_4_continuity_gate(
+async def test_workflow_continuity_enforcement(
     store: RelationalStore,
     config: MinderConfig,
     repo_state_store: RepoStateStore,
@@ -114,7 +114,7 @@ async def test_phase4_4_continuity_gate(
     repo_path.mkdir()
     (repo_path / "app.py").write_text("def run():\n    return 'ok'\n", encoding="utf-8")
 
-    repo_id, session_id, workflow_id = await _seed_phase4_4_context(store, repo_path)
+    repo_id, session_id, workflow_id = await _seed_workflow_context(store, repo_path)
     del workflow_id
 
     session_tools = SessionTools(store)
@@ -138,7 +138,7 @@ async def test_phase4_4_continuity_gate(
     assert "instruction_envelope" in guard
 
     memory = await memory_tools.minder_memory_store(
-        title="Phase 4.4 continuity memory",
+        title="Workflow continuity memory",
         content="Keep failing tests and continuity packet aligned before implementation.",
         tags=["test_plan", "continuity"],
         language="markdown",
@@ -152,12 +152,12 @@ async def test_phase4_4_continuity_gate(
     assert recalled_memory[0]["id"] == memory["id"]
 
     skill = await skill_tools.minder_skill_store(
-        title="Phase 4.4 skill",
+        title="Workflow skill",
         content="Use continuity packets and prompt correction retries when the workflow contract fails.",
         language="python",
         workflow_steps=["Test Writing"],
         artifact_types=["test_plan"],
-        provenance="phase_4_4_gate",
+        provenance="workflow_enforcement_test",
         quality_score=0.8,
     )
     recalled_skills = await skill_tools.minder_skill_recall(
@@ -173,7 +173,7 @@ async def test_phase4_4_continuity_gate(
         repo_path=str(repo_path),
         repo_id=repo_id,
         session_id=session_id,
-        workflow_name="phase-4-4",
+        workflow_name="test-workflow",
     )
     assert query_result["answer"].startswith("Answer:")
     assert query_result["guard_result"]["passed"] is True

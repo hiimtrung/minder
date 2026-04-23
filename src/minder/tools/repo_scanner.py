@@ -281,6 +281,7 @@ class RepoScanner:
         builder._git_metadata_cache = {}
         builder._git_line_commit_cache = {}
         builder._git_commit_detail_cache = {}
+        builder._git_file_blame_cache = {}
         builder._git_enabled = True
 
         service_dirs = builder._discover_service_boundaries()

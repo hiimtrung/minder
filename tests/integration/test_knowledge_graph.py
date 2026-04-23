@@ -119,7 +119,7 @@ async def _seed_workflow_context(
 
 
 @pytest.mark.asyncio
-async def test_phase2_gate(
+async def test_knowledge_graph_query_and_ingestion(
     tmp_path: Path, store: RelationalStore, config: MinderConfig
 ) -> None:
     repo_path = tmp_path / "repo"

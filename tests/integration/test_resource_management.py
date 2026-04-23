@@ -19,10 +19,10 @@ from minder.tools.skills import SkillTools
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
 
 
-class _Phase5Graph:
+class _ResourceTestGraph:
     async def run(self, state: GraphState) -> GraphState:
         state.llm_output = {
-            "text": "Phase 5 runtime answer.",
+            "text": "Resource management answer.",
             "provider": "local",
             "model": "test-double",
             "runtime": "fake",
@@ -40,8 +40,8 @@ class _Phase5Graph:
     ) -> AsyncGenerator[dict[str, object], None]:
         final_state = await self.run(state)
         yield {"type": "attempt", "attempt": 1}
-        yield {"type": "chunk", "attempt": 1, "delta": "Phase 5 "}
-        yield {"type": "chunk", "attempt": 1, "delta": "runtime answer."}
+        yield {"type": "chunk", "attempt": 1, "delta": "Resource "}
+        yield {"type": "chunk", "attempt": 1, "delta": "management answer."}
         yield {"type": "final", "state": final_state}
 
 
@@ -59,16 +59,16 @@ def config() -> MinderConfig:
 
 
 @pytest.mark.asyncio
-async def test_phase5_gate(
+async def test_resource_management_lifecycle(
     store: RelationalStore,
     config: MinderConfig,
     tmp_path: Path,
 ) -> None:
     user = await store.create_user(
         id=uuid.uuid4(),
-        email="phase5@example.com",
-        username="phase5",
-        display_name="Phase 5",
+        email="resource-test@example.com",
+        username="resource-test",
+        display_name="Resource Test",
         api_key_hash="hash",
         role="admin",
         is_active=True,
@@ -78,18 +78,18 @@ async def test_phase5_gate(
     memory_tools = MemoryTools(store, config)
     skill_tools = SkillTools(store, config)
     session_tools = SessionTools(store)
-    query_tools = QueryTools(store, config, graph=_Phase5Graph())
+    query_tools = QueryTools(store, config, graph=_ResourceTestGraph())
 
     primary_memory = await memory_tools.minder_memory_store(
-        title="Phase 5 runtime note",
+        title="Resource runtime note",
         content="Stream answers and keep repository scope optional.",
-        tags=["phase5", "runtime"],
+        tags=["resource", "runtime"],
         language="markdown",
     )
     duplicate_memory = await memory_tools.minder_memory_store(
-        title="Phase 5 runtime note duplicate",
+        title="Resource runtime note duplicate",
         content="Stream answers and keep repository scope optional.",
-        tags=["phase5", "runtime", "duplicate"],
+        tags=["resource", "runtime", "duplicate"],
         language="markdown",
     )
     compacted = await memory_tools.minder_memory_compact(
@@ -104,8 +104,8 @@ async def test_phase5_gate(
     repo_path.mkdir()
     skills_dir = repo_path / "skills"
     skills_dir.mkdir()
-    (skills_dir / "phase5.md").write_text(
-        "# Phase 5 Skill\n\nUse source metadata and curation fields.",
+    (skills_dir / "resource-test.md").write_text(
+        "# Resource Test Skill\n\nUse source metadata and curation fields.",
         encoding="utf-8",
     )
     subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
@@ -123,7 +123,7 @@ async def test_phase5_gate(
     )
     subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
     subprocess.run(
-        ["git", "commit", "-m", "add phase5 skill pack"],
+        ["git", "commit", "-m", "add resource skill pack"],
         cwd=repo_path,
         check=True,
         capture_output=True,
@@ -142,13 +142,13 @@ async def test_phase5_gate(
 
     expired_session = await session_tools.minder_session_create(
         user_id=user.id,
-        name="phase5-expired",
+        name="resource-expired",
     )
     expired_session_id = uuid.UUID(expired_session["session_id"])
     await store.create_history(
         session_id=expired_session_id,
         role="assistant",
-        content="expired phase 5 history",
+        content="expired resource history",
     )
     await store.update_session(
         expired_session_id,
@@ -163,7 +163,7 @@ async def test_phase5_gate(
         repo_path=None,
         user_id=user.id,
     )
-    assert query_result["answer"] == "Phase 5 runtime answer."
+    assert query_result["answer"] == "Resource management answer."
     assert query_result["edge"] == "complete"
 
     stream_events = [
@@ -180,4 +180,4 @@ async def test_phase5_gate(
         "chunk",
         "final",
     ]
-    assert stream_events[-1]["payload"]["answer"] == "Phase 5 runtime answer."
+    assert stream_events[-1]["payload"]["answer"] == "Resource management answer."

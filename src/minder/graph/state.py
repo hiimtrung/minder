@@ -24,3 +24,4 @@ class GraphState(BaseModel):
     transition_log: list[dict[str, Any]] = Field(default_factory=list)
     retry_count: int = 0
     metadata: dict[str, Any] = Field(default_factory=dict)
+    chat_history: list[dict[str, Any]] = Field(default_factory=list)

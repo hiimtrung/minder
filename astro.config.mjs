@@ -3,7 +3,8 @@ import node from "@astrojs/node";
 import tailwindcss from "@tailwindcss/vite";
 import { loadEnv } from "vite";
 
-const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
+const dashboardEnvDir = new URL("./src/dashboard", import.meta.url).pathname;
+const env = loadEnv(process.env.NODE_ENV ?? "development", dashboardEnvDir, "");
 const apiUrl = env.PUBLIC_API_URL ?? env.API_URL ?? "";
 
 export default defineConfig({
@@ -21,6 +22,7 @@ export default defineConfig({
     port: 8808,
   },
   vite: {
+    envDir: dashboardEnvDir,
     plugins: [tailwindcss()],
     define: {
       "import.meta.env.PUBLIC_API_URL": JSON.stringify(apiUrl),

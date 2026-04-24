@@ -6,12 +6,13 @@ from pathlib import Path
 from ..utils.common import (
     upsert_managed_block,
     remove_managed_block,
+    wrap_managed_block,
 )
 from ..utils.version import installed_package_version
 
 _AGENT_INSTRUCTIONS_KEY = "minder-agent-instructions"
 _ANTIGRAVITY_FRONT_MATTER = """---
-description: You are an expert AI software engineer equipped with **Minder**, an agentic development infrastructure. Your goal is to provide deep, grounded assistance by orchestrating Minder's tools effectively.
+description: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.
 ---"""
 
 MINDER_AGENT_PROMPT = """# Minder Agent Orchestration Rules
@@ -103,6 +104,35 @@ def _agent_instruction_path(target: str, cwd: Path) -> Path | None:
         return Path.home() / ".codex" / "AGENTS.md"
     return None
 
+
+def _upsert_antigravity_workflow(path: Path, body: str) -> None:
+    # Migrate away legacy layout where managed marker was the first line.
+    remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
+    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    tail = existing
+    if tail.startswith(_ANTIGRAVITY_FRONT_MATTER):
+        tail = tail[len(_ANTIGRAVITY_FRONT_MATTER):].lstrip("\n")
+    managed = wrap_managed_block(path, _AGENT_INSTRUCTIONS_KEY, body).rstrip("\n")
+    updated = f"{_ANTIGRAVITY_FRONT_MATTER}\n\n{managed}"
+    tail = tail.strip("\n")
+    if tail:
+        updated = f"{updated}\n\n{tail}"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(updated + "\n", encoding="utf-8")
+
+
+def _cleanup_antigravity_front_matter(path: Path) -> None:
+    if not path.is_file():
+        return
+    content = path.read_text(encoding="utf-8")
+    if not content.startswith(_ANTIGRAVITY_FRONT_MATTER):
+        return
+    tail = content[len(_ANTIGRAVITY_FRONT_MATTER):].lstrip("\n")
+    if tail:
+        path.write_text(tail, encoding="utf-8")
+    else:
+        path.unlink(missing_ok=True)
+
 def install_agent_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
@@ -117,7 +147,9 @@ def install_agent_command(args: argparse.Namespace) -> int:
             path.parent.mkdir(parents=True, exist_ok=True)
             body = MINDER_AGENT_PROMPT
             if target == "antigravity":
-                body = f"{_ANTIGRAVITY_FRONT_MATTER}\n\n{body}"
+                _upsert_antigravity_workflow(path, body)
+                installed_paths.append(path)
+                continue
             if target == "codex":
                 # Prefix with version as requested
                 body = f"# Minder Agent (v{version})\n\n" + body
@@ -148,6 +180,8 @@ def uninstall_agent_command(args: argparse.Namespace) -> int:
         path = _agent_instruction_path(target, cwd)
         if path:
             remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
+            if target == "antigravity":
+                _cleanup_antigravity_front_matter(path)
             
     print(f"Removed Minder Agent rules from {cwd}")
     return 0

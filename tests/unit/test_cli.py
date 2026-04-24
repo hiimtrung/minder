@@ -334,9 +334,11 @@ def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
     )
     assert install_exit == 0
     installed = target_file.read_text(encoding="utf-8")
+    assert installed.startswith("---\n")
+    assert not installed.startswith("<!-- minder:begin minder-agent-instructions -->")
     assert "# Existing Workflow" in installed
     assert "minder:begin minder-agent-instructions" in installed
-    assert "---\ndescription: You are an expert AI software engineer equipped with **Minder**, an agentic development infrastructure. Your goal is to provide deep, grounded assistance by orchestrating Minder's tools effectively.\n---" in installed
+    assert "---\ndescription: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.\n---" in installed
     assert "Minder Agent Orchestration Rules" in installed
 
     uninstall_exit = main(

@@ -10,6 +10,9 @@ from ..utils.common import (
 from ..utils.version import installed_package_version
 
 _AGENT_INSTRUCTIONS_KEY = "minder-agent-instructions"
+_ANTIGRAVITY_FRONT_MATTER = """---
+description: You are an expert AI software engineer equipped with **Minder**, an agentic development infrastructure. Your goal is to provide deep, grounded assistance by orchestrating Minder's tools effectively.
+---"""
 
 MINDER_AGENT_PROMPT = """# Minder Agent Orchestration Rules
 
@@ -95,7 +98,7 @@ def _agent_instruction_path(target: str, cwd: Path) -> Path | None:
     if target == "claude-code":
         return cwd / "CLAUDE.md"
     if target == "antigravity":
-        return cwd / ".antigravity.md"
+        return cwd / ".agents" / "workflows" / "minder.md"
     if target == "codex":
         return Path.home() / ".codex" / "AGENTS.md"
     return None
@@ -113,6 +116,8 @@ def install_agent_command(args: argparse.Namespace) -> int:
         if path:
             path.parent.mkdir(parents=True, exist_ok=True)
             body = MINDER_AGENT_PROMPT
+            if target == "antigravity":
+                body = f"{_ANTIGRAVITY_FRONT_MATTER}\n\n{body}"
             if target == "codex":
                 # Prefix with version as requested
                 body = f"# Minder Agent (v{version})\n\n" + body

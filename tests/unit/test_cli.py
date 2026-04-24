@@ -248,6 +248,111 @@ def test_install_ide_updates_managed_blocks_without_removing_custom_text(
     assert "outdated" not in content
 
 
+def test_install_agent_writes_session_and_workflow_binding_guide(
+    tmp_path, capsys
+) -> None:  # noqa: ANN001
+    exit_code = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+
+    assert exit_code == 0
+    instructions = (
+        tmp_path / ".github" / "copilot-instructions.md"
+    ).read_text(encoding="utf-8")
+    assert "minder_session_find(name=...)" in instructions
+    assert "Always track the active Minder session in repository-local file `.minder/agent.json`." in instructions
+    assert '"workflow": {' in instructions
+    assert "Treat `(repo_path, session_id, workflow.id)` as the active execution tuple" in instructions
+    assert "Strict Context Binding" in instructions
+    assert "minder_workflow_list" not in instructions
+    assert "minder_node_neighborhood" not in instructions
+
+    output = capsys.readouterr().out
+    assert "Installed sophisticated Minder Agent rules" in output
+
+
+def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    target_file = tmp_path / ".github" / "copilot-instructions.md"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("Custom notes\n", encoding="utf-8")
+
+    install_exit = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+    assert install_exit == 0
+    assert "minder-agent-instructions" in target_file.read_text(encoding="utf-8")
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+    assert uninstall_exit == 0
+
+    content = target_file.read_text(encoding="utf-8")
+    assert content == "Custom notes\n"
+    assert "minder-agent-instructions" not in content
+
+
+def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    target_file = tmp_path / ".agents" / "workflows" / "minder.md"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("# Existing Workflow\n", encoding="utf-8")
+
+    install_exit = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert install_exit == 0
+    installed = target_file.read_text(encoding="utf-8")
+    assert "# Existing Workflow" in installed
+    assert "minder:begin minder-agent-instructions" in installed
+    assert "---\ndescription: You are an expert AI software engineer equipped with **Minder**, an agentic development infrastructure. Your goal is to provide deep, grounded assistance by orchestrating Minder's tools effectively.\n---" in installed
+    assert "Minder Agent Orchestration Rules" in installed
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert uninstall_exit == 0
+    assert target_file.read_text(encoding="utf-8") == "# Existing Workflow\n"
+
+
 def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa: ANN001
     config_path = tmp_path / "client.json"
     config_path.write_text(

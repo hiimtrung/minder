@@ -686,7 +686,7 @@ class GraphTools:
 
 
 def _metadata(node: Any) -> dict[str, Any]:
-    value = getattr(node, "node_metadata", {}) or {}
+    value = getattr(node, "extra_metadata", {}) or {}
     return value if isinstance(value, dict) else {}
 
 

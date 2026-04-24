@@ -6,6 +6,7 @@ import ast
 import json
 import re
 import subprocess
+import uuid
 import concurrent.futures
 import tomllib
 from dataclasses import dataclass
@@ -178,23 +179,30 @@ class RepoScanner:
             service_node_ids[svc_dir] = svc_node.id
             nodes_upserted += 1
 
+        nodes_upserted = 0
+        edges_upserted = 0
+        known_node_ids: dict[tuple[str, str], uuid.UUID] = {}
+
         for file_path in source_files:
             rel_path = str(file_path.relative_to(self._root))
+            suffix = file_path.suffix.lower()
+            language = _LANGUAGE_BY_SUFFIX.get(suffix, "unknown")
+            
             file_metadata, extracted_nodes, extracted_edges = self._extract_file_metadata(file_path, rel_path)
             change_metadata = self._git_file_change_metadata(rel_path)
             common_metadata = self._build_file_scoped_metadata(
                 rel_path=rel_path,
-                language=str(file_metadata.get("language", "text") or "text"),
+                language=language,
                 change_metadata=change_metadata,
             )
 
             file_node = await self._store.upsert_node(
                 node_type="file",
                 name=rel_path,
-                metadata={"project": self._project, **common_metadata, **file_metadata},
+                metadata={**common_metadata, **file_metadata},
             )
+            known_node_ids[("file", rel_path)] = file_node.id
             nodes_upserted += 1
-            known_node_ids: dict[tuple[str, str], Any] = {("file", rel_path): file_node.id}
 
             owning_svc = self._find_owning_service(file_path, service_dirs)
             if owning_svc is not None:
@@ -238,10 +246,11 @@ class RepoScanner:
                     base_metadata=common_metadata,
                     node_metadata=node_spec.metadata,
                 )
+                node_metadata = {"project": self._project, **node_common_metadata, **node_spec.metadata}
                 persisted = await self._store.upsert_node(
                     node_type=node_spec.node_type,
                     name=node_spec.name,
-                    metadata={"project": self._project, **node_common_metadata, **node_spec.metadata},
+                    metadata=node_metadata,
                 )
                 known_node_ids[(node_spec.node_type, node_spec.name)] = persisted.id
                 nodes_upserted += 1
@@ -276,10 +285,11 @@ class RepoScanner:
         diff_base: str | None = None,
         changed_files: list[str] | None = None,
         deleted_files: list[str] | None = None,
+        commit_hash: str | None = None,
         branch_relationships: list[dict[str, Any]] | None = None,
+        extra_metadata: dict[str, Any] | None = None,
         payload_version: str = "2026-04-15",
         source: str = "minder-cli",
-        commit_hash: str | None = None,
         progress_callback: Callable[[str], None] | None = None,
     ) -> dict[str, Any]:
         builder = cls.__new__(cls)
@@ -419,7 +429,7 @@ class RepoScanner:
                 f"Scan complete. Found {len(nodes)} nodes and {len(edges)} edges."
             )
 
-        return {
+        res = {
             "payload_version": payload_version,
             "source": source,
             "repo_path": str(builder._root),
@@ -433,11 +443,13 @@ class RepoScanner:
                 "changed_file_count": len(source_files),
                 "deleted_file_count": len(deleted_files or []),
                 "branch_relationship_count": len(branch_relationships or []),
+                **(extra_metadata or {}),
             },
             "nodes": nodes,
             "edges": edges,
             "branch_relationships": list(branch_relationships or []),
         }
+        return res
 
     def _discover_service_boundaries(self) -> list[Path]:
         service_dirs: set[Path] = set()
@@ -470,13 +482,14 @@ class RepoScanner:
         
         if self._git_enabled:
             # Combined tracked and untracked files with matching suffixes
-            patterns = [f"**/*{s}" for s in _SOURCE_SUFFIXES]
-            result = self._run_git(["ls-files", "--cached", "--others", "--exclude-standard", "--", *patterns], check=False)
+            result = self._run_git(["ls-files", "--cached", "--others", "--exclude-standard"], check=False)
             if result.returncode == 0:
                 for line in result.stdout.splitlines():
                     line = line.strip()
                     if line:
-                        files.append(self._root / line)
+                        path = self._root / line
+                        if path.suffix.lower() in _SOURCE_SUFFIXES:
+                            files.append(path)
                 if files:
                     return sorted(set(files))
 
@@ -510,11 +523,7 @@ class RepoScanner:
                 continue
         return None
 
-    def _extract_file_metadata(
-        self,
-        file_path: Path,
-        rel_path: str,
-    ) -> tuple[dict[str, Any], list[_NodeSpec], list[_EdgeSpec]]:
+    def _extract_file_metadata(self, file_path: Path, rel_path: str) -> tuple[dict[str, Any], list[_NodeSpec], list[_EdgeSpec]]:
         source = file_path.read_text(encoding="utf-8", errors="replace")
         suffix = file_path.suffix.lower()
         language = _LANGUAGE_BY_SUFFIX.get(suffix, suffix.lstrip("."))
@@ -1198,12 +1207,12 @@ class RepoScanner:
 
     @staticmethod
     def _extract_markdown_task_nodes(source: str, rel_path: str) -> list[_NodeSpec]:
+        """Extract task items (e.g. - [ ] ...) from markdown."""
         nodes: list[_NodeSpec] = []
         for index, line in enumerate(source.splitlines(), start=1):
             match = _MARKDOWN_TASK_PATTERN.match(line)
-            if match is None:
-                continue
-            nodes.append(_NodeSpec("todo", f"{rel_path}::TODO:{index}", {"path": rel_path, "line": index, "text": match.group(1).strip()}))
+            if match:
+                nodes.append(_NodeSpec("todo", f"{rel_path}::TODO:{index}", {"path": rel_path, "line": index, "text": match.group(1).strip()}))
         return nodes
 
     @staticmethod

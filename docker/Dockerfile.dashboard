@@ -2,8 +2,9 @@ FROM oven/bun:1.2.21 AS dashboard-builder
 
 WORKDIR /dashboard
 
-COPY src/dashboard/package.json src/dashboard/bun.lock src/dashboard/astro.config.mjs src/dashboard/tsconfig.json /dashboard/
-COPY src/dashboard/src /dashboard/src
+COPY package.json bun.lock astro.config.mjs tsconfig.json /dashboard/
+COPY src/dashboard/src /dashboard/src/dashboard/src
+COPY src/dashboard/public /dashboard/src/dashboard/public
 
 RUN --mount=type=cache,target=/root/.bun/install/cache \
     bun install --frozen-lockfile
@@ -19,7 +20,7 @@ WORKDIR /app
 
 COPY --from=dashboard-builder /dashboard/package.json /app/package.json
 COPY --from=dashboard-builder /dashboard/node_modules /app/node_modules
-COPY --from=dashboard-builder /dashboard/dist /app/dist
+COPY --from=dashboard-builder /dashboard/src/dashboard/dist /app/dist
 
 EXPOSE 8808
 

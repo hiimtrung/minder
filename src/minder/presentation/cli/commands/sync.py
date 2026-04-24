@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -51,9 +52,25 @@ def _resolve_repo_id(
     repository = payload.get("repository") if isinstance(payload, dict) else None
     repo_id = repository.get("id") if isinstance(repository, dict) else None
     last_sync = payload.get("last_sync") if isinstance(payload, dict) else None
-    if not isinstance(repo_id, str) or not repo_id.strip():
-        raise ValueError("Repository resolve response did not include a repository id")
-    return repo_id.strip(), last_sync
+    return str(repo_id or "").strip(), last_sync
+
+
+def _fetch_repo_last_sync(
+    *,
+    base_url: str,
+    client_key: str,
+    repo_id: str,
+) -> dict[str, Any] | None:
+    response = httpx.get(
+        f"{base_url}/v1/client/repositories/{repo_id}",
+        headers={"X-Minder-Client-Key": client_key},
+        timeout=15,
+    )
+    if response.status_code == 404:
+        return None
+    response.raise_for_status()
+    payload = response.json()
+    return payload.get("last_sync") if isinstance(payload, dict) else None
 
 
 def sync_command(args: argparse.Namespace) -> int:
@@ -76,15 +93,25 @@ def sync_command(args: argparse.Namespace) -> int:
     headers = {"X-Minder-Client-Key": str(settings["client_api_key"])}
     
     try:
-        repo_id, last_sync = _resolve_repo_id(
-            base_url=base_url,
-            client_key=headers["X-Minder-Client-Key"],
-            repo_root_path=root,
-            default_branch=branch,
-        )
         if args.repo_id:
             repo_id = args.repo_id
-    except (httpx.HTTPError, RuntimeError) as e:
+            try:
+                last_sync = _fetch_repo_last_sync(
+                    base_url=base_url,
+                    client_key=headers["X-Minder-Client-Key"],
+                    repo_id=repo_id,
+                )
+            except (httpx.HTTPError, RuntimeError):
+                # Fallback to full sync if we can't fetch last_sync
+                last_sync = None
+        else:
+            repo_id, last_sync = _resolve_repo_id(
+                base_url=base_url,
+                client_key=headers["X-Minder-Client-Key"],
+                repo_root_path=root,
+                default_branch=branch,
+            )
+    except (httpx.HTTPError, RuntimeError, ValueError) as e:
         print(f"Failed to resolve repository: {e}")
         return 1
 
@@ -92,7 +119,7 @@ def sync_command(args: argparse.Namespace) -> int:
     if not diff_base and last_sync:
         diff_base = last_sync.get("commit_hash")
         if diff_base:
-            print(f"  Using last sync commit as diff base: {diff_base[:8]}")
+            print(f"  Using last sync commit as diff base: {diff_base[:8]}", file=sys.stderr)
 
     changed, deleted = git_file_delta(root, diff_base)
     relationships = detect_branch_relationships(root, branch)
@@ -103,12 +130,11 @@ def sync_command(args: argparse.Namespace) -> int:
     except Exception:
         pass
     
-    import sys
     def progress(msg: str) -> None:
         sys.stderr.write(f"  {msg}\n")
         sys.stderr.flush()
 
-    print(f"Syncing {root.name} ({branch})...")
+    print(f"Syncing {root.name} ({branch})...", file=sys.stderr)
     payload = RepoScanner.build_sync_payload(
         str(root),
         branch=branch,
@@ -126,7 +152,7 @@ def sync_command(args: argparse.Namespace) -> int:
         
     try:
         sync_url = f"{base_url}/v1/client/repositories/{repo_id}/graph-sync"
-        print(f"Sending payload to {base_url} (timeout=300s)...")
+        print(f"Sending payload to {base_url} (timeout=300s)...", file=sys.stderr)
         response = httpx.post(sync_url, headers=headers, json=payload, timeout=300)
         response.raise_for_status()
         print(json.dumps(response.json(), indent=2))

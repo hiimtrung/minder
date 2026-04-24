@@ -174,8 +174,8 @@ class WorkflowPlannerNode:
             for n in service_nodes
             if n.name == repo_name
             or (
-                hasattr(n, "node_metadata")
-                and n.node_metadata.get("path", "").startswith(repo_path)
+                hasattr(n, "extra_metadata")
+                and (n.extra_metadata or {}).get("path", "").startswith(repo_path)
             )
         ]
 

@@ -1,6 +1,5 @@
 {
-  "name": "minder-dashboard",
-  "version": "0.1.0",
+  "name": "minder",
   "private": true,
   "type": "module",
   "packageManager": "bun@1.2.21",

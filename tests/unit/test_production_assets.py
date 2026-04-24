@@ -18,7 +18,7 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     assert 'CMD ["uv", "run", "--extra", "server", "python", "-m", "minder.server"]' in api_dockerfile
 
     assert "FROM oven/bun:1.2.21 AS dashboard-builder" in dashboard_dockerfile
-    assert "COPY src/dashboard/package.json" in dashboard_dockerfile
+    assert "COPY package.json bun.lock astro.config.mjs tsconfig.json" in dashboard_dockerfile
     assert "bun install --frozen-lockfile" in dashboard_dockerfile
     assert "RUN bun run build" in dashboard_dockerfile
     assert 'CMD ["node", "dist/server/entry.mjs"]' in dashboard_dockerfile

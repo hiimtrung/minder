@@ -20,6 +20,7 @@ from typing import Any
 
 from pydantic import Field
 from sqlalchemy import DateTime, Float, JSON, String, UUID, UniqueConstraint, func
+from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .base import Base, BaseModelMeta
@@ -36,7 +37,7 @@ class GraphNodeSchema(BaseModelMeta):
     branch: str = ""
     node_type: str  # module | file | service | owner | route | api_endpoint | websocket_endpoint | mq_topic | …
     name: str
-    metadata: dict[str, Any] = Field(default_factory=dict)
+    extra_metadata: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
@@ -80,7 +81,7 @@ class GraphNode(Base):
     branch: Mapped[str] = mapped_column(String, index=True, default="", server_default="")
     node_type: Mapped[str] = mapped_column(String, index=True)
     name: Mapped[str] = mapped_column(String, index=True)
-    node_metadata: Mapped[dict] = mapped_column("metadata", JSON, default=dict)
+    extra_metadata: Mapped[dict] = mapped_column("metadata", MutableDict.as_mutable(JSON), default=dict)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

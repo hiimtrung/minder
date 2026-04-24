@@ -79,7 +79,8 @@ def _make_graph_node(
     node.id = uuid.uuid4()
     node.node_type = node_type
     node.name = name
-    node.node_metadata = {"project": project, **(metadata or {})}
+    node.extra_metadata = {"project": project, **(metadata or {})}
+    node.created_at = None
     return node
 
 
@@ -500,7 +501,7 @@ class TestWorkflowPlannerNodeGraph:
         n = MagicMock()
         n.id = uuid.uuid4()
         n.name = name
-        n.node_metadata = {"path": path}
+        n.extra_metadata = {"path": path}
         return n
 
     # ------------------------------------------------------------------

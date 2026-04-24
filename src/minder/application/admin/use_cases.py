@@ -863,7 +863,7 @@ class AdminConsoleUseCases:
                 )
             else:
                 for graph_node in await self._graph_store.list_nodes():
-                    metadata = dict(getattr(graph_node, "node_metadata", {}) or {})
+                    metadata = dict(graph_node.extra_metadata or {})
                     if metadata.get("repo_id") != str(repo_id):
                         continue
                     if branch is not None and metadata.get("branch") not in {
@@ -1753,7 +1753,7 @@ class AdminConsoleUseCases:
 
     @staticmethod
     def _serialize_graph_node(node: Any) -> RepositoryGraphNodePayload:
-        metadata = dict(getattr(node, "node_metadata", {}) or {})
+        metadata = dict(node.extra_metadata or {})
         return {
             "id": str(getattr(node, "id")),
             "node_type": str(getattr(node, "node_type", "")),
@@ -1786,7 +1786,7 @@ class AdminConsoleUseCases:
         filtered.sort(
             key=lambda node: (
                 str(getattr(node, "node_type", "")),
-                str(dict(getattr(node, "node_metadata", {}) or {}).get("path", "")),
+                str((node.extra_metadata or {}).get("path", "")),
                 str(getattr(node, "name", "")),
             )
         )

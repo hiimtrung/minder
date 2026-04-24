@@ -7,6 +7,9 @@ const env = loadEnv(process.env.NODE_ENV ?? "development", process.cwd(), "");
 const apiUrl = env.PUBLIC_API_URL ?? env.API_URL ?? "";
 
 export default defineConfig({
+  srcDir: "./src/dashboard/src",
+  publicDir: "./src/dashboard/public",
+  outDir: "./src/dashboard/dist",
   adapter: node({ mode: "standalone" }),
   base: "/dashboard",
   server: {

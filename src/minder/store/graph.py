@@ -20,7 +20,7 @@ from collections import deque
 from contextlib import asynccontextmanager
 from typing import Any, AsyncGenerator
 
-from sqlalchemy import delete, select, text, update
+from sqlalchemy import cast, delete, or_, select, String, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from minder.models import Base, GraphEdge, GraphNode
@@ -44,10 +44,9 @@ class KnowledgeGraphStore:
     # ------------------------------------------------------------------
 
     async def init_db(self) -> None:
-        """Create graph tables (idempotent) then run v2 migration if needed."""
+        """Create graph tables (idempotent)."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
-        await self._migrate_graph_v2()
 
     async def dispose(self) -> None:
         await self._engine.dispose()
@@ -80,7 +79,8 @@ class KnowledgeGraphStore:
     async def _migrate_graph_v2_sqlite(self, conn: Any) -> None:
         """SQLite migration: recreate graph_nodes/graph_edges with new schema."""
         result = await conn.execute(text("PRAGMA table_info(graph_nodes)"))
-        existing_cols = {row[1] for row in result.fetchall()}
+        rows = result.fetchall()
+        existing_cols = {row[1] for row in rows}
 
         if "repo_id" not in existing_cols:
             logger.info("Migrating graph_nodes to v2 schema (SQLite)...")
@@ -93,6 +93,7 @@ class KnowledgeGraphStore:
                     node_type TEXT NOT NULL,
                     name TEXT NOT NULL,
                     metadata JSON,
+                    metadata_json TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (id),
                     UNIQUE (repo_id, branch, node_type, name)
@@ -101,7 +102,7 @@ class KnowledgeGraphStore:
             # Migrate existing data: extract repo_id/branch from JSON metadata
             await conn.execute(text("""
                 INSERT OR IGNORE INTO graph_nodes_v2
-                    (id, repo_id, branch, node_type, name, metadata, created_at)
+                    (id, repo_id, branch, node_type, name, metadata_json, created_at)
                 SELECT
                     id,
                     COALESCE(json_extract(metadata, '$.repo_id'), ''),
@@ -256,7 +257,7 @@ class KnowledgeGraphStore:
                 branch=branch,
                 node_type=node_type,
                 name=name,
-                node_metadata=metadata or {},
+                extra_metadata=metadata or {},
             )
             sess.add(node)
             await sess.flush()
@@ -274,6 +275,7 @@ class KnowledgeGraphStore:
     ) -> GraphNode:
         """Insert or update a node by (repo_id, branch, type, name)."""
         async with self._session() as sess:
+            # We don't use merge() directly because we want to scope by repo/branch/type/name
             result = await sess.execute(
                 select(GraphNode).where(
                     GraphNode.repo_id == repo_id,
@@ -282,27 +284,23 @@ class KnowledgeGraphStore:
                     GraphNode.name == name,
                 )
             )
-            existing = result.scalar_one_or_none()
-            if existing is not None:
+            node = result.scalar_one_or_none()
+            if node:
                 if metadata:
-                    await sess.execute(
-                        update(GraphNode)
-                        .where(GraphNode.id == existing.id)
-                        .values(node_metadata={**dict(existing.node_metadata), **metadata})
-                    )
-                    await sess.refresh(existing)
-                return existing
-            node = GraphNode(
-                id=uuid.uuid4(),
-                repo_id=repo_id,
-                branch=branch,
-                node_type=node_type,
-                name=name,
-                node_metadata=metadata or {},
-            )
+                    node.extra_metadata = {**dict(node.extra_metadata or {}), **metadata}
+            else:
+                node = GraphNode(
+                    id=uuid.uuid4(),
+                    repo_id=repo_id,
+                    branch=branch,
+                    node_type=node_type,
+                    name=name,
+                    extra_metadata=metadata or {},
+                )
+            
             sess.add(node)
             await sess.flush()
-            await sess.refresh(node)
+            await sess.commit()
             return node
 
     async def get_node(self, node_id: uuid.UUID) -> GraphNode | None:
@@ -406,7 +404,7 @@ class KnowledgeGraphStore:
                 result = await sess.execute(stmt)
                 to_delete_ids: set[uuid.UUID] = set()
                 for node in result.scalars().all():
-                    meta = dict(node.node_metadata or {})
+                    meta = dict(node.extra_metadata or {})
                     if str(meta.get("path", "") or "") in paths:
                         to_delete_ids.add(node.id)
                 
@@ -556,7 +554,7 @@ class KnowledgeGraphStore:
                     existing = existing_map[key]
                     if metadata:
                         # Merge metadata
-                        existing.node_metadata = {**dict(existing.node_metadata), **metadata}
+                        existing.extra_metadata = {**dict(existing.extra_metadata or {}), **metadata}
                     id_map[key] = existing.id
                 else:
                     new_node = GraphNode(
@@ -565,7 +563,7 @@ class KnowledgeGraphStore:
                         branch=branch,
                         node_type=node_type,
                         name=name,
-                        node_metadata=metadata,
+                        extra_metadata=metadata,
                     )
                     sess.add(new_node)
                     id_map[key] = new_node.id
@@ -627,8 +625,12 @@ class KnowledgeGraphStore:
     ) -> list[GraphNode]:
         """Search nodes by name or metadata using database-level filtering."""
         async with self._session() as sess:
-            # Simple LIKE search on name
-            stmt = select(GraphNode).where(GraphNode.name.ilike(f"%{query}%"))
+            stmt = select(GraphNode).where(
+                or_(
+                    GraphNode.name.ilike(f"%{query}%"),
+                    cast(GraphNode.extra_metadata, String).ilike(f"%{query}%"),
+                )
+            )
             
             if repo_id:
                 stmt = stmt.where(GraphNode.repo_id == repo_id)

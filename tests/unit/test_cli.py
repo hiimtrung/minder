@@ -496,7 +496,7 @@ def test_sync_dry_run_prints_delta_payload(
     payload = json.loads(capsys.readouterr().out)
     assert payload["branch"] == "feature/sync"
     assert payload["deleted_files"] == ["removed.py"]
-    assert payload["sync_metadata"]["changed_files"] == ["config.json", "notes.md"]
+    assert payload["changed_files"] == ["config.json", "notes.md"]
     assert payload["sync_metadata"]["deleted_file_count"] == 1
     assert any(
         node["node_type"] == "file" and node["name"] == "notes.md"
@@ -618,11 +618,11 @@ def test_sync_posts_payload_to_server(
         == "http://localhost:8801/v1/client/repositories/11111111-1111-1111-1111-111111111111/graph-sync"
     )
     assert captured["headers"] == {"X-Minder-Client-Key": "mkc_test_client_key_123"}
-    assert captured["timeout"] == 30
+    assert captured["timeout"] == 300
     payload = captured["json"]
     assert isinstance(payload, dict)
     assert payload["deleted_files"] == ["removed.py"]
-    assert payload["sync_metadata"]["changed_files"] == ["notes.md"]
+    assert payload["changed_files"] == ["notes.md"]
 
     output = json.loads(capsys.readouterr().out)
     assert output["deleted_nodes"] == 1
@@ -767,7 +767,7 @@ def test_sync_auto_resolves_repo_id_when_omitted(
         == "http://localhost:8801/v1/client/repositories/22222222-2222-2222-2222-222222222222/graph-sync"
     )
     assert captured[0]["timeout"] == 15
-    assert captured[1]["timeout"] == 30
+    assert captured[1]["timeout"] == 300
     assert captured[0]["json"] == {
         "repo_name": "minder",
         "repo_path": str(repo_root),
@@ -780,7 +780,7 @@ def test_sync_auto_resolves_repo_id_when_omitted(
 
 
 def test_sync_requires_remote_origin_when_repo_id_omitted(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -804,25 +804,18 @@ def test_sync_requires_remote_origin_when_repo_id_omitted(
     )
     monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
-    try:
-        main(
-            [
-                "sync",
-                "--repo-path",
-                str(repo_root),
-                "--config-path",
-                str(config_path),
-            ]
-        )
-    except ValueError as exc:
-        assert (
-            str(exc)
-            == "Repository remote origin SSH URL is required when --repo-id is omitted"
-        )
-    else:
-        raise AssertionError(
-            "sync should require a remote origin when repo_id is omitted"
-        )
+    exit_code = main(
+        [
+            "sync",
+            "--repo-path",
+            str(repo_root),
+            "--config-path",
+            str(config_path),
+        ]
+    )
+    assert exit_code == 1
+    err = capsys.readouterr().out
+    assert "Repository remote origin SSH URL is required when --repo-id is omitted" in err
 
 
 def test_sync_can_skip_upgrade_notice(

@@ -51,6 +51,7 @@ def build_parser() -> argparse.ArgumentParser:
         f"  claude-code  per-repo:  {_cwd_placeholder}/.claude/mcp.json\n"
         f"               --global:  {_global_target_path('claude-code')}\n"
         f"  antigravity  always:    {_global_target_path('antigravity')}  [--global has no effect]\n"
+        f"  codex        always:    {_global_target_path('codex')}  [--global has no effect]\n"
         "  all          all targets above (default)\n"
     )
 

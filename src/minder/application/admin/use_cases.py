@@ -1071,7 +1071,6 @@ class AdminConsoleUseCases:
 
         repo_nodes = await self._repository_graph_nodes(repository, branch=branch)
         counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
-        repo_node_ids = {str(getattr(node, "id")) for node in repo_nodes}
         # 1. Fetch all edges for the repo
         repo_edges = await self._graph_store.list_edges_by_scope(repo_id=str(repo_id))
         
@@ -1135,18 +1134,19 @@ class AdminConsoleUseCases:
             ))
 
         # 5. Format the results
-        dependencies = []
+        dependencies: list[dict[str, Any]] = []
         for owner_id, targets in owner_to_deps.items():
             owner_node = node_id_to_node[owner_id]
+            depends_on_items: list[dict[str, str]] = [
+                {"id": tid, "name": tname, "node_type": ttype}
+                for tid, tname, ttype in targets
+            ]
             dependencies.append({
                 "service": str(getattr(owner_node, "name", "")),
                 "source_type": str(getattr(owner_node, "node_type", "")),
-                "depends_on": sorted([
-                    {"id": tid, "name": tname, "node_type": ttype}
-                    for tid, tname, ttype in targets
-                ], key=lambda x: x["name"])
+                "depends_on": sorted(depends_on_items, key=lambda item: item["name"]),
             })
-        dependencies.sort(key=lambda x: x["service"])
+        dependencies.sort(key=lambda item: str(item["service"]))
 
         return {
             "repository": repository_payload,

@@ -296,7 +296,8 @@ class GraphTools:
                 continue
 
             curr_node = node_id_to_node.get(node_id)
-            if not curr_node: continue
+            if not curr_node:
+                continue
             
             curr_type = str(getattr(curr_node, "node_type", ""))
             curr_name = str(getattr(curr_node, "name", "")).lower()

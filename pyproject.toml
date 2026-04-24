@@ -38,6 +38,7 @@ server = [
     "pydantic-settings[toml]>=2.13.1",
     "pyjwt>=2.12.1",
     "pymilvus>=2.6.12",
+    "redis>=4.2.0",
     "sqlalchemy[asyncio]>=2.0.49",
     "yarl>=1.16.0",
     "zipp>=3.21.0",

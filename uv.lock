@@ -1126,7 +1126,7 @@ wheels = [
 
 [[package]]
 name = "minder-cli"
-version = "0.4.2"
+version = "0.4.3"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
@@ -1148,6 +1148,7 @@ server = [
     { name = "pydantic-settings", extra = ["toml"] },
     { name = "pyjwt" },
     { name = "pymilvus" },
+    { name = "redis" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "yarl" },
     { name = "zipp" },
@@ -1182,6 +1183,7 @@ requires-dist = [
     { name = "pydantic-settings", extras = ["toml"], marker = "extra == 'server'", specifier = ">=2.13.1" },
     { name = "pyjwt", marker = "extra == 'server'", specifier = ">=2.12.1" },
     { name = "pymilvus", marker = "extra == 'server'", specifier = ">=2.6.12" },
+    { name = "redis", marker = "extra == 'server'", specifier = ">=4.2.0" },
     { name = "sqlalchemy", extras = ["asyncio"], marker = "extra == 'server'", specifier = ">=2.0.49" },
     { name = "yarl", marker = "extra == 'server'", specifier = ">=1.16.0" },
     { name = "zipp", marker = "extra == 'server'", specifier = ">=3.21.0" },

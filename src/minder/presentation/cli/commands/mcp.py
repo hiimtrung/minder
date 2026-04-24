@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import platform
+import re
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,11 @@ from ..utils.common import (
 from ..utils.config import require_client_settings
 
 _LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity")
+_ALL_MCP_TARGETS = (*_LOCAL_MCP_TARGETS, "codex")
+
+# Matches [mcp_servers.minder] and all its key/value lines up to the next
+# section header or end of file. [^\[] also matches newlines in Python.
+_CODEX_SECTION_RE = re.compile(r"^\[mcp_servers\.minder\][^\[]*", re.MULTILINE)
 
 
 def _global_target_path(target: str) -> Path:
@@ -39,7 +45,47 @@ def _global_target_path(target: str) -> Path:
         return Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
     if target == "antigravity":
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
+    if target == "codex":
+        return Path.home() / ".codex" / "config.toml"
     raise ValueError(f"Unknown global target: {target}")
+
+
+def _codex_mcp_section(url: str, client_key: str) -> str:
+    return (
+        "[mcp_servers.minder]\n"
+        f'url = "{url}"\n'
+        f'http_headers = {{ "X-Minder-Client-Key" = "{client_key}" }}\n'
+    )
+
+
+def _install_codex_mcp(url: str, client_key: str) -> None:
+    path = _global_target_path("codex")
+    new_section = _codex_mcp_section(url, client_key)
+    existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if _CODEX_SECTION_RE.search(existing):
+        updated = _CODEX_SECTION_RE.sub(new_section, existing)
+    else:
+        updated = existing.rstrip("\n")
+        if updated:
+            updated += "\n\n"
+        updated += new_section
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(updated, encoding="utf-8")
+
+
+def _uninstall_codex_mcp() -> bool:
+    path = _global_target_path("codex")
+    if not path.is_file():
+        return False
+    existing = path.read_text(encoding="utf-8")
+    if not _CODEX_SECTION_RE.search(existing):
+        return False
+    updated = _CODEX_SECTION_RE.sub("", existing).strip("\n")
+    if updated:
+        path.write_text(updated + "\n", encoding="utf-8")
+    else:
+        path.unlink(missing_ok=True)
+    return True
 
 
 def local_target_path(target: str, cwd: Path) -> Path:
@@ -101,14 +147,25 @@ def _target_entry(
 def install_mcp_command(args: argparse.Namespace) -> int:
     config_path = Path(args.config_path).expanduser().resolve()
     settings = require_client_settings(config_path)
-    
+
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = list(_LOCAL_MCP_TARGETS)
-        
+        targets = list(_ALL_MCP_TARGETS)
+
     cwd = Path(args.cwd).resolve()
-    
+
     for target in targets:
+        if target == "codex":
+            try:
+                _install_codex_mcp(
+                    sse_url(settings.get("server_url") or ""),
+                    settings["client_api_key"],
+                )
+                print(f"Installed Minder MCP config for codex at {_global_target_path('codex')}")
+            except Exception as e:
+                print(f"Failed to install MCP for codex: {e}")
+            continue
+
         try:
             if args.global_install:
                 path = _global_target_path(target)
@@ -138,11 +195,20 @@ def install_mcp_command(args: argparse.Namespace) -> int:
 def uninstall_mcp_command(args: argparse.Namespace) -> int:
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = list(_LOCAL_MCP_TARGETS)
-        
+        targets = list(_ALL_MCP_TARGETS)
+
     cwd = Path(args.cwd).resolve()
-    
+
     for target in targets:
+        if target == "codex":
+            try:
+                removed = _uninstall_codex_mcp()
+                if removed:
+                    print(f"Removed Minder MCP config for codex from {_global_target_path('codex')}")
+            except Exception as e:
+                print(f"Failed to uninstall MCP for codex: {e}")
+            continue
+
         try:
             if args.global_install:
                 path = _global_target_path(target)
@@ -165,5 +231,8 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                 print(f"Removed Minder MCP config for {target} from {path}")
         except Exception as e:
             print(f"Failed to uninstall MCP for {target}: {e}")
-            
+
     return 0
+
+
+remove_mcp_command = uninstall_mcp_command

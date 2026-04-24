@@ -121,14 +121,28 @@ def sync_command(args: argparse.Namespace) -> int:
         if diff_base:
             print(f"  Using last sync commit as diff base: {diff_base[:8]}", file=sys.stderr)
 
-    changed, deleted = git_file_delta(root, diff_base)
-    relationships = detect_branch_relationships(root, branch)
-    
     commit_hash = None
     try:
         commit_hash = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
     except Exception:
         pass
+
+    if not args.diff_base and last_sync and commit_hash:
+        last_synced_commit = last_sync.get("commit_hash", "")
+        last_synced_branch = last_sync.get("branch")
+        if (
+            last_synced_commit
+            and commit_hash == last_synced_commit
+            and (last_synced_branch is None or last_synced_branch == branch)
+        ):
+            print(
+                f"Already up to date on '{branch}' (HEAD={commit_hash[:8]}), nothing to sync.",
+                file=sys.stderr,
+            )
+            return 0
+
+    changed, deleted = git_file_delta(root, diff_base)
+    relationships = detect_branch_relationships(root, branch)
     
     def progress(msg: str) -> None:
         sys.stderr.write(f"  {msg}\n")

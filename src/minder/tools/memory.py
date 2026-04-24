@@ -13,6 +13,17 @@ from minder.store.interfaces import IOperationalStore
 if TYPE_CHECKING:
     from minder.continuity import ContinuitySynthesizer
 
+MEMORY_LANGUAGES: frozenset[str | None] = frozenset(
+    {"markdown", "text", "en", "vi", "", None}
+)
+
+
+def is_memory_record(skill: Any) -> bool:
+    return (
+        getattr(skill, "language", "") in MEMORY_LANGUAGES
+        and getattr(skill, "source_metadata", None) is None
+    )
+
 
 class MemoryTools:
     def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
@@ -81,11 +92,8 @@ class MemoryTools:
         skills = await self._store.list_skills()
         ranked: list[dict[str, Any]] = []
         for skill in skills:
-            # Differentiation: Memories are markdown/text AND have NO source metadata
-            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
-                getattr(skill, "source_metadata", None) is None
-            )
-            if not is_memory:
+            # Differentiation: Memories are human-language records with no import/source metadata.
+            if not is_memory_record(skill):
                 continue
 
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
@@ -145,8 +153,7 @@ class MemoryTools:
                 "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
             }
             for skill in skills
-            if (getattr(skill, "language", "") in ("markdown", "text", "", None))
-            and (getattr(skill, "source_metadata", None) is None)
+            if is_memory_record(skill)
         ]
 
     async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:

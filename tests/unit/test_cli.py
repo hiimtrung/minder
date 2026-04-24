@@ -149,6 +149,53 @@ def test_install_and_uninstall_local_mcp_configs(
     assert "Removed Minder MCP config" in output
 
 
+def test_install_mcp_antigravity_writes_gemini_config(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "protocol": "sse",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "install",
+            "mcp",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+
+    assert exit_code == 0
+    antigravity_payload = json.loads(
+        (tmp_path / ".gemini" / "antigravity" / "mcp_config.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        antigravity_payload["mcpServers"]["minder"]["serverUrl"]
+        == "http://localhost:8801/mcp"
+    )
+    assert (
+        antigravity_payload["mcpServers"]["minder"]["headers"][
+            "X-Minder-Client-Key"
+        ]
+        == "mkc_test_client_key_123"
+    )
+
+
 def test_install_ide_creates_repo_local_assets_and_gitignore(
     tmp_path, capsys
 ) -> None:  # noqa: ANN001
@@ -207,6 +254,58 @@ def test_install_ide_creates_repo_local_assets_and_gitignore(
 
     output = capsys.readouterr().out
     assert "Installed Minder IDE asset" in output
+
+
+def test_install_and_uninstall_ide_antigravity_assets(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "protocol": "sse",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    install_exit = main(
+        [
+            "install",
+            "ide",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert install_exit == 0
+    assert (
+        tmp_path / ".gemini" / "antigravity" / "mcp_config.json"
+    ).is_file()
+    assert "minder-ide-instructions:antigravity" in (
+        tmp_path / ".agents" / "workflows" / "minder.md"
+    ).read_text(encoding="utf-8")
+    assert (tmp_path / ".minder" / "agent.json").is_file()
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "ide",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert uninstall_exit == 0
+    assert not (tmp_path / ".gemini" / "antigravity" / "mcp_config.json").exists()
+    assert not (tmp_path / ".minder" / "agent.json").exists()
 
 
 def test_install_ide_updates_managed_blocks_without_removing_custom_text(

@@ -17,6 +17,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_continuity_skill_recall
 from minder.store.interfaces import IOperationalStore
+from minder.tools.memory import is_memory_record
 
 
 @dataclass(frozen=True)
@@ -141,11 +142,8 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Differentiation: Skills are code OR have source metadata
-            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
-                getattr(skill, "source_metadata", None) is None
-            )
-            if is_memory:
+            # Skills exclude memory-classified records.
+            if is_memory_record(skill):
                 continue
 
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
@@ -202,11 +200,8 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Differentiation: Skills are code OR have source metadata
-            is_memory = (getattr(skill, "language", "") in ("markdown", "text", "", None)) and (
-                getattr(skill, "source_metadata", None) is None
-            )
-            if is_memory:
+            # Skills exclude memory-classified records.
+            if is_memory_record(skill):
                 continue
 
             normalized_tags = {

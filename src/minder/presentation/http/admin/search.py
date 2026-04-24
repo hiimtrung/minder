@@ -10,7 +10,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.prompts import PromptRegistry
-from minder.tools.memory import MemoryTools
+from minder.tools.memory import MemoryTools, is_memory_record
 from minder.tools.skills import SkillTools
 
 from .context import AdminRouteContext
@@ -104,13 +104,18 @@ async def _rank_skill_items(
     # For mxbai and similar models, queries often perform better with a prefix.
     query_text = f"Represent this sentence for searching relevant passages: {query}"
     query_embedding = context.embedder.embed(query_text)
+    query_dims = len(query_embedding)
     candidate_texts: list[str] = []
     candidates_with_embeddings: list[tuple[dict[str, Any], list[float]]] = []
 
     for item in items:
         # Use stored embedding if available to avoid expensive re-embedding
         stored_emb = item.get("_embedding")
-        if isinstance(stored_emb, list) and stored_emb:
+        if (
+            isinstance(stored_emb, list)
+            and stored_emb
+            and (query_dims == 0 or len(stored_emb) == query_dims)
+        ):
             candidates_with_embeddings.append((item, stored_emb))
             continue
 
@@ -297,12 +302,6 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
         elif resource == "skills":
             skill_tools = SkillTools(context.store, context.config)
             all_skill_items = await skill_tools.minder_skill_list()
-            all_skill_items = [
-                s
-                for s in all_skill_items
-                if s.get("language") not in ("markdown", "text", "")
-                or s.get("source") is not None
-            ]
             ranked = await _rank_skill_items(
                 items=all_skill_items,
                 query=query,
@@ -313,8 +312,7 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
             all_memory_items = [
                 _serialize_memory(skill)
                 for skill in all_skills
-                if getattr(skill, "language", "") in ("markdown", "text", "", None)
-                and getattr(skill, "source_metadata", None) is None
+                if is_memory_record(skill)
             ]
             if query:
                 memory_tools = MemoryTools(context.store, context.config)
@@ -323,12 +321,6 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                     limit=max(len(all_memory_items), 1),
                     skip_synthesis=True,
                 )
-                ranked = [
-                    item
-                    for item in ranked
-                    if item.get("language") in ("markdown", "text", "", None)
-                    and item.get("source") is None
-                ]
             else:
                 ranked = sorted(
                     all_memory_items,

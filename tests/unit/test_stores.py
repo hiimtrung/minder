@@ -63,7 +63,7 @@ class TestKnowledgeGraphStore:
         node = await graph_store.add_node("file", "src/main.py", metadata={"lines": 120})
         fetched = await graph_store.get_node(node.id)
         assert fetched is not None
-        assert fetched.node_metadata["lines"] == 120
+        assert fetched.extra_metadata["lines"] == 120
 
     async def test_get_nonexistent_node_returns_none(self, graph_store: KnowledgeGraphStore) -> None:
         result = await graph_store.get_node(uuid.uuid4())
@@ -79,7 +79,7 @@ class TestKnowledgeGraphStore:
     ) -> None:
         await graph_store.upsert_node("service", "order-service", metadata={"version": 1})
         updated = await graph_store.upsert_node("service", "order-service", metadata={"version": 2})
-        assert updated.node_metadata.get("version") == 2
+        assert updated.extra_metadata.get("version") == 2
 
     async def test_upsert_node_idempotent_same_id(self, graph_store: KnowledgeGraphStore) -> None:
         n1 = await graph_store.upsert_node("module", "payments")

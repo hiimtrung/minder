@@ -11,6 +11,7 @@ from starlette.routing import BaseRoute, Route
 
 from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
+from minder.tools.memory import is_memory_record
 from minder.tools.skills import SkillTools
 
 from .context import AdminRouteContext
@@ -105,8 +106,7 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 [
                     s
                     for s in all_skills
-                    if (getattr(s, "language", "") not in ("markdown", "text", "", None))
-                    or (getattr(s, "source_metadata", None) is not None)
+                    if not is_memory_record(s)
                 ],
                 key=lambda skill: (
                     -float(getattr(skill, "quality_score", 0.0) or 0.0),

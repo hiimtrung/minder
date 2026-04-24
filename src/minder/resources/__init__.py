@@ -290,25 +290,29 @@ class ResourceRegistry:
 
 
 def _serialize_graph_node(node: Any) -> dict[str, Any]:
-    metadata = getattr(node, "node_metadata", {}) or {}
+    """Helper to convert GraphNode to dict for JSON serialization."""
     return {
-        "id": str(getattr(node, "id")),
-        "node_type": str(getattr(node, "node_type", "")),
-        "name": str(getattr(node, "name", "")),
-        "metadata": metadata if isinstance(metadata, dict) else {},
+        "id": str(node.id),
+        "node_type": node.node_type,
+        "name": node.name,
+        "metadata": node.extra_metadata or {},
+        "created_at": node.created_at.isoformat() if node.created_at else None,
     }
 
 
 async def _repo_graph_nodes(graph_store: IGraphRepository, repo_name: str) -> list[Any]:
-    nodes = await graph_store.list_nodes()
-    selected: list[Any] = []
-    for node in nodes:
-        metadata = getattr(node, "node_metadata", {}) or {}
+    """Helper to get and filter nodes for a specific repository."""
+    all_nodes = await graph_store.list_nodes()
+    selected = []
+    for node in all_nodes:
+        metadata = node.extra_metadata or {}
         project = str(metadata.get("project", "") or "")
-        path_value = str(metadata.get("path", "") or "")
         if project == repo_name:
             selected.append(node)
             continue
+        
+        # Fallback for older nodes or special cases
+        path_value = str(metadata.get("path", "") or "")
         if path_value:
             try:
                 if Path(path_value).name == repo_name:

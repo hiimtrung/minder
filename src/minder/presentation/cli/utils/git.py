@@ -89,7 +89,7 @@ def repo_name_from_remote(remote_url: str | None) -> str | None:
 
 def git_file_delta(
     repo_root_path: Path, diff_base: str | None = None
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[str] | None, list[str]]:
     diff_command = ["diff", "--name-only", "--diff-filter=ACMRD"]
     if diff_base:
         diff_command.append(f"{diff_base}...HEAD")
@@ -119,6 +119,8 @@ def git_file_delta(
     changed.update(
         line.strip() for line in untracked_result.stdout.splitlines() if line.strip()
     )
+    if diff_base is None:
+        return None, sorted(deleted)
     return sorted(changed), sorted(deleted)
 
 

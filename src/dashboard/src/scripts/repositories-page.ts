@@ -8,6 +8,7 @@ import {
   type RepositoryGraphImpactPayload,
   getRepositoryGraphImpact,
   getRepositoryGraphMap,
+  getRepositoryNodeNeighborhood,
   type RepositoryGraphResultNodePayload,
   type RepositoryGraphScopePayload,
   type RepositoryGraphSearchPayload,
@@ -28,6 +29,7 @@ import {
   type RepositoryLandscapePayload,
   type RepositoryPayload,
 } from "../lib/api/admin";
+import { showDangerConfirm } from "./modal-controller";
 import { createDebouncedHandler } from "./catalog-controls";
 
 // ============================================================
@@ -150,6 +152,12 @@ class D3GraphRenderer {
   private onSimCb: ((running: boolean) => void) | null = null;
   private simRunning = false;
   private readonly uid: string;
+  public getNodes(): SimNode[] {
+    return this.nodes;
+  }
+  public getEdges(): SimEdge[] {
+    return this.edges;
+  }
 
   constructor(container: HTMLElement, tooltipEl: HTMLElement) {
     this.container = container;
@@ -1206,28 +1214,26 @@ function showNodeDetails(
   if (!metaEl) return;
   const rows = Object.entries(node.metadata)
     .filter(([, v]) => v != null && v !== "")
-    .map(
-      ([k, v]) => {
-        const value = String(v);
-        const compactValue = value.trim();
-        const isLong =
-          compactValue.length > 56 ||
-          compactValue.includes("\n") ||
-          compactValue.includes("/") ||
-          compactValue.includes("\\") ||
-          compactValue.includes(",") ||
-          compactValue.includes("[") ||
-          compactValue.includes("]") ||
-          (compactValue.length > 28 && compactValue.includes(" "));
+    .map(([k, v]) => {
+      const value = String(v);
+      const compactValue = value.trim();
+      const isLong =
+        compactValue.length > 56 ||
+        compactValue.includes("\n") ||
+        compactValue.includes("/") ||
+        compactValue.includes("\\") ||
+        compactValue.includes(",") ||
+        compactValue.includes("[") ||
+        compactValue.includes("]") ||
+        (compactValue.length > 28 && compactValue.includes(" "));
 
-        return `
+      return `
       <div class="${isLong ? "sm:col-span-2" : ""} grid gap-0 overflow-hidden rounded-md border border-white/10 bg-white/6 px-2 py-1.5">
         <span class="text-[9px] font-bold uppercase tracking-[0.18em] text-white/45">${escapeHtml(k)}</span>
-        <span class="overflow-x-hidden text-[11px] leading-3.5 text-white/92 ${isLong ? "whitespace-pre-wrap break-words" : "break-all"}">${escapeHtml(value)}</span>
+        <span class="overflow-x-hidden text-[11px] leading-3.5 text-white/92 ${isLong ? "whitespace-pre-wrap wrap-break-word" : "break-all"}">${escapeHtml(value)}</span>
       </div>
     `;
-      },
-    )
+    })
     .join("");
   metaEl.innerHTML =
     rows || `<p class="text-xs text-white/50 col-span-full">No metadata.</p>`;
@@ -1256,6 +1262,73 @@ function showRepoNodeDetails(n: SimNode | null): void {
     "repo-graph-node-details",
     n,
   );
+  selectedNodeId = n ? n.id : null;
+  if (n) {
+    handleExploreNode();
+  }
+}
+
+async function handleExploreNode(): Promise<void> {
+  if (!activeRepositoryId || !selectedNodeId) return;
+
+  const statusEl = getEl("repo-graph-status");
+  
+  if (selectedNodeId.startsWith("folder:")) {
+    setText(statusEl, "Selected: Folder (virtual node)");
+    return;
+  }
+
+  setText(statusEl, "Exploring neighborhood…");
+
+  try {
+    const res = await getRepositoryNodeNeighborhood(
+      activeRepositoryId,
+      selectedNodeId,
+      4,
+      100,
+    );
+    const { nodes, edges } = buildGraphData(
+      res.repository.name,
+      res.nodes,
+      res.edges,
+      `Neighborhood of ${selectedNodeId}`,
+    );
+
+    const renderer = initRepoRenderer();
+    if (renderer) {
+      const currentNodes = renderer.getNodes();
+      const currentEdges = renderer.getEdges();
+
+      const nodeMap = new Map<string, SimNode>();
+      currentNodes.forEach((n) => nodeMap.set(n.id, n));
+      nodes.forEach((n) => {
+        if (!nodeMap.has(n.id)) nodeMap.set(n.id, n);
+      });
+
+      const edgeMap = new Map<string, SimEdge>();
+      currentEdges.forEach((e) => edgeMap.set(e.id, e));
+      edges.forEach((e) => {
+        if (!edgeMap.has(e.id)) edgeMap.set(e.id, e);
+      });
+
+      renderer.render([...nodeMap.values()], [...edgeMap.values()]);
+      // Mark the seed node
+      const seed = [...nodeMap.values()].find((n) => n.id === selectedNodeId);
+      if (seed) seed.emphasis = "seed";
+
+      renderLegendOverlay("repo-graph-legend", [...nodeMap.values()]);
+    }
+
+    setText(
+      statusEl,
+      `Showing ${res.summary.node_count} nodes around selected node (Depth 4).`,
+    );
+  } catch (err) {
+    setText(
+      statusEl,
+      err instanceof Error ? err.message : "Failed to explore node",
+    );
+  }
 }
 function showSearchNodeDetails(n: SimNode | null): void {
   const shell = getEl("search-graph-details-shell");
@@ -1291,6 +1364,9 @@ function showImpactNodeDetails(n: SimNode | null): void {
 // Close buttons
 getEl("repo-graph-node-close")?.addEventListener("click", () => {
   showRepoNodeDetails(null);
+});
+getEl("repo-graph-node-explore")?.addEventListener("click", () => {
+  handleExploreNode();
 });
 getEl("search-graph-node-close")?.addEventListener("click", () => {
   showSearchNodeDetails(null);
@@ -1450,7 +1526,7 @@ function renderBranchState(branchState: RepositoryBranchPayload | null): void {
       ([label, value]) => `
     <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
       <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400">${escapeHtml(label)}</p>
-      <p class="mt-1.5 text-sm font-semibold text-stone-950 break-words">${escapeHtml(value)}</p>
+      <p class="mt-1.5 text-sm font-semibold text-stone-950 wrap-break-word">${escapeHtml(value)}</p>
     </article>
   `,
     )
@@ -1524,7 +1600,7 @@ function renderBranchLinks(
                 <span class="rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${badgeClass}">${escapeHtml(badgeLabel)}</span>
                 <span class="rounded-full bg-stone-200 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-stone-700">${escapeHtml(link.relation)}</span>
               </div>
-              <p class="mt-2 text-sm font-semibold text-stone-950 break-words">${escapeHtml(link.source_repo_name)} · ${escapeHtml(link.source_branch)} → ${escapeHtml(link.target_repo_name)} · ${escapeHtml(link.target_branch)}</p>
+              <p class="mt-2 text-sm font-semibold text-stone-950 wrap-break-word">${escapeHtml(link.source_repo_name)} · ${escapeHtml(link.source_branch)} → ${escapeHtml(link.target_repo_name)} · ${escapeHtml(link.target_branch)}</p>
               <p class="mt-1 text-xs text-stone-500">${escapeHtml(link.target_repo_url ?? "No remote")} · confidence ${escapeHtml(link.confidence.toFixed(2))}</p>
               <p class="mt-1 text-xs text-stone-500">${escapeHtml(note)}</p>
             </div>
@@ -1565,7 +1641,7 @@ function renderNodeCollection(
     .map((n) => {
       const p = meta(n.metadata, "path");
       const lang = meta(n.metadata, "language");
-      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
+      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3 truncate w-full">
       <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">${escapeHtml(n.node_type)}</p>
       <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(n.name)}</p>
       <p class="mt-1 text-xs text-stone-500">${escapeHtml(p ?? lang ?? "—")}</p>
@@ -1584,8 +1660,8 @@ function renderDependencies(s: RepositoryGraphSummaryPayload): void {
   el.innerHTML = s.dependencies
     .map((dep) => {
       const targets = dep.depends_on.map((t) => escapeHtml(t.name)).join(", ");
-      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Service</p>
+      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3 ">
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">${escapeHtml(dep.source_type || "Service")}</p>
       <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(dep.service)}</p>
       <p class="mt-1 text-xs text-stone-500">${targets || "No targets"}</p>
     </article>`;
@@ -1703,7 +1779,7 @@ function renderCrossRepoResultCards(
                   ? `score ${item.score}`
                   : item.node_type;
               return `<div class="rounded-xl border border-white bg-white px-3 py-2">
-                <p class="text-sm font-medium text-stone-900 break-words">${escapeHtml(item.name)}</p>
+                <p class="text-sm font-medium text-stone-900 wrap-break-word">${escapeHtml(item.name)}</p>
                 <p class="mt-1 text-[11px] uppercase tracking-[0.16em] text-stone-400">${escapeHtml(detail)}</p>
               </div>`;
             })
@@ -1724,6 +1800,7 @@ let visibleRepositories: RepositoryPayload[] = [];
 let activeRepositoryId: string | null = null;
 let activeRepository: RepositoryPayload | null = null;
 let activeBranch: string | null = null; // currently selected branch for graph view
+let selectedNodeId: string | null = null;
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
 let repositoryQuery = "";
 
@@ -1929,7 +2006,7 @@ function renderMetricValue(value: number | Record<string, number>): string {
         .map(
           ([key, count]) => `
             <div class="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-white bg-white px-3 py-2">
-              <span class="min-w-0 break-words text-sm font-medium text-stone-700">${escapeHtml(humanizeMetricLabel(key))}</span>
+              <span class="min-w-0 wrap-break-word text-sm font-medium text-stone-700">${escapeHtml(humanizeMetricLabel(key))}</span>
               <span class="shrink-0 rounded-full bg-stone-900 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">${escapeHtml(String(count))}</span>
             </div>
           `,
@@ -2123,12 +2200,18 @@ async function loadRepoGraph(
     }
 
     const branchLabel = graphMap.branch ? ` · ${graphMap.branch}` : "";
-    setText(
-      getEl("repo-graph-status"),
-      graphMap.graph_available
-        ? `${graphMap.summary.node_count} nodes · ${graphMap.summary.edge_count} edges${branchLabel}`
-        : "No graph snapshot for this repository yet.",
-    );
+    let statusText = "";
+    if (graphMap.graph_available) {
+      const isTruncated =
+        graphMap.summary.returned_node_count < graphMap.summary.node_count;
+      statusText = `${graphMap.summary.node_count} nodes · ${graphMap.summary.edge_count} edges${branchLabel}`;
+      if (isTruncated) {
+        statusText += ` (Showing top ${graphMap.summary.returned_node_count})`;
+      }
+    } else {
+      statusText = "No graph snapshot for this repository yet.";
+    }
+    setText(getEl("repo-graph-status"), statusText);
   } catch (err) {
     const msg =
       err instanceof Error ? err.message : "Failed to load repository";
@@ -2296,7 +2379,7 @@ async function handleImpactSubmit(e: SubmitEvent): Promise<void> {
         .map(
           ([k, v]) => `
           <article class="min-w-0 rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 break-words">${escapeHtml(humanizeMetricLabel(k))}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.18em] text-stone-400 wrap-break-word">${escapeHtml(humanizeMetricLabel(k))}</p>
             ${renderMetricValue(v)}
           </article>
         `,
@@ -2364,7 +2447,10 @@ async function handleRepositoryDelete(): Promise<void> {
     setText(getEl("repo-settings-status"), "Select a repository first.");
     return;
   }
-  if (!window.confirm(`Delete repository "${activeRepository.name}"?`)) return;
+  if (
+    !(await showDangerConfirm(`Delete repository "${activeRepository.name}"?`))
+  )
+    return;
   setText(getEl("repo-settings-status"), "Deleting…");
   try {
     await deleteRepository(activeRepositoryId);

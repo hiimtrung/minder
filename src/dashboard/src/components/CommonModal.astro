@@ -1,0 +1,63 @@
+---
+
+---
+
+<div
+  id="common-modal-backdrop"
+  class="fixed inset-0 z-100 hidden items-center justify-center bg-stone-950/40 backdrop-blur-sm transition-opacity duration-200 opacity-0"
+>
+  <div
+    id="common-modal-container"
+    class="w-full max-w-md transform scale-95 opacity-0 transition-all duration-200"
+  >
+    <div class="shell-card mx-4 overflow-hidden shadow-2xl">
+      <div class="px-6 py-5 border-b border-stone-200/60">
+        <h3
+          id="common-modal-title"
+          class="text-lg font-semibold text-stone-900"
+        >
+          Confirm Action
+        </h3>
+        <p
+          id="common-modal-message"
+          class="mt-2 text-sm text-stone-600 leading-relaxed"
+        >
+        </p>
+      </div>
+
+      <div
+        id="common-modal-prompt-area"
+        class="px-6 py-4 bg-stone-50/50 hidden"
+      >
+        <input
+          id="common-modal-input"
+          type="text"
+          class="u-input w-full"
+          placeholder="Enter value..."
+        />
+      </div>
+
+      <div class="flex items-center justify-end gap-3 px-6 py-4 bg-stone-50/80">
+        <button
+          id="common-modal-cancel"
+          type="button"
+          class="rounded-full border border-stone-300 bg-white px-5 py-2 text-sm font-medium text-stone-700 transition hover:bg-stone-100 hover:border-stone-400 focus:outline-none focus:ring-2 focus:ring-stone-500/20"
+        >
+          Cancel
+        </button>
+        <button
+          id="common-modal-confirm"
+          type="button"
+          class="rounded-full bg-stone-900 px-6 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-stone-800 focus:outline-none focus:ring-2 focus:ring-stone-500/20"
+        >
+          Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  import { initModalController } from "../scripts/modal-controller";
+  initModalController();
+</script>

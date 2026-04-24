@@ -112,7 +112,7 @@ const { repoId = "" } = Astro.props;
             <!-- Branch selector — hidden until a repo with tracked branches is loaded -->
             <div
               id="repo-branch-selector-wrap"
-              class="hidden flex items-center gap-2 min-w-0"
+              class="flex items-center gap-2 min-w-0"
             >
               <label
                 for="repo-branch-selector"
@@ -397,7 +397,7 @@ const { repoId = "" } = Astro.props;
                           </p>
                           <h3
                             id="repo-graph-node-name"
-                            class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                            class="mt-0.5 wrap-break-word text-sm font-semibold tracking-tight text-white"
                           >
                             Node
                           </h3>
@@ -407,12 +407,21 @@ const { repoId = "" } = Astro.props;
                           >
                           </p>
                         </div>
-                        <button
-                          id="repo-graph-node-close"
-                          class="shrink-0 rounded-full border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] text-white/85 hover:bg-white/12"
-                        >
-                          Close
-                        </button>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                          <button
+                            id="repo-graph-node-explore"
+                            class="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] text-amber-200 hover:bg-amber-500/20 transition-colors"
+                            title="Explore neighborhood (Depth 4)"
+                          >
+                            Explore
+                          </button>
+                          <button
+                            id="repo-graph-node-close"
+                            class="rounded-full border border-white/15 bg-white/8 px-1.5 py-0.5 text-[9px] text-white/85 hover:bg-white/12 transition-colors"
+                          >
+                            Close
+                          </button>
+                        </div>
                       </div>
                       <div
                         id="repo-graph-node-metadata"
@@ -456,20 +465,23 @@ const { repoId = "" } = Astro.props;
             <p class="eyebrow">Routes</p>
             <div
               id="repo-routes"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
+              class="mt-4 grid gap-3 text-sm text-stone-700 max-h-[600px] overflow-y-auto pr-1"
             >
             </div>
           </article>
           <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">TODOs</p>
-            <div id="repo-todos" class="mt-4 grid gap-3 text-sm text-stone-700">
+            <div
+              id="repo-todos"
+              class="mt-4 grid gap-3 text-sm text-stone-700 max-h-[600px] overflow-y-auto pr-1"
+            >
             </div>
           </article>
           <article class="rounded-3xl border border-stone-200 bg-white p-5">
             <p class="eyebrow">External Services</p>
             <div
               id="repo-services"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
+              class="mt-4 grid gap-3 text-sm text-stone-700 max-h-[600px] overflow-y-auto pr-1"
             >
             </div>
           </article>
@@ -477,7 +489,7 @@ const { repoId = "" } = Astro.props;
             <p class="eyebrow">Service Dependencies</p>
             <div
               id="repo-dependencies"
-              class="mt-4 grid gap-3 text-sm text-stone-700"
+              class="mt-4 grid gap-3 text-sm text-stone-700 max-h-[600px] overflow-y-auto pr-1"
             >
             </div>
           </article>
@@ -724,7 +736,7 @@ const { repoId = "" } = Astro.props;
                         </p>
                         <h3
                           id="search-graph-node-name"
-                          class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                          class="mt-0.5 wrap-break-word text-sm font-semibold tracking-tight text-white"
                         >
                           Node
                         </h3>
@@ -954,7 +966,7 @@ const { repoId = "" } = Astro.props;
                         </p>
                         <h3
                           id="impact-graph-node-name"
-                          class="mt-0.5 break-words text-sm font-semibold tracking-tight text-white"
+                          class="mt-0.5 wrap-break-word text-sm font-semibold tracking-tight text-white"
                         >
                           Node
                         </h3>

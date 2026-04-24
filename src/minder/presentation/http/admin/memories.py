@@ -12,7 +12,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_admin_operation
-from minder.tools.memory import MemoryTools
+from minder.tools.memory import MemoryTools, is_memory_record
 
 from .context import AdminRouteContext
 
@@ -67,8 +67,7 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 [
                     s
                     for s in all_skills
-                    if getattr(s, "language", "") in ("markdown", "text", "", None)
-                    and getattr(s, "source_metadata", None) is None
+                    if is_memory_record(s)
                 ],
                 key=lambda skill: (
                     str(getattr(skill, "title", "")).lower(),

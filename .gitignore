@@ -10,3 +10,5 @@ ref
 .mcp.json
 .vscode/mcp.json
 default.profraw
+node_modules
+.astro

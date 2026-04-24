@@ -8,6 +8,7 @@ import Textarea from "./ui/Textarea.astro";
 import Select from "./ui/Select.astro";
 import Button from "./ui/Button.astro";
 import FormStatus from "./ui/FormStatus.astro";
+import StepModal from "./StepModal.astro";
 ---
 
 <DashboardLayout
@@ -53,6 +54,7 @@ import FormStatus from "./ui/FormStatus.astro";
           <Field label="Description" htmlFor="edit-workflow-description">
             <Textarea
               id="edit-workflow-description"
+              rows={5}
               placeholder="Short description of this workflow's purpose"
             />
           </Field>
@@ -126,5 +128,6 @@ import FormStatus from "./ui/FormStatus.astro";
     </div>
   </section>
 
+  <StepModal />
   <script src="../scripts/workflows-page.ts"></script>
 </DashboardLayout>

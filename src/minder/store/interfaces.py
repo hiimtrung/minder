@@ -308,7 +308,11 @@ class IGraphRepository(Protocol):
     ) -> Any | None: ...
     async def list_nodes(self) -> list[Any]: ...
     async def list_nodes_by_scope(
-        self, *, repo_id: str, branch: str | None = None
+        self,
+        *,
+        repo_id: str,
+        branch: str | None = None,
+        node_types: set[str] | None = None,
     ) -> list[Any]: ...
     async def list_edges(self) -> list[Any]: ...
     async def list_edges_by_scope(self, *, repo_id: str) -> list[Any]: ...
@@ -357,6 +361,31 @@ class IGraphRepository(Protocol):
         *,
         max_depth: int = 6,
     ) -> list[Any]: ...
+
+    async def get_neighborhood(
+        self,
+        node_id: uuid.UUID,
+        *,
+        max_depth: int = 4,
+        max_nodes: int = 100,
+    ) -> tuple[list[Any], list[Any]]: ...
+
+    async def bulk_upsert_nodes(
+        self,
+        nodes: list[dict[str, Any]],
+        *,
+        repo_id: str,
+        branch: str = "",
+    ) -> dict[tuple[str, str], uuid.UUID]: ...
+
+    async def bulk_upsert_edges(
+        self,
+        edges: list[dict[str, Any]],
+        *,
+        repo_id: str,
+    ) -> int: ...
+
+    async def list_repo_branches(self, repo_id: str) -> list[str]: ...
 
 
 # ---------------------------------------------------------------------------

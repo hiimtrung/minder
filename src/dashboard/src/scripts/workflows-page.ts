@@ -14,6 +14,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
 
 // ---------------------------------------------------------------------------
 // Shared element refs
@@ -80,6 +81,7 @@ const renderStepList = (
   container: Element | null,
   steps: WorkflowStepPayload[],
   onRemove: (index: number) => void,
+  onEdit: (index: number) => void,
 ) => {
   if (!container) return;
   if (!steps.length) {
@@ -98,12 +100,20 @@ const renderStepList = (
         </div>
         ${step.description ? `<p class="text-xs text-stone-500 leading-5">${escapeHtml(step.description)}</p>` : ""}
       </div>
-      <button
-        type="button"
-        data-remove-step="${i}"
-        class="shrink-0 rounded-lg px-2 py-1 text-xs text-stone-400 hover:text-red-600 transition"
-        aria-label="Remove step ${i + 1}"
-      >✕</button>
+      <div class="flex items-center gap-1 shrink-0">
+        <button
+          type="button"
+          data-edit-step="${i}"
+          class="rounded-lg px-2 py-1 text-xs text-stone-400 hover:text-stone-900 hover:bg-stone-200/50 transition"
+          aria-label="Edit step ${i + 1}"
+        >Edit</button>
+        <button
+          type="button"
+          data-remove-step="${i}"
+          class="rounded-lg px-2 py-1 text-xs text-stone-400 hover:text-red-600 hover:bg-red-50 transition"
+          aria-label="Remove step ${i + 1}"
+        >✕</button>
+      </div>
     </div>
   `,
     )
@@ -117,15 +127,85 @@ const renderStepList = (
         if (idx >= 0) onRemove(idx);
       });
     });
+
+  container
+    .querySelectorAll<HTMLButtonElement>("[data-edit-step]")
+    .forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.editStep ?? "-1", 10);
+        if (idx >= 0) onEdit(idx);
+      });
+    });
 };
 
-const promptAddStep = (onConfirm: (step: WorkflowStepPayload) => void) => {
-  const name = window.prompt("Step name (e.g. write_test):", "")?.trim() ?? "";
-  if (!name) return;
-  const description = window.prompt("Step description:", "")?.trim() ?? "";
-  const gate =
-    window.prompt("Gate condition (leave blank for none):", "")?.trim() || null;
-  onConfirm({ name, description, gate });
+const openStepModal = (
+  mode: "add" | "edit",
+  initialData?: WorkflowStepPayload,
+): Promise<WorkflowStepPayload | null> => {
+  return new Promise((resolve) => {
+    const backdrop = document.getElementById("step-modal-backdrop");
+    const container = document.getElementById("step-modal-container");
+    const title = document.getElementById("step-modal-title");
+    const form = document.getElementById("step-modal-form") as HTMLFormElement | null;
+    const nameInput = document.getElementById("step-name") as HTMLTextAreaElement | null;
+    const descInput = document.getElementById("step-description") as HTMLTextAreaElement | null;
+    const gateInput = document.getElementById("step-gate") as HTMLTextAreaElement | null;
+    const cancelBtn = document.getElementById("step-modal-cancel");
+
+    if (!backdrop || !container || !title || !form || !nameInput || !descInput || !gateInput || !cancelBtn) {
+      resolve(null);
+      return;
+    }
+
+    title.textContent = mode === "add" ? "Add Step" : "Edit Step";
+    nameInput.value = initialData?.name ?? "";
+    descInput.value = initialData?.description ?? "";
+    gateInput.value = initialData?.gate ?? "";
+
+    const close = (result: WorkflowStepPayload | null) => {
+      backdrop.classList.remove("flex", "opacity-100");
+      backdrop.classList.add("hidden", "opacity-0");
+      container.classList.remove("scale-100", "opacity-100");
+      container.classList.add("scale-95", "opacity-0");
+      form.onsubmit = null;
+      cancelBtn.onclick = null;
+      resolve(result);
+    };
+
+    cancelBtn.onclick = () => close(null);
+    form.onsubmit = (e) => {
+      e.preventDefault();
+      close({
+        name: nameInput.value.trim(),
+        description: descInput.value.trim(),
+        gate: gateInput.value.trim() || null,
+      });
+    };
+
+    backdrop.classList.remove("hidden");
+    backdrop.classList.add("flex");
+    void backdrop.offsetWidth;
+    backdrop.classList.add("opacity-100");
+    container.classList.add("scale-100", "opacity-100");
+    nameInput.focus();
+  });
+};
+
+const promptAddStep = async (onConfirm: (step: WorkflowStepPayload) => void) => {
+  const result = await openStepModal("add");
+  if (result && result.name) {
+    onConfirm(result);
+  }
+};
+
+const promptEditStep = async (
+  initialData: WorkflowStepPayload,
+  onConfirm: (step: WorkflowStepPayload) => void,
+) => {
+  const result = await openStepModal("edit", initialData);
+  if (result && result.name) {
+    onConfirm(result);
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -166,14 +246,24 @@ const setCreateStatus = (
 };
 
 const refreshCreateStepList = () => {
-  renderStepList(stepsListEl, createSteps, (idx) => {
-    createSteps.splice(idx, 1);
-    refreshCreateStepList();
-  });
+  renderStepList(
+    stepsListEl,
+    createSteps,
+    (idx) => {
+      createSteps.splice(idx, 1);
+      refreshCreateStepList();
+    },
+    async (idx) => {
+      await promptEditStep(createSteps[idx], (updated) => {
+        createSteps[idx] = updated;
+        refreshCreateStepList();
+      });
+    },
+  );
 };
 
-addStepButton?.addEventListener("click", () => {
-  promptAddStep((step) => {
+addStepButton?.addEventListener("click", async () => {
+  await promptAddStep((step) => {
     createSteps.push(step);
     refreshCreateStepList();
   });
@@ -365,14 +455,24 @@ const setStepsStatus = (
 };
 
 const refreshDetailStepList = () => {
-  renderStepList(stepEditorList, detailSteps, (idx) => {
-    detailSteps.splice(idx, 1);
-    refreshDetailStepList();
-  });
+  renderStepList(
+    stepEditorList,
+    detailSteps,
+    (idx) => {
+      detailSteps.splice(idx, 1);
+      refreshDetailStepList();
+    },
+    async (idx) => {
+      await promptEditStep(detailSteps[idx], (updated) => {
+        detailSteps[idx] = updated;
+        refreshDetailStepList();
+      });
+    },
+  );
 };
 
-addStepDetailButton?.addEventListener("click", () => {
-  promptAddStep((step) => {
+addStepDetailButton?.addEventListener("click", async () => {
+  await promptAddStep((step) => {
     detailSteps.push(step);
     refreshDetailStepList();
   });
@@ -449,7 +549,7 @@ editWorkflowForm?.addEventListener("submit", async (event) => {
 
 deleteWorkflowButton?.addEventListener("click", async () => {
   if (!selectedWorkflowId) return;
-  const confirmed = window.confirm(
+  const confirmed = await showDangerConfirm(
     "Delete this workflow? This cannot be undone and will remove the workflow assignment from all repositories using it.",
   );
   if (!confirmed) return;

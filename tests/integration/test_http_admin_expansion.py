@@ -600,8 +600,8 @@ async def test_admin_can_sync_repository_graph(
     )
     assert file_node is not None
     assert function_node is not None
-    assert file_node.node_metadata["repo_id"] == str(repository.id)
-    assert file_node.node_metadata["branch"] == "feature/fast-sync"
+    assert file_node.extra_metadata["repo_id"] == str(repository.id)
+    assert file_node.extra_metadata["branch"] == "feature/fast-sync"
 
     neighbors = await graph_store.get_neighbors(
         file_node.id, direction="out", relation="contains"

@@ -12,6 +12,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { showDangerConfirm } from "./modal-controller";
 
 const registryEl = document.querySelector("#memory-registry");
 const formEl = document.querySelector("#memory-form") as HTMLFormElement | null;
@@ -208,7 +209,7 @@ const renderRegistry = () => {
         const memoryId = button.dataset.memoryDelete;
         const memory = visibleMemories.find((item) => item.id === memoryId);
         if (!memoryId || !memory) return;
-        if (!window.confirm(`Delete memory ${memory.title}?`)) return;
+        if (!(await showDangerConfirm(`Delete memory ${memory.title}?`))) return;
         try {
           await deleteMemory(memoryId);
           if (selectedMemoryId === memoryId) fillForm();

@@ -1,4 +1,17 @@
-.PHONY: all lint test test-slow test-all check-all clean build-docker release-start release-tag
+.PHONY: all lint test test-slow test-all check-all clean build-docker dev-install release-start release-tag dashboard-dev dashboard-build dashboard-check
+
+dev-install:
+	uv tool install --editable . --force
+	bun install
+
+dashboard-dev:
+	bun run dev
+
+dashboard-build:
+	bun run build
+
+dashboard-check:
+	bun run check
 
 all: lint test
 

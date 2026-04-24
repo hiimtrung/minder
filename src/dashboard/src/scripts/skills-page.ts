@@ -20,6 +20,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { showDangerConfirm } from "./modal-controller";
 
 const registryEl = document.querySelector("#skill-registry");
 const formEl = document.querySelector("#skill-form") as HTMLFormElement | null;
@@ -604,7 +605,7 @@ const renderRegistry = () => {
         const skillId = button.dataset.skillDelete;
         const skill = visibleSkills.find((item) => item.id === skillId);
         if (!skillId || !skill) return;
-        if (!window.confirm(`Delete skill ${skill.title}?`)) return;
+        if (!(await showDangerConfirm(`Delete skill ${skill.title}?`))) return;
         try {
           await deleteSkill(skillId);
           if (selectedSkillId === skillId) fillForm();

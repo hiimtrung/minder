@@ -24,6 +24,7 @@ class GraphTools:
         repo_name: str | None = None,
         repo_path: str | None = None,
         branch: str | None = None,
+        node_types: list[str] | None = None,
     ) -> tuple[str, list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -36,7 +37,9 @@ class GraphTools:
         # Fast path: if repo_id is known use the scoped query
         if repo_id and hasattr(self._graph_store, "list_nodes_by_scope"):
             repo_nodes = await self._graph_store.list_nodes_by_scope(
-                repo_id=repo_id, branch=branch
+                repo_id=repo_id,
+                branch=branch,
+                node_types=set(node_types) if node_types else None,
             )
             return effective_repo_name, repo_nodes
 
@@ -52,6 +55,7 @@ class GraphTools:
                 repo_root=repo_root,
                 branch=branch,
             )
+            and (not node_types or getattr(node, "node_type", "") in node_types)
         ]
         return effective_repo_name, repo_nodes
 
@@ -62,6 +66,7 @@ class GraphTools:
         repo_name: str | None = None,
         repo_path: str | None = None,
         branch: str | None = None,
+        node_types: list[str] | None = None,
     ) -> tuple[str, list[Any], list[Any]]:
         if self._graph_store is None:
             raise RuntimeError("Graph store is not configured")
@@ -71,6 +76,7 @@ class GraphTools:
             repo_name=repo_name,
             repo_path=repo_path,
             branch=branch,
+            node_types=node_types,
         )
         repo_node_ids = {getattr(node, "id") for node in repo_nodes}
 
@@ -133,12 +139,24 @@ class GraphTools:
 
         matches: list[dict[str, Any]] = []
         for scope in scopes:
-            _, repo_nodes = await self.list_repo_nodes(
-                repo_id=scope["repo_id"],
-                repo_name=scope["repo_name"],
-                repo_path=scope["repo_path"],
-                branch=scope["branch"],
-            )
+            # v2: Use database-level search if available
+            if hasattr(self._graph_store, "search_nodes"):
+                repo_nodes = await self._graph_store.search_nodes(
+                    query=query,
+                    repo_id=scope["repo_id"],
+                    branch=scope["branch"],
+                    node_types=list(allowed_types) if allowed_types else None,
+                    limit=limit * 10,  # Fetch more for re-scoring
+                )
+            else:
+                # Fallback to legacy full scan
+                _, repo_nodes = await self.list_repo_nodes(
+                    repo_id=scope["repo_id"],
+                    repo_name=scope["repo_name"],
+                    repo_path=scope["repo_path"],
+                    branch=scope["branch"],
+                )
+            
             for node in repo_nodes:
                 node_type = str(getattr(node, "node_type", ""))
                 if allowed_types and node_type not in allowed_types:
@@ -214,6 +232,8 @@ class GraphTools:
         effective_repo_name = (
             scopes[0]["repo_name"] if scopes else (repo_name or "unknown")
         )
+        # 1. Build scope lookup map for quick enrichment
+        scope_map = {}
         all_matches: list[dict[str, Any]] = []
         impacted: list[dict[str, Any]] = []
         type_counter: Counter[str] = Counter()
@@ -222,90 +242,157 @@ class GraphTools:
         synthetic_landscape_count = 0
 
         for scope in scopes:
+            repo_id_str = str(scope["repo_id"] or "")
+            branch_str = str(scope["branch"] or "")
+            scope_map[(repo_id_str, branch_str)] = scope
+
+        # 2. Collect all nodes from all scopes to build name index and ID set
+        all_repo_node_ids = set()
+        node_id_to_node = {}
+        name_index: dict[tuple[str, str], list[Any]] = {}
+        resolution_types = {"service", "route", "api_endpoint", "external_service_api", "mq_topic"}
+        
+        all_matches = []
+        visited = set()
+        queue: deque[tuple[Any, int]] = deque()
+        
+        for scope in scopes:
             _, repo_nodes = await self.list_repo_nodes(
                 repo_id=scope["repo_id"],
                 repo_name=scope["repo_name"],
                 repo_path=scope["repo_path"],
                 branch=scope["branch"],
             )
+            for node in repo_nodes:
+                nid = getattr(node, "id")
+                all_repo_node_ids.add(nid)
+                node_id_to_node[nid] = node
+                
+                ntype = str(getattr(node, "node_type", ""))
+                if ntype in resolution_types:
+                    key = (str(getattr(node, "name", "")).lower(), ntype)
+                    name_index.setdefault(key, []).append(node)
+                
             matches = _resolve_matches(repo_nodes, target)
-            if matches:
-                for node in matches[: min(5, max(1, limit))]:
-                    serialized = _serialize_node(node)
-                    serialized["repo_id"] = scope["repo_id"]
-                    serialized["repo_name"] = scope["repo_name"]
-                    serialized["branch"] = scope["branch"]
-                    serialized["landscape_distance"] = scope["distance"]
-                    serialized["via_link"] = scope.get("via_link")
-                    all_matches.append(serialized)
+            for node in matches[: min(5, max(1, limit))]:
+                node_id = getattr(node, "id")
+                if node_id in visited:
+                    continue
+                visited.add(node_id)
+                queue.append((node_id, 0))
+                
+                serialized = _serialize_node(node)
+                serialized["repo_id"] = scope["repo_id"]
+                serialized["repo_name"] = scope["repo_name"]
+                serialized["branch"] = scope["branch"]
+                serialized["landscape_distance"] = scope["distance"]
+                serialized["via_link"] = scope.get("via_link")
+                all_matches.append(serialized)
 
-                repo_node_ids = {getattr(node, "id") for node in repo_nodes}
-                visited = {getattr(node, "id") for node in matches}
-                queue: deque[tuple[Any, int]] = deque(
-                    (getattr(node, "id"), 0)
-                    for node in matches[: min(5, max(1, limit))]
+        # 3. Unified BFS traversal with logical cross-repo bridging
+        while queue and len(impacted) < limit:
+            node_id, current_depth = queue.popleft()
+            if current_depth >= max(1, depth):
+                continue
+
+            curr_node = node_id_to_node.get(node_id)
+            if not curr_node:
+                continue
+            
+            curr_type = str(getattr(curr_node, "node_type", ""))
+            curr_name = str(getattr(curr_node, "name", "")).lower()
+
+            # --- A. Physical Neighbors (Edges in DB) ---
+            for direction in ("out", "in"):
+                neighbors = await self._graph_store.get_neighbors(
+                    node_id, direction=direction
                 )
-
-                while queue and len(impacted) < limit:
-                    node_id, current_depth = queue.popleft()
-                    if current_depth >= max(1, depth):
+                
+                # --- B. Logical Neighbors (Cross-Repo Bridging) ---
+                logical_matches: list[Any] = []
+                if direction == "out":
+                    # Downstream: from external call to its implementation
+                    if curr_type == "external_service_api":
+                        for target_type in ["service", "route", "api_endpoint"]:
+                            logical_matches.extend(name_index.get((curr_name, target_type), []))
+                else:
+                    # Upstream: from service implementation back to its callers
+                    if curr_type in ["service", "route", "api_endpoint"]:
+                        logical_matches.extend(name_index.get((curr_name, "external_service_api"), []))
+                
+                for neighbor in list(neighbors) + logical_matches:
+                    neighbor_id = getattr(neighbor, "id")
+                    if neighbor_id in visited or neighbor_id not in all_repo_node_ids:
                         continue
+                        
+                    # Enrich neighbor with its scope info
+                    n_repo_id = str(getattr(neighbor, "repo_id", "") or "")
+                    n_branch = str(getattr(neighbor, "branch", "") or "")
+                    n_scope = scope_map.get((n_repo_id, n_branch))
+                    if not n_scope:
+                        continue
+                        
+                    visited.add(neighbor_id)
+                    queue.append((neighbor_id, current_depth + 1))
+                    
+                    serialized = _serialize_node(neighbor)
+                    serialized["direction"] = (
+                        "downstream" if direction == "out" else "upstream"
+                    )
+                    serialized["distance"] = current_depth + 1
+                    serialized["repo_id"] = n_scope["repo_id"]
+                    serialized["repo_name"] = n_scope["repo_name"]
+                    serialized["branch"] = n_scope["branch"]
+                    serialized["landscape_distance"] = n_scope["distance"]
+                    serialized["via_link"] = n_scope.get("via_link")
+                    
+                    # Mark if it was a logical bridge
+                    if neighbor not in neighbors:
+                        serialized["is_logical_bridge"] = True
 
-                    for direction in ("out", "in"):
-                        neighbors = await self._graph_store.get_neighbors(
-                            node_id, direction=direction
+                    impacted.append(serialized)
+                    type_counter.update([serialized["node_type"]])
+                    if direction == "out":
+                        downstream_count += 1
+                    else:
+                        upstream_count += 1
+                    
+                    if len(impacted) >= limit:
+                        break
+                if len(impacted) >= limit:
+                    break
+
+        # 4. Handle synthetic landscape results if space allows
+        if len(impacted) < limit:
+            for scope in scopes:
+                if scope["distance"] > 0 and len(impacted) < limit:
+                    already_represented = any(
+                        str(item.get("repo_id")) == str(scope["repo_id"]) and 
+                        str(item.get("branch")) == str(scope["branch"])
+                        for item in all_matches + impacted
+                    )
+                    if not already_represented:
+                        impacted.append(
+                            {
+                                "id": f"landscape:{scope['repo_id']}:{scope['branch']}",
+                                "node_type": "repository_branch",
+                                "name": f"{scope['repo_name']}:{scope['branch']}",
+                                "metadata": {
+                                    "repo_name": scope["repo_name"],
+                                    "branch": scope["branch"],
+                                    "landscape_only": True,
+                                },
+                                "direction": "cross_repo",
+                                "distance": 1,
+                                "repo_id": scope["repo_id"],
+                                "repo_name": scope["repo_name"],
+                                "branch": scope["branch"],
+                                "landscape_distance": scope["distance"],
+                                "via_link": scope.get("via_link"),
+                            }
                         )
-                        for neighbor in neighbors:
-                            neighbor_id = getattr(neighbor, "id")
-                            if (
-                                neighbor_id not in repo_node_ids
-                                or neighbor_id in visited
-                            ):
-                                continue
-                            visited.add(neighbor_id)
-                            queue.append((neighbor_id, current_depth + 1))
-                            serialized = _serialize_node(neighbor)
-                            serialized["direction"] = (
-                                "downstream" if direction == "out" else "upstream"
-                            )
-                            serialized["distance"] = current_depth + 1
-                            serialized["repo_id"] = scope["repo_id"]
-                            serialized["repo_name"] = scope["repo_name"]
-                            serialized["branch"] = scope["branch"]
-                            serialized["landscape_distance"] = scope["distance"]
-                            serialized["via_link"] = scope.get("via_link")
-                            impacted.append(serialized)
-                            type_counter.update([serialized["node_type"]])
-                            if direction == "out":
-                                downstream_count += 1
-                            else:
-                                upstream_count += 1
-                            if len(impacted) >= limit:
-                                break
-                        if len(impacted) >= limit:
-                            break
-            elif scope["distance"] > 0 and len(impacted) < limit:
-                impacted.append(
-                    {
-                        "id": f"landscape:{scope['repo_id']}:{scope['branch']}",
-                        "node_type": "repository_branch",
-                        "name": f"{scope['repo_name']}:{scope['branch']}",
-                        "metadata": {
-                            "repo_name": scope["repo_name"],
-                            "branch": scope["branch"],
-                            "landscape_only": True,
-                        },
-                        "direction": "cross_repo",
-                        "distance": 1,
-                        "repo_id": scope["repo_id"],
-                        "repo_name": scope["repo_name"],
-                        "branch": scope["branch"],
-                        "landscape_distance": scope["distance"],
-                        "via_link": scope.get("via_link"),
-                    }
-                )
-                type_counter.update(["repository_branch"])
-                synthetic_landscape_count += 1
+                        type_counter.update(["repository_branch"])
+                        synthetic_landscape_count += 1
 
         all_matches.sort(
             key=lambda item: (
@@ -668,7 +755,7 @@ class GraphTools:
 
 
 def _metadata(node: Any) -> dict[str, Any]:
-    value = getattr(node, "node_metadata", {}) or {}
+    value = getattr(node, "extra_metadata", {}) or {}
     return value if isinstance(value, dict) else {}
 
 

@@ -109,6 +109,7 @@ export type RuntimeQueryPayload = {
   edge: string | null;
   cross_repo_graph: Record<string, unknown> | null;
   agent_actions: Array<Record<string, unknown>>;
+  session_id?: string | null;
 };
 
 export type RuntimeQueryStreamEvent =
@@ -360,6 +361,7 @@ export async function queryRuntimeStream(
     repo_id?: string;
     workflow_name?: string;
     max_attempts?: number;
+    session_id?: string;
   },
   onEvent: (event: RuntimeQueryStreamEvent) => void,
 ): Promise<void> {
@@ -1012,6 +1014,7 @@ export type RepositoryGraphEdgePayload = {
 
 export type RepositoryGraphDependencyPayload = {
   service: string;
+  source_type: string;
   depends_on: Array<{
     id: string;
     name: string;
@@ -1092,6 +1095,7 @@ export type RepositoryGraphMapPayload = {
     edge_count: number;
     counts_by_type: Record<string, number>;
     counts_by_relation: Record<string, number>;
+    returned_node_count: number;
   };
 };
 
@@ -1262,6 +1266,17 @@ export async function getRepositoryGraphMap(
   const qs = params.toString();
   return requestJson<RepositoryGraphMapPayload>(
     `/v1/admin/repositories/${repoId}/graph-map${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export async function getRepositoryNodeNeighborhood(
+  repoId: string,
+  nodeId: string,
+  depth: number = 4,
+  limit: number = 200,
+): Promise<RepositoryGraphMapPayload> {
+  return requestJson<RepositoryGraphMapPayload>(
+    `/v1/admin/repositories/${repoId}/nodes/${nodeId}/neighborhood?depth=${depth}&limit=${limit}`,
   );
 }
 

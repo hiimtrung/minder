@@ -14,7 +14,7 @@ from ..utils.common import (
 )
 from ..utils.config import require_client_settings
 
-_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code")
+_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity")
 
 
 def _global_target_path(target: str) -> Path:
@@ -37,6 +37,8 @@ def _global_target_path(target: str) -> Path:
         if system == "Windows":
             return appdata_dir() / "Claude" / "claude_desktop_config.json"
         return Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+    if target == "antigravity":
+        return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
     raise ValueError(f"Unknown global target: {target}")
 
 
@@ -47,6 +49,9 @@ def local_target_path(target: str, cwd: Path) -> Path:
         return cwd / ".cursor" / "mcp.json"
     if target == "claude-code":
         return cwd / ".claude" / "mcp.json"
+    if target == "antigravity":
+        del cwd
+        return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
     raise ValueError(f"Unknown local target: {target}")
 
 
@@ -62,6 +67,12 @@ def _target_entry(
     client_key: str,
     server_url: str | None,
 ) -> dict[str, Any]:
+    if target == "antigravity" and protocol != "stdio":
+        return {
+            "serverUrl": mcp_url(server_url or ""),
+            "headers": {"X-Minder-Client-Key": client_key},
+        }
+
     if target == "vscode" and protocol != "stdio":
         return {
             "type": "sse",

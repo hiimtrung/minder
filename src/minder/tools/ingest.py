@@ -116,16 +116,23 @@ class IngestTools:
         ingested_paths: set[str] = set()
         ingested_count = 0
 
-        for file_path in root.rglob("*"):
-            if not file_path.is_file():
-                continue
-            if any(part.startswith(".") and part != ".minder" for part in file_path.parts):
-                continue
-            if file_path.suffix not in SUPPORTED_SUFFIXES:
-                continue
-            await self.minder_ingest_file(str(file_path), project=target_project)
-            ingested_paths.add(str(file_path))
-            ingested_count += 1
+        import os
+        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
+        
+        for dirpath, dirnames, filenames in os.walk(path):
+            # Prune ignored directories
+            dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+            
+            for filename in filenames:
+                if filename.startswith("."):
+                    continue
+                file_path = Path(dirpath) / filename
+                if file_path.suffix not in SUPPORTED_SUFFIXES:
+                    continue
+                
+                await self.minder_ingest_file(str(file_path), project=target_project)
+                ingested_paths.add(str(file_path))
+                ingested_count += 1
 
         # We first need to get the list of documents that WILL be deleted
         docs_to_delete = []

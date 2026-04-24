@@ -535,7 +535,7 @@ class TestRepoScanner:
         assert external_node is not None
         assert topic_node is not None
         assert consumer_topic is not None
-        assert any(node.node_metadata.get("text") == "add health checks" for node in todo_nodes)
+        assert any(node.extra_metadata.get("text") == "add health checks" for node in todo_nodes)
 
         controller_node = await graph_store.get_node_by_name(
             "controller", "src/service_a/main.py::HealthController"
@@ -565,9 +565,9 @@ class TestRepoScanner:
         ts_topic = await graph_store.get_node_by_name("mq_topic", "topic.frontend.events")
 
         assert markdown_file is not None
-        assert markdown_file.node_metadata["heading_count"] == 1
+        assert markdown_file.extra_metadata["heading_count"] == 1
         assert json_file is not None
-        assert json_file.node_metadata["top_level_key_count"] == 2
+        assert json_file.extra_metadata["top_level_key_count"] == 2
         assert ts_function is not None
         assert ts_controller is not None
         assert ts_route is not None
@@ -610,7 +610,7 @@ class TestRepoScanner:
                 deleted_files=["src/service_a/main.py"],
             )
 
-        changed_files = payload["sync_metadata"]["changed_files"]
+        changed_files = payload["changed_files"]
         assert changed_files == ["README.md", "frontend/src/api.ts"]
         assert payload["branch"] == "feature/delta"
         assert payload["diff_base"] == "origin/main"

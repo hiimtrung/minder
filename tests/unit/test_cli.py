@@ -149,6 +149,53 @@ def test_install_and_uninstall_local_mcp_configs(
     assert "Removed Minder MCP config" in output
 
 
+def test_install_mcp_antigravity_writes_gemini_config(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "protocol": "sse",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "install",
+            "mcp",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+
+    assert exit_code == 0
+    antigravity_payload = json.loads(
+        (tmp_path / ".gemini" / "antigravity" / "mcp_config.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert (
+        antigravity_payload["mcpServers"]["minder"]["serverUrl"]
+        == "http://localhost:8801/mcp"
+    )
+    assert (
+        antigravity_payload["mcpServers"]["minder"]["headers"][
+            "X-Minder-Client-Key"
+        ]
+        == "mkc_test_client_key_123"
+    )
+
+
 def test_install_ide_creates_repo_local_assets_and_gitignore(
     tmp_path, capsys
 ) -> None:  # noqa: ANN001
@@ -209,6 +256,58 @@ def test_install_ide_creates_repo_local_assets_and_gitignore(
     assert "Installed Minder IDE asset" in output
 
 
+def test_install_and_uninstall_ide_antigravity_assets(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "protocol": "sse",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    install_exit = main(
+        [
+            "install",
+            "ide",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert install_exit == 0
+    assert (
+        tmp_path / ".gemini" / "antigravity" / "mcp_config.json"
+    ).is_file()
+    assert "minder-ide-instructions:antigravity" in (
+        tmp_path / ".agents" / "workflows" / "minder.md"
+    ).read_text(encoding="utf-8")
+    assert (tmp_path / ".minder" / "agent.json").is_file()
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "ide",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert uninstall_exit == 0
+    assert not (tmp_path / ".gemini" / "antigravity" / "mcp_config.json").exists()
+    assert not (tmp_path / ".minder" / "agent.json").exists()
+
+
 def test_install_ide_updates_managed_blocks_without_removing_custom_text(
     tmp_path,
 ) -> None:  # noqa: ANN001
@@ -246,6 +345,113 @@ def test_install_ide_updates_managed_blocks_without_removing_custom_text(
     assert "Custom project notes" in content
     assert content.count("minder:begin minder-ide-instructions:claude-code") == 1
     assert "outdated" not in content
+
+
+def test_install_agent_writes_session_and_workflow_binding_guide(
+    tmp_path, capsys
+) -> None:  # noqa: ANN001
+    exit_code = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+
+    assert exit_code == 0
+    instructions = (
+        tmp_path / ".github" / "copilot-instructions.md"
+    ).read_text(encoding="utf-8")
+    assert "minder_session_find(name=...)" in instructions
+    assert "Always track the active Minder session in repository-local file `.minder/agent.json`." in instructions
+    assert '"workflow": {' in instructions
+    assert "Treat `(repo_path, session_id, workflow.id)` as the active execution tuple" in instructions
+    assert "Strict Context Binding" in instructions
+    assert "minder_workflow_list" not in instructions
+    assert "minder_node_neighborhood" not in instructions
+
+    output = capsys.readouterr().out
+    assert "Installed sophisticated Minder Agent rules" in output
+
+
+def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    target_file = tmp_path / ".github" / "copilot-instructions.md"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("Custom notes\n", encoding="utf-8")
+
+    install_exit = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+    assert install_exit == 0
+    assert "minder-agent-instructions" in target_file.read_text(encoding="utf-8")
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "vscode",
+        ]
+    )
+    assert uninstall_exit == 0
+
+    content = target_file.read_text(encoding="utf-8")
+    assert content == "Custom notes\n"
+    assert "minder-agent-instructions" not in content
+
+
+def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    target_file = tmp_path / ".agents" / "workflows" / "minder.md"
+    target_file.parent.mkdir(parents=True, exist_ok=True)
+    target_file.write_text("# Existing Workflow\n", encoding="utf-8")
+
+    install_exit = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert install_exit == 0
+    installed = target_file.read_text(encoding="utf-8")
+    assert installed.startswith("---\n")
+    assert not installed.startswith("<!-- minder:begin minder-agent-instructions -->")
+    assert "# Existing Workflow" in installed
+    assert "minder:begin minder-agent-instructions" in installed
+    assert "---\ndescription: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.\n---" in installed
+    assert "Minder Agent Orchestration Rules" in installed
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "antigravity",
+        ]
+    )
+    assert uninstall_exit == 0
+    assert target_file.read_text(encoding="utf-8") == "# Existing Workflow\n"
 
 
 def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa: ANN001
@@ -496,7 +702,7 @@ def test_sync_dry_run_prints_delta_payload(
     payload = json.loads(capsys.readouterr().out)
     assert payload["branch"] == "feature/sync"
     assert payload["deleted_files"] == ["removed.py"]
-    assert payload["sync_metadata"]["changed_files"] == ["config.json", "notes.md"]
+    assert payload["changed_files"] == ["config.json", "notes.md"]
     assert payload["sync_metadata"]["deleted_file_count"] == 1
     assert any(
         node["node_type"] == "file" and node["name"] == "notes.md"
@@ -618,11 +824,11 @@ def test_sync_posts_payload_to_server(
         == "http://localhost:8801/v1/client/repositories/11111111-1111-1111-1111-111111111111/graph-sync"
     )
     assert captured["headers"] == {"X-Minder-Client-Key": "mkc_test_client_key_123"}
-    assert captured["timeout"] == 30
+    assert captured["timeout"] == 300
     payload = captured["json"]
     assert isinstance(payload, dict)
     assert payload["deleted_files"] == ["removed.py"]
-    assert payload["sync_metadata"]["changed_files"] == ["notes.md"]
+    assert payload["changed_files"] == ["notes.md"]
 
     output = json.loads(capsys.readouterr().out)
     assert output["deleted_nodes"] == 1
@@ -767,7 +973,7 @@ def test_sync_auto_resolves_repo_id_when_omitted(
         == "http://localhost:8801/v1/client/repositories/22222222-2222-2222-2222-222222222222/graph-sync"
     )
     assert captured[0]["timeout"] == 15
-    assert captured[1]["timeout"] == 30
+    assert captured[1]["timeout"] == 300
     assert captured[0]["json"] == {
         "repo_name": "minder",
         "repo_path": str(repo_root),
@@ -780,7 +986,7 @@ def test_sync_auto_resolves_repo_id_when_omitted(
 
 
 def test_sync_requires_remote_origin_when_repo_id_omitted(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -804,25 +1010,18 @@ def test_sync_requires_remote_origin_when_repo_id_omitted(
     )
     monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
-    try:
-        main(
-            [
-                "sync",
-                "--repo-path",
-                str(repo_root),
-                "--config-path",
-                str(config_path),
-            ]
-        )
-    except ValueError as exc:
-        assert (
-            str(exc)
-            == "Repository remote origin SSH URL is required when --repo-id is omitted"
-        )
-    else:
-        raise AssertionError(
-            "sync should require a remote origin when repo_id is omitted"
-        )
+    exit_code = main(
+        [
+            "sync",
+            "--repo-path",
+            str(repo_root),
+            "--config-path",
+            str(config_path),
+        ]
+    )
+    assert exit_code == 1
+    err = capsys.readouterr().out
+    assert "Repository remote origin SSH URL is required when --repo-id is omitted" in err
 
 
 def test_sync_can_skip_upgrade_notice(

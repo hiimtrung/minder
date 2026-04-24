@@ -4,7 +4,7 @@ import json
 import subprocess
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, AsyncGenerator
 
 import pytest
 import pytest_asyncio
@@ -126,8 +126,11 @@ async def store() -> RelationalStore:
 
 
 @pytest_asyncio.fixture
-async def graph_store() -> KnowledgeGraphStore:
-    backend = KnowledgeGraphStore(IN_MEMORY_URL)
+async def graph_store(tmp_path: Path) -> AsyncGenerator[KnowledgeGraphStore, None]:
+    """Return a transient graph store with tables initialized."""
+    db_file = tmp_path / "graph.db"
+    db_url = f"sqlite+aiosqlite:///{db_file}"
+    backend = KnowledgeGraphStore(db_url)
     await backend.init_db()
     yield backend
     await backend.dispose()

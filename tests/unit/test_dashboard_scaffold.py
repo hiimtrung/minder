@@ -5,32 +5,32 @@ from pathlib import Path
 
 
 def test_phase4_3_dashboard_web_scaffold_exists() -> None:
-    root = Path("src/dashboard")
+    src = Path("src/dashboard/src")
 
-    assert (root / "package.json").exists()
-    assert (root / "astro.config.mjs").exists()
-    assert (root / "tsconfig.json").exists()
-    assert (root / "public/favicon.png").exists()
-    assert (root / "src/styles/global.css").exists()
-    assert (root / "src/layouts/DashboardLayout.astro").exists()
-    assert (root / "src/pages/login.astro").exists()
-    assert (root / "src/pages/setup.astro").exists()
-    assert (root / "src/pages/clients/index.astro").exists()
-    assert (root / "src/components/ClientRegistryShell.astro").exists()
-    assert (root / "src/components/ClientDetailShell.astro").exists()
-    assert (root / "src/middleware.ts").exists()
-    assert (root / "src/lib/api/admin.ts").exists()
-    assert (root / "src/scripts/login-page.ts").exists()
-    assert (root / "src/scripts/setup-page.ts").exists()
-    assert (root / "src/scripts/clients-page.ts").exists()
-    assert (root / "src/scripts/session-header.ts").exists()
+    assert Path("package.json").exists()
+    assert Path("astro.config.mjs").exists()
+    assert Path("tsconfig.json").exists()
+    assert Path("src/dashboard/public/favicon.png").exists()
+    assert (src / "styles/global.css").exists()
+    assert (src / "layouts/DashboardLayout.astro").exists()
+    assert (src / "pages/login.astro").exists()
+    assert (src / "pages/setup.astro").exists()
+    assert (src / "pages/clients/index.astro").exists()
+    assert (src / "components/ClientRegistryShell.astro").exists()
+    assert (src / "components/ClientDetailShell.astro").exists()
+    assert (src / "middleware.ts").exists()
+    assert (src / "lib/api/admin.ts").exists()
+    assert (src / "scripts/login-page.ts").exists()
+    assert (src / "scripts/setup-page.ts").exists()
+    assert (src / "scripts/clients-page.ts").exists()
+    assert (src / "scripts/session-header.ts").exists()
 
 
 def test_phase4_3_dashboard_web_package_contract() -> None:
-    package_json = json.loads(Path("src/dashboard/package.json").read_text())
-    astro_config = Path("src/dashboard/astro.config.mjs").read_text()
+    package_json = json.loads(Path("package.json").read_text())
+    astro_config = Path("astro.config.mjs").read_text()
 
-    assert package_json["name"] == "minder-dashboard"
+    assert package_json["name"] == "minder"
     assert package_json["type"] == "module"
     assert package_json["packageManager"] == "bun@1.2.21"
     assert package_json["engines"]["node"] == ">=22.12.0"

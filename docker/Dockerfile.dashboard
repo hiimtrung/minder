@@ -1,16 +1,18 @@
-FROM oven/bun:1.2.21 AS dashboard-builder
+FROM oven/bun:1.2.21-alpine AS dashboard-builder
 
 WORKDIR /dashboard
 
-COPY package.json bun.lock astro.config.mjs tsconfig.json /dashboard/
+COPY package.json bun.lock /dashboard/
+RUN --mount=type=cache,target=/root/.bun/install/cache \
+    bun install --frozen-lockfile
+
+COPY astro.config.mjs tsconfig.json /dashboard/
 COPY src/dashboard/src /dashboard/src/dashboard/src
 COPY src/dashboard/public /dashboard/src/dashboard/public
 
-RUN --mount=type=cache,target=/root/.bun/install/cache \
-    bun install --frozen-lockfile
 RUN bun run build
 
-FROM node:22-bookworm-slim
+FROM node:22-alpine
 
 ENV NODE_ENV=production
 ENV HOST=0.0.0.0

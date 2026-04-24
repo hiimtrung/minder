@@ -5,9 +5,9 @@ import argparse
 from .utils.version import installed_package_version
 from .utils.common import client_config_path
 from .commands.auth import login_command
-from .commands.mcp import install_mcp_command, uninstall_mcp_command
+from .commands.mcp import install_mcp_command, uninstall_mcp_command, remove_mcp_command, local_target_path, _global_target_path
 from .commands.ide import install_ide_command, uninstall_ide_command
-from .commands.agent import install_agent_command, uninstall_agent_command
+from .commands.agent import install_agent_command, uninstall_agent_command, remove_agent_command
 from .commands.update import version_command, check_update_command, update_command
 from .commands.sync import sync_command
 
@@ -41,10 +41,29 @@ def build_parser() -> argparse.ArgumentParser:
     install = subparsers.add_parser("install", help="Install Minder integration (MCP/IDE).")
     install_subs = install.add_subparsers(dest="subcommand", required=True)
     
-    mcp_in = install_subs.add_parser("mcp", help="Install MCP server config.")
-    mcp_in.add_argument("--target", action="append", help="Target IDE (vscode, cursor, claude-code, all).")
-    mcp_in.add_argument("--global", dest="global_install", action="store_true", help="Install globally.")
-    mcp_in.add_argument("--cwd", default=".", help="Workspace directory.")
+    _cwd_placeholder = "<repo>"
+    from pathlib import Path as _Path
+    _mcp_epilog = (
+        "targets:\n"
+        f"  vscode       per-repo:  {_cwd_placeholder}/.vscode/mcp.json\n"
+        f"               --global:  {_global_target_path('vscode')}\n"
+        f"  cursor       per-repo:  {_cwd_placeholder}/.cursor/mcp.json\n"
+        f"               --global:  {_global_target_path('cursor')}\n"
+        f"  claude-code  per-repo:  {_cwd_placeholder}/.claude/mcp.json\n"
+        f"               --global:  {_global_target_path('claude-code')}\n"
+        f"  antigravity  always:    {_global_target_path('antigravity')}  [--global has no effect]\n"
+        "  all          all targets above (default)\n"
+    )
+
+    mcp_in = install_subs.add_parser(
+        "mcp",
+        help="Install MCP server config.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_mcp_epilog,
+    )
+    mcp_in.add_argument("--target", action="append", metavar="TARGET", help="Target to install (see targets below).")
+    mcp_in.add_argument("--global", dest="global_install", action="store_true", help="Write to the IDE's global config instead of the repo-local file.")
+    mcp_in.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
     mcp_in.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
     mcp_in.set_defaults(func=install_mcp_command)
     
@@ -54,18 +73,37 @@ def build_parser() -> argparse.ArgumentParser:
     ide_in.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
     ide_in.set_defaults(func=install_ide_command)
     
-    agent_in = install_subs.add_parser("agent", help="Install sophisticated Minder Agent rules.")
-    agent_in.add_argument("--target", action="append", help="Target IDE.")
-    agent_in.add_argument("--cwd", default=".", help="Workspace directory.")
+    _agent_epilog = """\
+targets (scope):
+  vscode       ~/.copilot/agents/minder.agent.md               [global – all repos]
+  claude-code  ~/.claude/agents/minder.md                      [global – all repos]
+  codex        ~/.codex/AGENTS.md                              [global – all repos]
+  cursor       <repo>/AGENTS.md                                [per-repo]
+  antigravity  <repo>/.gemini/antigravity/global_workflows/    [per-repo]
+  all          all targets above (default)
+"""
+    agent_in = install_subs.add_parser(
+        "agent",
+        help="Install Minder Agent rules.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_agent_epilog,
+    )
+    agent_in.add_argument("--target", action="append", metavar="TARGET", help="Target to install (see targets below).")
+    agent_in.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
     agent_in.set_defaults(func=install_agent_command)
     
     uninstall = subparsers.add_parser("uninstall", help="Remove Minder integration.")
     uninstall_subs = uninstall.add_subparsers(dest="subcommand", required=True)
     
-    mcp_un = uninstall_subs.add_parser("mcp", help="Remove MCP server config.")
-    mcp_un.add_argument("--target", action="append", help="Target IDE.")
-    mcp_un.add_argument("--global", dest="global_install", action="store_true", help="Remove from global config.")
-    mcp_un.add_argument("--cwd", default=".", help="Workspace directory.")
+    mcp_un = uninstall_subs.add_parser(
+        "mcp",
+        help="Remove MCP server config.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_mcp_epilog,
+    )
+    mcp_un.add_argument("--target", action="append", metavar="TARGET", help="Target to remove (see targets below).")
+    mcp_un.add_argument("--global", dest="global_install", action="store_true", help="Remove from the IDE's global config instead of the repo-local file.")
+    mcp_un.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
     mcp_un.set_defaults(func=uninstall_mcp_command)
     
     ide_un = uninstall_subs.add_parser("ide", help="Remove IDE bootstrap assets.")
@@ -73,11 +111,41 @@ def build_parser() -> argparse.ArgumentParser:
     ide_un.add_argument("--cwd", default=".", help="Workspace directory.")
     ide_un.set_defaults(func=uninstall_ide_command)
     
-    agent_un = uninstall_subs.add_parser("agent", help="Remove Minder Agent rules.")
-    agent_un.add_argument("--target", action="append", help="Target IDE.")
-    agent_un.add_argument("--cwd", default=".", help="Workspace directory.")
+    agent_un = uninstall_subs.add_parser(
+        "agent",
+        help="Remove Minder Agent rules.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_agent_epilog,
+    )
+    agent_un.add_argument("--target", action="append", metavar="TARGET", help="Target to remove (see targets below).")
+    agent_un.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
     agent_un.set_defaults(func=uninstall_agent_command)
     
+    # --- Remove (alias for uninstall) ---
+    remove = subparsers.add_parser("remove", help="Remove Minder integration (alias for uninstall).")
+    remove_subs = remove.add_subparsers(dest="subcommand", required=True)
+
+    remove_mcp = remove_subs.add_parser(
+        "mcp",
+        help="Remove MCP server config.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_mcp_epilog,
+    )
+    remove_mcp.add_argument("--target", action="append", metavar="TARGET", help="Target to remove (see targets below).")
+    remove_mcp.add_argument("--global", dest="global_install", action="store_true", help="Remove from the IDE's global config instead of the repo-local file.")
+    remove_mcp.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
+    remove_mcp.set_defaults(func=remove_mcp_command)
+
+    remove_agent = remove_subs.add_parser(
+        "agent",
+        help="Remove Minder Agent rules.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=_agent_epilog,
+    )
+    remove_agent.add_argument("--target", action="append", metavar="TARGET", help="Target to remove (see targets below).")
+    remove_agent.add_argument("--cwd", default=".", help="Workspace directory (used for per-repo targets).")
+    remove_agent.set_defaults(func=remove_agent_command)
+
     # --- Sync ---
     sync = subparsers.add_parser("sync", help="Sync repository state with Minder server.")
     sync.add_argument("--repo-id", help="Repository UUID.")

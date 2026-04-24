@@ -1,5 +1,8 @@
 FROM python:3.14-slim AS api-builder
 
+# Copy uv binary directly — avoids slow `pip install uv`
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
 ENV UV_LINK_MODE=copy
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PYTHONUNBUFFERED=1
@@ -8,22 +11,18 @@ ENV PYTHONPATH=/app/src
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates git build-essential cargo \
+    && apt-get install -y --no-install-recommends ca-certificates build-essential cargo \
     && rm -rf /var/lib/apt/lists/*
 
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --no-cache-dir uv
-
-COPY pyproject.toml uv.lock README.md README-pypi.md /app/
+COPY pyproject.toml uv.lock /app/
+# Cache uv downloads AND cargo registry/git so Rust crates aren't re-fetched on every rebuild
 RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=cache,target=/root/.cargo/registry \
+    --mount=type=cache,target=/root/.cargo/git \
     uv sync --frozen --no-dev --no-install-project --no-editable --extra server
-
-COPY minder.toml /app/
 
 FROM python:3.14-slim
 
-ENV UV_LINK_MODE=copy
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 ENV PATH=/app/.venv/bin:$PATH
@@ -34,13 +33,12 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir uv
-
 COPY --from=api-builder /app/.venv /app/.venv
-COPY pyproject.toml uv.lock README.md README-pypi.md minder.toml /app/
+COPY pyproject.toml minder.toml /app/
 COPY src /app/src
 COPY scripts /app/scripts
 
 EXPOSE 8801
 
-CMD ["uv", "run", "--extra", "server", "python", "-m", "minder.server"]
+# .venv is already on PATH — no need for `uv run` at startup
+CMD ["python", "-m", "minder.server"]

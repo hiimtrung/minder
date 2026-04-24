@@ -165,5 +165,8 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                 print(f"Removed Minder MCP config for {target} from {path}")
         except Exception as e:
             print(f"Failed to uninstall MCP for {target}: {e}")
-            
+
     return 0
+
+
+remove_mcp_command = uninstall_mcp_command

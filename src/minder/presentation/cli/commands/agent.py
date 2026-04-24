@@ -7,11 +7,17 @@ from ..utils.common import (
     upsert_managed_block,
     remove_managed_block,
     wrap_managed_block,
+    marker_pair,
 )
 from ..utils.version import installed_package_version
 
 _AGENT_INSTRUCTIONS_KEY = "minder-agent-instructions"
 _ANTIGRAVITY_FRONT_MATTER = """---
+description: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.
+---"""
+
+_CLAUDE_CODE_FRONT_MATTER = """---
+name: minder
 description: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.
 ---"""
 
@@ -93,27 +99,48 @@ When implementing a feature or fix:
 
 def _agent_instruction_path(target: str, cwd: Path) -> Path | None:
     if target == "vscode":
-        return cwd / ".github" / "copilot-instructions.md"
+        return Path.home() / ".copilot" / "agents" / "minder.agent.md"
     if target == "cursor":
-        return cwd / ".cursor" / "rules" / "minder.mdc"
+        return cwd / "AGENTS.md"
     if target == "claude-code":
-        return cwd / "CLAUDE.md"
+        return Path.home() / ".claude" / "agents" / "minder.md"
     if target == "antigravity":
-        return cwd / ".agents" / "workflows" / "minder.md"
+        return cwd / ".gemini" / "antigravity" / "global_workflows" / "minder.md"
     if target == "codex":
         return Path.home() / ".codex" / "AGENTS.md"
     return None
 
 
-def _upsert_antigravity_workflow(path: Path, body: str) -> None:
+def _get_installed_version(path: Path) -> str | None:
+    """Extract the minder version embedded in an installed agent managed block."""
+    if not path.is_file():
+        return None
+    content = path.read_text(encoding="utf-8")
+    start, _ = marker_pair(path, _AGENT_INSTRUCTIONS_KEY)
+    if start not in content:
+        return None
+    _, after = content.split(start, 1)
+    first_line = after.lstrip("\n").split("\n")[0].strip()
+    prefix = "<!-- minder-agent-version:"
+    suffix = "-->"
+    if first_line.startswith(prefix) and first_line.endswith(suffix):
+        return first_line[len(prefix):-len(suffix)].strip()
+    return None
+
+
+def _agent_body_with_version(body: str, version: str) -> str:
+    return f"<!-- minder-agent-version: {version} -->\n{body}"
+
+
+def _upsert_with_front_matter(path: Path, front_matter: str, body: str) -> None:
     # Migrate away legacy layout where managed marker was the first line.
     remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
     existing = path.read_text(encoding="utf-8") if path.is_file() else ""
     tail = existing
-    if tail.startswith(_ANTIGRAVITY_FRONT_MATTER):
-        tail = tail[len(_ANTIGRAVITY_FRONT_MATTER):].lstrip("\n")
+    if tail.startswith(front_matter):
+        tail = tail[len(front_matter):].lstrip("\n")
     managed = wrap_managed_block(path, _AGENT_INSTRUCTIONS_KEY, body).rstrip("\n")
-    updated = f"{_ANTIGRAVITY_FRONT_MATTER}\n\n{managed}"
+    updated = f"{front_matter}\n\n{managed}"
     tail = tail.strip("\n")
     if tail:
         updated = f"{updated}\n\n{tail}"
@@ -121,67 +148,105 @@ def _upsert_antigravity_workflow(path: Path, body: str) -> None:
     path.write_text(updated + "\n", encoding="utf-8")
 
 
-def _cleanup_antigravity_front_matter(path: Path) -> None:
+def _cleanup_front_matter(path: Path, front_matter: str) -> None:
     if not path.is_file():
         return
     content = path.read_text(encoding="utf-8")
-    if not content.startswith(_ANTIGRAVITY_FRONT_MATTER):
+    if not content.startswith(front_matter):
         return
-    tail = content[len(_ANTIGRAVITY_FRONT_MATTER):].lstrip("\n")
+    tail = content[len(front_matter):].lstrip("\n")
     if tail:
         path.write_text(tail, encoding="utf-8")
     else:
         path.unlink(missing_ok=True)
+
+
+def _display_path(path: Path, cwd: Path) -> str:
+    try:
+        return str(path.relative_to(cwd))
+    except ValueError:
+        return str(path)
 
 def install_agent_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
         targets = ["vscode", "cursor", "claude-code", "antigravity", "codex"]
-        
+
     version = installed_package_version() or "unknown"
-    installed_paths = []
+    installed_list: list[tuple[Path, str | None]] = []
+    skipped_list: list[tuple[Path, str]] = []
+
     for target in targets:
         path = _agent_instruction_path(target, cwd)
-        if path:
-            path.parent.mkdir(parents=True, exist_ok=True)
-            body = MINDER_AGENT_PROMPT
-            if target == "antigravity":
-                _upsert_antigravity_workflow(path, body)
-                installed_paths.append(path)
-                continue
-            if target == "codex":
-                # Prefix with version as requested
-                body = f"# Minder Agent (v{version})\n\n" + body
-                
-            upsert_managed_block(
-                path,
-                _AGENT_INSTRUCTIONS_KEY,
-                body,
-            )
-            installed_paths.append(path)
-            
-    if not installed_paths:
+        if not path:
+            continue
+
+        existing_version = _get_installed_version(path)
+        if existing_version == version:
+            skipped_list.append((path, version))
+            continue
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        body = _agent_body_with_version(MINDER_AGENT_PROMPT, version)
+
+        if target == "antigravity":
+            _upsert_with_front_matter(path, _ANTIGRAVITY_FRONT_MATTER, body)
+        elif target == "claude-code":
+            _upsert_with_front_matter(path, _CLAUDE_CODE_FRONT_MATTER, body)
+        else:
+            upsert_managed_block(path, _AGENT_INSTRUCTIONS_KEY, body)
+
+        installed_list.append((path, existing_version))
+
+    if not installed_list and not skipped_list:
         print("No valid targets found for agent installation.")
         return 1
-        
-    print(f"Installed sophisticated Minder Agent rules in {len(installed_paths)} location(s).")
-    for p in installed_paths:
-        print(f"  - {p.relative_to(cwd) if p.is_relative_to(cwd) else p}")
+
+    for path, old_ver in installed_list:
+        display = _display_path(path, cwd)
+        if old_ver:
+            print(f"  Updated {display} (v{old_ver} → v{version})")
+        else:
+            print(f"  Installed {display} (v{version})")
+
+    for path, ver in skipped_list:
+        print(f"  Already up to date: {_display_path(path, cwd)} (v{ver})")
+
+    if installed_list:
+        print(f"Minder Agent rules installed/updated in {len(installed_list)} location(s).")
+    else:
+        print(f"All {len(skipped_list)} agent file(s) already up to date (v{version}).")
+
     return 0
+
 
 def uninstall_agent_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
         targets = ["vscode", "cursor", "claude-code", "antigravity", "codex"]
-        
+
+    removed: list[Path] = []
     for target in targets:
         path = _agent_instruction_path(target, cwd)
-        if path:
-            remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
-            if target == "antigravity":
-                _cleanup_antigravity_front_matter(path)
-            
-    print(f"Removed Minder Agent rules from {cwd}")
+        if not path:
+            continue
+        removed_block = remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
+        if target == "antigravity":
+            _cleanup_front_matter(path, _ANTIGRAVITY_FRONT_MATTER)
+        elif target == "claude-code":
+            _cleanup_front_matter(path, _CLAUDE_CODE_FRONT_MATTER)
+        if removed_block:
+            removed.append(path)
+
+    if removed:
+        print(f"Removed Minder Agent rules from {len(removed)} location(s).")
+        for p in removed:
+            print(f"  - {_display_path(p, cwd)}")
+    else:
+        print("No Minder Agent rules found to remove.")
     return 0
+
+
+remove_agent_command = uninstall_agent_command

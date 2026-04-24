@@ -348,8 +348,9 @@ def test_install_ide_updates_managed_blocks_without_removing_custom_text(
 
 
 def test_install_agent_writes_session_and_workflow_binding_guide(
-    tmp_path, capsys
+    tmp_path, monkeypatch, capsys
 ) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
     exit_code = main(
         [
             "install",
@@ -363,7 +364,7 @@ def test_install_agent_writes_session_and_workflow_binding_guide(
 
     assert exit_code == 0
     instructions = (
-        tmp_path / ".github" / "copilot-instructions.md"
+        tmp_path / ".copilot" / "agents" / "minder.agent.md"
     ).read_text(encoding="utf-8")
     assert "minder_session_find(name=...)" in instructions
     assert "Always track the active Minder session in repository-local file `.minder/agent.json`." in instructions
@@ -374,13 +375,14 @@ def test_install_agent_writes_session_and_workflow_binding_guide(
     assert "minder_node_neighborhood" not in instructions
 
     output = capsys.readouterr().out
-    assert "Installed sophisticated Minder Agent rules" in output
+    assert "Minder Agent rules installed/updated" in output
 
 
 def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
-    tmp_path,
+    tmp_path, monkeypatch
 ) -> None:  # noqa: ANN001
-    target_file = tmp_path / ".github" / "copilot-instructions.md"
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    target_file = tmp_path / ".copilot" / "agents" / "minder.agent.md"
     target_file.parent.mkdir(parents=True, exist_ok=True)
     target_file.write_text("Custom notes\n", encoding="utf-8")
 
@@ -417,7 +419,7 @@ def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
 def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
     tmp_path,
 ) -> None:  # noqa: ANN001
-    target_file = tmp_path / ".agents" / "workflows" / "minder.md"
+    target_file = tmp_path / ".gemini" / "antigravity" / "global_workflows" / "minder.md"
     target_file.parent.mkdir(parents=True, exist_ok=True)
     target_file.write_text("# Existing Workflow\n", encoding="utf-8")
 

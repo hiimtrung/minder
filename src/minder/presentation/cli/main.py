@@ -5,7 +5,7 @@ import argparse
 from .utils.version import installed_package_version
 from .utils.common import client_config_path
 from .commands.auth import login_command
-from .commands.mcp import install_mcp_command, uninstall_mcp_command, remove_mcp_command, local_target_path, _global_target_path
+from .commands.mcp import install_mcp_command, uninstall_mcp_command, remove_mcp_command, _global_target_path
 from .commands.ide import install_ide_command, uninstall_ide_command
 from .commands.agent import install_agent_command, uninstall_agent_command, remove_agent_command
 from .commands.update import version_command, check_update_command, update_command
@@ -42,7 +42,6 @@ def build_parser() -> argparse.ArgumentParser:
     install_subs = install.add_subparsers(dest="subcommand", required=True)
     
     _cwd_placeholder = "<repo>"
-    from pathlib import Path as _Path
     _mcp_epilog = (
         "targets:\n"
         f"  vscode       per-repo:  {_cwd_placeholder}/.vscode/mcp.json\n"

@@ -1655,7 +1655,7 @@ function renderDependencies(s: RepositoryGraphSummaryPayload): void {
     .map((dep) => {
       const targets = dep.depends_on.map((t) => escapeHtml(t.name)).join(", ");
       return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3 ">
-      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Service</p>
+      <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">${escapeHtml(dep.source_type || "Service")}</p>
       <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(dep.service)}</p>
       <p class="mt-1 text-xs text-stone-500">${targets || "No targets"}</p>
     </article>`;

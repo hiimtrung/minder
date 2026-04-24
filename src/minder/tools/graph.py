@@ -232,13 +232,23 @@ class GraphTools:
         effective_repo_name = (
             scopes[0]["repo_name"] if scopes else (repo_name or "unknown")
         )
-        all_matches: list[dict[str, Any]] = []
-        impacted: list[dict[str, Any]] = []
-        type_counter: Counter[str] = Counter()
-        upstream_count = 0
-        downstream_count = 0
-        synthetic_landscape_count = 0
+        # 1. Build scope lookup map for quick enrichment
+        scope_map = {}
+        for scope in scopes:
+            repo_id_str = str(scope["repo_id"] or "")
+            branch_str = str(scope["branch"] or "")
+            scope_map[(repo_id_str, branch_str)] = scope
 
+        # 2. Collect all nodes from all scopes to build name index and ID set
+        all_repo_node_ids = set()
+        node_id_to_node = {}
+        name_index: dict[tuple[str, str], list[Any]] = {}
+        resolution_types = {"service", "route", "api_endpoint", "external_service_api", "mq_topic"}
+        
+        all_matches = []
+        visited = set()
+        queue: deque[tuple[Any, int]] = deque()
+        
         for scope in scopes:
             _, repo_nodes = await self.list_repo_nodes(
                 repo_id=scope["repo_id"],
@@ -246,84 +256,135 @@ class GraphTools:
                 repo_path=scope["repo_path"],
                 branch=scope["branch"],
             )
+            for node in repo_nodes:
+                nid = getattr(node, "id")
+                all_repo_node_ids.add(nid)
+                node_id_to_node[nid] = node
+                
+                ntype = str(getattr(node, "node_type", ""))
+                if ntype in resolution_types:
+                    key = (str(getattr(node, "name", "")).lower(), ntype)
+                    name_index.setdefault(key, []).append(node)
+                
             matches = _resolve_matches(repo_nodes, target)
-            if matches:
-                for node in matches[: min(5, max(1, limit))]:
-                    serialized = _serialize_node(node)
-                    serialized["repo_id"] = scope["repo_id"]
-                    serialized["repo_name"] = scope["repo_name"]
-                    serialized["branch"] = scope["branch"]
-                    serialized["landscape_distance"] = scope["distance"]
-                    serialized["via_link"] = scope.get("via_link")
-                    all_matches.append(serialized)
+            for node in matches[: min(5, max(1, limit))]:
+                node_id = getattr(node, "id")
+                if node_id in visited:
+                    continue
+                visited.add(node_id)
+                queue.append((node_id, 0))
+                
+                serialized = _serialize_node(node)
+                serialized["repo_id"] = scope["repo_id"]
+                serialized["repo_name"] = scope["repo_name"]
+                serialized["branch"] = scope["branch"]
+                serialized["landscape_distance"] = scope["distance"]
+                serialized["via_link"] = scope.get("via_link")
+                all_matches.append(serialized)
 
-                repo_node_ids = {getattr(node, "id") for node in repo_nodes}
-                visited = {getattr(node, "id") for node in matches}
-                queue: deque[tuple[Any, int]] = deque(
-                    (getattr(node, "id"), 0)
-                    for node in matches[: min(5, max(1, limit))]
+        # 3. Unified BFS traversal with logical cross-repo bridging
+        while queue and len(impacted) < limit:
+            node_id, current_depth = queue.popleft()
+            if current_depth >= max(1, depth):
+                continue
+
+            curr_node = node_id_to_node.get(node_id)
+            if not curr_node: continue
+            
+            curr_type = str(getattr(curr_node, "node_type", ""))
+            curr_name = str(getattr(curr_node, "name", "")).lower()
+
+            # --- A. Physical Neighbors (Edges in DB) ---
+            for direction in ("out", "in"):
+                neighbors = await self._graph_store.get_neighbors(
+                    node_id, direction=direction
                 )
-
-                while queue and len(impacted) < limit:
-                    node_id, current_depth = queue.popleft()
-                    if current_depth >= max(1, depth):
+                
+                # --- B. Logical Neighbors (Cross-Repo Bridging) ---
+                logical_matches: list[Any] = []
+                if direction == "out":
+                    # Downstream: from external call to its implementation
+                    if curr_type == "external_service_api":
+                        for target_type in ["service", "route", "api_endpoint"]:
+                            logical_matches.extend(name_index.get((curr_name, target_type), []))
+                else:
+                    # Upstream: from service implementation back to its callers
+                    if curr_type in ["service", "route", "api_endpoint"]:
+                        logical_matches.extend(name_index.get((curr_name, "external_service_api"), []))
+                
+                for neighbor in list(neighbors) + logical_matches:
+                    neighbor_id = getattr(neighbor, "id")
+                    if neighbor_id in visited or neighbor_id not in all_repo_node_ids:
                         continue
+                        
+                    # Enrich neighbor with its scope info
+                    n_repo_id = str(getattr(neighbor, "repo_id", "") or "")
+                    n_branch = str(getattr(neighbor, "branch", "") or "")
+                    n_scope = scope_map.get((n_repo_id, n_branch))
+                    if not n_scope:
+                        continue
+                        
+                    visited.add(neighbor_id)
+                    queue.append((neighbor_id, current_depth + 1))
+                    
+                    serialized = _serialize_node(neighbor)
+                    serialized["direction"] = (
+                        "downstream" if direction == "out" else "upstream"
+                    )
+                    serialized["distance"] = current_depth + 1
+                    serialized["repo_id"] = n_scope["repo_id"]
+                    serialized["repo_name"] = n_scope["repo_name"]
+                    serialized["branch"] = n_scope["branch"]
+                    serialized["landscape_distance"] = n_scope["distance"]
+                    serialized["via_link"] = n_scope.get("via_link")
+                    
+                    # Mark if it was a logical bridge
+                    if neighbor not in neighbors:
+                        serialized["is_logical_bridge"] = True
 
-                    for direction in ("out", "in"):
-                        neighbors = await self._graph_store.get_neighbors(
-                            node_id, direction=direction
+                    impacted.append(serialized)
+                    type_counter.update([serialized["node_type"]])
+                    if direction == "out":
+                        downstream_count += 1
+                    else:
+                        upstream_count += 1
+                    
+                    if len(impacted) >= limit:
+                        break
+                if len(impacted) >= limit:
+                    break
+
+        # 4. Handle synthetic landscape results if space allows
+        if len(impacted) < limit:
+            for scope in scopes:
+                if scope["distance"] > 0 and len(impacted) < limit:
+                    already_represented = any(
+                        str(item.get("repo_id")) == str(scope["repo_id"]) and 
+                        str(item.get("branch")) == str(scope["branch"])
+                        for item in all_matches + impacted
+                    )
+                    if not already_represented:
+                        impacted.append(
+                            {
+                                "id": f"landscape:{scope['repo_id']}:{scope['branch']}",
+                                "node_type": "repository_branch",
+                                "name": f"{scope['repo_name']}:{scope['branch']}",
+                                "metadata": {
+                                    "repo_name": scope["repo_name"],
+                                    "branch": scope["branch"],
+                                    "landscape_only": True,
+                                },
+                                "direction": "cross_repo",
+                                "distance": 1,
+                                "repo_id": scope["repo_id"],
+                                "repo_name": scope["repo_name"],
+                                "branch": scope["branch"],
+                                "landscape_distance": scope["distance"],
+                                "via_link": scope.get("via_link"),
+                            }
                         )
-                        for neighbor in neighbors:
-                            neighbor_id = getattr(neighbor, "id")
-                            if (
-                                neighbor_id not in repo_node_ids
-                                or neighbor_id in visited
-                            ):
-                                continue
-                            visited.add(neighbor_id)
-                            queue.append((neighbor_id, current_depth + 1))
-                            serialized = _serialize_node(neighbor)
-                            serialized["direction"] = (
-                                "downstream" if direction == "out" else "upstream"
-                            )
-                            serialized["distance"] = current_depth + 1
-                            serialized["repo_id"] = scope["repo_id"]
-                            serialized["repo_name"] = scope["repo_name"]
-                            serialized["branch"] = scope["branch"]
-                            serialized["landscape_distance"] = scope["distance"]
-                            serialized["via_link"] = scope.get("via_link")
-                            impacted.append(serialized)
-                            type_counter.update([serialized["node_type"]])
-                            if direction == "out":
-                                downstream_count += 1
-                            else:
-                                upstream_count += 1
-                            if len(impacted) >= limit:
-                                break
-                        if len(impacted) >= limit:
-                            break
-            elif scope["distance"] > 0 and len(impacted) < limit:
-                impacted.append(
-                    {
-                        "id": f"landscape:{scope['repo_id']}:{scope['branch']}",
-                        "node_type": "repository_branch",
-                        "name": f"{scope['repo_name']}:{scope['branch']}",
-                        "metadata": {
-                            "repo_name": scope["repo_name"],
-                            "branch": scope["branch"],
-                            "landscape_only": True,
-                        },
-                        "direction": "cross_repo",
-                        "distance": 1,
-                        "repo_id": scope["repo_id"],
-                        "repo_name": scope["repo_name"],
-                        "branch": scope["branch"],
-                        "landscape_distance": scope["distance"],
-                        "via_link": scope.get("via_link"),
-                    }
-                )
-                type_counter.update(["repository_branch"])
-                synthetic_landscape_count += 1
+                        type_counter.update(["repository_branch"])
+                        synthetic_landscape_count += 1
 
         all_matches.sort(
             key=lambda item: (

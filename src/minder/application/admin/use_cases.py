@@ -1072,34 +1072,81 @@ class AdminConsoleUseCases:
         repo_nodes = await self._repository_graph_nodes(repository, branch=branch)
         counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
         repo_node_ids = {str(getattr(node, "id")) for node in repo_nodes}
-        services = [
-            node
-            for node in repo_nodes
-            if str(getattr(node, "node_type", "")) == "service"
-        ]
-        dependencies: list[dict[str, Any]] = []
-        for service in services:
-            neighbors = await self._graph_store.get_neighbors(
-                getattr(service, "id"),
-                direction="out",
-                relation="depends_on",
-            )
-            targets = [
-                {
-                    "id": str(getattr(neighbor, "id")),
-                    "name": str(getattr(neighbor, "name", "")),
-                    "node_type": str(getattr(neighbor, "node_type", "")),
-                }
-                for neighbor in neighbors
-                if str(getattr(neighbor, "id")) in repo_node_ids
-            ]
-            if targets:
-                dependencies.append(
-                    {
-                        "service": str(getattr(service, "name", "")),
-                        "depends_on": sorted(targets, key=lambda item: item["name"]),
-                    }
-                )
+        # 1. Fetch all edges for the repo
+        repo_edges = await self._graph_store.list_edges_by_scope(repo_id=str(repo_id))
+        
+        # 2. Build map of nodes and containment map (parent map)
+        node_id_to_node = {str(getattr(node, "id")): node for node in repo_nodes}
+        parent_map: dict[str, str] = {} # child_id -> parent_id
+        for edge in repo_edges:
+            if edge.relation == "contains":
+                parent_map[str(edge.target_id)] = str(edge.source_id)
+        
+        # 3. Identify dependency relations
+        dependency_relations = {"depends_on", "uses_external_service", "calls", "imports"}
+        
+        # 4. Find all dependency edges and group by high-level owner
+        # owner_id -> set of target info
+        owner_to_deps: dict[str, set[tuple[str, str, str]]] = {} 
+        
+        high_level_types = {"service", "repository", "module", "controller"}
+        
+        for edge in repo_edges:
+            if edge.relation not in dependency_relations:
+                continue
+            
+            source_id = str(edge.source_id)
+            target_id = str(edge.target_id)
+            
+            # Find high-level owner for the source node
+            curr_id = source_id
+            owner_node = None
+            
+            # Search upwards for a high-level owner
+            visited = {curr_id}
+            while curr_id in node_id_to_node:
+                node = node_id_to_node[curr_id]
+                if str(getattr(node, "node_type", "")) in high_level_types:
+                    owner_node = node
+                    break
+                
+                parent_id = parent_map.get(curr_id)
+                if not parent_id or parent_id in visited:
+                    break
+                curr_id = parent_id
+                visited.add(curr_id)
+            
+            if not owner_node:
+                continue
+                
+            # Get target info
+            target_node = node_id_to_node.get(target_id)
+            if not target_node:
+                continue
+            
+            owner_id = str(owner_node.id)
+            if owner_id not in owner_to_deps:
+                owner_to_deps[owner_id] = set()
+            
+            owner_to_deps[owner_id].add((
+                target_id,
+                str(getattr(target_node, "name", "")),
+                str(getattr(target_node, "node_type", "")),
+            ))
+
+        # 5. Format the results
+        dependencies = []
+        for owner_id, targets in owner_to_deps.items():
+            owner_node = node_id_to_node[owner_id]
+            dependencies.append({
+                "service": str(getattr(owner_node, "name", "")),
+                "source_type": str(getattr(owner_node, "node_type", "")),
+                "depends_on": sorted([
+                    {"id": tid, "name": tname, "node_type": ttype}
+                    for tid, tname, ttype in targets
+                ], key=lambda x: x["name"])
+            })
+        dependencies.sort(key=lambda x: x["service"])
 
         return {
             "repository": repository_payload,
@@ -1111,13 +1158,19 @@ class AdminConsoleUseCases:
             "node_count": len(repo_nodes),
             "counts_by_type": dict(counts),
             "routes": self._serialize_repo_graph_nodes(
-                repo_nodes, allowed_types={"route"}, limit=12
+                repo_nodes, 
+                allowed_types={"route", "api_endpoint", "websocket_endpoint"}, 
+                limit=50
             ),
             "todos": self._serialize_repo_graph_nodes(
-                repo_nodes, allowed_types={"todo"}, limit=12
+                repo_nodes, 
+                allowed_types={"todo"}, 
+                limit=50
             ),
             "external_services": self._serialize_repo_graph_nodes(
-                repo_nodes, allowed_types={"external_service_api"}, limit=12
+                repo_nodes, 
+                allowed_types={"external_service_api", "external_service"}, 
+                limit=50
             ),
             "dependencies": dependencies,
         }

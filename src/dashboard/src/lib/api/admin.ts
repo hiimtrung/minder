@@ -1012,6 +1012,7 @@ export type RepositoryGraphEdgePayload = {
 
 export type RepositoryGraphDependencyPayload = {
   service: string;
+  source_type: string;
   depends_on: Array<{
     id: string;
     name: string;

@@ -86,12 +86,14 @@ rm -f "$TEMP_INSTALLER"
 OLD_DIR="${MINDER_DIR}/releases/${CURRENT_TAG}"
 if [ -d "$OLD_DIR" ] && [ "$OLD_DIR" != "$(readlink "$CURRENT_LINK")" ]; then
   echo ""
-  echo "Stopping old release containers..."
-  if [ -f "$OLD_DIR/docker-compose.yml" ]; then
-    docker compose --env-file "$OLD_DIR/.env" -f "$OLD_DIR/docker-compose.yml" down 2>/dev/null || true
-  fi
-  echo "Old release directory kept at: $OLD_DIR"
-  echo "To remove it: rm -rf $OLD_DIR"
+  # NOTE: do NOT run `docker compose down` here.
+  # docker-compose.yml uses `name: minder` as the project name, so both the
+  # old and new releases share the same Compose project. The installer already
+  # ran `docker compose up -d` which recreated containers in-place with the new
+  # images. Running `down` on the old compose file would tear down those same
+  # new containers.
+  echo "Old release files kept at: $OLD_DIR"
+  echo "To remove them: rm -rf \"$OLD_DIR\""
 fi
 
 echo ""

@@ -185,6 +185,7 @@ jobs:
 
           Uninstall:
 
+          Linux/macOS:
           ```bash
           # Keep models and data volumes:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash -s -- --keep-data
@@ -193,14 +194,33 @@ jobs:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash
           ```
 
+          Windows PowerShell:
+          ```powershell
+          # Keep models and data volumes:
+          & ([scriptblock]::Create((irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.ps1))) -KeepData
+
+          # Full removal:
+          irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.ps1 | iex
+          ```
+
           Update:
 
+          Linux/macOS:
           ```bash
           # Auto-detect latest:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.sh | bash
 
           # Specific version:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.sh | bash -s -- --tag v0.3.0
+          ```
+
+          Windows PowerShell:
+          ```powershell
+          # Auto-detect latest:
+          irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.ps1 | iex
+
+          # Specific version:
+          & ([scriptblock]::Create((irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.ps1))) -Tag v0.3.0
           ```
           EOF
 

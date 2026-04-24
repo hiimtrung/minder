@@ -127,6 +127,7 @@ class PromptRegistry:
                 "user_query",
                 "retrieved_context",
                 "correction_required",
+                "chat_history",
             ],
             "defaults": {
                 "workflow_instruction": "",
@@ -139,6 +140,7 @@ class PromptRegistry:
                 "user_query": "Summarize the current repository state.",
                 "retrieved_context": "No repository context found.",
                 "correction_required": "",
+                "chat_history": "No conversation history.",
             },
             "content_template": "\n\n".join(
                 [
@@ -151,6 +153,7 @@ class PromptRegistry:
                     "User query:\n{user_query}",
                     "Retrieved context:\n{retrieved_context}",
                     "Correction required:\n{correction_required}",
+                    "Conversation history:\n{chat_history}",
                     "Respond with grounded reasoning and cite source paths.",
                 ]
             ),

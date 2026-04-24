@@ -109,6 +109,7 @@ export type RuntimeQueryPayload = {
   edge: string | null;
   cross_repo_graph: Record<string, unknown> | null;
   agent_actions: Array<Record<string, unknown>>;
+  session_id?: string | null;
 };
 
 export type RuntimeQueryStreamEvent =
@@ -360,6 +361,7 @@ export async function queryRuntimeStream(
     repo_id?: string;
     workflow_name?: string;
     max_attempts?: number;
+    session_id?: string;
   },
   onEvent: (event: RuntimeQueryStreamEvent) => void,
 ): Promise<void> {

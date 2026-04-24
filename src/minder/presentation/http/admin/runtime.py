@@ -37,6 +37,7 @@ class RuntimeQueryRequest(BaseModel):
     query: str
     repo_id: str | None = None
     workflow_name: str | None = None
+    session_id: str | None = None
     max_attempts: int = Field(default=2, ge=1, le=4)
 
 
@@ -521,6 +522,9 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         admin_user = await context.admin_user_from_request(request)
         query = str(payload.query).strip()
         repo_id = uuid.UUID(str(payload.repo_id)) if payload.repo_id else None
+        session_id = (
+            uuid.UUID(str(payload.session_id)) if payload.session_id else None
+        )
         repository_payload = {
             "id": (
                 str(repository.get("id") or payload.repo_id)
@@ -544,6 +548,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 query=query,
                 repo_path=repo_path,
                 repo_id=repo_id,
+                session_id=session_id,
                 workflow_name=payload.workflow_name,
                 max_attempts=payload.max_attempts,
             )
@@ -578,6 +583,9 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         admin_user = await context.admin_user_from_request(request)
         query = str(payload.query).strip()
         repo_id = uuid.UUID(str(payload.repo_id)) if payload.repo_id else None
+        session_id = (
+            uuid.UUID(str(payload.session_id)) if payload.session_id else None
+        )
 
         async def event_stream():
             repository_payload = {
@@ -605,6 +613,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                     query=query,
                     repo_path=repo_path,
                     repo_id=repo_id,
+                    session_id=session_id,
                     workflow_name=payload.workflow_name,
                     max_attempts=payload.max_attempts,
                 ):

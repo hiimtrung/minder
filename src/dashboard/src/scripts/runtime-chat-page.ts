@@ -54,6 +54,8 @@ let repositories: RepositoryPayload[] = [];
 let workflows: WorkflowPayload[] = [];
 let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
+let sessionId: string | null = null;
+
 const QUERY_MIN_ROWS = 2;
 const QUERY_MAX_ROWS = 4;
 
@@ -440,6 +442,7 @@ formEl?.addEventListener("submit", async (event) => {
         repo_id: repoId || undefined,
         workflow_name: workflowName,
         max_attempts: maxAttempts,
+        session_id: sessionId || undefined,
       },
       handleStreamEvent,
     );
@@ -495,6 +498,7 @@ document
 
 void loadBootstrap()
   .then(() => {
+    sessionId = crypto.randomUUID();
     renderThread();
     setStatus("Ask a question. Repository scope is optional.");
     syncQueryHeight();

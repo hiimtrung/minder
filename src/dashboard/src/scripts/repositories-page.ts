@@ -1272,6 +1272,12 @@ async function handleExploreNode(): Promise<void> {
   if (!activeRepositoryId || !selectedNodeId) return;
 
   const statusEl = getEl("repo-graph-status");
+  
+  if (selectedNodeId.startsWith("folder:")) {
+    setText(statusEl, "Selected: Folder (virtual node)");
+    return;
+  }
+
   setText(statusEl, "Exploring neighborhood…");
 
   try {

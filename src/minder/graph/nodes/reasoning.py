@@ -78,6 +78,14 @@ class ReasoningNode:
                     else "No repository context found."
                 ),
                 "correction_required": retry_reason,
+                "chat_history": (
+                    "\n".join(
+                        f"{'User' if m.get('role') == 'user' else 'Assistant'}: {m.get('content')}"
+                        for m in (state.chat_history or [])
+                    )
+                    if state.chat_history
+                    else "No conversation history."
+                ),
             },
             defaults=prompt_defaults,
         )

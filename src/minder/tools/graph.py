@@ -234,6 +234,13 @@ class GraphTools:
         )
         # 1. Build scope lookup map for quick enrichment
         scope_map = {}
+        all_matches: list[dict[str, Any]] = []
+        impacted: list[dict[str, Any]] = []
+        type_counter: Counter[str] = Counter()
+        upstream_count = 0
+        downstream_count = 0
+        synthetic_landscape_count = 0
+
         for scope in scopes:
             repo_id_str = str(scope["repo_id"] or "")
             branch_str = str(scope["branch"] or "")

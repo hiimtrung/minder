@@ -754,7 +754,12 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": str(exc)}, status_code=401)
 
         repo_id = uuid.UUID(str(request.path_params["repo_id"]))
-        node_id = uuid.UUID(str(request.path_params["node_id"]))
+        node_id_raw = str(request.path_params["node_id"])
+        try:
+            node_id = uuid.UUID(node_id_raw)
+        except ValueError:
+            # Handle non-UUID nodes (like folders)
+            return JSONResponse({"error": f"Node ID '{node_id_raw}' is not a valid UUID. Neighborhood exploration is only supported for persisted graph nodes."}, status_code=400)
         try:
             depth = int(request.query_params.get("depth", "4"))
             limit = int(request.query_params.get("limit", "200"))
@@ -1312,7 +1317,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             methods=["GET"],
         ),
         Route(
-            "/v1/admin/repositories/{repo_id:uuid}/nodes/{node_id:uuid}/neighborhood",
+            "/v1/admin/repositories/{repo_id:uuid}/nodes/{node_id:str}/neighborhood",
             repository_node_neighborhood,
             methods=["GET"],
         ),

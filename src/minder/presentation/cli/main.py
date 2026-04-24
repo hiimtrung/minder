@@ -7,6 +7,7 @@ from .utils.common import client_config_path
 from .commands.auth import login_command
 from .commands.mcp import install_mcp_command, uninstall_mcp_command
 from .commands.ide import install_ide_command, uninstall_ide_command
+from .commands.agent import install_agent_command, uninstall_agent_command
 from .commands.update import version_command, check_update_command, update_command
 from .commands.sync import sync_command
 
@@ -53,6 +54,11 @@ def build_parser() -> argparse.ArgumentParser:
     ide_in.add_argument("--config-path", default=str(client_config_path()), help="Path to client config.")
     ide_in.set_defaults(func=install_ide_command)
     
+    agent_in = install_subs.add_parser("agent", help="Install sophisticated Minder Agent rules.")
+    agent_in.add_argument("--target", action="append", help="Target IDE.")
+    agent_in.add_argument("--cwd", default=".", help="Workspace directory.")
+    agent_in.set_defaults(func=install_agent_command)
+    
     uninstall = subparsers.add_parser("uninstall", help="Remove Minder integration.")
     uninstall_subs = uninstall.add_subparsers(dest="subcommand", required=True)
     
@@ -66,6 +72,11 @@ def build_parser() -> argparse.ArgumentParser:
     ide_un.add_argument("--target", action="append", help="Target IDE.")
     ide_un.add_argument("--cwd", default=".", help="Workspace directory.")
     ide_un.set_defaults(func=uninstall_ide_command)
+    
+    agent_un = uninstall_subs.add_parser("agent", help="Remove Minder Agent rules.")
+    agent_un.add_argument("--target", action="append", help="Target IDE.")
+    agent_un.add_argument("--cwd", default=".", help="Workspace directory.")
+    agent_un.set_defaults(func=uninstall_agent_command)
     
     # --- Sync ---
     sync = subparsers.add_parser("sync", help="Sync repository state with Minder server.")

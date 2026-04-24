@@ -101,6 +101,12 @@ class QueryTools:
             except Exception:
                 pass
 
+            await self._store.create_history(
+                session_id=session_id,
+                role="user",
+                content=query,
+            )
+
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -211,6 +217,12 @@ class QueryTools:
                 ]
             except Exception:
                 pass
+
+            await self._store.create_history(
+                session_id=session_id,
+                role="user",
+                content=query,
+            )
 
         state = GraphState(
             query=query,

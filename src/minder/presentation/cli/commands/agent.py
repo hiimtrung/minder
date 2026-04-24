@@ -42,10 +42,21 @@ Call `minder_session_find(name=<session_name from ledger>)`.
 **Step 2 — Verify Identity**
 Call `minder_auth_whoami`. If the principal does not match the expected user, stop and alert the user.
 
-**Step 3 — Load Workflow**
-Call `minder_workflow_get` and `minder_workflow_step`. Update `.minder/agent.json` with the current `workflow.id`, `workflow.name`, and `workflow.current_step`.
+**Step 3 — Load Workflow and Task Definition**
+Call `minder_workflow_get` to understand the full workflow plan and its policies.
+Call `minder_workflow_step` and read the `instruction_envelope` from the response carefully — it is your task brief for this interaction:
 
-> NEVER assume the workflow is unchanged since the last interaction. It may have advanced.
+| Envelope field | What it means | What to do |
+|---|---|---|
+| `current_step` | The ONLY step you are authorized to work on | Do not touch any other step |
+| `required_artifacts` | What must be produced before this step is complete | Produce all of them; check `required_artifact_status` to see what is already done |
+| `output_contract` | The required format and content of your output | Your response MUST satisfy this contract |
+| `allowed_tools` | Minder tools in scope for this step | Do not call Minder tools outside this list |
+| `forbidden_actions` | Absolute prohibitions for this step | Treat any item here as a hard STOP |
+
+Update `.minder/agent.json` with the current `workflow.id`, `workflow.name`, and `workflow.current_step`.
+
+> NEVER assume the workflow is unchanged since the last interaction. It may have advanced. NEVER skip reading the `instruction_envelope` — it is the source of truth for what work is permitted right now.
 
 **Step 4 — Recall Context (REQUIRED before any code or proposal)**
 Call ALL four — do not skip any based on assumed knowledge:
@@ -121,7 +132,10 @@ REQUIRED before any implementation. Call ALL of the following — do not skip ba
 
 1. **Use verified source nodes only**: Every file path, symbol, and import MUST be confirmed via `minder_search_code` or `minder_search_graph`. NEVER guess.
 2. **Apply found skills**: Follow patterns returned by Phase B exactly. Do not invent alternatives when a skill exists.
-3. **Workflow guardrails**: Call `minder_workflow_guard` before any cross-step change. Call `minder_workflow_update` only after a step is genuinely complete — NEVER speculatively.
+3. **Workflow guard (hard gate)**: Before each significant action, call `minder_workflow_guard(requested_step=<step>, action=<action>)` and check `allowed` in the response:
+   - `allowed: true` → proceed; also re-read `instruction_envelope` from the guard response for any updated constraints.
+   - `allowed: false` → **STOP**. Do not rationalize past this. Surface `reason` and `violations` to the user and wait for their decision. Never work around a blocked guard.
+   Call `minder_workflow_update` only after a step is genuinely complete — NEVER speculatively.
 4. **Incremental saves**: Call `minder_session_save` after each significant change. Do not batch saves to the end.
 5. **Tuple consistency**: Before each write action (`workflow_update`, `memory_store`, `skill_store/update`, `session_save/context`), confirm the target is still `(repo_path, session_id, workflow.id)` from the ledger.
 
@@ -129,13 +143,15 @@ REQUIRED before any implementation. Call ALL of the following — do not skip ba
 
 ALL of the following are REQUIRED after completing any task:
 
-1. `minder_memory_store` — persist decisions, architectural choices, and gotchas discovered during the task.
-2. `minder_skill_store` or `minder_skill_update` — save any reusable implementation pattern that emerged.
-3. `minder_session_save` — persist final session state.
-4. `minder_session_context` — refresh branch and file context.
-5. Update `.minder/agent.json` with current `session_id`, `workflow`, and `updated_at`.
+1. **Submit artifacts**: For each item in `instruction_envelope.required_artifacts` that is now complete, call `minder_workflow_update(completed_step=<step>, artifact_name=<name>, artifact_content=<content>)`. Do not batch all artifacts into one call if they have different names.
+2. **Advance workflow**: After all required artifacts are submitted, call `minder_workflow_update` once more to mark the step complete and receive the updated `current_step` and `next_step`.
+3. `minder_memory_store` — persist decisions, architectural choices, and gotchas discovered during the task.
+4. `minder_skill_store` or `minder_skill_update` — save any reusable implementation pattern that emerged.
+5. `minder_session_save` — persist final session state.
+6. `minder_session_context` — refresh branch and file context.
+7. Update `.minder/agent.json` with current `session_id`, `workflow` (including the new `current_step`), and `updated_at`.
 
-> Skipping Phase D means the next interaction starts with stale context, repeats the same discovery work, and permanently loses captured knowledge.
+> Skipping Phase D means required artifacts are never recorded, the workflow never advances, and the next interaction starts with stale context and repeats the same work.
 
 ---
 

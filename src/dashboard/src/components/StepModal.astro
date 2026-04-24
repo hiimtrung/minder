@@ -1,0 +1,75 @@
+---
+import Field from "./ui/Field.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+
+interface Props {
+  idPrefix?: string;
+}
+
+const { idPrefix = "" } = Astro.props;
+---
+
+<div
+  id="step-modal-backdrop"
+  class="fixed inset-0 z-100 hidden items-center justify-center bg-stone-950/40 backdrop-blur-sm transition-opacity duration-200 opacity-0"
+>
+  <div
+    id="step-modal-container"
+    class="w-full max-w-lg transform scale-95 opacity-0 transition-all duration-200"
+  >
+    <div class="shell-card mx-4 overflow-hidden shadow-2xl">
+      <div class="px-6 py-5 border-b border-stone-200/60">
+        <h3 id="step-modal-title" class="text-lg font-semibold text-stone-900">
+          Add Step
+        </h3>
+        <p class="mt-1 text-sm text-stone-500">
+          Define the behavior and gating for this workflow step.
+        </p>
+      </div>
+
+      <form id="step-modal-form" class="p-6 grid gap-5">
+        <Field
+          label="Step Name"
+          htmlFor="step-name"
+          hint="A short, snake_case identifier for this step (e.g. run_tests, manual_approval)."
+        >
+          <Textarea id="step-name" placeholder="step_name" required rows={1} />
+        </Field>
+
+        <Field
+          label="Description"
+          htmlFor="step-description"
+          hint="Provide instructions or context for what this step accomplishes."
+        >
+          <Textarea
+            id="step-description"
+            placeholder="Describe what happens in this step..."
+            rows={6}
+          />
+        </Field>
+
+        <Field
+          label="Gate Condition"
+          htmlFor="step-gate"
+          hint="Optional: A condition that must be met to proceed (e.g. tests_passed == true)."
+        >
+          <Textarea
+            id="step-gate"
+            placeholder="Leave blank for no gate..."
+            rows={2}
+          />
+        </Field>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <Button id="step-modal-cancel" type="button" variant="ghost">
+            Cancel
+          </Button>
+          <Button id="step-modal-submit" type="submit" variant="primary">
+            Save step
+          </Button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

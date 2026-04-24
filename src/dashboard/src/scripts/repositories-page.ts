@@ -1635,7 +1635,7 @@ function renderNodeCollection(
     .map((n) => {
       const p = meta(n.metadata, "path");
       const lang = meta(n.metadata, "language");
-      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
+      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3 truncate w-full">
       <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">${escapeHtml(n.node_type)}</p>
       <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(n.name)}</p>
       <p class="mt-1 text-xs text-stone-500">${escapeHtml(p ?? lang ?? "—")}</p>
@@ -1654,7 +1654,7 @@ function renderDependencies(s: RepositoryGraphSummaryPayload): void {
   el.innerHTML = s.dependencies
     .map((dep) => {
       const targets = dep.depends_on.map((t) => escapeHtml(t.name)).join(", ");
-      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3">
+      return `<article class="rounded-2xl border border-stone-100 bg-white px-4 py-3 ">
       <p class="text-xs font-semibold uppercase tracking-widest text-stone-400">Service</p>
       <p class="mt-1.5 text-sm font-semibold text-stone-900">${escapeHtml(dep.service)}</p>
       <p class="mt-1 text-xs text-stone-500">${targets || "No targets"}</p>

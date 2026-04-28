@@ -89,10 +89,11 @@ class QueryTools:
             self._store,
         )
         chat_history = []
+        history_source = "none"
         if session_id:
             try:
                 history_docs = await self._store.list_history_for_session(session_id)
-                chat_history = [
+                raw_history = [
                     {
                         "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
                         "content": str(getattr(doc, "content", "")),
@@ -100,6 +101,9 @@ class QueryTools:
                     for doc in history_docs
                     if getattr(doc, "role", "") and getattr(doc, "content", "")
                 ]
+                if raw_history:
+                    history_source = "mongodb"
+                    chat_history = raw_history
             except Exception:
                 pass
 
@@ -136,6 +140,8 @@ class QueryTools:
                     if bool(getattr(query_prompt, "is_builtin", False))
                     else "custom"
                 ),
+                "history_source": history_source,
+                "history_message_count": len(chat_history),
             },
         )
         result = await self._graph.run(state)
@@ -169,6 +175,8 @@ class QueryTools:
             "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
             "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
+            "history_source": result.metadata.get("history_source", "none"),
+            "history_message_count": result.metadata.get("history_message_count", 0),
         }
 
     async def minder_query_stream(

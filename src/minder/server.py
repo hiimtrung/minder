@@ -28,8 +28,6 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    from pathlib import Path
-
     llm_runtime = _detect_litert_runtime(config) if config.llm.provider == "litert" else config.llm.provider
     embedding_runtime = _detect_fastembed_runtime(config)
     openai_key_set = bool(config.llm.openai_api_key)
@@ -57,7 +55,7 @@ def _detect_litert_runtime(config: Settings) -> str:
     from pathlib import Path
 
     try:
-        import litert_lm  # type: ignore[import-not-found]  # noqa: F401
+        import litert_lm  # type: ignore[import-untyped]  # noqa: F401
     except ImportError:
         return "mock"
     model_path = Path(config.llm.litert_model_path).expanduser()

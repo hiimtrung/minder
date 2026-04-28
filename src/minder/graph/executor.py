@@ -11,6 +11,7 @@ from minder.graph.nodes import (
     PlanningNode,
     ReasoningNode,
     RerankerNode,
+    ReflectionNode,
     RetrieverNode,
     VerificationNode,
     WorkflowPlannerNode,
@@ -31,6 +32,7 @@ class GraphNodes:
     verification: VerificationNode
     evaluator: EvaluatorNode
     reranker: RerankerNode | None = field(default=None)
+    reflection: ReflectionNode | None = field(default=None)
 
 
 class InternalGraphExecutor:
@@ -93,6 +95,10 @@ class InternalGraphExecutor:
 
         state = self._nodes.evaluator.run(state)
         state.metadata["edge"] = determine_next_edge(state)
+
+        if self._nodes.reflection is not None:
+            state = await self._nodes.reflection.run(state)
+
         return state
 
 

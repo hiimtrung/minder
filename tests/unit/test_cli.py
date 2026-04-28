@@ -415,12 +415,13 @@ def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
     assert "minder-agent-instructions" not in content
 
 
-def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
-    tmp_path,
+def test_install_and_uninstall_agent_antigravity_writes_global_gemini_md(
+    tmp_path, monkeypatch
 ) -> None:  # noqa: ANN001
-    target_file = tmp_path / ".gemini" / "antigravity" / "global_workflows" / "minder.md"
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    target_file = tmp_path / ".gemini" / "GEMINI.md"
     target_file.parent.mkdir(parents=True, exist_ok=True)
-    target_file.write_text("# Existing Workflow\n", encoding="utf-8")
+    target_file.write_text("# Existing project notes\n", encoding="utf-8")
 
     install_exit = main(
         [
@@ -434,12 +435,10 @@ def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
     )
     assert install_exit == 0
     installed = target_file.read_text(encoding="utf-8")
-    assert installed.startswith("---\n")
-    assert not installed.startswith("<!-- minder:begin minder-agent-instructions -->")
-    assert "# Existing Workflow" in installed
     assert "minder:begin minder-agent-instructions" in installed
-    assert "---\ndescription: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.\n---" in installed
     assert "Minder Agent Orchestration Rules" in installed
+    assert "# Existing project notes" in installed
+    assert not installed.startswith("---\n"), "GEMINI.md must not have YAML front matter"
 
     uninstall_exit = main(
         [
@@ -452,7 +451,46 @@ def test_install_and_uninstall_agent_antigravity_uses_workflow_file(
         ]
     )
     assert uninstall_exit == 0
-    assert target_file.read_text(encoding="utf-8") == "# Existing Workflow\n"
+    assert target_file.read_text(encoding="utf-8") == "# Existing project notes\n"
+
+
+def test_install_and_uninstall_agent_cursor_writes_cursor_rules(
+    tmp_path,
+) -> None:  # noqa: ANN001
+    target_file = tmp_path / ".cursor" / "rules" / "minder.mdc"
+
+    install_exit = main(
+        [
+            "install",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "cursor",
+        ]
+    )
+    assert install_exit == 0
+    assert target_file.is_file()
+    installed = target_file.read_text(encoding="utf-8")
+    assert "minder:begin minder-agent-instructions" in installed
+    assert "Minder Agent Orchestration Rules" in installed
+
+    uninstall_exit = main(
+        [
+            "uninstall",
+            "agent",
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "cursor",
+        ]
+    )
+    assert uninstall_exit == 0
+    # File is removed entirely when the managed block was its only content.
+    if target_file.is_file():
+        assert "minder-agent-instructions" not in target_file.read_text(encoding="utf-8")
+    else:
+        assert not target_file.exists()
 
 
 def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa: ANN001

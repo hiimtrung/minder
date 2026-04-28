@@ -5,6 +5,7 @@ from .llm import LLMNode
 from .planning import PlanningNode
 from .reranker import RerankerNode
 from .reasoning import ReasoningNode
+from .reflection import ReflectionNode
 from .retriever import RetrieverNode
 from .verification import (
     DockerSandboxRunner,
@@ -22,6 +23,7 @@ __all__ = [
     "PlanningNode",
     "ReasoningNode",
     "RerankerNode",
+    "ReflectionNode",
     "RetrieverNode",
     "SubprocessVerificationRunner",
     "VerificationNode",

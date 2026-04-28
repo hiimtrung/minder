@@ -180,6 +180,13 @@ class SkillTools:
                 step_compatibility=float(item["step_compatibility"]),
                 quality_score=float(item["quality_score"]),
             )
+            try:
+                await self._store.update_skill(
+                    uuid.UUID(str(item["id"])),
+                    usage_count=int(item.get("usage_count", 0) or 0) + 1,
+                )
+            except Exception:
+                pass
         return limited
 
     async def minder_skill_list(

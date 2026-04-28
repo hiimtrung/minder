@@ -45,6 +45,9 @@ from minder.application.admin.dto import (
     UserDetailPayload,
     UserListPayload,
     UserPayload,
+    WorkflowDetailPayload,
+    WorkflowListPayload,
+    WorkflowPayload,
     WorkflowStepPayload,
     SessionPayload,
     SessionListPayload,
@@ -659,12 +662,12 @@ class AdminConsoleUseCases:
             "created_at": (
                 session.created_at.isoformat()
                 if getattr(session, "created_at", None)
-                else None
+                else ""
             ),
             "last_active": (
                 session.last_active.isoformat()
                 if getattr(session, "last_active", None)
-                else None
+                else ""
             ),
         }
 

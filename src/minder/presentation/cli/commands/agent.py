@@ -170,11 +170,11 @@ def _agent_instruction_path(target: str, cwd: Path) -> Path | None:
     if target == "vscode":
         return Path.home() / ".copilot" / "agents" / "minder.agent.md"
     if target == "cursor":
-        return cwd / "AGENTS.md"
+        return cwd / ".cursor" / "rules" / "minder.mdc"
     if target == "claude-code":
         return Path.home() / ".claude" / "agents" / "minder.md"
     if target == "antigravity":
-        return cwd / ".gemini" / "antigravity" / "global_workflows" / "minder.md"
+        return Path.home() / ".gemini" / "GEMINI.md"
     if target == "codex":
         return Path.home() / ".codex" / "AGENTS.md"
     return None
@@ -259,9 +259,7 @@ def install_agent_command(args: argparse.Namespace) -> int:
         path.parent.mkdir(parents=True, exist_ok=True)
         body = _agent_body_with_version(MINDER_AGENT_PROMPT, version)
 
-        if target == "antigravity":
-            _upsert_with_front_matter(path, _ANTIGRAVITY_FRONT_MATTER, body)
-        elif target == "claude-code":
+        if target == "claude-code":
             _upsert_with_front_matter(path, _CLAUDE_CODE_FRONT_MATTER, body)
         else:
             upsert_managed_block(path, _AGENT_INSTRUCTIONS_KEY, body)
@@ -302,9 +300,7 @@ def uninstall_agent_command(args: argparse.Namespace) -> int:
         if not path:
             continue
         removed_block = remove_managed_block(path, _AGENT_INSTRUCTIONS_KEY)
-        if target == "antigravity":
-            _cleanup_front_matter(path, _ANTIGRAVITY_FRONT_MATTER)
-        elif target == "claude-code":
+        if target == "claude-code":
             _cleanup_front_matter(path, _CLAUDE_CODE_FRONT_MATTER)
         if removed_block:
             removed.append(path)

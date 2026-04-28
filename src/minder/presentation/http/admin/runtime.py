@@ -68,6 +68,7 @@ _CREATE_VERBS = (
 )
 _DELETE_VERBS = ("delete", "remove", "xoá", "xóa", "xoa")
 _CLEANUP_VERBS = ("cleanup", "clean up", "purge", "dọn", "don")
+_RECALL_VERBS = ("recall", "search", "find", "look up", "tìm", "tim")
 
 
 def _contains_any(text: str, needles: tuple[str, ...]) -> bool:
@@ -140,6 +141,7 @@ class RuntimeAgentExecutor:
         self._memory_tools = MemoryTools(context.store, context.config)
         self._skill_tools = SkillTools(context.store, context.config)
         self._session_tools = SessionTools(context.store)
+        self._store = context.store
 
     async def execute(
         self,
@@ -162,6 +164,8 @@ class RuntimeAgentExecutor:
                 repository=repository,
                 admin_user_id=admin_user_id,
             )
+        if "workflow" in normalized or "workflows" in normalized:
+            return await self._execute_workflow(query=query, repository=repository)
         return None
 
     async def _execute_memory(
@@ -251,6 +255,30 @@ class RuntimeAgentExecutor:
         repository: dict[str, Any],
     ) -> dict[str, Any] | None:
         normalized = query.lower()
+        if _contains_any(normalized, _RECALL_VERBS) and not _contains_any(normalized, _READ_LIST_VERBS):
+            results = await self._skill_tools.minder_skill_recall(query)
+            preview = (
+                "\n".join(
+                    f"- {item['id']}: {item['title']} (score={item.get('score', 0):.2f})"
+                    for item in results[:10]
+                )
+                if results
+                else "- No matching skills found."
+            )
+            return _agentic_payload(
+                query=query,
+                repository=repository,
+                answer=f"Recalled {len(results)} skills for query.\n{preview}",
+                agent_actions=[
+                    {
+                        "tool": "minder_skill_recall",
+                        "mode": "read",
+                        "status": "success",
+                        "count": len(results),
+                    }
+                ],
+            )
+
         if _contains_any(normalized, _READ_LIST_VERBS):
             skills = await self._skill_tools.minder_skill_list()
             preview = (
@@ -405,6 +433,38 @@ class RuntimeAgentExecutor:
                         "mode": "write",
                         "status": "success",
                         "result": created,
+                    }
+                ],
+            )
+        return None
+
+    async def _execute_workflow(
+        self,
+        *,
+        query: str,
+        repository: dict[str, Any],
+    ) -> dict[str, Any] | None:
+        normalized = query.lower()
+        if _contains_any(normalized, _READ_LIST_VERBS):
+            workflows = await self._store.list_workflows()
+            preview = (
+                "\n".join(
+                    f"- {getattr(wf, 'id', '?')}: {getattr(wf, 'name', 'unnamed')}"
+                    for wf in workflows[:10]
+                )
+                if workflows
+                else "- No workflows found."
+            )
+            return _agentic_payload(
+                query=query,
+                repository=repository,
+                answer=f"Listed {len(workflows)} workflows.\n{preview}",
+                agent_actions=[
+                    {
+                        "tool": "minder_workflow_list",
+                        "mode": "read",
+                        "status": "success",
+                        "count": len(workflows),
                     }
                 ],
             )

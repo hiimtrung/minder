@@ -367,10 +367,9 @@ def test_install_agent_writes_session_and_workflow_binding_guide(
         tmp_path / ".copilot" / "agents" / "minder.agent.md"
     ).read_text(encoding="utf-8")
     assert "minder_session_find(name=...)" in instructions
-    assert "Always track the active Minder session in repository-local file `.minder/agent.json`." in instructions
+    assert "Maintain `.minder/agent.json` with exactly this schema at all times:" in instructions
     assert '"workflow": {' in instructions
-    assert "Treat `(repo_path, session_id, workflow.id)` as the active execution tuple" in instructions
-    assert "Strict Context Binding" in instructions
+    assert "ALWAYS keep `(repo_path, session_id, workflow.id)` consistent" in instructions
     assert "minder_workflow_list" not in instructions
     assert "minder_node_neighborhood" not in instructions
 

@@ -32,7 +32,7 @@ class MemoryTools:
         self._embedder = LocalEmbeddingProvider(
             fastembed_model=config.embedding.fastembed_model,
             fastembed_cache_dir=config.embedding.fastembed_cache_dir,
-            dimensions=min(config.embedding.dimensions, 16),
+            dimensions=config.embedding.dimensions,
             runtime=config.embedding.runtime,
         )
         self._synthesizer: ContinuitySynthesizer | None = None

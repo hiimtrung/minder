@@ -91,14 +91,14 @@ const renderStepList = (
   container.innerHTML = steps
     .map(
       (step, i) => `
-    <div class="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50/80 p-3">
+    <div class="flex min-w-0 items-start gap-3 overflow-hidden rounded-2xl border border-stone-200 bg-stone-50/80 p-3">
       <div class="flex-1 grid gap-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">${i + 1}</span>
-          <span class="text-sm font-semibold text-stone-900 truncate">${escapeHtml(step.name)}</span>
-          ${step.gate ? `<span class="rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">gate: ${escapeHtml(step.gate)}</span>` : ""}
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">${i + 1}</span>
+          <span class="min-w-0 truncate text-sm font-semibold text-stone-900">${escapeHtml(step.name)}</span>
+          ${step.gate ? `<span class="shrink-0 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">gate: ${escapeHtml(step.gate)}</span>` : ""}
         </div>
-        ${step.description ? `<p class="text-xs text-stone-500 leading-5">${escapeHtml(step.description)}</p>` : ""}
+        ${step.description ? `<p class="break-words text-xs leading-5 text-stone-500">${escapeHtml(step.description)}</p>` : ""}
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <button

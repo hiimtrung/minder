@@ -274,6 +274,12 @@ def build_transport(
             open_files=open_files,
         )
 
+    async def minder_session_summarize(
+        *, user=None, session_id: str
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await session_tools.minder_session_summarize(uuid.UUID(session_id))
+
     async def minder_session_cleanup(
         *,
         user=None,
@@ -368,6 +374,22 @@ def build_transport(
         del user
         return await memory_tools.minder_memory_list()
 
+    async def minder_memory_update(
+        *,
+        user=None,
+        memory_id: str,
+        title: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await memory_tools.minder_memory_update(
+            memory_id,
+            title=title,
+            content=content,
+            tags=tags,
+        )
+
     async def minder_memory_delete(
         *, user=None, skill_id: str
     ) -> dict[str, bool]:  # noqa: ANN001
@@ -456,6 +478,7 @@ def build_transport(
         artifact_types: list[str] | None = None,
         provenance: str | None = None,
         quality_score: float | None = None,
+        deprecated: bool | None = None,
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await skill_tools.minder_skill_update(
@@ -468,6 +491,7 @@ def build_transport(
             artifact_types=artifact_types,
             provenance=provenance,
             quality_score=quality_score,
+            deprecated=deprecated,
         )
 
     async def minder_skill_delete(
@@ -670,6 +694,12 @@ def build_transport(
         description=TOOL_DESCRIPTIONS["minder_session_context"],
     )
     transport.register_tool(
+        "minder_session_summarize",
+        minder_session_summarize,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_session_summarize"],
+    )
+    transport.register_tool(
         "minder_session_cleanup",
         minder_session_cleanup,
         require_auth=True,
@@ -716,6 +746,12 @@ def build_transport(
         minder_memory_list,
         require_auth=True,
         description=TOOL_DESCRIPTIONS["minder_memory_list"],
+    )
+    transport.register_tool(
+        "minder_memory_update",
+        minder_memory_update,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_memory_update"],
     )
     transport.register_tool(
         "minder_memory_delete",

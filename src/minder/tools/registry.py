@@ -40,6 +40,10 @@ ALL_TOOLS: list[ToolMeta] = [
         description="Delete a stored memory entry by its ID.",
     ),
     ToolMeta(
+        name="minder_memory_update",
+        description="Update an existing memory entry's title, content, or tags. Re-embeds automatically when content changes.",
+    ),
+    ToolMeta(
         name="minder_memory_compact",
         description="Review and compact duplicate memory entries by merging selected memories into a canonical entry.",
     ),
@@ -57,7 +61,7 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     ToolMeta(
         name="minder_skill_update",
-        description="Update skill content, metadata, and quality signals for an existing stored skill.",
+        description="Update skill content, metadata, quality signals, or deprecated status for an existing stored skill.",
     ),
     ToolMeta(
         name="minder_skill_delete",
@@ -155,6 +159,11 @@ ALL_TOOLS: list[ToolMeta] = [
         always_available=True,
     ),
     ToolMeta(
+        name="minder_session_summarize",
+        description="Generate and persist a structured work summary for the session: task, completed steps, blockers, and next actions.",
+        always_available=True,
+    ),
+    ToolMeta(
         name="minder_session_cleanup",
         description="Delete expired sessions owned by the calling principal and remove their persisted history records.",
         always_available=True,
@@ -203,6 +212,25 @@ SCOPEABLE_TOOLS: list[ToolMeta] = [tool for tool in ALL_TOOLS if tool.scopeable]
 ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
     tool.name for tool in ALL_TOOLS if tool.always_available
 )
+
+
+TOOL_USAGE_PATTERNS: dict[str, str] = {
+    "minder_memory_store": "Use when the user states a fact, decision, or lesson that should persist across sessions.",
+    "minder_memory_recall": "Use before answering questions that may depend on past decisions or context.",
+    "minder_memory_update": "Use when the user says a stored memory is wrong, outdated, or needs correction.",
+    "minder_memory_compact": "Use when minder_memory_list shows many similar entries (>10) that should be merged.",
+    "minder_skill_store": "Use when a reusable workflow pattern, checklist, or code template is identified.",
+    "minder_skill_recall": "Use at the start of a workflow step to load relevant patterns before reasoning.",
+    "minder_skill_update": "Use to raise/lower quality_score after observing a skill's effectiveness, or set deprecated=True when a skill is no longer applicable.",
+    "minder_workflow_guard": "Always call before starting or switching a workflow step to validate the transition is allowed.",
+    "minder_workflow_update": "Call after completing a step's required artifacts to advance the workflow state.",
+    "minder_session_create": "Call once at the start of each project work context with a stable project slug.",
+    "minder_session_save": "Call after each significant wave of work — decisions made, files changed, next steps planned.",
+    "minder_session_find": "Call on any machine restart or after /compact to recover full session context by project name.",
+    "minder_session_summarize": "Call when the session is getting long or before a /compact to capture a structured work summary.",
+    "minder_query": "Use for complex questions that need retrieval + reasoning over the repository codebase.",
+    "minder_search_code": "Use for targeted code lookup by file, symbol, or pattern — faster than minder_query.",
+}
 
 
 def _tool_category(tool_name: str) -> str:
@@ -255,6 +283,10 @@ def tool_capability_manifest() -> str:
                 else "scoped" if tool.scopeable else "admin/internal"
             )
             lines.append(f"- {tool.name}: {tool.description} [{availability}]")
+    lines.append("")
+    lines.append("Usage guidance:")
+    for tool_name, pattern in TOOL_USAGE_PATTERNS.items():
+        lines.append(f"- {tool_name}: {pattern}")
     return "\n".join(lines)
 
 

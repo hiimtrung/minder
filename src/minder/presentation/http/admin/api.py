@@ -637,8 +637,45 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         return JSONResponse(summary)
 
     # ------------------------------------------------------------------
-    # Repository management
+    # Session management
     # ------------------------------------------------------------------
+
+    async def admin_sessions(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse(await context.use_cases.list_sessions())
+
+    async def session_detail(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        session_id = uuid.UUID(str(request.path_params["session_id"]))
+        if request.method == "GET":
+            try:
+                return JSONResponse(
+                    await context.use_cases.get_session_detail(session_id)
+                )
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        if request.method == "DELETE":
+            try:
+                return JSONResponse(await context.use_cases.delete_session(session_id))
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    # ------------------------------------------------------------------
+    # Repository management
 
     async def admin_repositories(request):
         try:
@@ -1280,6 +1317,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             "/v1/admin/workflows/{workflow_id:uuid}",
             workflow_detail,
             methods=["GET", "PATCH", "DELETE"],
+        ),
+        # Session management
+        Route("/v1/admin/sessions", admin_sessions, methods=["GET"]),
+        Route(
+            "/v1/admin/sessions/{session_id:uuid}",
+            session_detail,
+            methods=["GET", "DELETE"],
         ),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),

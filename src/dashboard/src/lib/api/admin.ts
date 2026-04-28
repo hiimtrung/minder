@@ -1340,6 +1340,51 @@ export async function getRepositoryGraphImpact(
 }
 
 // ---------------------------------------------------------------------------
+// Session management
+// ---------------------------------------------------------------------------
+
+export type SessionPayload = {
+  id: string;
+  user_id: string | null;
+  client_id: string | null;
+  name: string | null;
+  repo_id: string | null;
+  project_context: Record<string, any>;
+  active_skills: Record<string, any>;
+  state: Record<string, any>;
+  ttl: number;
+  created_at: string | null;
+  last_active: string | null;
+};
+
+export type SessionListPayload = {
+  sessions: SessionPayload[];
+};
+
+export type SessionDetailPayload = {
+  session: SessionPayload;
+};
+
+export async function listSessions(): Promise<SessionListPayload> {
+  return requestJson<SessionListPayload>("/v1/admin/sessions");
+}
+
+export async function getSessionDetail(
+  sessionId: string,
+): Promise<SessionDetailPayload> {
+  return requestJson<SessionDetailPayload>(`/v1/admin/sessions/${sessionId}`);
+}
+
+export async function deleteSession(
+  sessionId: string,
+): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(`/v1/admin/sessions/${sessionId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Observability
 // ---------------------------------------------------------------------------
 

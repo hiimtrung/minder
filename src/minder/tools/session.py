@@ -302,6 +302,54 @@ class SessionTools:
             "open_files": open_files,
         }
 
+    async def minder_session_summarize(
+        self,
+        session_id: uuid.UUID,
+    ) -> dict[str, Any]:
+        """Generate and persist a structured work summary for the session.
+
+        Calls build_continuity_brief() to extract task, progress, blockers, and
+        next actions from session + workflow state. Stores the result in
+        session.state["summary"] so it survives context compaction.
+        """
+        session = await self._require_active_session(session_id)
+
+        workflow_state = None
+        workflow = None
+        if session.repo_id is not None:
+            workflow_state = await self._store.get_workflow_state_by_repo(session.repo_id)
+            if workflow_state is not None:
+                repo = await self._store.get_repository_by_id(session.repo_id)
+                if repo is not None and repo.workflow_id is not None:
+                    workflow = await self._store.get_workflow_by_id(repo.workflow_id)
+
+        brief = build_continuity_brief(
+            session=session,
+            workflow_state=workflow_state,
+            workflow=workflow,
+        )
+
+        summary = {
+            "task": brief.get("problem_framing", {}).get("task", ""),
+            "repo_path": brief.get("problem_framing", {}).get("repo_path"),
+            "branch": brief.get("problem_framing", {}).get("branch"),
+            "workflow_step": brief.get("problem_framing", {}).get("workflow_step"),
+            "completed": brief.get("confirmed_progress", []),
+            "blockers": brief.get("unresolved_blockers", []),
+            "next_actions": brief.get("next_valid_actions", []),
+            "risk_signals": brief.get("risk_signals", []),
+        }
+
+        existing_state = dict(session.state or {})
+        existing_state["summary"] = summary
+        await self._store.update_session(
+            session_id,
+            state=existing_state,
+            last_active=datetime.now(UTC),
+        )
+        record_continuity_packet("session_summarize")
+        return {"session_id": str(session_id), "summary": summary}
+
     async def minder_session_cleanup(
         self,
         *,

@@ -6,6 +6,7 @@ import pytest
 
 from minder.graph.executor import GraphNodes, InternalGraphExecutor
 from minder.graph.nodes import (
+    ClarificationNode,
     DockerSandboxRunner,
     GuardNode,
     LLMNode,
@@ -228,6 +229,7 @@ async def test_internal_executor_retries_after_guard_failure(
     nodes = GraphNodes(
         workflow_planner=PassthroughWorkflowPlanner(),
         planning=PlanningNode(),
+        clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
         llm=LLMNode(primary=llm),

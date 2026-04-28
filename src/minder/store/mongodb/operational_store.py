@@ -413,6 +413,7 @@ class MongoOperationalStore:
         kwargs.setdefault("company_id", "default")
         kwargs.setdefault("usage_count", 0)
         kwargs.setdefault("quality_score", 0.0)
+        kwargs.setdefault("deprecated", False)
         kwargs.setdefault("tags", [])
         kwargs.setdefault("embedding", None)
         kwargs.setdefault("source_metadata", None)
@@ -553,6 +554,10 @@ class MongoOperationalStore:
         cursor = self._db.sessions.find({"user_id": _uuid_to_str(user_id)}).sort(
             "last_active", -1
         )
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def list_sessions(self) -> list[_MongoDoc]:
+        cursor = self._db.sessions.find().sort("last_active", -1)
         return [_to_doc(doc) async for doc in cursor]
 
     async def get_sessions_by_client(self, client_id: uuid.UUID) -> list[_MongoDoc]:

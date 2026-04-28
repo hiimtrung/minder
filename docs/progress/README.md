@@ -33,6 +33,7 @@
 | [phase-5-learning-and-skill-catalog.md](phase-5-learning-and-skill-catalog.md)                           | Phase 5 delivered learning, skill catalog, metadata-first graph, and dashboard runtime slice | Closed                             |
 | [../archive/progress/phase-6-branch-topology-automation.md](../archive/progress/phase-6-branch-topology-automation.md)                           | Phase 6 CLI completion, repo-local IDE bootstrap, and first-release preparation              | Closed                             |
 | [phase-7-learning-and-advanced-runtime.md](phase-7-learning-and-advanced-runtime.md)                     | Phase 7 deferred learning backlog, advanced runtime UX, and post-CLI reconciliation          | Planned                            |
+| [phase-8-agent-intelligence.md](phase-8-agent-intelligence.md)                                           | Phase 8 agent self-correction: memory update MCP, skill deprecated flag, session summarize, tool guidance, clarification UX | Planned |
 | [../archive/progress/architecture-transition-cli-edge-sync.md](../archive/progress/architecture-transition-cli-edge-sync.md)                     | New transition roadmap for CLI edge extraction and fast graph sync                           | Closed for current scope           |
 
 ---

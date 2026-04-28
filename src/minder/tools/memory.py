@@ -156,6 +156,54 @@ class MemoryTools:
             if is_memory_record(skill)
         ]
 
+    async def minder_memory_update(
+        self,
+        memory_id: str,
+        *,
+        title: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        existing = await self._store.get_skill_by_id(uuid.UUID(memory_id))
+        if existing is None or not is_memory_record(existing):
+            raise ValueError(f"Memory not found: {memory_id}")
+
+        update_data: dict[str, Any] = {}
+        next_title = title if title is not None else str(existing.title)
+        next_content = content if content is not None else str(existing.content)
+        if title is not None:
+            update_data["title"] = title
+        if content is not None:
+            update_data["content"] = content
+        if tags is not None:
+            update_data["tags"] = [str(t).strip().lower() for t in tags if str(t).strip()]
+        if title is not None or content is not None:
+            update_data["embedding"] = self._embedder.embed(f"{next_title}\n{next_content}")
+
+        updated = await self._store.update_skill(uuid.UUID(memory_id), **update_data)
+        if updated is None:
+            raise ValueError(f"Memory not found: {memory_id}")
+
+        try:
+            await self._store.create_audit_log(
+                actor_type="system",
+                actor_id="minder",
+                event_type="skill.updated",
+                resource_type="skill",
+                resource_id=memory_id,
+                outcome="success",
+                audit_metadata={"changed_fields": list(update_data.keys())},
+            )
+        except Exception:
+            pass
+
+        return {
+            "id": str(updated.id),
+            "title": str(updated.title),
+            "tags": list(updated.tags) if isinstance(updated.tags, list) else [],
+            "updated": True,
+        }
+
     async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:
         await self._store.delete_skill(uuid.UUID(skill_id))
 

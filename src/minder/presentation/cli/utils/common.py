@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-_DEFAULT_SERVER_URL = "http://localhost:8801/sse"
+_DEFAULT_SERVER_URL = "http://localhost:8800/sse"
 _DEFAULT_PROTOCOL = "sse"
 _DEFAULT_RELEASE_REPOSITORY_URL = "https://github.com/hiimtrung/minder"
 

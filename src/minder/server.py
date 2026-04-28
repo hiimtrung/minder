@@ -11,10 +11,7 @@ from minder.bootstrap.providers import (
 )
 from minder.bootstrap.transport import build_transport
 from minder.config import Settings
-from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph.runtime import graph_runtime_name
-from minder.llm.factory import create_llm
-from minder.llm.openai import OpenAIFallbackLLM
 from minder.presentation.http.admin.routes import build_http_app, build_http_routes
 
 __all__ = [
@@ -31,16 +28,12 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    llm = create_llm(config.llm)
-    embedder = LocalEmbeddingProvider(
-        fastembed_model=config.embedding.fastembed_model,
-        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
-        dimensions=config.embedding.dimensions,
-        runtime="auto",
-    )
-    fallback = OpenAIFallbackLLM(
-        config.llm.openai_api_key, config.llm.openai_model, runtime="auto"
-    )
+    from pathlib import Path
+
+    llm_runtime = _detect_litert_runtime(config) if config.llm.provider == "litert" else config.llm.provider
+    embedding_runtime = _detect_fastembed_runtime(config)
+    openai_key_set = bool(config.llm.openai_api_key)
+
     return {
         "transport": config.server.transport,
         "host": config.server.host,
@@ -50,14 +43,34 @@ def runtime_summary(config: Settings) -> dict[str, object]:
             config.workflow.orchestration_runtime
         ),
         "llm_provider": config.llm.provider,
-        "llm_runtime_effective": llm.runtime,
+        "llm_runtime_effective": llm_runtime,
         "llm_context_length": config.llm.context_length,
         "embedding_provider": config.embedding.provider,
         "embedding_fastembed_model": config.embedding.fastembed_model,
-        "embedding_runtime_effective": embedder.runtime,
-        "openai_fallback_configured": fallback.available(),
-        "openai_fallback_runtime_effective": fallback.runtime,
+        "embedding_runtime_effective": embedding_runtime,
+        "openai_fallback_configured": openai_key_set,
+        "openai_fallback_runtime_effective": "openai" if openai_key_set else "mock",
     }
+
+
+def _detect_litert_runtime(config: Settings) -> str:
+    from pathlib import Path
+
+    try:
+        import litert_lm  # type: ignore[import-not-found]  # noqa: F401
+    except ImportError:
+        return "mock"
+    model_path = Path(config.llm.litert_model_path).expanduser()
+    return "litert" if model_path.exists() else "mock"
+
+
+def _detect_fastembed_runtime(config: Settings) -> str:
+    try:
+        import fastembed  # type: ignore[import-not-found]  # noqa: F401
+
+        return "fastembed"
+    except ImportError:
+        return "mock"
 
 
 async def _async_run() -> None:

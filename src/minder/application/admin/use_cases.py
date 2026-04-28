@@ -45,10 +45,10 @@ from minder.application.admin.dto import (
     UserDetailPayload,
     UserListPayload,
     UserPayload,
-    WorkflowDetailPayload,
-    WorkflowListPayload,
-    WorkflowPayload,
     WorkflowStepPayload,
+    SessionPayload,
+    SessionListPayload,
+    SessionDetailPayload,
 )
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
@@ -619,6 +619,51 @@ class AdminConsoleUseCases:
             "created_at": (
                 workflow.created_at.isoformat()
                 if getattr(workflow, "created_at", None)
+                else None
+            ),
+        }
+
+    # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    async def list_sessions(self) -> SessionListPayload:
+        sessions = await self._store.list_sessions()
+        return {"sessions": [self.serialize_session(s) for s in sessions]}
+
+    async def get_session_detail(self, session_id: uuid.UUID) -> SessionDetailPayload:
+        session = await self._store.get_session_by_id(session_id)
+        if session is None:
+            raise LookupError(f"Session {session_id} not found")
+        return {"session": self.serialize_session(session)}
+
+    async def delete_session(self, session_id: uuid.UUID) -> dict[str, bool]:
+        existing = await self._store.get_session_by_id(session_id)
+        if existing is None:
+            raise LookupError(f"Session {session_id} not found")
+        await self._store.delete_session(session_id)
+        return {"deleted": True}
+
+    @staticmethod
+    def serialize_session(session: Any) -> SessionPayload:
+        return {
+            "id": str(session.id),
+            "user_id": str(session.user_id) if session.user_id else None,
+            "client_id": str(session.client_id) if session.client_id else None,
+            "name": session.name,
+            "repo_id": str(session.repo_id) if session.repo_id else None,
+            "project_context": dict(getattr(session, "project_context", {}) or {}),
+            "active_skills": dict(getattr(session, "active_skills", {}) or {}),
+            "state": dict(getattr(session, "state", {}) or {}),
+            "ttl": int(getattr(session, "ttl", 86400) or 86400),
+            "created_at": (
+                session.created_at.isoformat()
+                if getattr(session, "created_at", None)
+                else None
+            ),
+            "last_active": (
+                session.last_active.isoformat()
+                if getattr(session, "last_active", None)
                 else None
             ),
         }

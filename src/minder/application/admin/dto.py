@@ -129,6 +129,28 @@ class AdminSessionPayload(TypedDict):
     role: str
 
 
+class SessionPayload(TypedDict):
+    id: str
+    user_id: str | None
+    client_id: str | None
+    name: str | None
+    repo_id: str | None
+    project_context: dict[str, Any]
+    active_skills: dict[str, Any]
+    state: dict[str, Any]
+    ttl: int
+    created_at: str
+    last_active: str
+
+
+class SessionListPayload(TypedDict):
+    sessions: list[SessionPayload]
+
+
+class SessionDetailPayload(TypedDict):
+    session: SessionPayload
+
+
 # ---------------------------------------------------------------------------
 # User management
 # ---------------------------------------------------------------------------

@@ -295,7 +295,7 @@ class TestRerankerNode:
         """Confirm RerankerNode is called when present in GraphNodes."""
         from minder.graph.executor import GraphNodes, InternalGraphExecutor
         from minder.graph.nodes import (
-            EvaluatorNode, GuardNode, LLMNode, PlanningNode,
+            ClarificationNode, EvaluatorNode, GuardNode, LLMNode, PlanningNode,
             ReasoningNode, RerankerNode, RetrieverNode, VerificationNode, WorkflowPlannerNode,
         )
         from minder.graph.state import GraphState
@@ -317,6 +317,7 @@ class TestRerankerNode:
         nodes = GraphNodes(
             workflow_planner=WorkflowPlannerNode(store),
             planning=PlanningNode(),
+            clarification=ClarificationNode(),
             retriever=RetrieverNode(top_k=1),
             reranker=SpyReranker(),
             reasoning=ReasoningNode(),
@@ -336,7 +337,7 @@ class TestRerankerNode:
         """GraphNodes without reranker (default None) still runs cleanly."""
         from minder.graph.executor import GraphNodes, InternalGraphExecutor
         from minder.graph.nodes import (
-            EvaluatorNode, GuardNode, LLMNode, PlanningNode,
+            ClarificationNode, EvaluatorNode, GuardNode, LLMNode, PlanningNode,
             ReasoningNode, RetrieverNode, VerificationNode, WorkflowPlannerNode,
         )
         from minder.graph.state import GraphState
@@ -349,6 +350,7 @@ class TestRerankerNode:
         nodes = GraphNodes(
             workflow_planner=WorkflowPlannerNode(store),
             planning=PlanningNode(),
+            clarification=ClarificationNode(),
             retriever=RetrieverNode(top_k=1),
             reasoning=ReasoningNode(),
             llm=LLMNode(primary=LiteRTModelLLM()),

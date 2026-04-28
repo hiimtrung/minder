@@ -142,8 +142,10 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Skills exclude memory-classified records.
+            # Skills exclude memory-classified records and deprecated skills.
             if is_memory_record(skill):
+                continue
+            if getattr(skill, "deprecated", False):
                 continue
 
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
@@ -200,8 +202,10 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Skills exclude memory-classified records.
+            # Skills exclude memory-classified records and deprecated skills.
             if is_memory_record(skill):
+                continue
+            if getattr(skill, "deprecated", False):
                 continue
 
             normalized_tags = {
@@ -229,6 +233,7 @@ class SkillTools:
         artifact_types: list[str] | None = None,
         provenance: str | None = None,
         quality_score: float | None = None,
+        deprecated: bool | None = None,
         source_metadata: dict[str, Any] | None = None,
         excerpt_kind: str | None = None,
     ) -> dict[str, Any]:
@@ -247,6 +252,8 @@ class SkillTools:
             update_data["language"] = language
         if quality_score is not None:
             update_data["quality_score"] = max(float(quality_score), 0.0)
+        if deprecated is not None:
+            update_data["deprecated"] = bool(deprecated)
         if source_metadata is not None:
             update_data["source_metadata"] = self._normalized_source_metadata(
                 source_metadata
@@ -462,6 +469,7 @@ class SkillTools:
                 float(getattr(skill, "quality_score", 0.0) or 0.0), 4
             ),
             "usage_count": int(getattr(skill, "usage_count", 0) or 0),
+            "deprecated": bool(getattr(skill, "deprecated", False)),
             "workflow_step_tags": [
                 tag for tag in tags if ":" not in tag and tag not in self._ARTIFACT_TAGS
             ],

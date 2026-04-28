@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 _ENGINE_CACHE: dict[str, Any] = {}
 _CONVERSATION_CACHE: OrderedDict[uuid.UUID, Any] = OrderedDict()
 MAX_CACHED_CONVERSATIONS = 3
+# ~3 chars per token; truncate at 90% of context_length to leave room for output
+_CHARS_PER_TOKEN = 3
 
 
 class LiteRTModelLLM:
@@ -39,7 +41,7 @@ class LiteRTModelLLM:
         model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm",
         backend: str = "cpu",
         cache_dir: str = "~/.minder/cache/litert",
-        context_length: int = 32768,
+        context_length: int = 16384,
     ) -> None:
         self._model_path = str(Path(model_path).expanduser())
         self._backend = backend
@@ -189,14 +191,11 @@ class LiteRTModelLLM:
 
         reasoning_output = getattr(state, "reasoning_output", {}) or {}
         prompt = reasoning_output.get("prompt") or state.query
-        chat_history = getattr(state, "chat_history", []) or []
         text = self.complete_text(
             str(prompt),
             max_tokens=256,
             temperature=0.1,
             fallback=fallback,
-            session_id=state.session_id,
-            chat_history=chat_history,
         )
 
         return {
@@ -236,14 +235,13 @@ class LiteRTModelLLM:
         deltas: list[str] = []
         try:
             reasoning_output = getattr(state, "reasoning_output", {}) or {}
-            prompt = str(reasoning_output.get("prompt") or state.query)
-            chat_history = getattr(state, "chat_history", []) or []
-            
-            # Use session cache if available. Reusing the conversation preserves the KV-cache state.
-            # For linear conversations, we don't pass 'messages' to send_message_async because
-            # it builds on top of the existing state in the Conversation object.
-            conv = self._get_conversation(state.session_id, initial_messages=chat_history)
-            
+            prompt = self._truncate_prompt(str(reasoning_output.get("prompt") or state.query))
+
+            # Always use a fresh conversation — the elaborated prompt from ReasoningNode
+            # already embeds chat_history as text, so reusing a cached conversation would
+            # cause history to appear twice and produce mismatched answers.
+            conv = self._get_conversation(None, initial_messages=[])
+
             for chunk in conv.send_message_async(prompt):
                 for item in chunk.get("content", []):
                     if item.get("type") == "text":
@@ -269,16 +267,14 @@ class LiteRTModelLLM:
         max_tokens: int = 512,
         temperature: float = 0.1,
         fallback: str = "",
-        session_id: uuid.UUID | None = None,
-        chat_history: list[dict[str, Any]] | None = None,
     ) -> str:
         """Simple text-in/text-out completion."""
         if self.runtime != "litert":
             return fallback
 
         try:
-            conv = self._get_conversation(session_id, initial_messages=chat_history or [])
-            response = conv.send_message(prompt)
+            conv = self._get_conversation(None, initial_messages=[])
+            response = conv.send_message(self._truncate_prompt(prompt))
             return cast(str, response["content"][0]["text"])
         except Exception as e:
             logger.warning("LiteRT-LM completion failed: %s", e)
@@ -287,6 +283,17 @@ class LiteRTModelLLM:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    def _truncate_prompt(self, prompt: str) -> str:
+        """Truncate prompt to fit within context_length, keeping the tail (most recent content)."""
+        max_chars = int(self._context_length * 0.9) * _CHARS_PER_TOKEN
+        if len(prompt) <= max_chars:
+            return prompt
+        logger.warning(
+            "Prompt truncated from %d to %d chars to fit context_length=%d",
+            len(prompt), max_chars, self._context_length,
+        )
+        return prompt[-max_chars:]
 
     def _build_result(
         self,

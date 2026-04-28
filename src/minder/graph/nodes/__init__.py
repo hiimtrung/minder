@@ -1,3 +1,4 @@
+from .clarification import ClarificationNode
 from .evaluator import EvaluatorNode
 from .guard import GuardNode
 from .llm import LLMNode
@@ -13,6 +14,7 @@ from .verification import (
 from .workflow_planner import WorkflowPlannerNode
 
 __all__ = [
+    "ClarificationNode",
     "DockerSandboxRunner",
     "EvaluatorNode",
     "GuardNode",

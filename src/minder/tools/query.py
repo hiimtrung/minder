@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from minder.config import MinderConfig
+from minder.context_compactor import HistoryCompactor
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
@@ -46,6 +47,7 @@ class QueryTools:
             vector_store=self._vector_store,
         )
         self._graph_tools = graph_tools
+        self._history_compactor = HistoryCompactor()
 
     async def minder_query(
         self,
@@ -100,6 +102,11 @@ class QueryTools:
                 ]
             except Exception:
                 pass
+
+            chat_history = self._history_compactor.compact(
+                chat_history,
+                context_length=self._config.llm.context_length,
+            )
 
             await self._store.create_history(
                 session_id=session_id,
@@ -217,6 +224,11 @@ class QueryTools:
                 ]
             except Exception:
                 pass
+
+            chat_history = self._history_compactor.compact(
+                chat_history,
+                context_length=self._config.llm.context_length,
+            )
 
             await self._store.create_history(
                 session_id=session_id,

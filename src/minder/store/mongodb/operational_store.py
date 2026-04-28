@@ -64,6 +64,11 @@ class _MongoDoc:
                     self._data[field] = uuid.UUID(val)
                 except ValueError:
                     pass
+        # Ensure optional FK fields always exist so attribute access on older
+        # documents (created before the field was added) never raises AttributeError.
+        for optional_fk in ("workflow_id", "client_id"):
+            if optional_fk not in self._data:
+                self._data[optional_fk] = None
 
     def __getattr__(self, name: str) -> Any:
         try:
@@ -694,6 +699,7 @@ class MongoOperationalStore:
         for uuid_field in ("workflow_id",):
             if uuid_field in kwargs and isinstance(kwargs[uuid_field], uuid.UUID):
                 kwargs[uuid_field] = _uuid_to_str(kwargs[uuid_field])
+        kwargs.setdefault("workflow_id", None)
         kwargs.setdefault("state_path", ".minder")
         kwargs.setdefault("context_snapshot", {})
         kwargs.setdefault("relationships", {})

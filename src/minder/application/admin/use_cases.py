@@ -6,6 +6,8 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+_UNSET: Any = object()  # sentinel for optional update fields
 from urllib.parse import urlsplit
 
 from minder.application.admin.dto import (
@@ -709,6 +711,7 @@ class AdminConsoleUseCases:
         remote_url: str | None = None,
         default_branch: str | None = None,
         path: str | None = None,
+        workflow_id: Any = _UNSET,
     ) -> RepositoryDetailPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
@@ -735,6 +738,15 @@ class AdminConsoleUseCases:
             if not normalized_path:
                 raise ValueError("Repository path is required")
             updates["state_path"] = normalized_path
+        if workflow_id is not _UNSET:
+            if workflow_id is None or str(workflow_id).strip() == "":
+                updates["workflow_id"] = None
+            else:
+                wf_id = uuid.UUID(str(workflow_id))
+                workflow = await self._store.get_workflow_by_id(wf_id)
+                if workflow is None:
+                    raise LookupError(f"Workflow {wf_id} not found")
+                updates["workflow_id"] = str(wf_id)
 
         updated = await self._store.update_repository(repo_id, **updates)
         if updated is None:
@@ -820,6 +832,7 @@ class AdminConsoleUseCases:
         tracked: list[str] = (
             list(raw_branches) if isinstance(raw_branches, list) else []
         )
+        raw_workflow_id = getattr(repo, "workflow_id", None)
         return {
             "id": str(repo.id),
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
@@ -827,6 +840,7 @@ class AdminConsoleUseCases:
             "remote_url": _normalize_repository_remote(getattr(repo, "repo_url", None)),
             "default_branch": getattr(repo, "default_branch", None),
             "tracked_branches": tracked,
+            "workflow_id": str(raw_workflow_id) if raw_workflow_id else None,
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,

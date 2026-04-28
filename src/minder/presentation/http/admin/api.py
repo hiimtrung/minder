@@ -715,13 +715,16 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         if request.method == "PATCH":
             payload = await request.json()
             try:
-                result = await context.use_cases.update_repository(
-                    repo_id=repo_id,
-                    name=payload.get("name"),
-                    remote_url=payload.get("remote_url"),
-                    default_branch=payload.get("default_branch"),
-                    path=payload.get("path"),
-                )
+                update_kwargs: dict[str, Any] = {
+                    "repo_id": repo_id,
+                    "name": payload.get("name"),
+                    "remote_url": payload.get("remote_url"),
+                    "default_branch": payload.get("default_branch"),
+                    "path": payload.get("path"),
+                }
+                if "workflow_id" in payload:
+                    update_kwargs["workflow_id"] = payload["workflow_id"]
+                result = await context.use_cases.update_repository(**update_kwargs)
             except LookupError:
                 await record_admin_operation(
                     "repository_update",

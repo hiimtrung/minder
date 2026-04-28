@@ -58,23 +58,9 @@ If a company chooses to enforce TDD, Minder must be configurable so that the pri
 
 This makes Minder both a knowledge system and a process orchestration layer for engineering teams.
 
-## Confirmed Decisions
+---
 
-| #   | Topic                | Decision                                                                                    |
-| --- | -------------------- | ------------------------------------------------------------------------------------------- |
-| 1   | Target users         | Team, shared server, multi-user                                                             |
-| 2   | Offline-first        | Mandatory local-first operation with optional cloud fallback                                |
-| 3   | Model priority       | `gemma-4-E2B-it.litertlm` (LiteRT-LM) and `mxbai-embed-large-v1` (FastEmbed) are mandatory |
-| 4   | MCP transport        | SSE from Phase 1, stdio for local dev                                                       |
-| 5   | Knowledge graph      | Included in Phase 3                                                                         |
-| 6   | Verification sandbox | Docker is mandatory in production                                                           |
-| 7   | Existing data        | Skills may be seeded or imported from external Git repositories including GitHub and GitLab |
-| 8   | Performance target   | Reasonable responsiveness, not ultra-low-latency at the expense of quality                  |
-| 9   | Concurrent users     | Multi-user with identity from email and Git username                                        |
-| 10  | CI/CD                | Required from Phase 1 with GitHub Actions, Releases, and Packages                           |
-| 11  | Workflow governance  | Required; Minder must enforce configured engineering workflows                              |
-| 12  | Repository state     | Required; workflow state and context must be persisted in each repository                   |
-| 13  | Dashboard            | Required for workflow configuration, governance, and direct skill catalog management        |
+For current technical decisions and architecture, see [System Design](../architecture/system-design.md).
 
 ## Product Direction Update — 2026-04-15
 

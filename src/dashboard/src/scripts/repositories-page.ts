@@ -15,6 +15,7 @@ import {
   getRepositoryGraphSummary,
   getRepositoryLandscape,
   listRepositories,
+  listWorkflows,
   removeRepositoryBranch,
   searchAdminCatalog,
   searchRepositoryGraph,
@@ -23,6 +24,7 @@ import {
   type RepositoryBranchLinkPayload,
   type RepositoryBranchListPayload,
   type RepositoryBranchPayload,
+  type WorkflowPayload,
   type RepositoryGraphEdgePayload,
   type RepositoryGraphNodePayload,
   type RepositoryGraphSummaryPayload,
@@ -1799,6 +1801,7 @@ let repositories: RepositoryPayload[] = [];
 let visibleRepositories: RepositoryPayload[] = [];
 let activeRepositoryId: string | null = null;
 let activeRepository: RepositoryPayload | null = null;
+let workflows: WorkflowPayload[] = [];
 let activeBranch: string | null = null; // currently selected branch for graph view
 let selectedNodeId: string | null = null;
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
@@ -1934,6 +1937,11 @@ function populateSettings(r: RepositoryPayload | null): void {
   remote.value = r?.remote_url ?? "";
   branch.value = r?.default_branch ?? "";
   path.value = r?.path ?? "";
+
+  const workflow = getEl<HTMLSelectElement>("repo-settings-workflow");
+  if (workflow) {
+    workflow.value = r?.workflow_id ?? "";
+  }
 
   const sourceBranch = getEl<HTMLInputElement>("repo-branch-link-source");
   if (sourceBranch) {
@@ -2099,6 +2107,28 @@ async function loadRepositories(): Promise<void> {
     setText(getEl("repositories-status"), msg);
     resetPanels(msg);
   }
+}
+
+async function loadWorkflows(): Promise<void> {
+  try {
+    const res = await listWorkflows();
+    workflows = res.workflows;
+    populateWorkflowSelector();
+  } catch (err) {
+    console.error("Failed to load workflows:", err);
+  }
+}
+
+function populateWorkflowSelector(): void {
+  const select = getEl<HTMLSelectElement>("repo-settings-workflow");
+  if (!select) return;
+  select.innerHTML = [
+    `<option value="">No workflow assigned</option>`,
+    ...workflows.map(
+      (w) =>
+        `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`,
+    ),
+  ].join("");
 }
 
 // ============================================================
@@ -2425,6 +2455,8 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
       default_branch:
         getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() ?? "",
       path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ?? "",
+      workflow_id:
+        getEl<HTMLSelectElement>("repo-settings-workflow")?.value || null,
     });
     activeRepository = res.repository;
     repositories = repositories.map((r) =>
@@ -2830,4 +2862,5 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
 // Overview is the default tab on page load.
 switchTab("overview");
 
+void loadWorkflows();
 void loadRepositories();

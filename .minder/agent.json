@@ -5,8 +5,8 @@
   "workflow": {
     "id": "unknown",
     "name": "unknown",
-    "current_step": "completed-dashboard-sessions"
+    "current_step": "implemented-workflow-selection"
   },
-  "updated_at": "2026-04-28T15:42:00Z",
-  "notes": "Completed dashboard session management and documentation cleanup."
+  "updated_at": "2026-04-28T16:45:00Z",
+  "notes": "Added workflow_id support to the repository dashboard UI and API types."
 }

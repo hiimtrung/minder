@@ -98,7 +98,7 @@ const renderStepList = (
           <span class="min-w-0 truncate text-sm font-semibold text-stone-900">${escapeHtml(step.name)}</span>
           ${step.gate ? `<span class="shrink-0 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">gate: ${escapeHtml(step.gate)}</span>` : ""}
         </div>
-        ${step.description ? `<p class="break-words text-xs leading-5 text-stone-500">${escapeHtml(step.description)}</p>` : ""}
+        ${step.description ? `<p class="wrap-break-word text-xs leading-5 text-stone-500">${escapeHtml(step.description)}</p>` : ""}
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <button
@@ -146,13 +146,30 @@ const openStepModal = (
     const backdrop = document.getElementById("step-modal-backdrop");
     const container = document.getElementById("step-modal-container");
     const title = document.getElementById("step-modal-title");
-    const form = document.getElementById("step-modal-form") as HTMLFormElement | null;
-    const nameInput = document.getElementById("step-name") as HTMLTextAreaElement | null;
-    const descInput = document.getElementById("step-description") as HTMLTextAreaElement | null;
-    const gateInput = document.getElementById("step-gate") as HTMLTextAreaElement | null;
+    const form = document.getElementById(
+      "step-modal-form",
+    ) as HTMLFormElement | null;
+    const nameInput = document.getElementById(
+      "step-name",
+    ) as HTMLTextAreaElement | null;
+    const descInput = document.getElementById(
+      "step-description",
+    ) as HTMLTextAreaElement | null;
+    const gateInput = document.getElementById(
+      "step-gate",
+    ) as HTMLTextAreaElement | null;
     const cancelBtn = document.getElementById("step-modal-cancel");
 
-    if (!backdrop || !container || !title || !form || !nameInput || !descInput || !gateInput || !cancelBtn) {
+    if (
+      !backdrop ||
+      !container ||
+      !title ||
+      !form ||
+      !nameInput ||
+      !descInput ||
+      !gateInput ||
+      !cancelBtn
+    ) {
       resolve(null);
       return;
     }
@@ -191,7 +208,9 @@ const openStepModal = (
   });
 };
 
-const promptAddStep = async (onConfirm: (step: WorkflowStepPayload) => void) => {
+const promptAddStep = async (
+  onConfirm: (step: WorkflowStepPayload) => void,
+) => {
   const result = await openStepModal("add");
   if (result && result.name) {
     onConfirm(result);
@@ -225,7 +244,9 @@ const paginationStatusEl = document.querySelector(
 );
 const pagePrevButton = document.querySelector("#workflow-page-prev");
 const pageNextButton = document.querySelector("#workflow-page-next");
-const quickSearchLoadingEl = document.querySelector("#workflow-quick-search-loading");
+const quickSearchLoadingEl = document.querySelector(
+  "#workflow-quick-search-loading",
+);
 
 const PAGE_SIZE = 6;
 let allWorkflows: WorkflowPayload[] = [];

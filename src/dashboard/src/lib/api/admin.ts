@@ -946,6 +946,7 @@ export type RepositoryPayload = {
   remote_url: string | null;
   default_branch: string | null;
   tracked_branches: string[];
+  workflow_id: string | null;
   workflow_name: string | null;
   workflow_state: string | null;
   current_step: string | null;
@@ -975,6 +976,7 @@ export async function updateRepository(
     remote_url?: string | null;
     default_branch?: string | null;
     path?: string;
+    workflow_id?: string | null;
   },
 ): Promise<RepositoryDetailPayload> {
   return requestJson<RepositoryDetailPayload>(

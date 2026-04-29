@@ -15,6 +15,7 @@ import {
   updatePagerButtons,
 } from "./catalog-controls";
 import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
+import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // Shared element refs
@@ -22,40 +23,7 @@ import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
 
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
-
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+// (showToast moved to ui-utils.ts)
 
 // ---------------------------------------------------------------------------
 // Current URL path parsing — detect registry vs detail route

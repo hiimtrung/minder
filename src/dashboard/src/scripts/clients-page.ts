@@ -4,7 +4,6 @@ import {
   getClientDetail,
   getClientOnboarding,
   listAudit,
-  listClients,
   listTools,
   revokeClientKeys,
   rotateClientKey,
@@ -15,31 +14,13 @@ import {
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
-  paginateItems,
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
 
-const registry = document.querySelector("#client-registry");
-const status = document.querySelector("#create-client-status");
-const createdResult = document.querySelector("#client-created-result");
-const createdKey = document.querySelector("#client-created-key");
-const createToolScopes = document.querySelector("#client-tool-scopes");
-const detailShell = document.querySelector("#client-detail-shell");
-const detailTitle = document.querySelector("#detail-title");
-const detailStatus = document.querySelector("#detail-status");
-const snippets = document.querySelector("#onboarding-snippets");
-const activity = document.querySelector("#activity-feed");
-const quickSearchEl = document.querySelector(
-  "#client-quick-search",
-) as HTMLInputElement | null;
-const paginationStatusEl = document.querySelector("#client-pagination-status");
-const pagePrevButton = document.querySelector("#client-page-prev");
-const pageNextButton = document.querySelector("#client-page-next");
-const rotatedKeyResult = document.querySelector("#rotated-key-result");
-const rotatedKeyValue = document.querySelector("#rotated-key-value");
-const quickSearchLoadingEl = document.querySelector("#client-quick-search-loading");
-const toastRegion = document.querySelector("#dashboard-toast-region");
+// (registry, status, etc. now accessed via getEl)
+// (toastRegion moved to ui-utils.ts)
 let lastSelectedClientName = "";
 let cachedTools: ToolInfo[] = [];
 
@@ -49,16 +30,7 @@ let totalCount = 0;
 let currentQuery = "";
 let currentPage = 1;
 
-// Edit form elements (detail page only)
-const editClientForm = document.querySelector("#edit-client-form");
-const editClientName = document.querySelector(
-  "#edit-client-name",
-) as HTMLInputElement | null;
-const editClientDescription = document.querySelector(
-  "#edit-client-description",
-) as HTMLTextAreaElement | null;
-const editToolScopes = document.querySelector("#edit-tool-scopes");
-const editClientStatus = document.querySelector("#edit-client-status");
+// (editClientForm, etc. now accessed via getEl)
 
 const snippetTitles: Record<string, string> = {
   codex: "OpenAI Codex",
@@ -232,13 +204,7 @@ const localSnippetTemplates: Record<string, string> = {
   ),
 };
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+// (escapeHtml moved to ui-utils.ts)
 
 const formatSnippet = (template: string): string => {
   try {
@@ -602,8 +568,9 @@ const setDetailStatus = (
   message: string,
   tone: "default" | "success" | "danger" = "default",
 ) => {
+  const detailStatus = getEl("detail-status");
   if (!detailStatus) return;
-  detailStatus.textContent = message;
+  setText(detailStatus, message);
   detailStatus.className = "mt-4 min-h-6 text-sm";
   if (tone === "success") {
     detailStatus.classList.add("text-emerald-700");
@@ -616,32 +583,7 @@ const setDetailStatus = (
   detailStatus.classList.add("text-stone-600");
 };
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
+// (showToast moved to ui-utils.ts)
 
 const presets: Record<string, string[]> = {
   query: [
@@ -724,8 +666,9 @@ const setEditStatus = (
   message: string,
   tone: "default" | "success" | "danger" = "default",
 ) => {
+  const editClientStatus = getEl("edit-client-status");
   if (!editClientStatus) return;
-  editClientStatus.textContent = message;
+  setText(editClientStatus, message);
   editClientStatus.className = "min-h-6 text-sm";
   if (tone === "success") editClientStatus.classList.add("text-emerald-700");
   else if (tone === "danger") editClientStatus.classList.add("text-red-700");
@@ -733,6 +676,7 @@ const setEditStatus = (
 };
 
 const renderToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
+  const editToolScopes = getEl("edit-tool-scopes");
   if (!editToolScopes) return;
   if (!tools.length) {
     editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">No tools available.</p>`;
@@ -763,6 +707,7 @@ const renderToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
 };
 
 const applyEditPreset = (key: string) => {
+  const editToolScopes = getEl("edit-tool-scopes");
   if (!editToolScopes) return;
   if (key === "all") {
     editToolScopes
@@ -781,6 +726,7 @@ const applyEditPreset = (key: string) => {
 };
 
 const getCheckedScopes = (): string[] => {
+  const editToolScopes = getEl("edit-tool-scopes");
   if (!editToolScopes) return [];
   return Array.from(
     editToolScopes.querySelectorAll<HTMLInputElement>(
@@ -790,6 +736,7 @@ const getCheckedScopes = (): string[] => {
 };
 
 const loadAndRenderTools = async (selectedScopes: string[] = []) => {
+  const editToolScopes = getEl("edit-tool-scopes");
   try {
     if (!cachedTools.length) {
       const payload = await listTools();
@@ -823,13 +770,14 @@ if (selectedClientId) {
 }
 
 const renderClients = () => {
+  const registry = getEl("client-registry");
   if (!registry) return;
 
   const pageCount = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const start = totalCount === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1;
   const end = Math.min(currentPage * PAGE_SIZE, totalCount);
 
-  setPagerStatus(paginationStatusEl, {
+  setPagerStatus(getEl("client-pagination-status"), {
     slice: {
       items: visibleClients,
       page: currentPage,
@@ -842,8 +790,8 @@ const renderClients = () => {
     query: currentQuery,
   });
   updatePagerButtons(
-    pagePrevButton,
-    pageNextButton,
+    getEl("client-page-prev"),
+    getEl("client-page-next"),
     currentPage,
     pageCount,
   );
@@ -863,6 +811,7 @@ const renderClients = () => {
 };
 
 const syncVisibleClients = async () => {
+  const registry = getEl("client-registry");
   if (registry) {
     registry.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading client registry...</article>`;
   }
@@ -889,29 +838,35 @@ document
     void syncVisibleClients();
   });
 
-pagePrevButton?.addEventListener("click", () => {
+getEl("client-page-prev")?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
   void syncVisibleClients();
 });
 
-pageNextButton?.addEventListener("click", () => {
+getEl("client-page-next")?.addEventListener("click", () => {
   currentPage += 1;
   void syncVisibleClients();
 });
 
 const debouncedSearch = createDebouncedHandler(async () => {
+  const quickSearchEl = getEl<HTMLInputElement>("client-quick-search");
   currentQuery = quickSearchEl?.value.trim() ?? "";
   currentPage = 1;
   await syncVisibleClients();
-  quickSearchLoadingEl?.classList.add("hidden");
+  getEl("client-quick-search-loading")?.classList.add("hidden");
 });
 
-quickSearchEl?.addEventListener("input", () => {
-  quickSearchLoadingEl?.classList.remove("hidden");
+getEl("client-quick-search")?.addEventListener("input", () => {
+  getEl("client-quick-search-loading")?.classList.remove("hidden");
   debouncedSearch();
 });
 
 const renderDetail = async () => {
+  const detailShell = getEl("client-detail-shell");
+  const detailTitle = getEl("detail-title");
+  const snippets = getEl("onboarding-snippets");
+  const activity = getEl("activity-feed");
+
   if (!detailShell || !detailTitle || !snippets || !activity) {
     return;
   }
@@ -941,6 +896,8 @@ const renderDetail = async () => {
     detailTitle.textContent = detail.client.name;
 
     // Populate edit form
+    const editClientName = getEl<HTMLInputElement>("edit-client-name");
+    const editClientDescription = getEl<HTMLTextAreaElement>("edit-client-description");
     if (editClientName) editClientName.value = detail.client.name;
     if (editClientDescription)
       editClientDescription.value = detail.client.description;
@@ -1064,6 +1021,7 @@ const renderDetail = async () => {
 };
 
 const getCreateCheckedScopes = (): string[] => {
+  const createToolScopes = getEl("client-tool-scopes");
   if (!createToolScopes) return [];
   return Array.from(
     createToolScopes.querySelectorAll<HTMLInputElement>(
@@ -1073,6 +1031,7 @@ const getCreateCheckedScopes = (): string[] => {
 };
 
 const renderCreateToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
+  const createToolScopes = getEl("client-tool-scopes");
   if (!createToolScopes) return;
   if (!tools.length) {
     createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">No tools available.</p>`;
@@ -1103,6 +1062,7 @@ const renderCreateToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
 };
 
 const loadCreateTools = async (selectedScopes: string[] = []) => {
+  const createToolScopes = getEl("client-tool-scopes");
   try {
     if (!cachedTools.length) {
       const payload = await listTools();
@@ -1119,6 +1079,7 @@ const loadCreateTools = async (selectedScopes: string[] = []) => {
 document.querySelectorAll("[data-tool-preset]").forEach((button) => {
   button.addEventListener("click", () => {
     const key = button.getAttribute("data-tool-preset") ?? "";
+    const createToolScopes = getEl("client-tool-scopes");
     if (!createToolScopes) return;
     if (key === "all") {
       createToolScopes
@@ -1141,6 +1102,7 @@ document
   .querySelector("#create-refresh-tools")
   ?.addEventListener("click", async () => {
     cachedTools = [];
+    const createToolScopes = getEl("client-tool-scopes");
     if (createToolScopes) {
       createToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
     }
@@ -1152,30 +1114,17 @@ document
   .querySelector("#create-client-form")
   ?.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const name =
-      (
-        document.querySelector("#client-name") as HTMLInputElement | null
-      )?.value.trim() ?? "";
-    const slug =
-      (
-        document.querySelector("#client-slug") as HTMLInputElement | null
-      )?.value.trim() ?? "";
-    const description =
-      (
-        document.querySelector(
-          "#client-description",
-        ) as HTMLTextAreaElement | null
-      )?.value.trim() ?? "";
-    const repoScopeInput =
-      (
-        document.querySelector("#client-repo-scopes") as HTMLInputElement | null
-      )?.value.trim() ?? "";
+    const name = (getEl("client-name") as HTMLInputElement | null)?.value.trim() ?? "";
+    const slug = (getEl("client-slug") as HTMLInputElement | null)?.value.trim() ?? "";
+    const description = (getEl("client-description") as HTMLTextAreaElement | null)?.value.trim() ?? "";
+    const repoScopeInput = (getEl("client-repo-scopes") as HTMLInputElement | null)?.value.trim() ?? "";
     const repo_scopes = repoScopeInput
       .split(",")
       .map((item) => item.trim())
       .filter(Boolean);
     const selectedTools = getCreateCheckedScopes();
 
+    const status = getEl("create-client-status");
     if (!name || !slug) {
       if (status) status.textContent = "Name and slug are required.";
       return;
@@ -1190,12 +1139,15 @@ document
         tool_scopes: selectedTools,
         repo_scopes,
       });
+      const createdKey = getEl("client-created-key");
+      const createdResult = getEl("client-created-result");
       if (createdKey) createdKey.textContent = created.client_api_key;
       createdResult?.classList.remove("hidden");
       if (status) status.textContent = `Created ${created.client.slug}.`;
       showToast(`Created client ${created.client.slug}.`, "success");
       await syncVisibleClients();
     } catch (error) {
+      const status = getEl("create-client-status");
       const message =
         error instanceof Error ? error.message : "Unable to create client.";
       if (status) status.textContent = message;
@@ -1210,6 +1162,8 @@ document
     setDetailStatus("Issuing new client key...");
     try {
       const rotated = await rotateClientKey(selectedClientId);
+      const rotatedKeyValue = getEl("rotated-key-value");
+      const rotatedKeyResult = getEl("rotated-key-result");
       if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
       rotatedKeyResult?.classList.remove("hidden");
       setDetailStatus("Issued new client key.", "success");
@@ -1270,7 +1224,9 @@ document
     }
   });
 
-snippets?.addEventListener("click", async (event) => {
+getEl("onboarding-snippets")?.addEventListener("click", async (event) => {
+  const snippets = getEl("onboarding-snippets");
+  if (!snippets) return;
   const tabButton = (event.target as HTMLElement | null)?.closest(
     "[data-snippet-tab]",
   );
@@ -1322,6 +1278,7 @@ document.querySelectorAll("[data-edit-preset]").forEach((button) => {
 });
 
 document.querySelector("#edit-select-none")?.addEventListener("click", () => {
+  const editToolScopes = getEl("edit-tool-scopes");
   if (!editToolScopes) return;
   editToolScopes
     .querySelectorAll<HTMLInputElement>("input[type=checkbox]")
@@ -1335,22 +1292,18 @@ document
   .querySelector("#refresh-tools")
   ?.addEventListener("click", async () => {
     cachedTools = [];
-    const currentScopes = getCheckedScopes();
-    if (editToolScopes) {
-      editToolScopes.innerHTML = `<p class="text-sm text-stone-400 px-1">Refreshing...</p>`;
-    }
     await loadAndRenderTools();
     await syncVisibleClients();
     showToast("Tool list refreshed.", "success");
   });
 
 // ─── Edit form — submit ───────────────────────────────────────────────────────
-editClientForm?.addEventListener("submit", async (event) => {
+getEl("edit-client-form")?.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!selectedClientId) return;
 
-  const name = editClientName?.value.trim() ?? "";
-  const description = editClientDescription?.value.trim() ?? "";
+  const name = (getEl("edit-client-name") as HTMLInputElement | null)?.value.trim() ?? "";
+  const description = (getEl("edit-client-description") as HTMLTextAreaElement | null)?.value.trim() ?? "";
   const tool_scopes = getCheckedScopes();
 
   if (!name) {
@@ -1366,6 +1319,7 @@ editClientForm?.addEventListener("submit", async (event) => {
       tool_scopes,
     });
     lastSelectedClientName = result.client.name;
+    const detailTitle = getEl("detail-title");
     if (detailTitle) detailTitle.textContent = result.client.name;
     document.title = `${result.client.name} · Minder`;
     setEditStatus("Changes saved.", "success");
@@ -1381,4 +1335,4 @@ editClientForm?.addEventListener("submit", async (event) => {
 
 void syncVisibleClients();
 void renderDetail();
-if (createToolScopes) void loadCreateTools();
+if (getEl("client-tool-scopes")) void loadCreateTools();

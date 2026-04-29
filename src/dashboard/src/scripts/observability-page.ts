@@ -90,6 +90,22 @@ const jobStatusFilter = document.querySelector(
 ) as HTMLSelectElement | null;
 const jobRefreshButton = document.querySelector("#jobs-refresh");
 const jobStatusSummary = document.querySelector("#job-status-summary");
+const lastUpdatedTime = document.querySelector("#last-updated-time");
+
+// Tabs
+const tabs = {
+  overview: document.querySelector("#tab-overview"),
+  audit: document.querySelector("#tab-audit"),
+  jobs: document.querySelector("#tab-jobs"),
+  continuity: document.querySelector("#tab-continuity"),
+};
+
+const panels = {
+  overview: document.querySelector("#panel-overview"),
+  audit: document.querySelector("#panel-audit"),
+  jobs: document.querySelector("#panel-jobs"),
+  continuity: document.querySelector("#panel-continuity"),
+};
 
 // ---------------------------------------------------------------------------
 // Pagination / filter state
@@ -186,6 +202,30 @@ const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
     return rightTime - leftTime;
   });
 
+const switchTab = (tabName: keyof typeof tabs) => {
+  // Update buttons
+  Object.entries(tabs).forEach(([name, el]) => {
+    if (!el) return;
+    if (name === tabName) {
+      el.classList.add("text-amber-900", "after:absolute", "after:bottom-0", "after:left-0", "after:h-0.5", "after:w-full", "after:bg-amber-700");
+      el.classList.remove("text-stone-500", "hover:text-stone-900");
+    } else {
+      el.classList.remove("text-amber-900", "after:absolute", "after:bottom-0", "after:left-0", "after:h-0.5", "after:w-full", "after:bg-amber-700");
+      el.classList.add("text-stone-500", "hover:text-stone-900");
+    }
+  });
+
+  // Update panels
+  Object.entries(panels).forEach(([name, el]) => {
+    if (!el) return;
+    if (name === tabName) {
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
+  });
+};
+
 // ---------------------------------------------------------------------------
 // Donut SVG chart
 // ---------------------------------------------------------------------------
@@ -244,10 +284,10 @@ function renderDonut(
       const pct = Math.round((value / total) * 100);
       const color = DONUT_COLORS[i % DONUT_COLORS.length];
       return `
-        <div class="flex items-center gap-2 text-xs">
-          <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background:${color}"></span>
-          <span class="truncate text-stone-700 flex-1">${escapeHtml(label)}</span>
-          <span class="tabular-nums text-stone-500 shrink-0">${pct}%</span>
+        <div class="flex items-center gap-2.5 text-xs">
+          <span class="h-3 w-3 rounded-md shrink-0 shadow-sm" style="background:${color}"></span>
+          <span class="truncate text-stone-600 flex-1 font-medium">${escapeHtml(label)}</span>
+          <span class="tabular-nums text-stone-900 font-bold shrink-0">${pct}%</span>
         </div>`;
     })
     .join("");
@@ -561,6 +601,9 @@ const loadMetrics = async (): Promise<void> => {
       currentOutcomeFilter,
     );
     renderMetrics(data);
+    if (lastUpdatedTime) {
+      lastUpdatedTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Unable to load metrics.";
@@ -768,6 +811,11 @@ autoRefreshToggle?.addEventListener("change", () => {
   } else {
     stopAutoRefresh();
   }
+});
+
+// Tab listeners
+Object.entries(tabs).forEach(([name, el]) => {
+  el?.addEventListener("click", () => switchTab(name as keyof typeof tabs));
 });
 
 // ---------------------------------------------------------------------------

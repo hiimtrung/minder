@@ -67,9 +67,10 @@ class RelationalStoreConfig(BaseModel):
 
 class GraphStoreConfig(BaseModel):
     enabled: bool = True
-    provider: str = "auto"  # "auto" | "sqlite" | "postgresql"
-    db_path: str = "~/.minder/data/graph.db"  # used by sqlite
-    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # used by postgresql
+    provider: str = "auto"  # "auto" | "mongodb" | "sqlite" | "postgresql"
+    # auto: mirrors relational_store.provider (mongodb → mongodb, sqlite → sqlite, postgresql → postgresql)
+    db_path: str = "~/.minder/data/graph.db"  # sqlite only
+    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # postgresql only
 
 
 class MongoDBConfig(BaseModel):

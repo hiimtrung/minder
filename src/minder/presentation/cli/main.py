@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         f"               --global:  {_global_target_path('vscode')}\n"
         f"  cursor       per-repo:  {_cwd_placeholder}/.cursor/mcp.json\n"
         f"               --global:  {_global_target_path('cursor')}\n"
-        f"  claude-code  per-repo:  {_cwd_placeholder}/.claude/mcp.json\n"
+        f"  claude-code  per-repo:  {_cwd_placeholder}/.mcp.json\n"
         f"               --global:  {_global_target_path('claude-code')}\n"
         f"  antigravity  always:    {_global_target_path('antigravity')}  [--global has no effect]\n"
         f"  codex        always:    {_global_target_path('codex')}  [--global has no effect]\n"

@@ -59,7 +59,7 @@ release-start:
 	git reset --hard origin/main; \
 	git checkout $$BRANCH_NAME; \
 	echo "Merging any new changes from origin/main..."; \
-	git pull origin main --rebase; \
+	git rebase origin/main; \
 	echo "Updating version to $$CLEAN_VERSION in pyproject.toml..."; \
 	sed -i.bak -e "s/^version = \".*\"/version = \"$$CLEAN_VERSION\"/" pyproject.toml && rm pyproject.toml.bak; \
 	echo "Updating uv.lock..."; \

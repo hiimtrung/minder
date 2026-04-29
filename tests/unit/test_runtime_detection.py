@@ -12,6 +12,7 @@ from minder.graph.executor import (
 )
 from minder.graph.graph import MinderGraph
 from minder.graph.nodes import (
+    ClarificationNode,
     EvaluatorNode,
     GuardNode,
     LLMNode,
@@ -97,6 +98,7 @@ async def test_internal_executor_sets_internal_runtime(store: RelationalStore) -
     nodes = GraphNodes(
         workflow_planner=WorkflowPlannerNode(store),
         planning=PlanningNode(),
+        clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
         llm=LLMNode(primary=LiteRTModelLLM()),
@@ -116,6 +118,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
     nodes = GraphNodes(
         workflow_planner=WorkflowPlannerNode(store),
         planning=PlanningNode(),
+        clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
         llm=LLMNode(primary=LiteRTModelLLM()),
@@ -173,6 +176,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
     nodes = GraphNodes(
         workflow_planner=WorkflowPlannerNode(store),
         planning=PlanningNode(),
+        clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
         llm=LLMNode(primary=LiteRTModelLLM()),

@@ -90,9 +90,24 @@ class RelationalStore:
     # ------------------------------------------------------------------
 
     async def init_db(self) -> None:
-        """Create all tables (idempotent)."""
+        """Create all tables (idempotent) and apply incremental column migrations."""
         async with self._engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
+            await conn.run_sync(self._apply_column_migrations)
+
+    @staticmethod
+    def _apply_column_migrations(sync_conn: Any) -> None:
+        """Add columns introduced after initial schema creation (safe no-op if column exists)."""
+        from sqlalchemy import inspect, text
+
+        inspector = inspect(sync_conn)
+        # skills.deprecated (added in Phase 8)
+        if "skills" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("skills")}
+            if "deprecated" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT 0")
+                )
 
     async def dispose(self) -> None:
         """Dispose the engine connection pool."""
@@ -319,6 +334,13 @@ class RelationalStore:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Session).where(Session.user_id == user_id)
+            )
+            return list(result.scalars().all())
+
+    async def list_sessions(self) -> List[Session]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(Session).order_by(Session.last_active.desc())
             )
             return list(result.scalars().all())
 

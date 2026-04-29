@@ -39,6 +39,7 @@ export type AuditEventPayload = {
   resource_name: string | null;
   outcome: string;
   created_at: string | null;
+  audit_metadata?: Record<string, unknown> | null;
 };
 
 export type AuditListPayload = {
@@ -946,6 +947,7 @@ export type RepositoryPayload = {
   remote_url: string | null;
   default_branch: string | null;
   tracked_branches: string[];
+  workflow_id: string | null;
   workflow_name: string | null;
   workflow_state: string | null;
   current_step: string | null;
@@ -975,6 +977,7 @@ export async function updateRepository(
     remote_url?: string | null;
     default_branch?: string | null;
     path?: string;
+    workflow_id?: string | null;
   },
 ): Promise<RepositoryDetailPayload> {
   return requestJson<RepositoryDetailPayload>(
@@ -1337,6 +1340,65 @@ export async function getRepositoryGraphImpact(
   return requestJson<RepositoryGraphImpactPayload>(
     `/v1/admin/repositories/${repoId}/graph-impact?${params.toString()}`,
   );
+}
+
+// ---------------------------------------------------------------------------
+// Session management
+// ---------------------------------------------------------------------------
+
+export type SessionPayload = {
+  id: string;
+  user_id: string | null;
+  client_id: string | null;
+  name: string | null;
+  repo_id: string | null;
+  project_context: Record<string, any>;
+  active_skills: Record<string, any>;
+  state: Record<string, any>;
+  ttl: number;
+  created_at: string | null;
+  last_active: string | null;
+};
+
+export type SessionListPayload = {
+  sessions: SessionPayload[];
+};
+
+export type SessionDetailPayload = {
+  session: SessionPayload;
+};
+
+export async function listSessions(): Promise<SessionListPayload> {
+  return requestJson<SessionListPayload>("/v1/admin/sessions");
+}
+
+export async function getSessionDetail(
+  sessionId: string,
+): Promise<SessionDetailPayload> {
+  return requestJson<SessionDetailPayload>(`/v1/admin/sessions/${sessionId}`);
+}
+
+export async function updateSession(
+  sessionId: string,
+  payload: {
+    state?: Record<string, any>;
+    active_skills?: Record<string, any>;
+    project_context?: Record<string, any>;
+  },
+): Promise<SessionDetailPayload> {
+  return requestJson<SessionDetailPayload>(`/v1/admin/sessions/${sessionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteSession(
+  sessionId: string,
+): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(`/v1/admin/sessions/${sessionId}`, {
+    method: "DELETE",
+    body: JSON.stringify({}),
+  });
 }
 
 // ---------------------------------------------------------------------------

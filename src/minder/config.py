@@ -46,7 +46,7 @@ class LLMConfig(BaseModel):
     litert_model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm"
     litert_backend: str = "auto"  # "auto" (GPU on Mac, CPU elsewhere) | "cpu" | "gpu"
     litert_cache_dir: str = "~/.minder/cache/litert"
-    context_length: int = 32768
+    context_length: int = 16384
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
@@ -67,16 +67,17 @@ class RelationalStoreConfig(BaseModel):
 
 class GraphStoreConfig(BaseModel):
     enabled: bool = True
-    provider: str = "auto"  # "auto" | "sqlite" | "postgresql"
-    db_path: str = "~/.minder/data/graph.db"  # used by sqlite
-    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # used by postgresql
+    provider: str = "auto"  # "auto" | "mongodb" | "sqlite" | "postgresql"
+    # auto: mirrors relational_store.provider (mongodb → mongodb, sqlite → sqlite, postgresql → postgresql)
+    db_path: str = "~/.minder/data/graph.db"  # sqlite only
+    uri: str = "postgresql+asyncpg://localhost/minder_graph"  # postgresql only
 
 
 class MongoDBConfig(BaseModel):
     uri: str = "mongodb://localhost:27017"
     database: str = "minder"
-    min_pool_size: int = 5
-    max_pool_size: int = 50
+    min_pool_size: int = 2
+    max_pool_size: int = 10
 
 
 class RedisConfig(BaseModel):

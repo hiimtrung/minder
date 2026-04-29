@@ -1,0 +1,43 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Button from "./ui/Button.astro";
+---
+
+<DashboardLayout
+  title="Sessions · Minder"
+  description="Manage active Minder sessions and runtime continuity states."
+  navTitle="Minder Dashboard"
+  navDescription="Track and manage multi-turn runtime sessions, project contexts, and skill states."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Session Management"
+    title="Manage runtime sessions."
+    description="Track active sessions, inspect project contexts and skill states, or cleanup stale continuity data to keep the runtime lean."
+  />
+
+  <section class="grid gap-5">
+    <Toolbar
+      searchId="session-list-quick-search"
+      statusId="session-list-pagination-status"
+      prevId="session-list-page-prev"
+      nextId="session-list-page-next"
+      description="Filter by session name, user, client, or repository and manage active runtime continuity."
+      searchPlaceholder="Filter sessions..."
+    >
+      <Button slot="leading" href="/dashboard" size="sm">Dashboard home</Button>
+      <Button slot="leading" id="session-list-refresh" size="sm">
+        Refresh list
+      </Button>
+    </Toolbar>
+
+    <div id="session-list-registry" class="grid gap-4 xl:grid-cols-2">
+      <article class="u-placeholder-card">Loading sessions...</article>
+    </div>
+  </section>
+
+  <script src="../scripts/sessions-list-page.ts"></script>
+</DashboardLayout>

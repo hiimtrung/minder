@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import ValidationError
@@ -157,17 +158,17 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 result = await context.use_cases.login_admin(api_key)
         except PermissionError:
             await record_auth_event(
-                "login", "denied", client_id="dashboard", store=context.store
+                "auth.login", "denied", client_id="dashboard", store=context.store
             )
             return JSONResponse({"error": "Admin role required."}, status_code=403)
         except Exception:
             await record_auth_event(
-                "login", "failure", client_id="dashboard", store=context.store
+                "auth.login", "failure", client_id="dashboard", store=context.store
             )
             return JSONResponse({"error": "Invalid credentials."}, status_code=401)
 
         await record_auth_event(
-            "login", "success", client_id="dashboard", store=context.store
+            "auth.login", "success", client_id="dashboard", store=context.store
         )
         response = JSONResponse({"ok": True}, status_code=200)
         response.set_cookie(
@@ -184,7 +185,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def dashboard_logout_api(request):
         del request
         await record_auth_event(
-            "logout", "success", client_id="dashboard", store=context.store
+            "auth.logout", "success", client_id="dashboard", store=context.store
         )
         response = JSONResponse({"ok": True}, status_code=200)
         response.delete_cookie(ADMIN_COOKIE_NAME, path="/")
@@ -224,11 +225,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 requested_scopes=payload.get("requested_scopes"),
             )
         except Exception as exc:
-            await record_auth_event("token_exchange", "failure", store=context.store)
+            await record_auth_event("token.exchanged", "failure", store=context.store)
             return JSONResponse({"error": str(exc)}, status_code=401)
         client_slug = str(exchange.get("client_slug", "unknown"))
         await record_auth_event(
-            "token_exchange", "success", client_id=client_slug, store=context.store
+            "token.exchanged", "success", client_id=client_slug, store=context.store
         )
         return JSONResponse(exchange)
 
@@ -637,8 +638,61 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         return JSONResponse(summary)
 
     # ------------------------------------------------------------------
-    # Repository management
+    # Session management
     # ------------------------------------------------------------------
+
+    async def admin_sessions(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+        return JSONResponse(await context.use_cases.list_sessions())
+
+    async def session_detail(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        session_id = uuid.UUID(str(request.path_params["session_id"]))
+        if request.method == "GET":
+            try:
+                return JSONResponse(
+                    await context.use_cases.get_session_detail(session_id)
+                )
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+            try:
+                updated = await context.use_cases.update_session(
+                    session_id,
+                    state=payload.get("state"),
+                    active_skills=payload.get("active_skills"),
+                    project_context=payload.get("project_context"),
+                )
+                return JSONResponse({"session": updated})
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        if request.method == "DELETE":
+            try:
+                return JSONResponse(await context.use_cases.delete_session(session_id))
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    # ------------------------------------------------------------------
+    # Repository management
 
     async def admin_repositories(request):
         try:
@@ -678,13 +732,16 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         if request.method == "PATCH":
             payload = await request.json()
             try:
-                result = await context.use_cases.update_repository(
-                    repo_id=repo_id,
-                    name=payload.get("name"),
-                    remote_url=payload.get("remote_url"),
-                    default_branch=payload.get("default_branch"),
-                    path=payload.get("path"),
-                )
+                update_kwargs: dict[str, Any] = {
+                    "repo_id": repo_id,
+                    "name": payload.get("name"),
+                    "remote_url": payload.get("remote_url"),
+                    "default_branch": payload.get("default_branch"),
+                    "path": payload.get("path"),
+                }
+                if "workflow_id" in payload:
+                    update_kwargs["workflow_id"] = payload["workflow_id"]
+                result = await context.use_cases.update_repository(**update_kwargs)
             except LookupError:
                 await record_admin_operation(
                     "repository_update",
@@ -1280,6 +1337,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             "/v1/admin/workflows/{workflow_id:uuid}",
             workflow_detail,
             methods=["GET", "PATCH", "DELETE"],
+        ),
+        # Session management
+        Route("/v1/admin/sessions", admin_sessions, methods=["GET"]),
+        Route(
+            "/v1/admin/sessions/{session_id:uuid}",
+            session_detail,
+            methods=["GET", "DELETE"],
         ),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),

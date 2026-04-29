@@ -1,0 +1,9 @@
+---
+export const prerender = false;
+
+import SessionDetailShell from "../../components/SessionDetailShell.astro";
+
+const { sessionId } = Astro.params;
+---
+
+<SessionDetailShell sessionId={sessionId} />

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, UTC
 from typing import Dict, Any, List, Optional
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, Integer, Float, DateTime, UUID, JSON, func
+from sqlalchemy import Boolean, String, Integer, Float, DateTime, UUID, JSON, func
 from pydantic import Field
 
 from .base import Base, BaseModelMeta
@@ -18,6 +18,7 @@ class SkillSchema(BaseModelMeta):
     embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
     usage_count: int = 0
     quality_score: float = 0.0
+    deprecated: bool = False
     source_metadata: Optional[Dict[str, Any]] = None
     excerpt_kind: str = "none"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
@@ -40,6 +41,7 @@ class Skill(Base):
     embedding: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     usage_count: Mapped[int] = mapped_column(Integer, default=0)
     quality_score: Mapped[float] = mapped_column(Float, default=0.0)
+    deprecated: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     source_metadata: Mapped[Optional[Dict[str, Any]]] = mapped_column(
         JSON, nullable=True
     )

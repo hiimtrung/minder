@@ -89,7 +89,7 @@ class SkillTools:
         self._embedder = LocalEmbeddingProvider(
             fastembed_model=config.embedding.fastembed_model,
             fastembed_cache_dir=config.embedding.fastembed_cache_dir,
-            dimensions=min(config.embedding.dimensions, 16),
+            dimensions=config.embedding.dimensions,
             runtime=config.embedding.runtime,
         )
 
@@ -124,7 +124,7 @@ class SkillTools:
             source_metadata=self._normalized_source_metadata(source_metadata),
             excerpt_kind=self._validated_excerpt_kind(excerpt_kind),
         )
-        return self._serialize_skill(skill)
+        return {**self._serialize_skill(skill), "ok": True}
 
     async def minder_skill_recall(
         self,
@@ -142,8 +142,10 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Skills exclude memory-classified records.
+            # Skills exclude memory-classified records and deprecated skills.
             if is_memory_record(skill):
+                continue
+            if getattr(skill, "deprecated", False):
                 continue
 
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
@@ -164,20 +166,27 @@ class SkillTools:
                 1.5,
             )
             ranked_item = {
-                **self._serialize_skill(skill),
-                "semantic_score": round(semantic_score, 4),
-                "step_compatibility": round(compatibility_score, 4),
-                "continuity_reasons": compatibility_reasons,
+                **self._serialize_skill_compact(skill),
                 "score": round(blended_score, 4),
+                # kept for internal record_continuity_skill_recall below
+                "_step_compat": round(compatibility_score, 4),
             }
             ranked.append(ranked_item)
         ranked.sort(key=lambda item: float(item["score"]), reverse=True)
         limited = ranked[:limit]
         for item in limited:
             record_continuity_skill_recall(
-                step_compatibility=float(item["step_compatibility"]),
+                step_compatibility=float(item.get("_step_compat", 0.0)),
                 quality_score=float(item["quality_score"]),
             )
+            item["step_compatibility"] = item.pop("_step_compat", 0.0)
+            try:
+                await self._store.update_skill(
+                    uuid.UUID(str(item["id"])),
+                    usage_count=int(item.get("usage_count", 0) or 0) + 1,
+                )
+            except Exception:
+                pass
         return limited
 
     async def minder_skill_list(
@@ -200,8 +209,10 @@ class SkillTools:
             if quality_score < min_quality_score:
                 continue
 
-            # Skills exclude memory-classified records.
+            # Skills exclude memory-classified records and deprecated skills.
             if is_memory_record(skill):
+                continue
+            if getattr(skill, "deprecated", False):
                 continue
 
             normalized_tags = {
@@ -211,7 +222,7 @@ class SkillTools:
             }
             if required_tags and not required_tags <= normalized_tags:
                 continue
-            items.append(self._serialize_skill(skill))
+            items.append(self._serialize_skill_compact(skill))
         items.sort(
             key=lambda item: (-float(item["quality_score"]), str(item["title"]).lower())
         )
@@ -229,6 +240,7 @@ class SkillTools:
         artifact_types: list[str] | None = None,
         provenance: str | None = None,
         quality_score: float | None = None,
+        deprecated: bool | None = None,
         source_metadata: dict[str, Any] | None = None,
         excerpt_kind: str | None = None,
     ) -> dict[str, Any]:
@@ -247,6 +259,8 @@ class SkillTools:
             update_data["language"] = language
         if quality_score is not None:
             update_data["quality_score"] = max(float(quality_score), 0.0)
+        if deprecated is not None:
+            update_data["deprecated"] = bool(deprecated)
         if source_metadata is not None:
             update_data["source_metadata"] = self._normalized_source_metadata(
                 source_metadata
@@ -274,7 +288,7 @@ class SkillTools:
         updated = await self._store.update_skill(uuid.UUID(skill_id), **update_data)
         if updated is None:
             raise ValueError(f"Skill not found: {skill_id}")
-        return self._serialize_skill(updated)
+        return {**self._serialize_skill(updated), "ok": True}
 
     async def minder_skill_import_git(
         self,
@@ -462,6 +476,7 @@ class SkillTools:
                 float(getattr(skill, "quality_score", 0.0) or 0.0), 4
             ),
             "usage_count": int(getattr(skill, "usage_count", 0) or 0),
+            "deprecated": bool(getattr(skill, "deprecated", False)),
             "workflow_step_tags": [
                 tag for tag in tags if ":" not in tag and tag not in self._ARTIFACT_TAGS
             ],
@@ -474,7 +489,23 @@ class SkillTools:
             "excerpt_kind": self._validated_excerpt_kind(
                 str(getattr(skill, "excerpt_kind", "none") or "none")
             ),
-            "_embedding": getattr(skill, "embedding", None),
+        }
+
+    def _serialize_skill_compact(self, skill: Any) -> dict[str, Any]:
+        """Minimal skill representation for LLM tool output — omits metadata-only fields."""
+        source_metadata = self._normalized_source_metadata(
+            getattr(skill, "source_metadata", None)
+        )
+        return {
+            "id": str(skill.id),
+            "title": str(skill.title),
+            "content": str(skill.content),
+            "language": str(getattr(skill, "language", "")),
+            "tags": list(getattr(skill, "tags", []) or []),
+            "quality_score": round(float(getattr(skill, "quality_score", 0.0) or 0.0), 4),
+            "usage_count": int(getattr(skill, "usage_count", 0) or 0),
+            "deprecated": bool(getattr(skill, "deprecated", False)),
+            "source": source_metadata,
         }
 
     @classmethod

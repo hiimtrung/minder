@@ -181,82 +181,78 @@ import GuideAside from "./ui/GuideAside.astro";
 
   <dialog
     id="skill-import-modal"
-    class="m-auto w-[min(960px,calc(100vw-2rem))] max-h-[min(88vh,920px)] max-w-[960px] overflow-hidden rounded-[32px] border border-stone-200 bg-[rgba(255,252,245,0.98)] p-0 text-stone-900 shadow-[0_36px_120px_rgba(28,25,23,0.22)] backdrop:bg-stone-950/45"
+    class="m-auto w-[min(980px,calc(100vw-1.5rem))] max-w-[980px] max-h-[min(90vh,920px)] overflow-hidden rounded-[28px] border border-stone-200/80 bg-[rgba(255,252,245,0.99)] p-0 text-stone-900 shadow-[0_40px_120px_rgba(28,25,23,0.25)] backdrop:bg-stone-950/50 backdrop:backdrop-blur-sm"
   >
-    <div
-      class="grid max-h-[min(88vh,920px)] min-h-0 gap-0 lg:grid-cols-[minmax(0,1fr)_320px]"
-    >
-      <section
-        class="min-h-0 overflow-y-auto p-6 sm:p-7 max-h-[min(88vh,920px)] overflow-auto"
-      >
-        <div class="flex items-start justify-between gap-4">
+    <div class="grid min-h-0 max-h-[min(90vh,920px)] lg:grid-cols-[minmax(0,1fr)_340px]">
+
+      <!-- LEFT: Form -->
+      <section class="flex min-h-0 flex-col overflow-hidden">
+        <!-- Modal header -->
+        <div class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-100 px-7 pt-7 pb-6">
           <div>
-            <p class="eyebrow">Async Import Job</p>
-            <h2
-              class="font-display mt-2 text-2xl font-semibold tracking-tight text-stone-950"
-            >
-              Import skill pack from Git
+            <p class="eyebrow">Git Import</p>
+            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
+              Import skill pack
             </h2>
-            <p class="mt-2 max-w-2xl text-sm leading-6 text-stone-600">
-              Queue a background job, watch progress stream live, and reopen
-              this modal after a page reload without losing the persisted job
-              state.
+            <p class="mt-1.5 max-w-xs text-sm leading-relaxed text-stone-500">
+              Pull a skill pack from any Git host. The job runs in the background — you can close this modal and check progress in Observability.
             </p>
           </div>
-          <Button id="skill-close-import-modal" size="sm" variant="ghost">
-            Close
+          <Button id="skill-close-import-modal" size="sm" variant="ghost" ariaLabel="Close modal">
+            ✕
           </Button>
         </div>
 
-        <form id="skill-import-form" class="mt-6 grid gap-4">
-          <Field label="Repository URL" htmlFor="skill-import-repo-url">
-            <Input
-              id="skill-import-repo-url"
-              type="url"
-              placeholder="https://github.com/org/skills.git"
-            />
-          </Field>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <Field label="Path" htmlFor="skill-import-path">
-              <Input id="skill-import-path" value="skills" />
+        <!-- Scrollable form body -->
+        <form id="skill-import-form" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-7 py-6">
+          <div class="grid gap-4">
+            <Field label="Repository URL" htmlFor="skill-import-repo-url">
+              <Input
+                id="skill-import-repo-url"
+                type="url"
+                placeholder="https://github.com/org/skills.git"
+              />
             </Field>
-            <Field
-              label="Ref"
-              htmlFor="skill-import-ref"
-              hint="Optional branch or tag"
-            >
-              <Input id="skill-import-ref" placeholder="main" />
-            </Field>
-          </div>
-          <div class="grid gap-4 sm:grid-cols-2">
-            <Field label="Provider" htmlFor="skill-import-provider">
-              <Select id="skill-import-provider">
-                <option value="">Auto detect</option>
-                <option value="github">github</option>
-                <option value="gitlab">gitlab</option>
-                <option value="generic_git">generic_git</option>
-              </Select>
-            </Field>
-            <Field label="Excerpt kind" htmlFor="skill-import-excerpt-kind">
-              <Select id="skill-import-excerpt-kind">
-                <option value="none">none</option>
-                <option value="reusable_excerpt">reusable_excerpt</option>
-              </Select>
-            </Field>
+
+            <div class="grid gap-3 sm:grid-cols-[1fr_8rem]">
+              <Field label="Skills path" htmlFor="skill-import-path" hint="Folder inside the repo">
+                <Input id="skill-import-path" value="skills" placeholder="skills" />
+              </Field>
+              <Field label="Ref" htmlFor="skill-import-ref" hint="Branch / tag">
+                <Input id="skill-import-ref" placeholder="main" />
+              </Field>
+            </div>
+
+            <div class="grid gap-3 sm:grid-cols-2">
+              <Field label="Provider" htmlFor="skill-import-provider">
+                <Select id="skill-import-provider">
+                  <option value="">Auto-detect</option>
+                  <option value="github">GitHub</option>
+                  <option value="gitlab">GitLab</option>
+                  <option value="generic_git">Generic Git</option>
+                </Select>
+              </Field>
+              <Field label="Excerpt kind" htmlFor="skill-import-excerpt-kind">
+                <Select id="skill-import-excerpt-kind">
+                  <option value="none">none</option>
+                  <option value="reusable_excerpt">reusable_excerpt</option>
+                </Select>
+              </Field>
+            </div>
           </div>
 
+          <!-- Active job progress (rendered by JS) -->
           <div
             id="skill-import-active-job"
-            class="hidden rounded-2xl border border-stone-200 bg-white/80 px-4 py-4"
-          >
-          </div>
+            class="hidden mt-5 rounded-2xl border border-stone-200 bg-stone-50/80 px-5 py-4"
+          ></div>
 
-          <div class="flex flex-wrap gap-3">
-            <Button
-              type="submit"
-              variant="primary"
-              class="flex-1 min-w-[220px]"
-            >
+          <!-- Spacer pushes submit to bottom -->
+          <div class="flex-1 min-h-6"></div>
+
+          <!-- Submit row -->
+          <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5">
+            <Button type="submit" variant="primary" class="flex-1 min-w-[180px]">
               Queue import job
             </Button>
             <Button
@@ -265,32 +261,39 @@ import GuideAside from "./ui/GuideAside.astro";
               size="sm"
               variant="ghost"
             >
-              Open observability
+              Observability →
             </Button>
           </div>
           <FormStatus id="skill-import-status" />
         </form>
       </section>
 
-      <aside
-        class="min-h-0 overflow-y-auto border-t border-stone-200 bg-stone-950 px-5 py-6 text-stone-100 lg:border-l lg:border-t-0"
-      >
-        <p class="eyebrow text-stone-300">Recent jobs</p>
-        <p class="mt-2 text-sm leading-6 text-stone-300">
-          Recent import jobs stay visible here and on observability even if you
-          reload the page.
-        </p>
+      <!-- RIGHT: Dark sidebar -->
+      <aside class="flex min-h-0 flex-col overflow-hidden border-t border-stone-200 bg-stone-950 text-stone-100 lg:border-l lg:border-t-0">
+
+        <!-- Progress log (rendered by JS, hidden until job has events) -->
         <div
-          id="skill-import-job-list"
-          class="mt-5 grid max-h-[min(52vh,560px)] gap-3 overflow-x-hidden overflow-y-auto"
-        >
+          id="skill-import-progress-log"
+          class="hidden shrink-0 overflow-y-auto border-b border-stone-800/60 px-5 py-4 font-mono text-[11px] leading-5 max-h-44"
+        ></div>
+
+        <!-- Recent jobs list -->
+        <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-5">
+          <p class="eyebrow shrink-0 text-stone-400">Recent jobs</p>
+          <p class="mt-1 shrink-0 text-xs leading-5 text-stone-500">
+            Jobs persist across page reloads.
+          </p>
           <div
-            class="break-words rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-sm text-stone-400"
+            id="skill-import-job-list"
+            class="mt-4 flex-1 overflow-y-auto grid gap-2 content-start"
           >
-            No import jobs yet.
+            <div class="rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-sm text-stone-400">
+              No import jobs yet.
+            </div>
           </div>
         </div>
       </aside>
+
     </div>
   </dialog>
 

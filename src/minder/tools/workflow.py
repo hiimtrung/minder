@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.continuity import build_instruction_envelope
 from minder.observability.metrics import (
     record_continuity_gate,
     record_continuity_packet,
@@ -54,18 +54,23 @@ class WorkflowTools:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
         state = await self._require_workflow_state(repo_id)
-        payload = {
+        envelope = build_instruction_envelope(workflow=workflow, workflow_state=state)
+        await self._repo_state.write_workflow_state(
+            repo_path,
+            {
+                "current_step": state.current_step,
+                "completed_steps": list(state.completed_steps),
+                "blocked_by": list(state.blocked_by),
+                "next_step": state.next_step,
+            },
+        )
+        for _k in ("workflow_id", "workflow_version", "policies"):
+            envelope.pop(_k, None)
+        return {
             "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
-            "blocked_by": list(state.blocked_by),
-            "next_step": state.next_step,
-            "instruction_envelope": build_instruction_envelope(
-                workflow=workflow,
-                workflow_state=state,
-            ),
+            "instruction_envelope": envelope,
         }
-        await self._repo_state.write_workflow_state(repo_path, payload)
-        return payload
 
     async def minder_workflow_update(
         self,
@@ -120,7 +125,6 @@ class WorkflowTools:
             "current_step": updated.current_step,
             "completed_steps": list(updated.completed_steps),
             "next_step": updated.next_step,
-            "artifacts": dict(updated.artifacts),
         }
 
     async def minder_workflow_guard(
@@ -158,29 +162,15 @@ class WorkflowTools:
         )
         record_continuity_gate("passed" if allowed else "blocked")
         record_continuity_packet("workflow_guard")
+        envelope = build_instruction_envelope(workflow=workflow, workflow_state=state)
+        for _k in ("workflow_id", "workflow_version", "policies"):
+            envelope.pop(_k, None)
         return {
             "allowed": allowed,
             "reason": reason,
             "expected_next": expected_next,
             "violations": violations,
-            "instruction_envelope": build_instruction_envelope(
-                workflow=workflow,
-                workflow_state=state,
-            ),
-            "continuity_brief": build_continuity_brief(
-                session=type(
-                    "WorkflowSessionView",
-                    (),
-                    {
-                        "id": getattr(state, "session_id", ""),
-                        "state": {},
-                        "project_context": {},
-                        "active_skills": {},
-                    },
-                )(),
-                workflow_state=state,
-                workflow=workflow,
-            ),
+            "instruction_envelope": envelope,
         }
 
     async def _require_repo(self, repo_id: uuid.UUID):  # noqa: ANN202

@@ -4,12 +4,14 @@ from dataclasses import dataclass, field
 
 from minder.graph.edges import determine_next_edge
 from minder.graph.nodes import (
+    ClarificationNode,
     EvaluatorNode,
     GuardNode,
     LLMNode,
     PlanningNode,
     ReasoningNode,
     RerankerNode,
+    ReflectionNode,
     RetrieverNode,
     VerificationNode,
     WorkflowPlannerNode,
@@ -22,6 +24,7 @@ from minder.graph.state import GraphState
 class GraphNodes:
     workflow_planner: WorkflowPlannerNode
     planning: PlanningNode
+    clarification: ClarificationNode
     retriever: RetrieverNode
     reasoning: ReasoningNode
     llm: LLMNode
@@ -29,6 +32,7 @@ class GraphNodes:
     verification: VerificationNode
     evaluator: EvaluatorNode
     reranker: RerankerNode | None = field(default=None)
+    reflection: ReflectionNode | None = field(default=None)
 
 
 class InternalGraphExecutor:
@@ -41,6 +45,9 @@ class InternalGraphExecutor:
         state.metadata["orchestration_runtime"] = "internal"
         state = await self._nodes.workflow_planner.run(state)
         state = self._nodes.planning.run(state)
+        state = self._nodes.clarification.run(state)
+        if state.metadata.get("needs_clarification"):
+            return state
         state = await self._nodes.retriever.run(state)
         if self._nodes.reranker is not None:
             state = await self._nodes.reranker.run(state)
@@ -88,6 +95,10 @@ class InternalGraphExecutor:
 
         state = self._nodes.evaluator.run(state)
         state.metadata["edge"] = determine_next_edge(state)
+
+        if self._nodes.reflection is not None:
+            state = await self._nodes.reflection.run(state)
+
         return state
 
 

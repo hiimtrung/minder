@@ -15,6 +15,7 @@ import {
   updatePagerButtons,
 } from "./catalog-controls";
 import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
+import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // Shared element refs
@@ -22,40 +23,7 @@ import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
 
 const toastRegion = document.querySelector("#dashboard-toast-region");
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
-
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+// (showToast moved to ui-utils.ts)
 
 // ---------------------------------------------------------------------------
 // Current URL path parsing — detect registry vs detail route
@@ -91,14 +59,14 @@ const renderStepList = (
   container.innerHTML = steps
     .map(
       (step, i) => `
-    <div class="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50/80 p-3">
+    <div class="flex min-w-0 items-start gap-3 overflow-hidden rounded-2xl border border-stone-200 bg-stone-50/80 p-3">
       <div class="flex-1 grid gap-1 min-w-0">
-        <div class="flex items-center gap-2">
-          <span class="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">${i + 1}</span>
-          <span class="text-sm font-semibold text-stone-900 truncate">${escapeHtml(step.name)}</span>
-          ${step.gate ? `<span class="rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">gate: ${escapeHtml(step.gate)}</span>` : ""}
+        <div class="flex min-w-0 items-center gap-2">
+          <span class="shrink-0 text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">${i + 1}</span>
+          <span class="min-w-0 truncate text-sm font-semibold text-stone-900">${escapeHtml(step.name)}</span>
+          ${step.gate ? `<span class="shrink-0 rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">gate: ${escapeHtml(step.gate)}</span>` : ""}
         </div>
-        ${step.description ? `<p class="text-xs text-stone-500 leading-5">${escapeHtml(step.description)}</p>` : ""}
+        ${step.description ? `<p class="wrap-break-word text-xs leading-5 text-stone-500">${escapeHtml(step.description)}</p>` : ""}
       </div>
       <div class="flex items-center gap-1 shrink-0">
         <button
@@ -146,13 +114,30 @@ const openStepModal = (
     const backdrop = document.getElementById("step-modal-backdrop");
     const container = document.getElementById("step-modal-container");
     const title = document.getElementById("step-modal-title");
-    const form = document.getElementById("step-modal-form") as HTMLFormElement | null;
-    const nameInput = document.getElementById("step-name") as HTMLTextAreaElement | null;
-    const descInput = document.getElementById("step-description") as HTMLTextAreaElement | null;
-    const gateInput = document.getElementById("step-gate") as HTMLTextAreaElement | null;
+    const form = document.getElementById(
+      "step-modal-form",
+    ) as HTMLFormElement | null;
+    const nameInput = document.getElementById(
+      "step-name",
+    ) as HTMLTextAreaElement | null;
+    const descInput = document.getElementById(
+      "step-description",
+    ) as HTMLTextAreaElement | null;
+    const gateInput = document.getElementById(
+      "step-gate",
+    ) as HTMLTextAreaElement | null;
     const cancelBtn = document.getElementById("step-modal-cancel");
 
-    if (!backdrop || !container || !title || !form || !nameInput || !descInput || !gateInput || !cancelBtn) {
+    if (
+      !backdrop ||
+      !container ||
+      !title ||
+      !form ||
+      !nameInput ||
+      !descInput ||
+      !gateInput ||
+      !cancelBtn
+    ) {
       resolve(null);
       return;
     }
@@ -191,7 +176,9 @@ const openStepModal = (
   });
 };
 
-const promptAddStep = async (onConfirm: (step: WorkflowStepPayload) => void) => {
+const promptAddStep = async (
+  onConfirm: (step: WorkflowStepPayload) => void,
+) => {
   const result = await openStepModal("add");
   if (result && result.name) {
     onConfirm(result);
@@ -225,7 +212,9 @@ const paginationStatusEl = document.querySelector(
 );
 const pagePrevButton = document.querySelector("#workflow-page-prev");
 const pageNextButton = document.querySelector("#workflow-page-next");
-const quickSearchLoadingEl = document.querySelector("#workflow-quick-search-loading");
+const quickSearchLoadingEl = document.querySelector(
+  "#workflow-quick-search-loading",
+);
 
 const PAGE_SIZE = 6;
 let allWorkflows: WorkflowPayload[] = [];

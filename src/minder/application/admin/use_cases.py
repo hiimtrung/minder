@@ -6,6 +6,7 @@ from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
 from urllib.parse import urlsplit
 
 from minder.application.admin.dto import (
@@ -49,12 +50,18 @@ from minder.application.admin.dto import (
     WorkflowListPayload,
     WorkflowPayload,
     WorkflowStepPayload,
+    SessionPayload,
+    SessionListPayload,
+    SessionDetailPayload,
 )
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.observability.audit import AuditEmitter
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 from minder.tools.graph import GraphTools
 from minder.tools.registry import SCOPEABLE_TOOLS
+
+_UNSET: Any = object()  # sentinel for optional update fields
 
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
@@ -96,6 +103,7 @@ class AdminConsoleUseCases:
         self._config = config
         self._graph_store = graph_store
         self._graph_tools = GraphTools(graph_store, store)
+        self._audit = AuditEmitter(store)
 
     async def has_admin_users(self) -> bool:
         return await self._auth_service.has_admin_users()
@@ -413,6 +421,7 @@ class AdminConsoleUseCases:
             "resource_name": None,
             "outcome": event.outcome,
             "created_at": event.created_at.isoformat() if event.created_at else None,
+            "audit_metadata": getattr(event, "audit_metadata", None),
         }
 
     async def serialize_audit_event_enriched(self, event: Any) -> AuditEventPayload:
@@ -481,6 +490,17 @@ class AdminConsoleUseCases:
             role=role,
             password=password,
         )
+        await self._audit.emit(
+            actor_type="admin",
+            actor_id=str(user.id),  # in this context, the new user IS the actor if it's initial setup?
+            # actually, if an admin creates a user, we should know WHO did it.
+            # but create_user use case doesn't take actor_id yet.
+            event_type="user.created",
+            resource_type="user",
+            resource_id=str(user.id),
+            outcome="success",
+            metadata={"username": username, "role": role},
+        )
         return {"user": self.serialize_user(user), "api_key": api_key}
 
     async def get_user_detail(self, user_id: uuid.UUID) -> UserDetailPayload:
@@ -514,6 +534,16 @@ class AdminConsoleUseCases:
         updated = await self._store.update_user(user_id, **kwargs)
         if updated is None:
             raise LookupError(f"User {user_id} not found")
+
+        await self._audit.emit(
+            actor_type="admin",
+            actor_id=str(user_id),  # same issue: no actor_id passed to use case
+            event_type="user.updated",
+            resource_type="user",
+            resource_id=str(user_id),
+            outcome="success",
+            metadata={"fields_changed": list(kwargs.keys())},
+        )
         return await self.get_user_detail(user_id)
 
     async def deactivate_user(self, user_id: uuid.UUID) -> UserDetailPayload:
@@ -624,6 +654,78 @@ class AdminConsoleUseCases:
         }
 
     # ------------------------------------------------------------------
+    # Session management
+    # ------------------------------------------------------------------
+
+    async def list_sessions(self) -> SessionListPayload:
+        sessions = await self._store.list_sessions()
+        return {"sessions": [self.serialize_session(s) for s in sessions]}
+
+    async def get_session_detail(self, session_id: uuid.UUID) -> SessionDetailPayload:
+        session = await self._store.get_session_by_id(session_id)
+        if session is None:
+            raise LookupError(f"Session {session_id} not found")
+        return {"session": self.serialize_session(session)}
+
+    async def update_session(
+        self,
+        session_id: uuid.UUID,
+        *,
+        state: dict[str, Any] | None = None,
+        active_skills: dict[str, Any] | None = None,
+        project_context: dict[str, Any] | None = None,
+    ) -> SessionPayload:
+        existing = await self._store.get_session_by_id(session_id)
+        if existing is None:
+            raise LookupError(f"Session {session_id} not found")
+        updates: dict[str, Any] = {}
+        if state is not None:
+            updates["state"] = state
+        if active_skills is not None:
+            updates["active_skills"] = active_skills
+        if project_context is not None:
+            updates["project_context"] = project_context
+        if not updates:
+            return self.serialize_session(existing)
+        from datetime import UTC, datetime
+        updates["last_active"] = datetime.now(UTC)
+        updated = await self._store.update_session(session_id, **updates)
+        if updated is None:
+            raise LookupError(f"Session {session_id} not found")
+        return self.serialize_session(updated)
+
+    async def delete_session(self, session_id: uuid.UUID) -> dict[str, bool]:
+        existing = await self._store.get_session_by_id(session_id)
+        if existing is None:
+            raise LookupError(f"Session {session_id} not found")
+        await self._store.delete_session(session_id)
+        return {"deleted": True}
+
+    @staticmethod
+    def serialize_session(session: Any) -> SessionPayload:
+        return {
+            "id": str(session.id),
+            "user_id": str(session.user_id) if session.user_id else None,
+            "client_id": str(session.client_id) if session.client_id else None,
+            "name": session.name,
+            "repo_id": str(session.repo_id) if session.repo_id else None,
+            "project_context": dict(getattr(session, "project_context", {}) or {}),
+            "active_skills": dict(getattr(session, "active_skills", {}) or {}),
+            "state": dict(getattr(session, "state", {}) or {}),
+            "ttl": int(getattr(session, "ttl", 86400) or 86400),
+            "created_at": (
+                session.created_at.isoformat()
+                if getattr(session, "created_at", None)
+                else ""
+            ),
+            "last_active": (
+                session.last_active.isoformat()
+                if getattr(session, "last_active", None)
+                else ""
+            ),
+        }
+
+    # ------------------------------------------------------------------
     # Repository management
     # ------------------------------------------------------------------
 
@@ -661,6 +763,7 @@ class AdminConsoleUseCases:
         remote_url: str | None = None,
         default_branch: str | None = None,
         path: str | None = None,
+        workflow_id: Any = _UNSET,
     ) -> RepositoryDetailPayload:
         repository = await self._store.get_repository_by_id(repo_id)
         if repository is None:
@@ -687,6 +790,15 @@ class AdminConsoleUseCases:
             if not normalized_path:
                 raise ValueError("Repository path is required")
             updates["state_path"] = normalized_path
+        if workflow_id is not _UNSET:
+            if workflow_id is None or str(workflow_id).strip() == "":
+                updates["workflow_id"] = None
+            else:
+                wf_id = uuid.UUID(str(workflow_id))
+                workflow = await self._store.get_workflow_by_id(wf_id)
+                if workflow is None:
+                    raise LookupError(f"Workflow {wf_id} not found")
+                updates["workflow_id"] = str(wf_id)
 
         updated = await self._store.update_repository(repo_id, **updates)
         if updated is None:
@@ -772,6 +884,7 @@ class AdminConsoleUseCases:
         tracked: list[str] = (
             list(raw_branches) if isinstance(raw_branches, list) else []
         )
+        raw_workflow_id = getattr(repo, "workflow_id", None)
         return {
             "id": str(repo.id),
             "name": getattr(repo, "repo_name", getattr(repo, "name", "")),
@@ -779,6 +892,7 @@ class AdminConsoleUseCases:
             "remote_url": _normalize_repository_remote(getattr(repo, "repo_url", None)),
             "default_branch": getattr(repo, "default_branch", None),
             "tracked_branches": tracked,
+            "workflow_id": str(raw_workflow_id) if raw_workflow_id else None,
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,

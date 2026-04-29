@@ -87,6 +87,18 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
         if provider == "mongodb":
             provider = "sqlite"
 
+    if provider == "mongodb":
+        from minder.store.mongodb.client import MongoClient
+        from minder.store.mongodb.graph_store import MongoGraphStore
+
+        client = MongoClient(
+            uri=config.mongodb.uri,
+            database=config.mongodb.database,
+            min_pool_size=config.mongodb.min_pool_size,
+            max_pool_size=config.mongodb.max_pool_size,
+        )
+        return MongoGraphStore(client)  # type: ignore[return-value]
+
     if provider in ("sqlite", "postgresql"):
         from minder.store.graph import KnowledgeGraphStore
 
@@ -105,5 +117,5 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
 
     raise ValueError(
         f"Unsupported graph_store.provider '{provider}'. "
-        "Supported: 'auto', 'sqlite', 'postgresql'."
+        "Supported: 'auto', 'mongodb', 'sqlite', 'postgresql'."
     )

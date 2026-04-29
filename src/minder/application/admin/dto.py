@@ -72,6 +72,7 @@ class AuditEventPayload(TypedDict):
     resource_name: str | None  # human-readable name for the resource
     outcome: str
     created_at: str | None
+    audit_metadata: dict | None
 
 
 class ClientListPayload(TypedDict):
@@ -127,6 +128,28 @@ class AdminSessionPayload(TypedDict):
     email: str
     display_name: str
     role: str
+
+
+class SessionPayload(TypedDict):
+    id: str
+    user_id: str | None
+    client_id: str | None
+    name: str | None
+    repo_id: str | None
+    project_context: dict[str, Any]
+    active_skills: dict[str, Any]
+    state: dict[str, Any]
+    ttl: int
+    created_at: str
+    last_active: str
+
+
+class SessionListPayload(TypedDict):
+    sessions: list[SessionPayload]
+
+
+class SessionDetailPayload(TypedDict):
+    session: SessionPayload
 
 
 # ---------------------------------------------------------------------------
@@ -198,6 +221,7 @@ class RepositoryPayload(TypedDict):
     remote_url: str | None
     default_branch: str | None
     tracked_branches: list[str]
+    workflow_id: str | None
     workflow_name: str | None
     workflow_state: str | None
     current_step: str | None
@@ -260,6 +284,7 @@ class UpdateRepositoryPayload(TypedDict, total=False):
     remote_url: str | None
     default_branch: str | None
     path: str
+    workflow_id: str | None
 
 
 class DeleteRepositoryPayload(TypedDict):

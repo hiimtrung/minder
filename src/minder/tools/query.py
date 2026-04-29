@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from minder.config import MinderConfig
+from minder.context_compactor import HistoryCompactor
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
@@ -46,6 +47,7 @@ class QueryTools:
             vector_store=self._vector_store,
         )
         self._graph_tools = graph_tools
+        self._history_compactor = HistoryCompactor()
 
     async def minder_query(
         self,
@@ -87,10 +89,11 @@ class QueryTools:
             self._store,
         )
         chat_history = []
+        history_source = "none"
         if session_id:
             try:
                 history_docs = await self._store.list_history_for_session(session_id)
-                chat_history = [
+                raw_history = [
                     {
                         "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
                         "content": str(getattr(doc, "content", "")),
@@ -98,8 +101,16 @@ class QueryTools:
                     for doc in history_docs
                     if getattr(doc, "role", "") and getattr(doc, "content", "")
                 ]
+                if raw_history:
+                    history_source = "mongodb"
+                    chat_history = raw_history
             except Exception:
                 pass
+
+            chat_history = self._history_compactor.compact(
+                chat_history,
+                context_length=self._config.llm.context_length,
+            )
 
             await self._store.create_history(
                 session_id=session_id,
@@ -129,6 +140,8 @@ class QueryTools:
                     if bool(getattr(query_prompt, "is_builtin", False))
                     else "custom"
                 ),
+                "history_source": history_source,
+                "history_message_count": len(chat_history),
             },
         )
         result = await self._graph.run(state)
@@ -149,18 +162,17 @@ class QueryTools:
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
-            "workflow": result.workflow_context,
-            "guard_result": result.guard_result,
-            "verification_result": result.verification_result,
-            "evaluation": result.evaluation,
+            "workflow_name": result.workflow_context.get("workflow_name"),
             "provider": result.llm_output.get("provider"),
-            "model": result.llm_output.get(
-                "model", result.llm_output.get("model")
-            ),
+            "model": result.llm_output.get("model"),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
-            "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
+            "guard_result": result.guard_result,
+            "verification_result": result.verification_result,
+            "transition_log": result.transition_log,
+            "history_source": result.metadata.get("history_source"),
+            "history_message_count": result.metadata.get("history_message_count"),
             "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
         }
 
@@ -217,6 +229,11 @@ class QueryTools:
                 ]
             except Exception:
                 pass
+
+            chat_history = self._history_compactor.compact(
+                chat_history,
+                context_length=self._config.llm.context_length,
+            )
 
             await self._store.create_history(
                 session_id=session_id,
@@ -276,18 +293,17 @@ class QueryTools:
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
-            "workflow": result.workflow_context,
-            "guard_result": result.guard_result,
-            "verification_result": result.verification_result,
-            "evaluation": result.evaluation,
+            "workflow_name": result.workflow_context.get("workflow_name"),
             "provider": result.llm_output.get("provider"),
-            "model": result.llm_output.get(
-                "model", result.llm_output.get("model")
-            ),
+            "model": result.llm_output.get("model"),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
-            "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
+            "guard_result": result.guard_result,
+            "verification_result": result.verification_result,
+            "transition_log": result.transition_log,
+            "history_source": result.metadata.get("history_source"),
+            "history_message_count": result.metadata.get("history_message_count"),
             "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
         }
 
@@ -315,7 +331,8 @@ class QueryTools:
                 }
                 for doc in semantic_code_hits[:limit]
             ]
-
+        
+        project_name = Path(repo_path).name
         state = GraphState(
             query=query,
             repo_path=repo_path,

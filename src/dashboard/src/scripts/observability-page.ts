@@ -64,7 +64,6 @@ const auditEventTypeFilter = document.querySelector(
 const auditOutcomeFilter = document.querySelector(
   "#audit-outcome-filter",
 ) as HTMLSelectElement | null;
-const auditFilterApply = document.querySelector("#audit-filter-apply");
 const auditFilterClear = document.querySelector("#audit-filter-clear");
 const refreshButton = document.querySelector("#refresh-observability");
 const autoRefreshToggle = document.querySelector(
@@ -90,6 +89,22 @@ const jobStatusFilter = document.querySelector(
 ) as HTMLSelectElement | null;
 const jobRefreshButton = document.querySelector("#jobs-refresh");
 const jobStatusSummary = document.querySelector("#job-status-summary");
+const lastUpdatedTime = document.querySelector("#last-updated-time");
+
+// Tabs
+const tabs = {
+  overview: document.querySelector("#tab-overview"),
+  audit: document.querySelector("#tab-audit"),
+  jobs: document.querySelector("#tab-jobs"),
+  continuity: document.querySelector("#tab-continuity"),
+};
+
+const panels = {
+  overview: document.querySelector("#panel-overview"),
+  audit: document.querySelector("#panel-audit"),
+  jobs: document.querySelector("#panel-jobs"),
+  continuity: document.querySelector("#panel-continuity"),
+};
 
 // ---------------------------------------------------------------------------
 // Pagination / filter state
@@ -130,14 +145,21 @@ const fmtDecimal = (n: number): string =>
 const relativeTime = (iso: string | null): string => {
   if (!iso) return "—";
   try {
-    const delta = Date.now() - new Date(iso).getTime();
+    const dateStr =
+      iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`;
+    const delta = Date.now() - new Date(dateStr).getTime();
     const secs = Math.floor(delta / 1000);
     if (secs < 60) return `${secs}s ago`;
     const mins = Math.floor(secs / 60);
     if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
-    return new Date(iso).toLocaleDateString();
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    const years = Math.floor(months / 12);
+    return `${years}y ago`;
   } catch {
     return iso ?? "—";
   }
@@ -185,6 +207,21 @@ const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
     const rightTime = new Date(right.created_at ?? 0).getTime();
     return rightTime - leftTime;
   });
+
+const switchTab = (tabName: keyof typeof tabs) => {
+  document
+    .querySelectorAll("[data-tab-btn]")
+    .forEach((b) => b.classList.remove("tab-btn-active"));
+  document
+    .querySelectorAll("[data-tab-panel]")
+    .forEach((p) => p.classList.add("hidden"));
+
+  const btn = document.querySelector(`[data-tab-btn="${tabName}"]`);
+  if (btn) btn.classList.add("tab-btn-active");
+
+  const panel = document.querySelector(`[data-tab-panel="${tabName}"]`);
+  if (panel) panel.classList.remove("hidden");
+};
 
 // ---------------------------------------------------------------------------
 // Donut SVG chart
@@ -244,10 +281,10 @@ function renderDonut(
       const pct = Math.round((value / total) * 100);
       const color = DONUT_COLORS[i % DONUT_COLORS.length];
       return `
-        <div class="flex items-center gap-2 text-xs">
-          <span class="h-2.5 w-2.5 rounded-full shrink-0" style="background:${color}"></span>
-          <span class="truncate text-stone-700 flex-1">${escapeHtml(label)}</span>
-          <span class="tabular-nums text-stone-500 shrink-0">${pct}%</span>
+        <div class="flex items-center gap-2.5 text-xs">
+          <span class="h-3 w-3 rounded-md shrink-0 shadow-sm" style="background:${color}"></span>
+          <span class="truncate text-stone-600 flex-1 font-medium">${escapeHtml(label)}</span>
+          <span class="tabular-nums text-stone-900 font-bold shrink-0">${pct}%</span>
         </div>`;
     })
     .join("");
@@ -285,8 +322,14 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
 
   if (statAuthEvents) statAuthEvents.textContent = fmt(data.auth_events.total);
   if (statAuthEventsSub) {
-    const logins = data.auth_events.by_type["login"] ?? 0;
-    const exchanges = data.auth_events.by_type["token_exchange"] ?? 0;
+    const logins =
+      data.auth_events.by_type["auth.login"] ??
+      data.auth_events.by_type["login"] ??
+      0;
+    const exchanges =
+      data.auth_events.by_type["token.exchanged"] ??
+      data.auth_events.by_type["token_exchange"] ??
+      0;
     statAuthEventsSub.textContent = `${fmt(logins)} login${logins !== 1 ? "s" : ""}, ${fmt(exchanges)} exchange${exchanges !== 1 ? "s" : ""}`;
   }
 
@@ -480,13 +523,94 @@ const upsertJob = (job: AdminJobPayload): void => {
 };
 
 // ---------------------------------------------------------------------------
+// Event type label map — keeps filter values and table display in sync
+// ---------------------------------------------------------------------------
+
+const EVENT_CATEGORY: Record<string, string> = {
+  tool_call: "tool",
+  "auth.login": "auth",
+  "auth.logout": "auth",
+  "token.exchanged": "auth",
+  "client.token_exchanged": "auth",
+  "client.created": "client",
+  "client.updated": "client",
+  "client.key_created": "client",
+  "client.key_revoked": "client",
+  "key.rotated": "client",
+  "key.revoked": "client",
+  "repository.graph_sync": "repo",
+  "repository.resolve": "repo",
+  "skill.created": "skill",
+  "skill.updated": "skill",
+  "skill.deleted": "skill",
+  "skill.compacted": "skill",
+  admin_op: "admin",
+  "user.created": "admin",
+  "user.updated": "admin",
+};
+
+const eventCategoryClass = (eventType: string): string => {
+  const cat = EVENT_CATEGORY[eventType] ?? "other";
+  if (cat === "tool")
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (cat === "auth") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (cat === "client") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (cat === "repo") return "border-cyan-200 bg-cyan-50 text-cyan-800";
+  if (cat === "skill") return "border-violet-200 bg-violet-50 text-violet-800";
+  if (cat === "admin") return "border-stone-200 bg-stone-100 text-stone-700";
+  return "border-stone-200 bg-stone-50 text-stone-600";
+};
+
+// ---------------------------------------------------------------------------
 // Render audit log
 // ---------------------------------------------------------------------------
+
+const buildAuditDetail = (evt: AuditEventPayload): string => {
+  const meta = evt.audit_metadata;
+  if (!meta) return "";
+
+  const rows: string[] = [];
+
+  if (meta["error_type"] || meta["error_message"]) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-red-600">Error</span><span class="font-mono text-red-700 break-all">${escapeHtml(String(meta["error_type"] ?? ""))}: ${escapeHtml(String(meta["error_message"] ?? ""))}</span></div>`,
+    );
+  }
+
+  if (meta["arguments"] && typeof meta["arguments"] === "object") {
+    const args = meta["arguments"] as Record<string, unknown>;
+    const argStr = JSON.stringify(args, null, 2);
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">Request</span><pre class="font-mono text-[10px] text-stone-700 whitespace-pre-wrap break-all overflow-hidden">${escapeHtml(argStr)}</pre></div>`,
+    );
+  }
+
+  if (meta["latency_ms"] !== undefined) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">Latency</span><span class="font-mono text-stone-700">${escapeHtml(String(meta["latency_ms"]))} ms</span></div>`,
+    );
+  }
+
+  const knownKeys = new Set([
+    "error_type",
+    "error_message",
+    "arguments",
+    "latency_ms",
+    "client_id",
+  ]);
+  const extras = Object.entries(meta).filter(([k]) => !knownKeys.has(k));
+  for (const [k, v] of extras) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">${escapeHtml(k)}</span><span class="font-mono text-stone-700 break-all">${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</span></div>`,
+    );
+  }
+
+  return rows.join("");
+};
 
 const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   if (!auditLogBody) return;
 
-  // Pagination info
   if (paginationInfo) {
     const from = total === 0 ? 0 : currentOffset + 1;
     const to = Math.min(currentOffset + currentLimit, total);
@@ -499,7 +623,7 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   if (!events.length) {
     auditLogBody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">
+        <td colspan="5" class="px-3 py-8 text-center text-xs text-stone-400">
           No audit events found matching the current filters.
         </td>
       </tr>`;
@@ -508,45 +632,64 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
 
   auditLogBody.innerHTML = events
     .map((evt) => {
-      const actorLabel = evt.actor_name
+      const eventLabel = escapeHtml(evt.event_type);
+      const actorDisplay = evt.actor_name
         ? escapeHtml(evt.actor_name)
         : evt.actor_id
-          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.actor_id.slice(0, 8))}…</span>`
+          ? escapeHtml(evt.actor_id)
           : "—";
-
-      const resourceLabel = evt.resource_name
+      const resourceDisplay = evt.resource_name
         ? escapeHtml(evt.resource_name)
         : evt.resource_id
-          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.resource_id.slice(0, 8))}…</span>`
+          ? escapeHtml(evt.resource_id)
           : "—";
 
-      return `
-    <tr class="border-t border-stone-100 hover:bg-stone-50/60 transition-colors">
-      <td class="px-4 py-3">
-        <span class="font-medium text-stone-900 text-xs">${escapeHtml(evt.event_type)}</span>
+      const detailContent = buildAuditDetail(evt);
+      const hasDetail = detailContent.length > 0;
+      const detailRowId = `detail-${escapeHtml(evt.id)}`;
+      const rowCursor = hasDetail ? " cursor-pointer" : "";
+
+      const mainRow = `
+    <tr class="border-t border-stone-100 hover:bg-stone-50/50 transition-colors${rowCursor}" ${hasDetail ? `data-detail-target="${detailRowId}"` : ""}>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="inline-block max-w-full truncate rounded-md border px-2 py-0.5 font-mono text-[10px] font-medium ${eventCategoryClass(evt.event_type)}" title="${escapeHtml(evt.event_type)}">${eventLabel}</span>
       </td>
-      <td class="px-4 py-3">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.actor_type)}</span>
-          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
-        </div>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.actor_type)}</span>
+        <span class="block truncate font-mono text-[10px] text-stone-600 mt-0.5" title="${escapeHtml(evt.actor_id ?? "")}">${actorDisplay}</span>
       </td>
-      <td class="px-4 py-3">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.resource_type)}</span>
-          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.resource_id ?? "")}">${resourceLabel}</span>
-        </div>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.resource_type)}</span>
+        <span class="block truncate font-mono text-[10px] text-stone-600 mt-0.5" title="${escapeHtml(evt.resource_id ?? "")}">${resourceDisplay}</span>
       </td>
-      <td class="px-4 py-3">
-        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${outcomeClass(evt.outcome)}">
-          ${escapeHtml(evt.outcome)}
-        </span>
+      <td class="px-3 py-2.5">
+        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(evt.outcome)}">${escapeHtml(evt.outcome)}</span>
       </td>
-      <td class="px-4 py-3 text-xs text-stone-500 whitespace-nowrap" title="${evt.created_at ?? ""}">${escapeHtml(relativeTime(evt.created_at))}</td>
-    </tr>
-  `;
+      <td class="px-3 py-2.5 text-[10px] text-stone-500 whitespace-nowrap" title="${escapeHtml(evt.created_at ?? "")}">${escapeHtml(relativeTime(evt.created_at))}${hasDetail ? ' <span class="text-stone-300">▾</span>' : ""}</td>
+    </tr>`;
+
+      const detailRow = hasDetail
+        ? `<tr id="${detailRowId}" class="hidden border-t border-stone-100 bg-stone-50/70">
+        <td colspan="5" class="px-4 py-3 text-[11px] leading-5 text-stone-600 space-y-1.5">${detailContent}</td>
+      </tr>`
+        : "";
+
+      return mainRow + detailRow;
     })
     .join("");
+
+  // Wire up row expand/collapse
+  auditLogBody
+    .querySelectorAll<HTMLTableRowElement>("[data-detail-target]")
+    .forEach((row) => {
+      row.addEventListener("click", () => {
+        const targetId = row.dataset.detailTarget!;
+        const detailRow = document.getElementById(targetId);
+        if (detailRow) {
+          detailRow.classList.toggle("hidden");
+        }
+      });
+    });
 };
 
 // ---------------------------------------------------------------------------
@@ -561,6 +704,13 @@ const loadMetrics = async (): Promise<void> => {
       currentOutcomeFilter,
     );
     renderMetrics(data);
+    if (lastUpdatedTime) {
+      lastUpdatedTime.textContent = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    }
   } catch (error) {
     const msg =
       error instanceof Error ? error.message : "Unable to load metrics.";
@@ -717,12 +867,12 @@ const stopAutoRefresh = () => {
 // Event wiring
 // ---------------------------------------------------------------------------
 
-auditFilterApply?.addEventListener("click", applyFilters);
 auditFilterClear?.addEventListener("click", clearFilters);
 
 auditActorFilter?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") applyFilters();
 });
+auditActorFilter?.addEventListener("change", applyFilters);
 
 auditEventTypeFilter?.addEventListener("change", applyFilters);
 auditOutcomeFilter?.addEventListener("change", applyFilters);
@@ -768,6 +918,11 @@ autoRefreshToggle?.addEventListener("change", () => {
   } else {
     stopAutoRefresh();
   }
+});
+
+// Tab listeners
+Object.entries(tabs).forEach(([name, el]) => {
+  el?.addEventListener("click", () => switchTab(name as keyof typeof tabs));
 });
 
 // ---------------------------------------------------------------------------

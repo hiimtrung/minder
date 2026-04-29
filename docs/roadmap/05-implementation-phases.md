@@ -1,33 +1,10 @@
 # 05. Implementation Phases
 
-## Technology Stack
+Canonical technology stack reference: [System Design](../architecture/system-design.md)
 
-| Component          | Technology                                          | Reason                                             |
-| ------------------ | --------------------------------------------------- | -------------------------------------------------- |
-| Language           | Python 3.14+                                        | Native fit for LangGraph and ML tooling            |
-| MCP SDK            | Official Python `mcp` SDK                           | MCP protocol support                               |
-| Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine                |
-| Vector DB          | Milvus Lite to Milvus Standalone                    | Lightweight start with scale path                  |
-| Relational DB      | SQLite to PostgreSQL                                | Metadata, users, sessions, and audit               |
-| Embedding          | `mixedbread-ai/mxbai-embed-large-v1` (FastEmbed)    | Lightweight, in-process            |
-| Embedding runtime  | `FastEmbed` (in-process ONNX)                      | Zero extra dependencies            |
-| Embedding fallback | OpenAI `text-embedding-3-small`                     | Optional cloud fallback            |
-| LLM                | `gemma-4-E2B-it.litertlm` (LiteRT-LM)               | Offline-first, CPU-friendly        |
-| LLM runtime        | `LiteRT-LM` (in-process)                           | Native hardware-accelerated        |
-| LLM fallback       | OpenAI via LiteLLM                                  | Optional cloud routing                             |
-| Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                         |
-| Chunking           | LangChain text splitters plus custom code chunking  | Proven chunking patterns                           |
-| Reranking          | sentence-transformers cross-encoder                 | Better precision                                   |
-| Verification       | Docker sandbox plus pytest                          | Safe execution and testing                         |
-| Config             | Pydantic Settings                                   | Strongly typed configuration                       |
-| Package manager    | uv                                                  | Fast and reliable Python dependency management     |
-| CI/CD              | GitHub Actions                                      | Standardized automation                            |
-| Registry           | GitHub Packages and ghcr.io                         | Package and image publishing                       |
-| Containerization   | Docker and Docker Compose                           | Dev and prod deployment                            |
-| Dashboard backend  | FastAPI or Starlette                                | API for workflow and admin UI                      |
-| Dashboard frontend | Astro with Tailwind CSS                             | Workflow and admin UI with static-first deployment |
+---
 
-## Phase 1: Foundation - MCP Server, Auth, Search, CI/CD
+## Phase 1: Foundation (DONE)
 
 **Goal**: Deliver a working SSE-first MCP server with authentication, repository-local state, basic search, and baseline CI/CD.
 
@@ -75,7 +52,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 - Workflow tools report the current step and next step.
 - CI pipeline passes.
 
-## Phase 2: Agentic Pipeline - LangGraph and Guided Execution
+## Phase 2: Agentic Pipeline (DONE)
 
 **Goal**: Deliver the end-to-end agentic pipeline with workflow-aware reasoning and Docker-based verification.
 
@@ -98,7 +75,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 - Generated code is verified in Docker sandbox.
 - Repository workflow state advances correctly.
 
-## Phase 3: Advanced Retrieval, Knowledge Graph, and Process Intelligence
+## Phase 3: Advanced Retrieval & Graph (DONE)
 
 **Goal**: Improve retrieval quality and add relationship-aware repository intelligence.
 
@@ -121,7 +98,7 @@ Direction note: the delivered Phase 3 baseline remains valid, but future perform
 - Multi-hop queries across code, docs, and repository relationships return better results.
 - The LLM can retrieve use cases, test artifacts, and previous workflow state from the repository itself.
 
-## Phase 4: Production Scale, Multi-User Reliability, and Dashboard
+## Phase 4: Production Scale & Dashboard (DONE)
 
 **Goal**: Make the system production-ready for teams and add a dashboard for workflow administration.
 
@@ -144,7 +121,7 @@ Direction note: the delivered Phase 3 baseline remains valid, but future perform
 - Repository state and progress are visible in the dashboard.
 - Concurrent users can use the system reliably.
 
-## Phase 5: Learning and Self-Improvement
+## Phase 5: Learning & Skill Catalog (IN PROGRESS)
 
 **Goal**: Let Minder learn from successful workflows, failures, and feedback, while expanding the dashboard into a local-LLM control surface that can use the full MCP toolset.
 
@@ -162,7 +139,7 @@ Direction note: Phase 5 graph work continues to follow the metadata-first policy
 8. Add experimentation support for workflow and retrieval strategy variants.
 9. Add a dashboard-native local-LLM chat shell that can use the same MCP tools available to IDE agents for question-answering, operational workflows, and CRUD over managed data.
 
-## Phase 6: Branch Topology, IDE Bootstrap, and Secure Installer Automation
+## Phase 6: Branch Topology & IDE Bootstrap (DONE)
 
 **Goal**: automate repository branch-topology discovery and repository-local IDE bootstrap in the CLI pipeline after the learning/skill backlog is in place, while adding secure installer/update flows for Minder server and Minder CLI without diluting the runtime search and impact follow-up work.
 

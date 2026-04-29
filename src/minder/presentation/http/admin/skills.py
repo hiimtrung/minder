@@ -41,6 +41,7 @@ class SkillUpdateRequest(BaseModel):
     artifact_types: list[str] | None = None
     provenance: str | None = None
     quality_score: float | None = None
+    deprecated: bool | None = None
     source: dict[str, Any] | None = None
     excerpt_kind: str | None = None
 

@@ -32,7 +32,7 @@ class MemoryTools:
         self._embedder = LocalEmbeddingProvider(
             fastembed_model=config.embedding.fastembed_model,
             fastembed_cache_dir=config.embedding.fastembed_cache_dir,
-            dimensions=min(config.embedding.dimensions, 16),
+            dimensions=config.embedding.dimensions,
             runtime=config.embedding.runtime,
         )
         self._synthesizer: ContinuitySynthesizer | None = None
@@ -114,17 +114,18 @@ class MemoryTools:
                     "title": skill.title,
                     "content": skill.content,
                     "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
-                    "semantic_score": round(semantic_score, 4),
-                    "step_compatibility": round(compatibility_score, 4),
-                    "continuity_reasons": compatibility_reasons,
                     "language": str(getattr(skill, "language", "") or "markdown"),
                     "score": round(score, 4),
+                    # kept internally for record_continuity_recall below
+                    "_step_compat": round(compatibility_score, 4),
                 }
             )
         ranked.sort(key=lambda item: float(item["score"]), reverse=True)
         limited = ranked[:limit]
 
         if skip_synthesis:
+            for item in limited:
+                item.pop("_step_compat", None)
             return limited
 
         synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
@@ -136,11 +137,11 @@ class MemoryTools:
         for item in limited:
             item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
-            item["synthesis"] = synthesis_meta
             record_continuity_recall(
                 provider=str(synthesis_meta.get("provider", "unknown")),
-                step_compatibility=float(item["step_compatibility"]),
+                step_compatibility=float(item.get("_step_compat", 0.0)),
             )
+            item["step_compatibility"] = item.pop("_step_compat", 0.0)
         return limited
 
     async def minder_memory_list(self) -> list[dict[str, Any]]:
@@ -155,6 +156,54 @@ class MemoryTools:
             for skill in skills
             if is_memory_record(skill)
         ]
+
+    async def minder_memory_update(
+        self,
+        memory_id: str,
+        *,
+        title: str | None = None,
+        content: str | None = None,
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        existing = await self._store.get_skill_by_id(uuid.UUID(memory_id))
+        if existing is None or not is_memory_record(existing):
+            raise ValueError(f"Memory not found: {memory_id}")
+
+        update_data: dict[str, Any] = {}
+        next_title = title if title is not None else str(existing.title)
+        next_content = content if content is not None else str(existing.content)
+        if title is not None:
+            update_data["title"] = title
+        if content is not None:
+            update_data["content"] = content
+        if tags is not None:
+            update_data["tags"] = [str(t).strip().lower() for t in tags if str(t).strip()]
+        if title is not None or content is not None:
+            update_data["embedding"] = self._embedder.embed(f"{next_title}\n{next_content}")
+
+        updated = await self._store.update_skill(uuid.UUID(memory_id), **update_data)
+        if updated is None:
+            raise ValueError(f"Memory not found: {memory_id}")
+
+        try:
+            await self._store.create_audit_log(
+                actor_type="system",
+                actor_id="minder",
+                event_type="skill.updated",
+                resource_type="skill",
+                resource_id=memory_id,
+                outcome="success",
+                audit_metadata={"changed_fields": list(update_data.keys())},
+            )
+        except Exception:
+            pass
+
+        return {
+            "id": str(updated.id),
+            "title": str(updated.title),
+            "tags": list(updated.tags) if isinstance(updated.tags, list) else [],
+            "updated": True,
+        }
 
     async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:
         await self._store.delete_skill(uuid.UUID(skill_id))
@@ -215,11 +264,15 @@ class MemoryTools:
         plans = [
             self._build_compaction_plan(group) for group in groups if len(group) > 1
         ]
+        # Strip full member records — they are noisy and the caller doesn't need them
+        slim_plans = [
+            {k: v for k, v in plan.items() if k != "members"} for plan in plans
+        ]
         result: dict[str, Any] = {
             "dry_run": dry_run,
             "candidate_count": len(records),
-            "duplicate_group_count": len(plans),
-            "plans": plans,
+            "duplicate_group_count": len(slim_plans),
+            "plans": slim_plans,
         }
         if dry_run or not plans:
             result["compacted_count"] = 0
@@ -299,6 +352,7 @@ class MemoryTools:
         result["compacted_count"] = len(compacted)
         result["deleted_count"] = deleted_count
         result["compacted"] = compacted
+        result.pop("plans", None)  # plans are only useful for dry_run preview
         return result
 
     @staticmethod

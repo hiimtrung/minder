@@ -78,8 +78,8 @@ targets (scope):
   vscode       ~/.copilot/agents/minder.agent.md               [global – all repos]
   claude-code  ~/.claude/agents/minder.md                      [global – all repos]
   codex        ~/.codex/AGENTS.md                              [global – all repos]
-  cursor       <repo>/AGENTS.md                                [per-repo]
-  antigravity  <repo>/.gemini/antigravity/global_workflows/    [per-repo]
+  antigravity  ~/.gemini/GEMINI.md                             [global – all repos]
+  cursor       <repo>/.cursor/rules/minder.mdc                 [per-repo]
   all          all targets above (default)
 """
     agent_in = install_subs.add_parser(

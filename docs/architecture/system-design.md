@@ -27,7 +27,23 @@ Minder is an MCP-first engineering assistant platform with:
 - LLM inference via host-native LiteRT-LM (Gemma 4)
 - Embedding inference via in-process FastEmbed (`mxbai-embed-large-v1`)
 
-## 2. Runtime Architecture
+## 2. Technology Stack
+
+| Component          | Technology                                          | Reason                                             |
+| ------------------ | --------------------------------------------------- | -------------------------------------------------- |
+| Language           | Python 3.14+                                        | Native fit for LangGraph and ML tooling            |
+| MCP SDK            | Official Python `mcp` SDK                           | MCP protocol support                               |
+| Orchestrator       | LangGraph                                           | Graph-based agentic workflow engine                |
+| Vector DB          | Milvus Standalone                                   | High-performance semantic search                   |
+| Relational DB      | MongoDB                                             | Operational metadata, users, sessions, and audit   |
+| Embedding          | `mxbai-embed-large-v1` (FastEmbed)                  | Lightweight, in-process ONNX                       |
+| LLM                | `gemma-4-E2B-it.litertlm` (LiteRT-LM)               | Offline-first, host-native                         |
+| Auth               | PyJWT, bcrypt, API keys                             | Team auth and role control                         |
+| Verification       | Docker sandbox plus pytest                          | Safe execution and testing                         |
+| Package manager    | uv                                                  | Fast and reliable dependency management            |
+| Dashboard frontend | Astro with Tailwind CSS                             | Static-first deployment with same-origin APIs      |
+
+## 3. Runtime Architecture
 
 ```mermaid
 flowchart TB
@@ -159,6 +175,20 @@ Responsibilities are now split as:
 
 - [`src/minder/application/admin/use_cases.py`](../src/minder/application/admin/use_cases.py)
 - [`src/minder/application/admin/dto.py`](../src/minder/application/admin/dto.py)
+
+### LangGraph Agent Nodes
+
+Minder uses a graph-based agentic engine (LangGraph) with the following dedicated nodes:
+
+- **Workflow Planner**: Determines the current workflow phase, validates prerequisites, and decides the next valid step.
+- **Planning**: Classifies intent (gen, debug, search, etc.) and selects the retrieval/execution strategy.
+- **Retriever**: Generates embeddings and searches Milvus (semantic) and the metadata graph (structural).
+- **Reranker**: Applies cross-encoder reranking and MMR diversity filtering to retrieval candidates.
+- **Reasoning**: Builds the final prompt with context and enforces workflow step constraints.
+- **LLM**: Routes generation to the mandatory local model (`Gemma 4`) with optional cloud fallback.
+- **Guard**: Performs content safety, hallucination, syntax, and PII checks on generated output.
+- **Verification**: Executes code in the Docker sandbox (prod) or subprocess (dev) and reports results.
+- **Evaluator**: Scores output quality and triggers memory/workflow learning loops.
 
 ### Infrastructure
 
@@ -440,9 +470,9 @@ Key paths:
 
 Feature-specific design docs still exist and remain useful, but this file is the system-level source of truth.
 
-- [Gateway Auth and Dashboard Design](../docs/design/mcp-gateway-auth-dashboard.md)
-- [Phase 4.3 Console Clean Architecture and UI Modernization](../docs/design/p4_3_console_clean_architecture_and_ui_modernization.md)
-- [Production Dashboard Reverse Proxy Split](../docs/design/production_dashboard_reverse_proxy_split.md)
-- [Skill Catalog Dashboard and Metadata-Only Graph Intelligence](../docs/design/skill_management_and_graph_metadata.md)
-- [CLI Edge Extractor and Graph Sync Architecture](../docs/design/cli_edge_extractor_and_graph_sync_architecture.md)
-- [Plan 02: Architecture](../docs/plan/02-architecture.md)
+- [Gateway Auth and Dashboard Design](../archive/features/mcp-gateway-auth-dashboard.md)
+- [Phase 4.3 Console Clean Architecture and UI Modernization](../archive/features/p4_3_console_clean_architecture_and_ui_modernization.md)
+- [Production Dashboard Reverse Proxy Split](../archive/features/production_dashboard_reverse_proxy_split.md)
+- [Skill Catalog Dashboard and Metadata-Only Graph Intelligence](../archive/features/skill_management_and_graph_metadata.md)
+- [CLI Edge Extractor and Graph Sync Architecture](../archive/features/cli_edge_extractor_and_graph_sync_architecture.md)
+- [Plan 02: Architecture](../roadmap/02-architecture.md)

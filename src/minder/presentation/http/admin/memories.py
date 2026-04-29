@@ -147,7 +147,7 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 embedder = LocalEmbeddingProvider(
                     fastembed_model=config.embedding.fastembed_model,
                     fastembed_cache_dir=config.embedding.fastembed_cache_dir,
-                    dimensions=min(config.embedding.dimensions, 16),
+                    dimensions=config.embedding.dimensions,
                     runtime="auto",
                 )
                 update_data["embedding"] = embedder.embed(

@@ -12,6 +12,7 @@ from minder.graph.executor import (
     LangGraphExecutorAdapter,
 )
 from minder.graph.nodes import (
+    ClarificationNode,
     EvaluatorNode,
     GuardNode,
     LLMNode,
@@ -40,6 +41,7 @@ class MinderGraph:
         *,
         workflow_planner: WorkflowPlannerNode | None = None,
         planning: PlanningNode | None = None,
+        clarification: ClarificationNode | None = None,
         retriever: RetrieverNode | None = None,
         reranker: RerankerNode | None = None,
         reasoning: ReasoningNode | None = None,
@@ -56,6 +58,7 @@ class MinderGraph:
         self._config = config
         self._workflow_planner = workflow_planner or WorkflowPlannerNode(store)
         self._planning = planning or PlanningNode()
+        self._clarification = clarification or ClarificationNode()
         vector_store = VectorStore(store, store)
         embedder = LocalEmbeddingProvider(
             fastembed_model=config.embedding.fastembed_model,
@@ -90,6 +93,7 @@ class MinderGraph:
         self._nodes = GraphNodes(
             workflow_planner=self._workflow_planner,
             planning=self._planning,
+            clarification=self._clarification,
             retriever=self._retriever,
             reranker=self._reranker,
             reasoning=self._reasoning,
@@ -116,6 +120,11 @@ class MinderGraph:
         state.metadata["orchestration_runtime"] = "internal"
         state = await self._nodes.workflow_planner.run(state)
         state = self._nodes.planning.run(state)
+        state = self._nodes.clarification.run(state)
+        if state.metadata.get("needs_clarification"):
+            yield {"type": "clarification", "options": state.metadata.get("clarification_options", [])}
+            yield {"type": "final", "state": state}
+            return
         state = await self._nodes.retriever.run(state)
         if self._nodes.reranker is not None:
             state = await self._nodes.reranker.run(state)

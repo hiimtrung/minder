@@ -1040,6 +1040,12 @@ const { repoId = "" } = Astro.props;
                 State Path
                 <input id="repo-settings-path" class="u-input" />
               </label>
+              <label class="grid gap-1 text-sm text-stone-700">
+                Workflow
+                <select id="repo-settings-workflow" class="u-select">
+                  <option value="">No workflow assigned</option>
+                </select>
+              </label>
             </div>
             <p id="repo-settings-status" class="u-status"></p>
             <div class="flex flex-wrap gap-2">

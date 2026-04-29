@@ -91,7 +91,7 @@ def test_phase4_3_dashboard_pages_use_real_admin_api_calls() -> None:
     assert 'context.rewrite("/dashboard/clients")' in middleware
     assert "loginAdmin" in login_script
     assert "setupAdmin" in setup_script
-    assert "listClients" in registry_script
+    assert "syncVisibleClients" in registry_script
     assert "createClient" in registry_script
     assert "getClientDetail" in registry_script
     assert "getClientOnboarding" in registry_script

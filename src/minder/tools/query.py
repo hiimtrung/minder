@@ -162,21 +162,12 @@ class QueryTools:
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
-            "workflow": result.workflow_context,
-            "guard_result": result.guard_result,
-            "verification_result": result.verification_result,
-            "evaluation": result.evaluation,
+            "workflow_name": result.workflow_context.get("workflow_name"),
             "provider": result.llm_output.get("provider"),
-            "model": result.llm_output.get(
-                "model", result.llm_output.get("model")
-            ),
+            "model": result.llm_output.get("model"),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
-            "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
-            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
-            "history_source": result.metadata.get("history_source", "none"),
-            "history_message_count": result.metadata.get("history_message_count", 0),
         }
 
     async def minder_query_stream(
@@ -296,19 +287,12 @@ class QueryTools:
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
-            "workflow": result.workflow_context,
-            "guard_result": result.guard_result,
-            "verification_result": result.verification_result,
-            "evaluation": result.evaluation,
+            "workflow_name": result.workflow_context.get("workflow_name"),
             "provider": result.llm_output.get("provider"),
-            "model": result.llm_output.get(
-                "model", result.llm_output.get("model")
-            ),
+            "model": result.llm_output.get("model"),
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
-            "transition_log": result.transition_log,
             "edge": result.metadata.get("edge"),
-            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
         }
 
     async def minder_search_code(

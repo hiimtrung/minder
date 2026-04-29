@@ -142,7 +142,8 @@ export class D3GraphRenderer {
   }
 
   private finite(value: number | undefined | null, fallback = 0): number {
-    return Number.isFinite(value) ? (value as number) : fallback;
+    if (typeof value !== "number") return fallback;
+    return Number.isFinite(value) ? value : fallback;
   }
 
   private initSvg(): void {
@@ -194,7 +195,14 @@ export class D3GraphRenderer {
       .zoom<SVGSVGElement, unknown>()
       .scaleExtent([0.02, 12])
       .on("zoom", (e: d3.D3ZoomEvent<SVGSVGElement, unknown>) => {
-        this.g.attr("transform", String(e.transform));
+        const t = e.transform;
+        if (
+          Number.isFinite(t.x) &&
+          Number.isFinite(t.y) &&
+          Number.isFinite(t.k)
+        ) {
+          this.g.attr("transform", t.toString());
+        }
       });
     this.svg.call(this.zoom);
 
@@ -252,10 +260,11 @@ export class D3GraphRenderer {
 
     this.nodeGrp
       .selectAll<SVGGElement, SimNode>("g.node")
-      .attr(
-        "transform",
-        (d) => `translate(${this.finite(d.x)},${this.finite(d.y)})`,
-      );
+      .attr("transform", (d) => {
+        const x = this.finite(d.x);
+        const y = this.finite(d.y);
+        return `translate(${x},${y})`;
+      });
   }
 
   onSelect(fn: (n: SimNode | null) => void): void {
@@ -563,13 +572,19 @@ export class D3GraphRenderer {
     const tx = w / 2 - scale * (x0 + gw / 2);
     const ty = h / 2 - scale * (y0 + gh / 2);
     if (!Number.isFinite(tx) || !Number.isFinite(ty)) return;
+    const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+    if (
+      !Number.isFinite(transform.x) ||
+      !Number.isFinite(transform.y) ||
+      !Number.isFinite(transform.k)
+    ) {
+      return;
+    }
+
     this.svg
       .transition()
       .duration(600)
-      .call(
-        this.zoom.transform,
-        d3.zoomIdentity.translate(tx, ty).scale(scale),
-      );
+      .call(this.zoom.transform, transform);
   }
 
   toggleLayout(running?: boolean): boolean {

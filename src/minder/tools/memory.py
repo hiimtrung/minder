@@ -114,17 +114,18 @@ class MemoryTools:
                     "title": skill.title,
                     "content": skill.content,
                     "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
-                    "semantic_score": round(semantic_score, 4),
-                    "step_compatibility": round(compatibility_score, 4),
-                    "continuity_reasons": compatibility_reasons,
                     "language": str(getattr(skill, "language", "") or "markdown"),
                     "score": round(score, 4),
+                    # kept internally for record_continuity_recall below
+                    "_step_compat": round(compatibility_score, 4),
                 }
             )
         ranked.sort(key=lambda item: float(item["score"]), reverse=True)
         limited = ranked[:limit]
 
         if skip_synthesis:
+            for item in limited:
+                item.pop("_step_compat", None)
             return limited
 
         synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
@@ -136,10 +137,9 @@ class MemoryTools:
         for item in limited:
             item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
-            item["synthesis"] = synthesis_meta
             record_continuity_recall(
                 provider=str(synthesis_meta.get("provider", "unknown")),
-                step_compatibility=float(item["step_compatibility"]),
+                step_compatibility=float(item.pop("_step_compat", 0.0)),
             )
         return limited
 
@@ -263,11 +263,15 @@ class MemoryTools:
         plans = [
             self._build_compaction_plan(group) for group in groups if len(group) > 1
         ]
+        # Strip full member records — they are noisy and the caller doesn't need them
+        slim_plans = [
+            {k: v for k, v in plan.items() if k != "members"} for plan in plans
+        ]
         result: dict[str, Any] = {
             "dry_run": dry_run,
             "candidate_count": len(records),
-            "duplicate_group_count": len(plans),
-            "plans": plans,
+            "duplicate_group_count": len(slim_plans),
+            "plans": slim_plans,
         }
         if dry_run or not plans:
             result["compacted_count"] = 0
@@ -347,6 +351,7 @@ class MemoryTools:
         result["compacted_count"] = len(compacted)
         result["deleted_count"] = deleted_count
         result["compacted"] = compacted
+        result.pop("plans", None)  # plans are only useful for dry_run preview
         return result
 
     @staticmethod

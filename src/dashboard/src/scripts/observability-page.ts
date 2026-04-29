@@ -285,8 +285,8 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
 
   if (statAuthEvents) statAuthEvents.textContent = fmt(data.auth_events.total);
   if (statAuthEventsSub) {
-    const logins = data.auth_events.by_type["login"] ?? 0;
-    const exchanges = data.auth_events.by_type["token_exchange"] ?? 0;
+    const logins = data.auth_events.by_type["auth.login"] ?? data.auth_events.by_type["login"] ?? 0;
+    const exchanges = data.auth_events.by_type["token.exchanged"] ?? data.auth_events.by_type["token_exchange"] ?? 0;
     statAuthEventsSub.textContent = `${fmt(logins)} login${logins !== 1 ? "s" : ""}, ${fmt(exchanges)} exchange${exchanges !== 1 ? "s" : ""}`;
   }
 

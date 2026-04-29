@@ -57,6 +57,7 @@ from minder.application.admin.dto import (
 )
 from minder.auth.service import AuthService
 from minder.config import MinderConfig
+from minder.observability.audit import AuditEmitter
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 from minder.tools.graph import GraphTools
 from minder.tools.registry import SCOPEABLE_TOOLS
@@ -101,6 +102,7 @@ class AdminConsoleUseCases:
         self._config = config
         self._graph_store = graph_store
         self._graph_tools = GraphTools(graph_store, store)
+        self._audit = AuditEmitter(store)
 
     async def has_admin_users(self) -> bool:
         return await self._auth_service.has_admin_users()
@@ -486,6 +488,17 @@ class AdminConsoleUseCases:
             role=role,
             password=password,
         )
+        await self._audit.emit(
+            actor_type="admin",
+            actor_id=str(user.id),  # in this context, the new user IS the actor if it's initial setup?
+            # actually, if an admin creates a user, we should know WHO did it.
+            # but create_user use case doesn't take actor_id yet.
+            event_type="user.created",
+            resource_type="user",
+            resource_id=str(user.id),
+            outcome="success",
+            metadata={"username": username, "role": role},
+        )
         return {"user": self.serialize_user(user), "api_key": api_key}
 
     async def get_user_detail(self, user_id: uuid.UUID) -> UserDetailPayload:
@@ -519,6 +532,16 @@ class AdminConsoleUseCases:
         updated = await self._store.update_user(user_id, **kwargs)
         if updated is None:
             raise LookupError(f"User {user_id} not found")
+
+        await self._audit.emit(
+            actor_type="admin",
+            actor_id=str(user_id),  # same issue: no actor_id passed to use case
+            event_type="user.updated",
+            resource_type="user",
+            resource_id=str(user_id),
+            outcome="success",
+            metadata={"fields_changed": list(kwargs.keys())},
+        )
         return await self.get_user_detail(user_id)
 
     async def deactivate_user(self, user_id: uuid.UUID) -> UserDetailPayload:

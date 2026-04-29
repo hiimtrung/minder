@@ -124,7 +124,7 @@ class SkillTools:
             source_metadata=self._normalized_source_metadata(source_metadata),
             excerpt_kind=self._validated_excerpt_kind(excerpt_kind),
         )
-        return self._serialize_skill(skill)
+        return {"id": str(skill.id), "title": str(skill.title), "ok": True}
 
     async def minder_skill_recall(
         self,
@@ -166,18 +166,17 @@ class SkillTools:
                 1.5,
             )
             ranked_item = {
-                **self._serialize_skill(skill),
-                "semantic_score": round(semantic_score, 4),
-                "step_compatibility": round(compatibility_score, 4),
-                "continuity_reasons": compatibility_reasons,
+                **self._serialize_skill_compact(skill),
                 "score": round(blended_score, 4),
+                # kept for internal record_continuity_skill_recall below
+                "_step_compat": round(compatibility_score, 4),
             }
             ranked.append(ranked_item)
         ranked.sort(key=lambda item: float(item["score"]), reverse=True)
         limited = ranked[:limit]
         for item in limited:
             record_continuity_skill_recall(
-                step_compatibility=float(item["step_compatibility"]),
+                step_compatibility=float(item.pop("_step_compat", 0.0)),
                 quality_score=float(item["quality_score"]),
             )
             try:
@@ -222,7 +221,7 @@ class SkillTools:
             }
             if required_tags and not required_tags <= normalized_tags:
                 continue
-            items.append(self._serialize_skill(skill))
+            items.append(self._serialize_skill_compact(skill))
         items.sort(
             key=lambda item: (-float(item["quality_score"]), str(item["title"]).lower())
         )
@@ -288,7 +287,7 @@ class SkillTools:
         updated = await self._store.update_skill(uuid.UUID(skill_id), **update_data)
         if updated is None:
             raise ValueError(f"Skill not found: {skill_id}")
-        return self._serialize_skill(updated)
+        return {"id": str(updated.id), "title": str(updated.title), "ok": True}
 
     async def minder_skill_import_git(
         self,
@@ -489,6 +488,18 @@ class SkillTools:
             "excerpt_kind": self._validated_excerpt_kind(
                 str(getattr(skill, "excerpt_kind", "none") or "none")
             ),
+        }
+
+    def _serialize_skill_compact(self, skill: Any) -> dict[str, Any]:
+        """Minimal skill representation for LLM tool output — omits metadata-only fields."""
+        return {
+            "id": str(skill.id),
+            "title": str(skill.title),
+            "content": str(skill.content),
+            "language": str(getattr(skill, "language", "")),
+            "tags": list(getattr(skill, "tags", []) or []),
+            "quality_score": round(float(getattr(skill, "quality_score", 0.0) or 0.0), 4),
+            "usage_count": int(getattr(skill, "usage_count", 0) or 0),
         }
 
     @classmethod

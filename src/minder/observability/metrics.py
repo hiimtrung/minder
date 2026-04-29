@@ -383,7 +383,10 @@ async def get_metrics_summary(
 
     # 2. Auth Events (we combine tool_calls and auth_events for a "unified" view if needed)
     auth_by_type = await store.get_audit_summary(
-        actor_id=client_id, outcome=outcome, group_by="event_type"
+        actor_id=client_id,
+        event_type=event_type,
+        outcome=outcome,
+        group_by="event_type",
     )
     auth_total = sum(auth_by_type.values())
 

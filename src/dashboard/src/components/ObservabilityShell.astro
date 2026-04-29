@@ -205,14 +205,16 @@ import SectionHeader from "./ui/SectionHeader.astro";
         <div class="flex flex-wrap items-center gap-2">
           <Select id="audit-event-type-filter" class="min-w-36">
             <option value="">All event types</option>
-            <option value="client_key_issued">Key issued</option>
-            <option value="client_key_revoked">Key revoked</option>
-            <option value="token_exchange">Token exchange</option>
-            <option value="admin_login">Admin login</option>
-            <option value="client_created">Client created</option>
-            <option value="client_updated">Client updated</option>
-            <option value="user_created">User created</option>
-            <option value="user_updated">User updated</option>
+            <option value="auth.login">Admin login</option>
+            <option value="auth.logout">Admin logout</option>
+            <option value="client.created">Client created</option>
+            <option value="client.updated">Client updated</option>
+            <option value="key.rotated">Key rotated</option>
+            <option value="key.revoked">Key revoked</option>
+            <option value="token.exchanged">Token exchange</option>
+            <option value="admin_op">Admin operation</option>
+            <option value="user.created">User created</option>
+            <option value="user.updated">User updated</option>
           </Select>
           <Select id="audit-outcome-filter" class="min-w-32">
             <option value="">All outcomes</option>

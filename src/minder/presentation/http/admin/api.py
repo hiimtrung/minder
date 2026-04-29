@@ -157,17 +157,17 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 result = await context.use_cases.login_admin(api_key)
         except PermissionError:
             await record_auth_event(
-                "login", "denied", client_id="dashboard", store=context.store
+                "auth.login", "denied", client_id="dashboard", store=context.store
             )
             return JSONResponse({"error": "Admin role required."}, status_code=403)
         except Exception:
             await record_auth_event(
-                "login", "failure", client_id="dashboard", store=context.store
+                "auth.login", "failure", client_id="dashboard", store=context.store
             )
             return JSONResponse({"error": "Invalid credentials."}, status_code=401)
 
         await record_auth_event(
-            "login", "success", client_id="dashboard", store=context.store
+            "auth.login", "success", client_id="dashboard", store=context.store
         )
         response = JSONResponse({"ok": True}, status_code=200)
         response.set_cookie(
@@ -184,7 +184,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def dashboard_logout_api(request):
         del request
         await record_auth_event(
-            "logout", "success", client_id="dashboard", store=context.store
+            "auth.logout", "success", client_id="dashboard", store=context.store
         )
         response = JSONResponse({"ok": True}, status_code=200)
         response.delete_cookie(ADMIN_COOKIE_NAME, path="/")
@@ -224,11 +224,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 requested_scopes=payload.get("requested_scopes"),
             )
         except Exception as exc:
-            await record_auth_event("token_exchange", "failure", store=context.store)
+            await record_auth_event("token.exchanged", "failure", store=context.store)
             return JSONResponse({"error": str(exc)}, status_code=401)
         client_slug = str(exchange.get("client_slug", "unknown"))
         await record_auth_event(
-            "token_exchange", "success", client_id=client_slug, store=context.store
+            "token.exchanged", "success", client_id=client_slug, store=context.store
         )
         return JSONResponse(exchange)
 

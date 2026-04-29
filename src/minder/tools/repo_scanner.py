@@ -488,7 +488,7 @@ class RepoScanner:
                     line = line.strip()
                     if line:
                         path = self._root / line
-                        if path.suffix.lower() in _SOURCE_SUFFIXES:
+                        if path.is_file() and path.suffix.lower() in _SOURCE_SUFFIXES:
                             files.append(path)
                 if files:
                     return sorted(set(files))

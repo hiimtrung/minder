@@ -120,15 +120,20 @@ def test_install_and_uninstall_local_mcp_configs(
         (tmp_path / ".cursor" / "mcp.json").read_text(encoding="utf-8")
     )
     claude_payload = json.loads(
-        (tmp_path / ".claude" / "mcp.json").read_text(encoding="utf-8")
+        (tmp_path / ".mcp.json").read_text(encoding="utf-8")
     )
 
     assert (
         vscode_payload["servers"]["minder"]["headers"]["X-Minder-Client-Key"]
         == "mkc_test_client_key_123"
     )
-    assert cursor_payload["mcpServers"]["minder"]["url"] == "http://localhost:8801/mcp"
+    # All SSE-protocol targets share the same /sse endpoint and X-Minder-Client-Key header
+    assert cursor_payload["mcpServers"]["minder"]["url"] == "http://localhost:8801/sse"
+    assert cursor_payload["mcpServers"]["minder"]["headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
     assert claude_payload["mcpServers"]["minder"]["url"] == "http://localhost:8801/sse"
+    assert claude_payload["mcpServers"]["minder"]["headers"]["X-Minder-Client-Key"] == "mkc_test_client_key_123"
+    # Project scope (.mcp.json) must be gitignored automatically
+    assert ".mcp.json" in (tmp_path / ".gitignore").read_text(encoding="utf-8")
 
     uninstall_exit = main(
         [
@@ -142,7 +147,7 @@ def test_install_and_uninstall_local_mcp_configs(
     assert uninstall_exit == 0
     assert not (tmp_path / ".vscode" / "mcp.json").exists()
     assert not (tmp_path / ".cursor" / "mcp.json").exists()
-    assert not (tmp_path / ".claude" / "mcp.json").exists()
+    assert not (tmp_path / ".mcp.json").exists()
 
     output = capsys.readouterr().out
     assert "Installed Minder MCP config" in output
@@ -186,7 +191,7 @@ def test_install_mcp_antigravity_writes_gemini_config(
     )
     assert (
         antigravity_payload["mcpServers"]["minder"]["serverUrl"]
-        == "http://localhost:8801/mcp"
+        == "http://localhost:8801/sse"
     )
     assert (
         antigravity_payload["mcpServers"]["minder"]["headers"][
@@ -244,7 +249,7 @@ def test_install_ide_creates_repo_local_assets_and_gitignore(
     )
     gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
     assert ".vscode/mcp.json" in gitignore
-    assert ".claude/mcp.json" in gitignore
+    assert ".mcp.json" in gitignore
     assert ".minder/" in gitignore
 
     metadata = json.loads(
@@ -537,7 +542,7 @@ def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa
 
     assert uninstall_exit == 0
     assert not (tmp_path / ".cursor" / "mcp.json").exists()
-    assert not (tmp_path / ".claude" / "mcp.json").exists()
+    assert not (tmp_path / ".mcp.json").exists()
     assert not (tmp_path / ".cursor" / "rules" / "minder.mdc").exists()
     assert not (tmp_path / ".claude" / "agents" / "minder-repo-guide.md").exists()
     assert not (tmp_path / ".minder" / "ide-bootstrap.json").exists()
@@ -766,7 +771,7 @@ def test_global_target_paths_resolve_across_platforms(
         "/home/tester/Library/Application Support/Cursor/User/globalStorage/mcp-servers.json"
     )
     assert cli_mcp._global_target_path("claude-code") == Path(
-        "/home/tester/Library/Application Support/Claude/claude_desktop_config.json"
+        "/home/tester/.claude.json"
     )
 
     monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Linux")
@@ -775,6 +780,9 @@ def test_global_target_paths_resolve_across_platforms(
     )
     assert cli_mcp._global_target_path("cursor") == Path(
         "/home/tester/.config/Cursor/User/globalStorage/mcp-servers.json"
+    )
+    assert cli_mcp._global_target_path("claude-code") == Path(
+        "/home/tester/.claude.json"
     )
 
     monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Windows")
@@ -788,7 +796,7 @@ def test_global_target_paths_resolve_across_platforms(
         "C:/Users/tester/AppData/Roaming/Cursor/User/globalStorage/mcp-servers.json"
     )
     assert cli_mcp._global_target_path("claude-code") == Path(
-        "C:/Users/tester/AppData/Roaming/Claude/claude_desktop_config.json"
+        "/home/tester/.claude.json"
     )
 
 

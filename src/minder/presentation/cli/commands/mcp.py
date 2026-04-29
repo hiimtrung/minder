@@ -38,11 +38,8 @@ def _global_target_path(target: str) -> Path:
             return appdata_dir() / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
         return Path.home() / ".config" / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
     if target == "claude-code":
-        if system == "Darwin":
-            return Path.home() / "Library" / "Application Support" / "Claude" / "claude_desktop_config.json"
-        if system == "Windows":
-            return appdata_dir() / "Claude" / "claude_desktop_config.json"
-        return Path.home() / ".config" / "Claude" / "claude_desktop_config.json"
+        # User scope: ~/.claude.json stores cross-project MCP servers under top-level mcpServers key
+        return Path.home() / ".claude.json"
     if target == "antigravity":
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
     if target == "codex":
@@ -94,7 +91,8 @@ def local_target_path(target: str, cwd: Path) -> Path:
     if target == "cursor":
         return cwd / ".cursor" / "mcp.json"
     if target == "claude-code":
-        return cwd / ".claude" / "mcp.json"
+        # Project scope: .mcp.json at project root, shared via version control
+        return cwd / ".mcp.json"
     if target == "antigravity":
         del cwd
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
@@ -107,27 +105,39 @@ def _target_root_key(target: str) -> str:
     return "mcpServers"
 
 
+def _ensure_gitignored(cwd: Path, filename: str) -> None:
+    gitignore = cwd / ".gitignore"
+    existing = gitignore.read_text(encoding="utf-8") if gitignore.is_file() else ""
+    for line in existing.splitlines():
+        if line.strip() in (filename, f"/{filename}"):
+            return
+    sep = "" if not existing or existing.endswith("\n") else "\n"
+    gitignore.write_text(existing + sep + filename + "\n", encoding="utf-8")
+    print(f"  Added '{filename}' to .gitignore")
+
+
+def _remove_gitignored(cwd: Path, filename: str) -> None:
+    gitignore = cwd / ".gitignore"
+    if not gitignore.is_file():
+        return
+    lines = gitignore.read_text(encoding="utf-8").splitlines(keepends=True)
+    filtered = [l for l in lines if l.strip() not in (filename, f"/{filename}")]
+    if len(filtered) < len(lines):
+        gitignore.write_text("".join(filtered), encoding="utf-8")
+
+
+def _remote_url(protocol: str, server_url: str) -> str:
+    return sse_url(server_url) if protocol == "sse" else mcp_url(server_url)
+
+
 def _target_entry(
     target: str,
     protocol: str,
     client_key: str,
     server_url: str | None,
 ) -> dict[str, Any]:
-    if target == "antigravity" and protocol != "stdio":
-        return {
-            "serverUrl": mcp_url(server_url or ""),
-            "headers": {"X-Minder-Client-Key": client_key},
-        }
-
-    if target == "vscode" and protocol != "stdio":
-        return {
-            "type": "sse",
-            "url": sse_url(server_url or ""),
-            "headers": {"X-Minder-Client-Key": client_key},
-        }
-        
     if protocol == "stdio":
-        entry = {
+        entry: dict[str, Any] = {
             "command": "uv",
             "args": ["run", "python", "-m", "minder.server"],
             "env": {
@@ -138,10 +148,21 @@ def _target_entry(
         if target == "vscode":
             entry["type"] = "stdio"
         return entry
-    # sse
-    if target == "claude-code":
-        return {"url": sse_url(server_url or ""), "headers": {"Authorization": f"Bearer {client_key}"}}
-    return {"url": mcp_url(server_url or ""), "headers": {"Authorization": f"Bearer {client_key}"}}
+
+    # Remote transport: URL and auth header are uniform across all targets.
+    # Only format differences below (key name, type field) per IDE spec.
+    url = _remote_url(protocol, server_url or "")
+    headers = {"X-Minder-Client-Key": client_key}
+
+    if target == "antigravity":
+        # Gemini CLI expects "serverUrl" instead of "url"
+        return {"serverUrl": url, "headers": headers}
+    if target in ("vscode", "claude-code"):
+        # VSCode and Claude Code require an explicit "type" field
+        return {"type": protocol, "url": url, "headers": headers}
+
+    # Standard format: cursor and all future targets
+    return {"url": url, "headers": headers}
 
 
 def install_mcp_command(args: argparse.Namespace) -> int:
@@ -167,25 +188,24 @@ def install_mcp_command(args: argparse.Namespace) -> int:
             continue
 
         try:
-            if args.global_install:
-                path = _global_target_path(target)
-            else:
-                path = local_target_path(target, cwd)
-                
+            path = _global_target_path(target) if args.global_install else local_target_path(target, cwd)
             payload = load_json(path)
             root_key = _target_root_key(target)
             if root_key not in payload:
                 payload[root_key] = {}
-                
+
             payload[root_key]["minder"] = _target_entry(
                 target,
                 settings["protocol"],
                 settings["client_api_key"],
                 settings.get("server_url"),
             )
-            
+
             write_json(path, payload)
             print(f"Installed Minder MCP config for {target} at {path}")
+
+            if not args.global_install and target == "claude-code":
+                _ensure_gitignored(cwd, ".mcp.json")
         except Exception as e:
             print(f"Failed to install MCP for {target}: {e}")
             
@@ -229,6 +249,9 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                 else:
                     write_json(path, payload)
                 print(f"Removed Minder MCP config for {target} from {path}")
+
+            if not args.global_install and target == "claude-code":
+                _remove_gitignored(cwd, ".mcp.json")
         except Exception as e:
             print(f"Failed to uninstall MCP for {target}: {e}")
 

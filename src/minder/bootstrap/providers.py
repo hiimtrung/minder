@@ -84,6 +84,8 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
     provider = config.graph_store.provider
     if provider == "auto":
         provider = config.relational_store.provider
+        if provider == "mongodb":
+            provider = "sqlite"
 
     if provider == "mongodb":
         from minder.store.mongodb.client import MongoClient

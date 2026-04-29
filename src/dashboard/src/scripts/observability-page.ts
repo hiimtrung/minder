@@ -145,11 +145,8 @@ const fmtDecimal = (n: number): string =>
 const relativeTime = (iso: string | null): string => {
   if (!iso) return "—";
   try {
-    // Force UTC if no timezone is specified to avoid local timezone offset issues
     const dateStr =
-      iso.includes("Z") || iso.includes("+") || iso.includes("-")
-        ? iso
-        : `${iso}Z`;
+      iso.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(iso) ? iso : `${iso}Z`;
     const delta = Date.now() - new Date(dateStr).getTime();
     const secs = Math.floor(delta / 1000);
     if (secs < 60) return `${secs}s ago`;
@@ -157,7 +154,12 @@ const relativeTime = (iso: string | null): string => {
     if (mins < 60) return `${mins}m ago`;
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
-    return new Date(iso).toLocaleDateString();
+    const days = Math.floor(hours / 24);
+    if (days < 30) return `${days}d ago`;
+    const months = Math.floor(days / 30);
+    if (months < 12) return `${months}mo ago`;
+    const years = Math.floor(months / 12);
+    return `${years}y ago`;
   } catch {
     return iso ?? "—";
   }
@@ -207,8 +209,12 @@ const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
   });
 
 const switchTab = (tabName: keyof typeof tabs) => {
-  document.querySelectorAll("[data-tab-btn]").forEach((b) => b.classList.remove("tab-btn-active"));
-  document.querySelectorAll("[data-tab-panel]").forEach((p) => p.classList.add("hidden"));
+  document
+    .querySelectorAll("[data-tab-btn]")
+    .forEach((b) => b.classList.remove("tab-btn-active"));
+  document
+    .querySelectorAll("[data-tab-panel]")
+    .forEach((p) => p.classList.add("hidden"));
 
   const btn = document.querySelector(`[data-tab-btn="${tabName}"]`);
   if (btn) btn.classList.add("tab-btn-active");
@@ -585,7 +591,13 @@ const buildAuditDetail = (evt: AuditEventPayload): string => {
     );
   }
 
-  const knownKeys = new Set(["error_type", "error_message", "arguments", "latency_ms", "client_id"]);
+  const knownKeys = new Set([
+    "error_type",
+    "error_message",
+    "arguments",
+    "latency_ms",
+    "client_id",
+  ]);
   const extras = Object.entries(meta).filter(([k]) => !knownKeys.has(k));
   for (const [k, v] of extras) {
     rows.push(
@@ -667,15 +679,17 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
     .join("");
 
   // Wire up row expand/collapse
-  auditLogBody.querySelectorAll<HTMLTableRowElement>("[data-detail-target]").forEach((row) => {
-    row.addEventListener("click", () => {
-      const targetId = row.dataset.detailTarget!;
-      const detailRow = document.getElementById(targetId);
-      if (detailRow) {
-        detailRow.classList.toggle("hidden");
-      }
+  auditLogBody
+    .querySelectorAll<HTMLTableRowElement>("[data-detail-target]")
+    .forEach((row) => {
+      row.addEventListener("click", () => {
+        const targetId = row.dataset.detailTarget!;
+        const detailRow = document.getElementById(targetId);
+        if (detailRow) {
+          detailRow.classList.toggle("hidden");
+        }
+      });
     });
-  });
 };
 
 // ---------------------------------------------------------------------------

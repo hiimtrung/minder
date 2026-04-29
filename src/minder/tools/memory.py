@@ -139,8 +139,9 @@ class MemoryTools:
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
             record_continuity_recall(
                 provider=str(synthesis_meta.get("provider", "unknown")),
-                step_compatibility=float(item.pop("_step_compat", 0.0)),
+                step_compatibility=float(item.get("_step_compat", 0.0)),
             )
+            item["step_compatibility"] = item.pop("_step_compat", 0.0)
         return limited
 
     async def minder_memory_list(self) -> list[dict[str, Any]]:

@@ -168,6 +168,12 @@ class QueryTools:
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
             "edge": result.metadata.get("edge"),
+            "guard_result": result.guard_result,
+            "verification_result": result.verification_result,
+            "transition_log": result.transition_log,
+            "history_source": result.metadata.get("history_source"),
+            "history_message_count": result.metadata.get("history_message_count"),
+            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
         }
 
     async def minder_query_stream(
@@ -293,6 +299,12 @@ class QueryTools:
             "runtime": result.llm_output.get("runtime"),
             "orchestration_runtime": result.metadata.get("orchestration_runtime"),
             "edge": result.metadata.get("edge"),
+            "guard_result": result.guard_result,
+            "verification_result": result.verification_result,
+            "transition_log": result.transition_log,
+            "history_source": result.metadata.get("history_source"),
+            "history_message_count": result.metadata.get("history_message_count"),
+            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
         }
 
     async def minder_search_code(
@@ -319,7 +331,8 @@ class QueryTools:
                 }
                 for doc in semantic_code_hits[:limit]
             ]
-
+        
+        project_name = Path(repo_path).name
         state = GraphState(
             query=query,
             repo_path=repo_path,

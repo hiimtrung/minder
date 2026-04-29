@@ -39,42 +39,22 @@ import SectionHeader from "./ui/SectionHeader.astro";
   </PageHero>
 
   <!-- Tab Navigation -->
-  <nav class="sticky top-[72px] z-20 -mx-6 mb-8 border-b border-stone-200 bg-stone-50/80 px-6 py-1 backdrop-blur-md">
-    <div class="flex items-center justify-between">
-      <div class="flex gap-8 overflow-x-auto no-scrollbar">
-        <button
-          id="tab-overview"
-          class="relative py-3 text-sm font-medium text-amber-900 after:absolute after:bottom-0 after:left-0 after:h-0.5 after:w-full after:bg-amber-700"
-        >
-          Overview
-        </button>
-        <button
-          id="tab-audit"
-          class="relative py-3 text-sm font-medium text-stone-500 hover:text-stone-900"
-        >
-          Audit Log
-        </button>
-        <button
-          id="tab-jobs"
-          class="relative py-3 text-sm font-medium text-stone-500 hover:text-stone-900"
-        >
-          Admin Jobs
-        </button>
-        <button
-          id="tab-continuity"
-          class="relative py-3 text-sm font-medium text-stone-500 hover:text-stone-900"
-        >
-          Continuity & Health
-        </button>
+  <nav class="sticky top-3 z-20 mb-8">
+    <div class="shell-card flex items-center justify-between gap-4 px-1.5 py-1.5">
+      <div class="flex gap-0.5 overflow-x-auto no-scrollbar">
+        <button data-tab-btn="overview"   id="tab-overview"   class="tab-btn tab-btn-active">Overview</button>
+        <button data-tab-btn="audit"      id="tab-audit"      class="tab-btn">Audit Log</button>
+        <button data-tab-btn="jobs"       id="tab-jobs"       class="tab-btn">Admin Jobs</button>
+        <button data-tab-btn="continuity" id="tab-continuity" class="tab-btn">Continuity & Health</button>
       </div>
-      <div class="hidden md:block text-[10px] uppercase tracking-widest font-bold text-stone-400">
-        Last updated: <span id="last-updated-time" class="text-stone-600">—</span>
+      <div class="hidden md:flex items-center gap-1 shrink-0 pr-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+        Updated <span id="last-updated-time" class="text-stone-600">—</span>
       </div>
     </div>
   </nav>
 
   <!-- Overview Tab Panel -->
-  <div id="panel-overview" class="space-y-8">
+  <div id="panel-overview" data-tab-panel="overview" class="space-y-8">
     <!-- Metric stat cards -->
     <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -120,7 +100,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
     </section>
 
     <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-       <Card padding="sm">
+      <Card padding="sm">
         <p class="eyebrow mb-3">HTTP Status</p>
         <div id="chart-http-status" class="flex justify-center">
           <p class="py-4 text-sm text-stone-400">Loading...</p>
@@ -133,25 +113,37 @@ import SectionHeader from "./ui/SectionHeader.astro";
         </div>
       </Card>
       <div class="sm:col-span-2 space-y-4">
-         <Card padding="md" class="h-full bg-stone-900 text-stone-100">
-            <h3 class="text-lg font-semibold mb-2">Live Insights</h3>
-            <p class="text-sm text-stone-400 leading-relaxed">
-              Minder is currently tracking all admin and client activity. Use the <strong>Audit Log</strong> tab to drill down into specific actors or event types. The <strong>Admin Jobs</strong> tab shows long-running tasks like Git imports.
-            </p>
-            <div class="mt-6 flex items-center gap-4">
-               <div class="h-10 w-1 bg-amber-500 rounded-full"></div>
-               <div>
-                  <div class="text-xs text-stone-500 uppercase tracking-widest font-bold">Health Status</div>
-                  <div class="text-xl font-mono text-amber-400">OPERATIONAL</div>
-               </div>
+        <Card padding="md" class="h-full bg-stone-900 text-stone-100">
+          <h3 class="text-lg font-semibold mb-2">Live Insights</h3>
+          <p class="text-sm text-stone-400 leading-relaxed">
+            Minder is currently tracking all admin and client activity. Use the <strong
+              >Audit Log</strong
+            > tab to drill down into specific actors or event types. The <strong
+              >Admin Jobs</strong
+            > tab shows long-running tasks like Git imports.
+          </p>
+          <div class="mt-6 flex items-center gap-4">
+            <div class="h-10 w-1 bg-amber-500 rounded-full"></div>
+            <div>
+              <div
+                class="text-xs text-stone-500 uppercase tracking-widest font-bold"
+              >
+                Health Status
+              </div>
+              <div class="text-xl font-mono text-amber-400">OPERATIONAL</div>
             </div>
-         </Card>
+          </div>
+        </Card>
       </div>
     </section>
   </div>
 
   <!-- Continuity Tab Panel -->
-  <div id="panel-continuity" class="hidden space-y-8">
+  <div
+    id="panel-continuity"
+    data-tab-panel="continuity"
+    class="hidden space-y-8"
+  >
     <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         eyebrow="Continuity packets"
@@ -197,7 +189,11 @@ import SectionHeader from "./ui/SectionHeader.astro";
   </div>
 
   <!-- Admin Jobs Tab Panel -->
-  <div id="panel-jobs" class="hidden space-y-6 text-stone-900">
+  <div
+    id="panel-jobs"
+    data-tab-panel="jobs"
+    class="hidden space-y-6 text-stone-900"
+  >
     <div class="grid gap-5">
       <Card padding="md">
         <div class="flex flex-wrap items-start justify-between gap-4">
@@ -251,48 +247,80 @@ import SectionHeader from "./ui/SectionHeader.astro";
   </div>
 
   <!-- Audit Log Tab Panel -->
-  <div id="panel-audit" class="hidden space-y-6 text-stone-900">
+  <div
+    id="panel-audit"
+    data-tab-panel="audit"
+    class="hidden space-y-6 text-stone-900"
+  >
     <div class="grid gap-5">
       <!-- Audit log header + filters -->
       <Card padding="md">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <SectionHeader
-              title="Audit log"
-              description="Every admin and client action recorded with actor, outcome, and timestamp."
-              class="mb-0"
-            />
-          </div>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <p class="eyebrow">Audit log</p>
           <div class="flex flex-wrap items-center gap-2">
-            <Select id="audit-event-type-filter" class="min-w-36">
+            <select
+              id="audit-event-type-filter"
+              class="rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-amber-400 focus:outline-none"
+            >
               <option value="">All event types</option>
-              <option value="auth.login">Admin login</option>
-              <option value="auth.logout">Admin logout</option>
-              <option value="client.created">Client created</option>
-              <option value="client.updated">Client updated</option>
-              <option value="key.rotated">Key rotated</option>
-              <option value="key.revoked">Key revoked</option>
-              <option value="token.exchanged">Token exchange</option>
-              <option value="admin_op">Admin operation</option>
-              <option value="user.created">User created</option>
-              <option value="user.updated">User updated</option>
-            </Select>
-            <Select id="audit-outcome-filter" class="min-w-32">
+              <optgroup label="Tool calls">
+                <option value="tool_call">tool_call</option>
+              </optgroup>
+              <optgroup label="Auth">
+                <option value="auth.login">auth.login</option>
+                <option value="auth.logout">auth.logout</option>
+                <option value="token.exchanged">token.exchanged</option>
+                <option value="client.token_exchanged"
+                  >client.token_exchanged</option
+                >
+              </optgroup>
+              <optgroup label="Client">
+                <option value="client.created">client.created</option>
+                <option value="client.updated">client.updated</option>
+                <option value="client.key_created">client.key_created</option>
+                <option value="client.key_revoked">client.key_revoked</option>
+                <option value="key.rotated">key.rotated</option>
+                <option value="key.revoked">key.revoked</option>
+              </optgroup>
+              <optgroup label="Repository">
+                <option value="repository.graph_sync"
+                  >repository.graph_sync</option
+                >
+                <option value="repository.resolve">repository.resolve</option>
+              </optgroup>
+              <optgroup label="Skill / Memory">
+                <option value="skill.created">skill.created</option>
+                <option value="skill.updated">skill.updated</option>
+                <option value="skill.deleted">skill.deleted</option>
+                <option value="skill.compacted">skill.compacted</option>
+              </optgroup>
+              <optgroup label="Admin">
+                <option value="admin_op">admin_op</option>
+                <option value="user.created">user.created</option>
+                <option value="user.updated">user.updated</option>
+              </optgroup>
+            </select>
+            <select
+              id="audit-outcome-filter"
+              class="rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 focus:border-amber-400 focus:outline-none"
+            >
               <option value="">All outcomes</option>
-              <option value="success">Success</option>
-              <option value="failure">Failure</option>
-              <option value="denied">Denied</option>
-              <option value="error">Error</option>
-            </Select>
-            <Input
+              <option value="success">success</option>
+              <option value="failure">failure</option>
+              <option value="denied">denied</option>
+              <option value="error">error</option>
+            </select>
+            <input
               id="audit-actor-filter"
-              placeholder="Actor ID (optional)…"
-              class="min-w-44"
+              type="text"
+              placeholder="Actor ID…"
+              class="w-36 rounded-lg border border-stone-200 bg-white px-2 py-1.5 text-xs text-stone-700 placeholder:text-stone-400 focus:border-amber-400 focus:outline-none"
             />
-            <Button id="audit-filter-apply" size="sm">Apply</Button>
-            <Button id="audit-filter-clear" size="sm" variant="ghost">
-              Clear
-            </Button>
+            <button
+              id="audit-filter-clear"
+              class="rounded-lg border border-stone-200 bg-white px-2.5 py-1.5 text-xs font-medium text-stone-500 transition hover:bg-stone-50"
+              >Clear</button
+            >
           </div>
         </div>
 
@@ -325,23 +353,32 @@ import SectionHeader from "./ui/SectionHeader.astro";
       <!-- Audit table -->
       <div
         id="audit-log-container"
-        class="overflow-hidden rounded-2xl border border-stone-200/80 bg-white"
+        class="overflow-x-auto rounded-2xl border border-stone-200/80 bg-white"
       >
-        <table class="w-full text-sm">
+        <table class="w-full table-fixed text-xs">
+          <colgroup>
+            <col class="w-[28%]" />
+            <col class="w-[22%]" />
+            <col class="w-[22%]" />
+            <col class="w-[14%]" />
+            <col class="w-[14%]" />
+          </colgroup>
           <thead>
             <tr
-              class="border-b border-stone-100 bg-stone-50/80 text-left text-xs font-semibold uppercase tracking-widest text-stone-500"
+              class="border-b border-stone-100 bg-stone-50/80 text-left text-[10px] font-semibold uppercase tracking-widest text-stone-400"
             >
-              <th class="px-4 py-3">Event</th>
-              <th class="px-4 py-3">Actor</th>
-              <th class="px-4 py-3">Resource</th>
-              <th class="px-4 py-3">Outcome</th>
-              <th class="px-4 py-3 whitespace-nowrap">When</th>
+              <th class="px-3 py-2.5">Event</th>
+              <th class="px-3 py-2.5">Actor</th>
+              <th class="px-3 py-2.5">Resource</th>
+              <th class="px-3 py-2.5">Outcome</th>
+              <th class="px-3 py-2.5">When</th>
             </tr>
           </thead>
           <tbody id="audit-log-body">
             <tr>
-              <td colspan="5" class="px-4 py-6 text-center text-sm text-stone-400"
+              <td
+                colspan="5"
+                class="px-3 py-6 text-center text-xs text-stone-400"
                 >Loading audit log...</td
               >
             </tr>

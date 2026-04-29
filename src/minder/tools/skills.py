@@ -124,7 +124,7 @@ class SkillTools:
             source_metadata=self._normalized_source_metadata(source_metadata),
             excerpt_kind=self._validated_excerpt_kind(excerpt_kind),
         )
-        return {"id": str(skill.id), "title": str(skill.title), "ok": True}
+        return {**self._serialize_skill(skill), "ok": True}
 
     async def minder_skill_recall(
         self,
@@ -176,9 +176,10 @@ class SkillTools:
         limited = ranked[:limit]
         for item in limited:
             record_continuity_skill_recall(
-                step_compatibility=float(item.pop("_step_compat", 0.0)),
+                step_compatibility=float(item.get("_step_compat", 0.0)),
                 quality_score=float(item["quality_score"]),
             )
+            item["step_compatibility"] = item.pop("_step_compat", 0.0)
             try:
                 await self._store.update_skill(
                     uuid.UUID(str(item["id"])),
@@ -287,7 +288,7 @@ class SkillTools:
         updated = await self._store.update_skill(uuid.UUID(skill_id), **update_data)
         if updated is None:
             raise ValueError(f"Skill not found: {skill_id}")
-        return {"id": str(updated.id), "title": str(updated.title), "ok": True}
+        return {**self._serialize_skill(updated), "ok": True}
 
     async def minder_skill_import_git(
         self,
@@ -492,6 +493,9 @@ class SkillTools:
 
     def _serialize_skill_compact(self, skill: Any) -> dict[str, Any]:
         """Minimal skill representation for LLM tool output — omits metadata-only fields."""
+        source_metadata = self._normalized_source_metadata(
+            getattr(skill, "source_metadata", None)
+        )
         return {
             "id": str(skill.id),
             "title": str(skill.title),
@@ -500,6 +504,8 @@ class SkillTools:
             "tags": list(getattr(skill, "tags", []) or []),
             "quality_score": round(float(getattr(skill, "quality_score", 0.0) or 0.0), 4),
             "usage_count": int(getattr(skill, "usage_count", 0) or 0),
+            "deprecated": bool(getattr(skill, "deprecated", False)),
+            "source": source_metadata,
         }
 
     @classmethod

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 from urllib.parse import urlsplit
 
 from pydantic import ValidationError
@@ -663,6 +664,22 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 return JSONResponse(
                     await context.use_cases.get_session_detail(session_id)
                 )
+            except LookupError:
+                return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            try:
+                payload = await request.json()
+            except Exception:
+                payload = {}
+            try:
+                updated = await context.use_cases.update_session(
+                    session_id,
+                    state=payload.get("state"),
+                    active_skills=payload.get("active_skills"),
+                    project_context=payload.get("project_context"),
+                )
+                return JSONResponse({"session": updated})
             except LookupError:
                 return JSONResponse({"error": "Session not found"}, status_code=404)
 

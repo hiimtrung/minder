@@ -18,6 +18,7 @@ services:
     restart: unless-stopped
     volumes:
       - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
+      - graph-data:/data/graph
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
@@ -29,6 +30,7 @@ services:
       MINDER_REDIS__URI: redis://redis:6379/0
       MINDER_VECTOR_STORE__PROVIDER: milvus
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
+      MINDER_GRAPH_STORE__DB_PATH: /data/graph/graph.db
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       MINDER_LLM__PROVIDER: litert
       MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E2B-it.litertlm
@@ -142,3 +144,4 @@ volumes:
   etcd-data:
   minio-data:
   milvus-data:
+  graph-data:

@@ -157,6 +157,7 @@ class BaseTransport:
         start = time.perf_counter()
         outcome = "error"
         principal = None
+        _exc: Exception | None = None
         try:
             effective_client_key = client_key or self._default_client_key()
             principal = await self._authenticate_if_required(registered, authorization, effective_client_key)
@@ -176,18 +177,19 @@ class BaseTransport:
                 kwargs["principal"] = principal
                 if isinstance(principal, AdminUserPrincipal) and principal.user is not None:
                     kwargs["user"] = principal.user
-            
+
             outcome = "success"
             return await _invoke(registered.handler, **kwargs)
         except Exception as exc:
+            _exc = exc
             if isinstance(exc, AuthError):
                 outcome = "denied"
-            elif outcome == "success": # Should not happen if we caught an exception
+            elif outcome == "success":
                 outcome = "error"
             raise
         finally:
             elapsed = time.perf_counter() - start
-            
+
             client_id = "unknown"
             actor_id = "unknown"
             actor_type = "unknown"
@@ -206,6 +208,14 @@ class BaseTransport:
             # Record audit log (Persistent)
             if self._store is not None:
                 try:
+                    meta: dict[str, Any] = {
+                        "client_id": client_id,
+                        "latency_ms": round(elapsed * 1000, 2),
+                        "arguments": arguments,
+                    }
+                    if _exc is not None:
+                        meta["error_type"] = type(_exc).__name__
+                        meta["error_message"] = str(_exc)
                     await self._store.create_audit_log(
                         actor_type=actor_type,
                         actor_id=actor_id,
@@ -214,14 +224,9 @@ class BaseTransport:
                         resource_type="tool",
                         resource_id=name,
                         outcome=outcome,
-                        audit_metadata={
-                            "client_id": client_id,
-                            "latency_ms": round(elapsed * 1000, 2),
-                            "arguments": arguments,
-                        }
+                        audit_metadata=meta,
                     )
                 except Exception:
-                    # Don't let audit logging fail the whole tool call
                     pass
 
     @staticmethod

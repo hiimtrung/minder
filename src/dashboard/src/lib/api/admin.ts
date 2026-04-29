@@ -39,6 +39,7 @@ export type AuditEventPayload = {
   resource_name: string | null;
   outcome: string;
   created_at: string | null;
+  audit_metadata?: Record<string, unknown> | null;
 };
 
 export type AuditListPayload = {
@@ -1375,6 +1376,20 @@ export async function getSessionDetail(
   sessionId: string,
 ): Promise<SessionDetailPayload> {
   return requestJson<SessionDetailPayload>(`/v1/admin/sessions/${sessionId}`);
+}
+
+export async function updateSession(
+  sessionId: string,
+  payload: {
+    state?: Record<string, any>;
+    active_skills?: Record<string, any>;
+    project_context?: Record<string, any>;
+  },
+): Promise<SessionDetailPayload> {
+  return requestJson<SessionDetailPayload>(`/v1/admin/sessions/${sessionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
 }
 
 export async function deleteSession(

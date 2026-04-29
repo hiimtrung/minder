@@ -67,6 +67,7 @@ class WorkflowTools:
         for _k in ("workflow_id", "workflow_version", "policies"):
             envelope.pop(_k, None)
         return {
+            "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
             "instruction_envelope": envelope,
         }

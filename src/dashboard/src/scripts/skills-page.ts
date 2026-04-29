@@ -296,16 +296,14 @@ const summarizeJob = (job: AdminJobPayload): string => {
 
 const renderImportSummaryBanner = () => {
   if (!(importJobSummaryEl instanceof HTMLElement)) return;
-  if (!recentImportJobs.length) {
+  const runningJobs = recentImportJobs.filter(isRunningJob);
+  if (!runningJobs.length) {
     importJobSummaryEl.classList.add("hidden");
     importJobSummaryEl.innerHTML = "";
     return;
   }
-  const runningJobs = recentImportJobs.filter(isRunningJob);
-  const latest = recentImportJobs[0];
-  importJobSummaryEl.innerHTML = runningJobs.length
-    ? `<p class="font-medium">${runningJobs.length} import job${runningJobs.length === 1 ? " is" : "s are"} still active.</p><p class="mt-1 wrap-break-word text-amber-900/80">Latest: ${escapeHtml(summarizeJob(latest))}</p>`
-    : `<p class="font-medium">Latest import job</p><p class="mt-1 wrap-break-word text-amber-900/80">${escapeHtml(summarizeJob(latest))}</p>`;
+  const latest = runningJobs[0];
+  importJobSummaryEl.innerHTML = `<p class="font-medium">${runningJobs.length} import job${runningJobs.length === 1 ? " is" : "s are"} running in the background.</p><p class="mt-1 wrap-break-word text-amber-900/80">${escapeHtml(summarizeJob(latest))}</p>`;
   importJobSummaryEl.classList.remove("hidden");
 };
 

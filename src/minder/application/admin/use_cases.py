@@ -7,7 +7,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-_UNSET: Any = object()  # sentinel for optional update fields
 from urllib.parse import urlsplit
 
 from minder.application.admin.dto import (
@@ -61,6 +60,8 @@ from minder.observability.audit import AuditEmitter
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 from minder.tools.graph import GraphTools
 from minder.tools.registry import SCOPEABLE_TOOLS
+
+_UNSET: Any = object()  # sentinel for optional update fields
 
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
@@ -420,6 +421,7 @@ class AdminConsoleUseCases:
             "resource_name": None,
             "outcome": event.outcome,
             "created_at": event.created_at.isoformat() if event.created_at else None,
+            "audit_metadata": getattr(event, "audit_metadata", None),
         }
 
     async def serialize_audit_event_enriched(self, event: Any) -> AuditEventPayload:
@@ -664,6 +666,33 @@ class AdminConsoleUseCases:
         if session is None:
             raise LookupError(f"Session {session_id} not found")
         return {"session": self.serialize_session(session)}
+
+    async def update_session(
+        self,
+        session_id: uuid.UUID,
+        *,
+        state: dict[str, Any] | None = None,
+        active_skills: dict[str, Any] | None = None,
+        project_context: dict[str, Any] | None = None,
+    ) -> SessionPayload:
+        existing = await self._store.get_session_by_id(session_id)
+        if existing is None:
+            raise LookupError(f"Session {session_id} not found")
+        updates: dict[str, Any] = {}
+        if state is not None:
+            updates["state"] = state
+        if active_skills is not None:
+            updates["active_skills"] = active_skills
+        if project_context is not None:
+            updates["project_context"] = project_context
+        if not updates:
+            return self.serialize_session(existing)
+        from datetime import UTC, datetime
+        updates["last_active"] = datetime.now(UTC)
+        updated = await self._store.update_session(session_id, **updates)
+        if updated is None:
+            raise LookupError(f"Session {session_id} not found")
+        return self.serialize_session(updated)
 
     async def delete_session(self, session_id: uuid.UUID) -> dict[str, bool]:
         existing = await self._store.get_session_by_id(session_id)

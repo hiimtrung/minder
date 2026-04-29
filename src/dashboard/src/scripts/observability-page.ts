@@ -64,7 +64,6 @@ const auditEventTypeFilter = document.querySelector(
 const auditOutcomeFilter = document.querySelector(
   "#audit-outcome-filter",
 ) as HTMLSelectElement | null;
-const auditFilterApply = document.querySelector("#audit-filter-apply");
 const auditFilterClear = document.querySelector("#audit-filter-clear");
 const refreshButton = document.querySelector("#refresh-observability");
 const autoRefreshToggle = document.querySelector(
@@ -146,7 +145,12 @@ const fmtDecimal = (n: number): string =>
 const relativeTime = (iso: string | null): string => {
   if (!iso) return "—";
   try {
-    const delta = Date.now() - new Date(iso).getTime();
+    // Force UTC if no timezone is specified to avoid local timezone offset issues
+    const dateStr =
+      iso.includes("Z") || iso.includes("+") || iso.includes("-")
+        ? iso
+        : `${iso}Z`;
+    const delta = Date.now() - new Date(dateStr).getTime();
     const secs = Math.floor(delta / 1000);
     if (secs < 60) return `${secs}s ago`;
     const mins = Math.floor(secs / 60);
@@ -203,27 +207,14 @@ const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
   });
 
 const switchTab = (tabName: keyof typeof tabs) => {
-  // Update buttons
-  Object.entries(tabs).forEach(([name, el]) => {
-    if (!el) return;
-    if (name === tabName) {
-      el.classList.add("text-amber-900", "after:absolute", "after:bottom-0", "after:left-0", "after:h-0.5", "after:w-full", "after:bg-amber-700");
-      el.classList.remove("text-stone-500", "hover:text-stone-900");
-    } else {
-      el.classList.remove("text-amber-900", "after:absolute", "after:bottom-0", "after:left-0", "after:h-0.5", "after:w-full", "after:bg-amber-700");
-      el.classList.add("text-stone-500", "hover:text-stone-900");
-    }
-  });
+  document.querySelectorAll("[data-tab-btn]").forEach((b) => b.classList.remove("tab-btn-active"));
+  document.querySelectorAll("[data-tab-panel]").forEach((p) => p.classList.add("hidden"));
 
-  // Update panels
-  Object.entries(panels).forEach(([name, el]) => {
-    if (!el) return;
-    if (name === tabName) {
-      el.classList.remove("hidden");
-    } else {
-      el.classList.add("hidden");
-    }
-  });
+  const btn = document.querySelector(`[data-tab-btn="${tabName}"]`);
+  if (btn) btn.classList.add("tab-btn-active");
+
+  const panel = document.querySelector(`[data-tab-panel="${tabName}"]`);
+  if (panel) panel.classList.remove("hidden");
 };
 
 // ---------------------------------------------------------------------------
@@ -325,8 +316,14 @@ const renderMetrics = (data: MetricsSummaryPayload): void => {
 
   if (statAuthEvents) statAuthEvents.textContent = fmt(data.auth_events.total);
   if (statAuthEventsSub) {
-    const logins = data.auth_events.by_type["auth.login"] ?? data.auth_events.by_type["login"] ?? 0;
-    const exchanges = data.auth_events.by_type["token.exchanged"] ?? data.auth_events.by_type["token_exchange"] ?? 0;
+    const logins =
+      data.auth_events.by_type["auth.login"] ??
+      data.auth_events.by_type["login"] ??
+      0;
+    const exchanges =
+      data.auth_events.by_type["token.exchanged"] ??
+      data.auth_events.by_type["token_exchange"] ??
+      0;
     statAuthEventsSub.textContent = `${fmt(logins)} login${logins !== 1 ? "s" : ""}, ${fmt(exchanges)} exchange${exchanges !== 1 ? "s" : ""}`;
   }
 
@@ -520,13 +517,88 @@ const upsertJob = (job: AdminJobPayload): void => {
 };
 
 // ---------------------------------------------------------------------------
+// Event type label map — keeps filter values and table display in sync
+// ---------------------------------------------------------------------------
+
+const EVENT_CATEGORY: Record<string, string> = {
+  tool_call: "tool",
+  "auth.login": "auth",
+  "auth.logout": "auth",
+  "token.exchanged": "auth",
+  "client.token_exchanged": "auth",
+  "client.created": "client",
+  "client.updated": "client",
+  "client.key_created": "client",
+  "client.key_revoked": "client",
+  "key.rotated": "client",
+  "key.revoked": "client",
+  "repository.graph_sync": "repo",
+  "repository.resolve": "repo",
+  "skill.created": "skill",
+  "skill.updated": "skill",
+  "skill.deleted": "skill",
+  "skill.compacted": "skill",
+  admin_op: "admin",
+  "user.created": "admin",
+  "user.updated": "admin",
+};
+
+const eventCategoryClass = (eventType: string): string => {
+  const cat = EVENT_CATEGORY[eventType] ?? "other";
+  if (cat === "tool")
+    return "border-emerald-200 bg-emerald-50 text-emerald-800";
+  if (cat === "auth") return "border-blue-200 bg-blue-50 text-blue-800";
+  if (cat === "client") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (cat === "repo") return "border-cyan-200 bg-cyan-50 text-cyan-800";
+  if (cat === "skill") return "border-violet-200 bg-violet-50 text-violet-800";
+  if (cat === "admin") return "border-stone-200 bg-stone-100 text-stone-700";
+  return "border-stone-200 bg-stone-50 text-stone-600";
+};
+
+// ---------------------------------------------------------------------------
 // Render audit log
 // ---------------------------------------------------------------------------
+
+const buildAuditDetail = (evt: AuditEventPayload): string => {
+  const meta = evt.audit_metadata;
+  if (!meta) return "";
+
+  const rows: string[] = [];
+
+  if (meta["error_type"] || meta["error_message"]) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-red-600">Error</span><span class="font-mono text-red-700 break-all">${escapeHtml(String(meta["error_type"] ?? ""))}: ${escapeHtml(String(meta["error_message"] ?? ""))}</span></div>`,
+    );
+  }
+
+  if (meta["arguments"] && typeof meta["arguments"] === "object") {
+    const args = meta["arguments"] as Record<string, unknown>;
+    const argStr = JSON.stringify(args, null, 2);
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">Request</span><pre class="font-mono text-[10px] text-stone-700 whitespace-pre-wrap break-all overflow-hidden">${escapeHtml(argStr)}</pre></div>`,
+    );
+  }
+
+  if (meta["latency_ms"] !== undefined) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">Latency</span><span class="font-mono text-stone-700">${escapeHtml(String(meta["latency_ms"]))} ms</span></div>`,
+    );
+  }
+
+  const knownKeys = new Set(["error_type", "error_message", "arguments", "latency_ms", "client_id"]);
+  const extras = Object.entries(meta).filter(([k]) => !knownKeys.has(k));
+  for (const [k, v] of extras) {
+    rows.push(
+      `<div class="flex gap-2"><span class="w-24 shrink-0 font-semibold text-stone-500">${escapeHtml(k)}</span><span class="font-mono text-stone-700 break-all">${escapeHtml(typeof v === "object" ? JSON.stringify(v) : String(v))}</span></div>`,
+    );
+  }
+
+  return rows.join("");
+};
 
 const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   if (!auditLogBody) return;
 
-  // Pagination info
   if (paginationInfo) {
     const from = total === 0 ? 0 : currentOffset + 1;
     const to = Math.min(currentOffset + currentLimit, total);
@@ -539,7 +611,7 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
   if (!events.length) {
     auditLogBody.innerHTML = `
       <tr>
-        <td colspan="5" class="px-4 py-8 text-center text-sm text-stone-400">
+        <td colspan="5" class="px-3 py-8 text-center text-xs text-stone-400">
           No audit events found matching the current filters.
         </td>
       </tr>`;
@@ -548,45 +620,62 @@ const renderAuditLog = (events: AuditEventPayload[], total: number): void => {
 
   auditLogBody.innerHTML = events
     .map((evt) => {
-      const actorLabel = evt.actor_name
+      const eventLabel = escapeHtml(evt.event_type);
+      const actorDisplay = evt.actor_name
         ? escapeHtml(evt.actor_name)
         : evt.actor_id
-          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.actor_id.slice(0, 8))}…</span>`
+          ? escapeHtml(evt.actor_id)
           : "—";
-
-      const resourceLabel = evt.resource_name
+      const resourceDisplay = evt.resource_name
         ? escapeHtml(evt.resource_name)
         : evt.resource_id
-          ? `<span class="font-mono text-[10px]">${escapeHtml(evt.resource_id.slice(0, 8))}…</span>`
+          ? escapeHtml(evt.resource_id)
           : "—";
 
-      return `
-    <tr class="border-t border-stone-100 hover:bg-stone-50/60 transition-colors">
-      <td class="px-4 py-3">
-        <span class="font-medium text-stone-900 text-xs">${escapeHtml(evt.event_type)}</span>
+      const detailContent = buildAuditDetail(evt);
+      const hasDetail = detailContent.length > 0;
+      const detailRowId = `detail-${escapeHtml(evt.id)}`;
+      const rowCursor = hasDetail ? " cursor-pointer" : "";
+
+      const mainRow = `
+    <tr class="border-t border-stone-100 hover:bg-stone-50/50 transition-colors${rowCursor}" ${hasDetail ? `data-detail-target="${detailRowId}"` : ""}>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="inline-block max-w-full truncate rounded-md border px-2 py-0.5 font-mono text-[10px] font-medium ${eventCategoryClass(evt.event_type)}" title="${escapeHtml(evt.event_type)}">${eventLabel}</span>
       </td>
-      <td class="px-4 py-3">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.actor_type)}</span>
-          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.actor_id)}">${actorLabel}</span>
-        </div>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.actor_type)}</span>
+        <span class="block truncate font-mono text-[10px] text-stone-600 mt-0.5" title="${escapeHtml(evt.actor_id ?? "")}">${actorDisplay}</span>
       </td>
-      <td class="px-4 py-3">
-        <div class="flex flex-col gap-0.5">
-          <span class="text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.resource_type)}</span>
-          <span class="text-xs text-stone-700 truncate max-w-36" title="${escapeHtml(evt.resource_id ?? "")}">${resourceLabel}</span>
-        </div>
+      <td class="px-3 py-2.5 min-w-0">
+        <span class="block truncate text-[10px] font-semibold uppercase tracking-wide text-stone-400">${escapeHtml(evt.resource_type)}</span>
+        <span class="block truncate font-mono text-[10px] text-stone-600 mt-0.5" title="${escapeHtml(evt.resource_id ?? "")}">${resourceDisplay}</span>
       </td>
-      <td class="px-4 py-3">
-        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${outcomeClass(evt.outcome)}">
-          ${escapeHtml(evt.outcome)}
-        </span>
+      <td class="px-3 py-2.5">
+        <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold ${outcomeClass(evt.outcome)}">${escapeHtml(evt.outcome)}</span>
       </td>
-      <td class="px-4 py-3 text-xs text-stone-500 whitespace-nowrap" title="${evt.created_at ?? ""}">${escapeHtml(relativeTime(evt.created_at))}</td>
-    </tr>
-  `;
+      <td class="px-3 py-2.5 text-[10px] text-stone-500 whitespace-nowrap" title="${escapeHtml(evt.created_at ?? "")}">${escapeHtml(relativeTime(evt.created_at))}${hasDetail ? ' <span class="text-stone-300">▾</span>' : ""}</td>
+    </tr>`;
+
+      const detailRow = hasDetail
+        ? `<tr id="${detailRowId}" class="hidden border-t border-stone-100 bg-stone-50/70">
+        <td colspan="5" class="px-4 py-3 text-[11px] leading-5 text-stone-600 space-y-1.5">${detailContent}</td>
+      </tr>`
+        : "";
+
+      return mainRow + detailRow;
     })
     .join("");
+
+  // Wire up row expand/collapse
+  auditLogBody.querySelectorAll<HTMLTableRowElement>("[data-detail-target]").forEach((row) => {
+    row.addEventListener("click", () => {
+      const targetId = row.dataset.detailTarget!;
+      const detailRow = document.getElementById(targetId);
+      if (detailRow) {
+        detailRow.classList.toggle("hidden");
+      }
+    });
+  });
 };
 
 // ---------------------------------------------------------------------------
@@ -602,7 +691,11 @@ const loadMetrics = async (): Promise<void> => {
     );
     renderMetrics(data);
     if (lastUpdatedTime) {
-      lastUpdatedTime.textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      lastUpdatedTime.textContent = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
     }
   } catch (error) {
     const msg =
@@ -760,12 +853,12 @@ const stopAutoRefresh = () => {
 // Event wiring
 // ---------------------------------------------------------------------------
 
-auditFilterApply?.addEventListener("click", applyFilters);
 auditFilterClear?.addEventListener("click", clearFilters);
 
 auditActorFilter?.addEventListener("keydown", (e) => {
   if (e.key === "Enter") applyFilters();
 });
+auditActorFilter?.addEventListener("change", applyFilters);
 
 auditEventTypeFilter?.addEventListener("change", applyFilters);
 auditOutcomeFilter?.addEventListener("change", applyFilters);

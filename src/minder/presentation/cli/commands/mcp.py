@@ -121,7 +121,7 @@ def _remove_gitignored(cwd: Path, filename: str) -> None:
     if not gitignore.is_file():
         return
     lines = gitignore.read_text(encoding="utf-8").splitlines(keepends=True)
-    filtered = [l for l in lines if l.strip() not in (filename, f"/{filename}")]
+    filtered = [line for line in lines if line.strip() not in (filename, f"/{filename}")]
     if len(filtered) < len(lines):
         gitignore.write_text("".join(filtered), encoding="utf-8")
 

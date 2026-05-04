@@ -9,7 +9,6 @@ from __future__ import annotations
 import gc
 import logging
 from collections.abc import Generator
-from pathlib import Path
 from typing import Any, cast
 
 from minder.graph.state import GraphState

@@ -32,8 +32,8 @@ async def seed_skills(store: RelationalStore, config: Settings, source: str) -> 
     imported = 0
     skipped = 0
     embedder = LocalEmbeddingProvider(
-        fastembed_model=config.embedding.fastembed_model,
-        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+        llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+        llama_cpp_model_file=config.embedding.llama_cpp_model_file,
         dimensions=min(config.embedding.dimensions, 16),
         runtime="auto",
     )

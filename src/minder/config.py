@@ -31,21 +31,19 @@ class AuthConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    provider: str = "fastembed"
-    runtime: str = "auto"  # "auto" | "fastembed" | "mock"
-    fastembed_model: str = "mixedbread-ai/mxbai-embed-large-v1"
-    fastembed_cache_dir: str = "~/.minder/cache/fastembed"
-    dimensions: int = 1024
+    provider: str = "llama_cpp"
+    runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
+    llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF"
+    llama_cpp_model_file: str = "*.gguf"
+    dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"
 
 
 class LLMConfig(BaseModel):
-    provider: str = "litert"  # "litert" | "openai"
-    # LiteRT-LM fields
-    litert_model_path: str = "~/.minder/models/gemma-4-E2B-it.litertlm"
-    litert_backend: str = "auto"  # "auto" (GPU on Mac, CPU elsewhere) | "cpu" | "gpu"
-    litert_cache_dir: str = "~/.minder/cache/litert"
+    provider: str = "llama_cpp"  # "llama_cpp" | "openai"
+    llama_cpp_model_repo: str = "ggml-org/gemma-4-E2B-it-GGUF"
+    llama_cpp_model_file: str = "*.gguf"
     context_length: int = 16384
     temperature: float = 0.1
     openai_api_key: Optional[str] = None

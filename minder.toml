@@ -20,18 +20,17 @@ api_key_prefix = "mk_"
 default_admin_email = "admin@example.com"
 
 [embedding]
-provider = "fastembed"
-fastembed_model = "mixedbread-ai/mxbai-embed-large-v1"
-fastembed_cache_dir = "~/.minder/cache/fastembed"
-dimensions = 1024
+provider = "llama_cpp"
+llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+llama_cpp_model_file = "*.gguf"
+dimensions = 768
 openai_api_key = ""
 openai_model = "text-embedding-3-small"
 
 [llm]
-provider = "litert"
-litert_model_path = "~/.minder/models/gemma-4-E2B-it.litertlm"
-litert_backend = "cpu"
-litert_cache_dir = "~/.minder/cache/litert"
+provider = "llama_cpp"
+llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
+llama_cpp_model_file = "*.gguf"
 context_length = 32768
 temperature = 0.1
 openai_api_key = ""

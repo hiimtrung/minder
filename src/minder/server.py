@@ -28,8 +28,7 @@ __all__ = [
 
 
 def runtime_summary(config: Settings) -> dict[str, object]:
-    llm_runtime = _detect_litert_runtime(config) if config.llm.provider == "litert" else config.llm.provider
-    embedding_runtime = _detect_fastembed_runtime(config)
+    embedding_runtime = _detect_llama_cpp_runtime(config)
     openai_key_set = bool(config.llm.openai_api_key)
 
     return {
@@ -41,34 +40,24 @@ def runtime_summary(config: Settings) -> dict[str, object]:
             config.workflow.orchestration_runtime
         ),
         "llm_provider": config.llm.provider,
-        "llm_runtime_effective": llm_runtime,
+        "llm_runtime_effective": config.llm.provider,
         "llm_context_length": config.llm.context_length,
         "embedding_provider": config.embedding.provider,
-        "embedding_fastembed_model": config.embedding.fastembed_model,
+        "embedding_llama_cpp_model_repo": config.embedding.llama_cpp_model_repo,
         "embedding_runtime_effective": embedding_runtime,
         "openai_fallback_configured": openai_key_set,
         "openai_fallback_runtime_effective": "openai" if openai_key_set else "mock",
     }
 
 
-def _detect_litert_runtime(config: Settings) -> str:
-    from pathlib import Path
-
-    try:
-        import litert_lm  # type: ignore[import-untyped]  # noqa: F401
-    except ImportError:
-        return "mock"
-    model_path = Path(config.llm.litert_model_path).expanduser()
-    return "litert" if model_path.exists() else "mock"
-
-
-def _detect_fastembed_runtime(config: Settings) -> str:
-    try:
-        import fastembed  # type: ignore[import-not-found]  # noqa: F401
-
-        return "fastembed"
-    except ImportError:
-        return "mock"
+def _detect_llama_cpp_runtime(config: Settings) -> str:
+    if config.embedding.provider == "llama_cpp":
+        try:
+            import llama_cpp  # type: ignore[import-not-found]  # noqa: F401
+            return "llama_cpp"
+        except ImportError:
+            return "mock"
+    return config.embedding.runtime
 
 
 async def _async_run() -> None:

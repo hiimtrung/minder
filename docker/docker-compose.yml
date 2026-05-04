@@ -30,13 +30,13 @@ services:
       MINDER_VECTOR_STORE__PROVIDER: milvus
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
-      MINDER_LLM__PROVIDER: litert
-      MINDER_LLM__LITERT_MODEL_PATH: /models/gemma-4-E2B-it.litertlm
-      MINDER_LLM__LITERT_BACKEND: cpu
-      MINDER_LLM__LITERT_CACHE_DIR: /tmp/litert-cache
-      MINDER_EMBEDDING__PROVIDER: fastembed
-      MINDER_EMBEDDING__FASTEMBED_MODEL: ${MINDER_EMBEDDING_MODEL:-mixedbread-ai/mxbai-embed-large-v1}
-      MINDER_EMBEDDING__FASTEMBED_CACHE_DIR: /models/fastembed
+      MINDER_LLM__PROVIDER: llama_cpp
+      MINDER_LLM__LLAMA_CPP_MODEL_REPO: ggml-org/gemma-4-E2B-it-GGUF
+      MINDER_LLM__LLAMA_CPP_MODEL_FILE: "*.gguf"
+      MINDER_EMBEDDING__PROVIDER: llama_cpp
+      MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO: ${MINDER_EMBEDDING_MODEL:-ggml-org/embeddinggemma-300M-GGUF}
+      MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE: "*.gguf"
+      MINDER_EMBEDDING__DIMENSIONS: ${MINDER_EMBEDDING_DIMENSIONS:-768}
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       mongodb:

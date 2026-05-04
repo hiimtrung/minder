@@ -36,8 +36,8 @@ class QueryTools:
         self._graph = graph or MinderGraph(store, config)
         self._vector_store = vector_store or VectorStore(store, store)
         self._embedding_provider = LocalEmbeddingProvider(
-            fastembed_model=config.embedding.fastembed_model,
-            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+            llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+            llama_cpp_model_file=config.embedding.llama_cpp_model_file,
             dimensions=config.embedding.dimensions,
             runtime=config.embedding.runtime,
         )

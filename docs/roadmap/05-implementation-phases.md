@@ -32,7 +32,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 2. Implement the auth layer with user model, API keys, JWTs, and RBAC.
 3. Implement SSE transport as the primary transport and stdio for local dev.
 4. Add auth middleware for SSE connections.
-5. Integrate mandatory `mixedbread-ai/mxbai-embed-large-v1` embeddings through `FastEmbed`.
+5. Integrate mandatory `onnx-community/embeddinggemma-300m-ONNX` embeddings through `FastEmbed`.
 6. Add optional OpenAI embedding fallback.
 7. Implement Milvus Lite for semantic search.
 8. Implement SQLite metadata storage for users, sessions, workflows, and repo state.

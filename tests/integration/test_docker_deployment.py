@@ -6,7 +6,7 @@ import pytest
 from minder.config import MinderConfig
 from minder.graph import MinderGraph
 from minder.graph.nodes import LLMNode, VerificationNode, WorkflowPlannerNode
-from minder.llm.litert import LiteRTModelLLM
+from minder.llm.llama_cpp_llm import LlamaCppLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.error import ErrorStore
 from minder.store.history import HistoryStore
@@ -155,9 +155,10 @@ async def test_docker_infrastructure_setup(tmp_path: Path, store: RelationalStor
         config,
         workflow_planner=WorkflowPlannerNode(store),
         llm=LLMNode(
-            primary=LiteRTModelLLM(
-                model_path=config.llm.litert_model_path,
-                backend=config.llm.litert_backend,
+            primary=LlamaCppLLM(
+                model_repo=config.llm.llama_cpp_model_repo,
+                model_file=config.llm.llama_cpp_model_file,
+                runtime="mock",
             ),
             fallback=OpenAIFallbackLLM(config.llm.openai_api_key, config.llm.openai_model),
         ),
@@ -177,8 +178,8 @@ async def test_docker_infrastructure_setup(tmp_path: Path, store: RelationalStor
         verification_payload={"language": "python", "code": "print('ok')"},
     )
 
-    assert result["provider"] == "litert_lm"
-    assert result["runtime"] in {"auto", "mock", "litert"}
+    assert result["provider"] == "llama_cpp"
+    assert result["runtime"] in {"auto", "mock", "llama_cpp"}
     assert result["transition_log"]
     assert result["transition_log"][0]["edge"] == "verification_failed"
     assert result["transition_log"][-1]["edge"] == "complete"
@@ -215,7 +216,7 @@ async def test_docker_infrastructure_setup(tmp_path: Path, store: RelationalStor
 
     history_entries = await HistoryStore(store).list_history_for_session(session_id)
     assert history_entries
-    assert history_entries[-1].tool_calls["provider"] in {"litert_lm", "openai_fallback"}
+    assert history_entries[-1].tool_calls["provider"] in {"llama_cpp", "openai_fallback"}
 
     error_hits = await ErrorStore(store).search_errors("first run failed")
     assert error_hits

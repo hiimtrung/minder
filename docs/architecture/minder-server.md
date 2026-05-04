@@ -91,7 +91,7 @@ curl -L "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolv
 docker compose -f docker/docker-compose.yml up -d
 ```
 
-The FastEmbed provider automatically downloads and caches the embedding model (`mixedbread-ai/mxbai-embed-large-v1`) on the first run.
+The FastEmbed provider automatically downloads and caches the embedding model (`onnx-community/embeddinggemma-300m-ONNX`) on the first run.
 
 #### 3) Bootstrap admin
 
@@ -133,9 +133,9 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | `MINDER_LLM__LITERT_BACKEND` | `cpu` | LiteRT hardware backend |
 | `MINDER_LLM__LITERT_CACHE_DIR` | `~/.minder/cache/litert` | Compiled artifact cache |
 | `MINDER_EMBEDDING__PROVIDER` | `fastembed` | Embedding provider (`fastembed` / `openai`) |
-| `MINDER_EMBEDDING__FASTEMBED_MODEL` | `mixedbread-ai/mxbai-embed-large-v1` | FastEmbed model name |
+| `MINDER_EMBEDDING__FASTEMBED_MODEL` | `onnx-community/embeddinggemma-300m-ONNX` | FastEmbed model name |
 | `MINDER_EMBEDDING__FASTEMBED_CACHE_DIR` | `~/.minder/cache/fastembed` | FastEmbed cache dir |
-| `MINDER_EMBEDDING__DIMENSIONS` | `1024` | Embedding vector dimensions |
+| `MINDER_EMBEDDING__DIMENSIONS` | `768` | Embedding vector dimensions |
 | `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |
 | `MINDER_REDIS__URI` | `redis://localhost:6379/0` | Redis URI |
 | `MINDER_VECTOR_STORE__URI` | `http://localhost:19530` | Milvus endpoint |

@@ -61,8 +61,8 @@ class MinderGraph:
         self._clarification = clarification or ClarificationNode()
         vector_store = VectorStore(store, store)
         embedder = LocalEmbeddingProvider(
-            fastembed_model=config.embedding.fastembed_model,
-            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+            llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+            llama_cpp_model_file=config.embedding.llama_cpp_model_file,
             dimensions=config.embedding.dimensions,
             runtime="auto",
         )

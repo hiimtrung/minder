@@ -1,11 +1,11 @@
 from .base import LLMClient
 from .factory import create_llm
-from .litert import LiteRTModelLLM
+from .llama_cpp_llm import LlamaCppLLM
 from .openai import OpenAIFallbackLLM
 
 __all__ = [
     "LLMClient",
-    "LiteRTModelLLM",
+    "LlamaCppLLM",
     "OpenAIFallbackLLM",
     "create_llm",
 ]

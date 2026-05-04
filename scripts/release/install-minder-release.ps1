@@ -4,9 +4,9 @@
 .SYNOPSIS
     Installs or upgrades a Minder release on Windows using Docker Desktop.
 .DESCRIPTION
-    Downloads the LiteRT-LM model, then deploys Minder via Docker Compose.
-    The embedding model (mixedbread-ai/mxbai-embed-large-v1) is downloaded automatically
-    by FastEmbed — no host-native or Docker Ollama installation required.
+    Deploys Minder via Docker Compose.
+    GGUF models for llama.cpp are downloaded automatically from Hugging Face on first startup.
+    No manual model download required.
     Placeholders __REPO_OWNER__, __REPO_NAME__, and __RELEASE_TAG__ are
     substituted at GitHub release publish time.
 #>
@@ -44,10 +44,8 @@ $ModelsDir     = Get-EnvOrDefault -Name 'MINDER_MODELS_DIR'       -Default (Join
 $PublicPort    = Get-EnvOrDefault -Name 'MINDER_PORT'             -Default '8800'
 $MilvusPort    = Get-EnvOrDefault -Name 'MILVUS_PORT'             -Default '19530'
 $OpenAiKey     = Get-EnvOrDefault -Name 'OPENAI_API_KEY'          -Default ''
-$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'mixedbread-ai/mxbai-embed-large-v1'
-$LiteRTModelUrl = Get-EnvOrDefault -Name 'MINDER_LITERT_MODEL_URL' `
-    -Default 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true'
-$LiteRTModelFile = 'gemma-4-E2B-it.litertlm'
+$LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'   -Default 'ggml-org/gemma-4-E2B-it-GGUF'
+$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'ggml-org/embeddinggemma-300M-GGUF'
 
 $ApiImage       = "ghcr.io/$RepoOwner/minder-api:$ReleaseTag"
 $DashboardImage = "ghcr.io/$RepoOwner/minder-dashboard:$ReleaseTag"
@@ -67,20 +65,14 @@ try {
 }
 
 # ------------------------------------------------------------------
-# Step 2: Download LiteRT-LM model
+# Step 2: Prepare models directory
 # ------------------------------------------------------------------
 
 New-Item -ItemType Directory -Force -Path $ModelsDir | Out-Null
-$LiteRTModelPath = Join-Path $ModelsDir $LiteRTModelFile
 
-if (Test-Path $LiteRTModelPath) {
-    Write-Host "LiteRT-LM model already exists: $LiteRTModelPath"
-} else {
-    Write-Host "Downloading LiteRT-LM model (this may take a few minutes)..."
-    Invoke-WebRequest -Uri $LiteRTModelUrl -OutFile $LiteRTModelPath -UseBasicParsing
-}
-
-Write-Host "LiteRT-LM model ready."
+Write-Host "GGUF models will be downloaded automatically by llama-cpp-python on first startup."
+Write-Host "  LLM repo:       $LlmModelRepo"
+Write-Host "  Embedding repo: $EmbedModel"
 
 # ------------------------------------------------------------------
 # Step 3: Pre-flight summary
@@ -89,8 +81,8 @@ Write-Host "LiteRT-LM model ready."
 Write-Host ""
 Write-Host "Pre-flight checks:"
 Write-Host "  [OK] Docker with Compose plugin"
-Write-Host "  [OK] LiteRT-LM model: $LiteRTModelFile"
-Write-Host "  [OK] Embedding model (FastEmbed): $EmbedModel"
+Write-Host "  [OK] LLM model repo (llama.cpp/GGUF, auto-download): $LlmModelRepo"
+Write-Host "  [OK] Embedding model repo (llama.cpp/GGUF, auto-download): $EmbedModel"
 Write-Host ""
 
 # ------------------------------------------------------------------
@@ -110,6 +102,7 @@ MILVUS_PORT=$MilvusPort
 MINDER_API_IMAGE=$ApiImage
 MINDER_DASHBOARD_IMAGE=$DashboardImage
 MINDER_MODELS_DIR=$ModelsDir
+MINDER_LLM_MODEL_REPO=$LlmModelRepo
 MINDER_EMBEDDING_MODEL=$EmbedModel
 OPENAI_API_KEY=$OpenAiKey
 "@
@@ -155,8 +148,8 @@ Write-Host "Deployment directory: $InstallDir"
 Write-Host "Current release link: $CurrentLink"
 Write-Host "API image: $ApiImage"
 Write-Host "Dashboard image: $DashboardImage"
-Write-Host "LiteRT-LM model: $LiteRTModelPath"
-Write-Host "Embedding: FastEmbed ($EmbedModel)"
+Write-Host "LLM model repo (llama.cpp/GGUF): $LlmModelRepo"
+Write-Host "Embedding model repo (llama.cpp/GGUF): $EmbedModel"
 Write-Host ""
 Write-Host "Open:"
 Write-Host "  http://localhost:$PublicPort/dashboard/setup"

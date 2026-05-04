@@ -36,7 +36,7 @@ Expected files:
 
 ```text
 ~/.minder/models/gemma-4-E2B-it.litertlm
-Note: The primary embedding model (`mixedbread-ai/mxbai-embed-large-v1`) is auto-downloaded by FastEmbed on first run.
+Note: The primary embedding model (`onnx-community/embeddinggemma-300m-ONNX`) is auto-downloaded by FastEmbed on first run.
 
 ## 1a. Create local env files
 

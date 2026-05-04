@@ -31,7 +31,7 @@ def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
     assert 'curl -fsSL "$RELEASE_BASE_URL/docker-compose.yml"' in install_script
     assert "MINDER_API_IMAGE" in install_script
     assert "MINDER_DASHBOARD_IMAGE" in install_script
-    assert "LITERT" in install_script or "litert" in install_script.lower()
+    assert "llama_cpp" in install_script.lower() or "llama-cpp" in install_script.lower() or "gguf" in install_script.lower()
     assert 'dockerfile: docker/Dockerfile.api' in full_compose
     assert 'dockerfile: docker/Dockerfile.dashboard' in full_compose
     assert ".venv" in dockerignore
@@ -49,8 +49,8 @@ def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -
     assert 'ghcr.io/hiimtrung/minder-dashboard:latest' in compose
     assert '${MINDER_PORT:-8800}:8800' in compose
     assert 'MINDER_SERVER__PORT: 8801' in compose
-    assert 'MINDER_LLM__PROVIDER: litert' in compose
-    assert 'minder-api:' in compose  # FastEmbed runs inside the API container
+    assert 'MINDER_LLM__PROVIDER: llama_cpp' in compose
+    assert 'minder-api:' in compose  # llama_cpp runs inside the API container
 
 
 def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
@@ -75,7 +75,7 @@ def test_phase6_powershell_installer_has_release_placeholders_and_core_steps() -
     assert "Caddyfile" in installer
     assert ".minder-release.json" in installer
     assert "MINDER_INSTALL_DIR" in installer
-    assert "litert" in installer.lower()
+    assert "llama_cpp" in installer.lower() or "llama-cpp" in installer.lower() or "gguf" in installer.lower()
 
 
 def test_phase6_release_workflow_publishes_both_installers() -> None:

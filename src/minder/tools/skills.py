@@ -87,8 +87,8 @@ class SkillTools:
     def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
         self._store = store
         self._embedder = LocalEmbeddingProvider(
-            fastembed_model=config.embedding.fastembed_model,
-            fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+            llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+            llama_cpp_model_file=config.embedding.llama_cpp_model_file,
             dimensions=config.embedding.dimensions,
             runtime=config.embedding.runtime,
         )

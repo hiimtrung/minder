@@ -15,9 +15,8 @@ API_IMAGE="ghcr.io/${REPO_OWNER}/minder-api:${RELEASE_TAG}"
 DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
 
-EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-mixedbread-ai/mxbai-embed-large-v1}"
-LITERT_MODEL_URL="${MINDER_LITERT_MODEL_URL:-https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm?download=true}"
-LITERT_MODEL_FILE="gemma-4-E2B-it.litertlm"
+LLM_MODEL_REPO="${MINDER_LLM_MODEL_REPO:-ggml-org/gemma-4-E2B-it-GGUF}"
+EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-ggml-org/embeddinggemma-300M-GGUF}"
 
 # ------------------------------------------------------------------
 # Helpers
@@ -43,19 +42,14 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 # ------------------------------------------------------------------
-# Step 2: Download LiteRT-LM model
+# Step 2: Prepare models directory
 # ------------------------------------------------------------------
 
 mkdir -p "$MODELS_DIR"
 
-if [ -f "$MODELS_DIR/$LITERT_MODEL_FILE" ]; then
-  echo "LiteRT-LM model already exists: $MODELS_DIR/$LITERT_MODEL_FILE"
-else
-  echo "Downloading LiteRT-LM model (this may take a few minutes)..."
-  curl -L "$LITERT_MODEL_URL" -o "$MODELS_DIR/$LITERT_MODEL_FILE"
-fi
-
-echo "LiteRT-LM model ready."
+echo "GGUF models will be downloaded automatically by llama-cpp-python on first startup."
+echo "  LLM repo:       $LLM_MODEL_REPO"
+echo "  Embedding repo: $EMBEDDING_MODEL"
 
 # ------------------------------------------------------------------
 # Step 3: Verify pre-conditions
@@ -64,8 +58,8 @@ echo "LiteRT-LM model ready."
 echo ""
 echo "Pre-flight checks:"
 echo "  [✓] Docker with Compose plugin"
-echo "  [✓] LiteRT-LM model: $LITERT_MODEL_FILE"
-echo "  [✓] Embedding model (FastEmbed): $EMBEDDING_MODEL"
+echo "  [✓] LLM model repo (llama.cpp/GGUF, auto-download): $LLM_MODEL_REPO"
+echo "  [✓] Embedding model repo (llama.cpp/GGUF, auto-download): $EMBEDDING_MODEL"
 echo ""
 
 # ------------------------------------------------------------------
@@ -84,6 +78,7 @@ MILVUS_PORT=$MILVUS_PORT
 MINDER_API_IMAGE=$API_IMAGE
 MINDER_DASHBOARD_IMAGE=$DASHBOARD_IMAGE
 MINDER_MODELS_DIR=$MODELS_DIR
+MINDER_LLM_MODEL_REPO=$LLM_MODEL_REPO
 MINDER_EMBEDDING_MODEL=$EMBEDDING_MODEL
 OPENAI_API_KEY=${OPENAI_API_KEY:-}
 EOF
@@ -108,8 +103,8 @@ Deployment directory: $INSTALL_DIR
 Current release link: $CURRENT_LINK
 API image: $API_IMAGE
 Dashboard image: $DASHBOARD_IMAGE
-LiteRT-LM model: $MODELS_DIR/$LITERT_MODEL_FILE
-Embedding: FastEmbed ($EMBEDDING_MODEL)
+LLM model repo (llama.cpp/GGUF): $LLM_MODEL_REPO
+Embedding model repo (llama.cpp/GGUF): $EMBEDDING_MODEL
 
 Open:
   http://localhost:$PUBLIC_PORT/dashboard/setup

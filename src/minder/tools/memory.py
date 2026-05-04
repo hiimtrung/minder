@@ -52,12 +52,23 @@ class MemoryTools:
         tags: list[str],
         language: str,
     ) -> dict[str, Any]:
+        # Normalize the language to a memory-eligible value so that
+        # is_memory_record() always identifies this entry as a memory.
+        # Callers sometimes pass a programming language like "typescript"
+        # which is NOT in MEMORY_LANGUAGES and would cause the entry
+        # to silently vanish from memory_list / memory_recall results.
+        store_language = language if language in MEMORY_LANGUAGES else "markdown"
+        normalized_tags = list(tags)
+        if language and language != store_language:
+            lang_tag = f"lang:{language}"
+            if lang_tag not in normalized_tags:
+                normalized_tags.append(lang_tag)
         skill = await self._store.create_skill(
             id=uuid.uuid4(),
             title=title,
             content=content,
-            language=language,
-            tags=tags,
+            language=store_language,
+            tags=normalized_tags,
             embedding=self._embedder.embed(f"{title}\n{content}"),
             usage_count=0,
             quality_score=0.0,

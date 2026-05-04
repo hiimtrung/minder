@@ -299,7 +299,7 @@ class TestRerankerNode:
             ReasoningNode, RerankerNode, RetrieverNode, VerificationNode, WorkflowPlannerNode,
         )
         from minder.graph.state import GraphState
-        from minder.llm.litert import LiteRTModelLLM
+        from minder.llm.llama_cpp_llm import LlamaCppLLM
         from minder.store.relational import RelationalStore
 
         store = RelationalStore("sqlite+aiosqlite:///:memory:")
@@ -321,7 +321,7 @@ class TestRerankerNode:
             retriever=RetrieverNode(top_k=1),
             reranker=SpyReranker(),
             reasoning=ReasoningNode(),
-            llm=LLMNode(primary=LiteRTModelLLM()),
+            llm=LLMNode(primary=LlamaCppLLM(runtime="mock")),
             guard=GuardNode(),
             verification=VerificationNode(sandbox="subprocess"),
             evaluator=EvaluatorNode(),
@@ -341,7 +341,7 @@ class TestRerankerNode:
             ReasoningNode, RetrieverNode, VerificationNode, WorkflowPlannerNode,
         )
         from minder.graph.state import GraphState
-        from minder.llm.litert import LiteRTModelLLM
+        from minder.llm.llama_cpp_llm import LlamaCppLLM
         from minder.store.relational import RelationalStore
 
         store = RelationalStore("sqlite+aiosqlite:///:memory:")
@@ -353,7 +353,7 @@ class TestRerankerNode:
             clarification=ClarificationNode(),
             retriever=RetrieverNode(top_k=1),
             reasoning=ReasoningNode(),
-            llm=LLMNode(primary=LiteRTModelLLM()),
+            llm=LLMNode(primary=LlamaCppLLM(runtime="mock")),
             guard=GuardNode(),
             verification=VerificationNode(sandbox="subprocess"),
             evaluator=EvaluatorNode(),

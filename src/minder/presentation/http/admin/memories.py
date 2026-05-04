@@ -145,8 +145,8 @@ def build_memories_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if "title" in update_data or "content" in update_data:
                 config = _config_from_request(request)
                 embedder = LocalEmbeddingProvider(
-                    fastembed_model=config.embedding.fastembed_model,
-                    fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+                    llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+                    llama_cpp_model_file=config.embedding.llama_cpp_model_file,
                     dimensions=config.embedding.dimensions,
                     runtime="auto",
                 )

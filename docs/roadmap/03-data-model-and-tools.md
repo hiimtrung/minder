@@ -400,8 +400,8 @@ default_admin_email = "${MINDER_ADMIN_EMAIL}"
 [embedding]
 provider = "fastembed"
 runtime = "auto"
-fastembed_model = "mixedbread-ai/mxbai-embed-large-v1"
-dimensions = 1024
+fastembed_model = "onnx-community/embeddinggemma-300m-ONNX"
+dimensions = 768
 openai_api_key = "${OPENAI_API_KEY}"
 openai_model = "text-embedding-3-small"
 

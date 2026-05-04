@@ -24,7 +24,7 @@ from minder.graph.nodes import (
 )
 from minder.graph.runtime import graph_runtime_name
 from minder.graph.state import GraphState
-from minder.llm.litert import LiteRTModelLLM
+from minder.llm.llama_cpp_llm import LlamaCppLLM
 from minder.llm.openai import OpenAIFallbackLLM
 from minder.store.relational import RelationalStore
 
@@ -101,7 +101,7 @@ async def test_internal_executor_sets_internal_runtime(store: RelationalStore) -
         clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LiteRTModelLLM()),
+        llm=LLMNode(primary=LlamaCppLLM("repo", "file", runtime="mock")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -121,7 +121,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
         clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LiteRTModelLLM()),
+        llm=LLMNode(primary=LlamaCppLLM("repo", "file", runtime="mock")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -148,6 +148,12 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         def add_node(self, name: str, node) -> None:  # noqa: ANN001
             self.name = name
             self.node = node
+
+        def add_edge(self, source: str, target: str) -> None:
+            pass
+
+        def add_conditional_edges(self, source: str, path: object, path_map: object = None) -> None:
+            pass
 
         def set_entry_point(self, name: str) -> None:
             self.entry = name
@@ -179,7 +185,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         clarification=ClarificationNode(),
         retriever=RetrieverNode(top_k=1),
         reasoning=ReasoningNode(),
-        llm=LLMNode(primary=LiteRTModelLLM()),
+        llm=LLMNode(primary=LlamaCppLLM("repo", "file", runtime="mock")),
         guard=GuardNode(),
         verification=VerificationNode(sandbox="subprocess"),
         evaluator=EvaluatorNode(),
@@ -205,7 +211,7 @@ async def test_minder_graph_defaults_to_auto_runtimes(
             return {
                 "text": "ok",
                 "sources": [],
-                "provider": "litert_lm",
+                "provider": "llama_cpp",
                 "model": "gemma-4-E2B-it",
                 "runtime": "mock",
                 "stream": ["ok"],
@@ -230,6 +236,6 @@ async def test_minder_graph_defaults_to_auto_runtimes(
 
     MinderGraph(store, MinderConfig())
 
-    assert captured["provider"] == "litert"
+    assert captured["provider"] == "llama_cpp"
     assert captured["context_length"] == MinderConfig().llm.context_length
     assert captured["fallback_runtime"] == "auto"

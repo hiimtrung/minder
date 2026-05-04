@@ -42,7 +42,7 @@ def _make_state(
         evaluation={"quality_score": quality_score},
         guard_result={"passed": True},
         verification_result={"passed": True},
-        llm_output={"text": "Write a pytest test.", "provider": "litert_lm"},
+        llm_output={"text": "Write a pytest test.", "provider": "llama_cpp"},
         reasoning_output={"sources": [{"path": "src/foo.py", "title": "foo", "score": 0.9}]},
         workflow_context={"workflow_name": "test-workflow", "current_step": "Test Writing"},
         retry_count=retry_count,
@@ -178,7 +178,7 @@ class TestErrorLearner:
             edge="guard_failed",
             quality_score=0.0,
             attempt_failures=[
-                {"attempt": 1, "edge": "guard_failed", "reason": "hallucination", "provider": "litert_lm"},
+                {"attempt": 1, "edge": "guard_failed", "reason": "hallucination", "provider": "llama_cpp"},
             ],
         )
         result = await learner.learn(state)
@@ -370,8 +370,8 @@ class TestSkillUsageIncrement:
         store.update_skill = AsyncMock(return_value=None)
 
         config = MagicMock()
-        config.embedding.fastembed_model = "BAAI/bge-small-en-v1.5"
-        config.embedding.fastembed_cache_dir = "/tmp"
+        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
 
@@ -400,8 +400,8 @@ class TestRuntimeAgentWorkflow:
         context.store = AsyncMock()
         context.store.list_workflows = AsyncMock(return_value=[wf])
         context.config = MagicMock()
-        context.config.embedding.fastembed_model = "BAAI/bge-small-en-v1.5"
-        context.config.embedding.fastembed_cache_dir = "/tmp"
+        context.config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+        context.config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
         context.config.embedding.dimensions = 16
         context.config.embedding.runtime = "cpu"
 
@@ -445,8 +445,8 @@ class TestHistorySourceTracking:
         store.create_history = AsyncMock()
 
         config = MagicMock()
-        config.embedding.fastembed_model = "BAAI/bge-small-en-v1.5"
-        config.embedding.fastembed_cache_dir = "/tmp"
+        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
         config.llm.context_length = 4096
@@ -489,8 +489,8 @@ class TestHistorySourceTracking:
         store.create_history = AsyncMock()
 
         config = MagicMock()
-        config.embedding.fastembed_model = "BAAI/bge-small-en-v1.5"
-        config.embedding.fastembed_cache_dir = "/tmp"
+        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
         config.llm.context_length = 4096

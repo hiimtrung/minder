@@ -2,8 +2,7 @@
 LLM provider factory — selects the correct provider based on config.
 
 Supported providers:
-- ``litert``: LiteRT-LM (on-device, recommended for local LLM)
-
+- ``llama_cpp``: llama-cpp-python GGUF inference (on-device, recommended for local LLM)
 - ``openai``: OpenAI-compatible cloud API
 """
 
@@ -14,17 +13,15 @@ from minder.config import LLMConfig
 
 def create_llm(config: LLMConfig):  # type: ignore[no-untyped-def]
     """Create an LLM client from the given configuration."""
-    if config.provider == "litert":
-        from minder.llm.litert import LiteRTModelLLM
+    if config.provider == "llama_cpp":
+        from minder.llm.llama_cpp_llm import LlamaCppLLM
 
-        return LiteRTModelLLM(
-            model_path=config.litert_model_path,
-            backend=config.litert_backend,
-            cache_dir=config.litert_cache_dir,
+        return LlamaCppLLM(
+            model_repo=config.llama_cpp_model_repo,
+            model_file=config.llama_cpp_model_file,
             context_length=config.context_length,
+            temperature=config.temperature,
         )
-
-
 
     if config.provider == "openai":
         from minder.llm.openai import OpenAIFallbackLLM

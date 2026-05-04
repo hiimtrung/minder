@@ -44,8 +44,8 @@ async def store() -> RelationalStore:
 @pytest.fixture
 def config() -> MinderConfig:
     return MinderConfig(
-        embedding={"provider": "fastembed", "runtime": "mock"},
-        llm={"provider": "litert", "litert_backend": "mock"},
+        embedding={"provider": "llama_cpp", "runtime": "mock"},
+        llm={"provider": "llama_cpp"},
     )
 
 

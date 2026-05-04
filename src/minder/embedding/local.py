@@ -1,5 +1,5 @@
 """
-Local Embedding provider — delegates to FastEmbed using ONNX runtime.
+Local Embedding provider — delegates to llama-cpp-python using GGUF models.
 
 Falls back to a deterministic hash-based stub if initialization fails.
 """
@@ -11,7 +11,6 @@ import hashlib
 import logging
 import math
 from collections import OrderedDict
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -26,13 +25,13 @@ MAX_TEXT_LENGTH = 8000  # Safety truncation to avoid over-context (~2000 tokens)
 class LocalEmbeddingProvider:
     def __init__(
         self,
-        fastembed_model: str = "mixedbread-ai/mxbai-embed-large-v1",
-        fastembed_cache_dir: str = "~/.minder/cache/fastembed",
-        dimensions: int = 1024,
+        llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF",
+        llama_cpp_model_file: str = "*Q4_K_M.gguf",
+        dimensions: int = 768,
         runtime: str = "auto",
     ) -> None:
-        self._model_name = fastembed_model
-        self._cache_dir = str(Path(fastembed_cache_dir).expanduser())
+        self._model_repo = llama_cpp_model_repo
+        self._model_file = llama_cpp_model_file
         self._dimensions = dimensions
         self._runtime = runtime
         self._model: Any | None = None
@@ -42,26 +41,26 @@ class LocalEmbeddingProvider:
         if self._runtime == "mock":
             return
 
-        cache_key = f"{self._model_name}:{self._cache_dir}"
+        cache_key = f"{self._model_repo}:{self._model_file}"
         if cache_key in _MODEL_CACHE:
             self._model = _MODEL_CACHE[cache_key]
             return
 
         try:
-            from fastembed import TextEmbedding  # type: ignore[import-not-found]
+            from llama_cpp import Llama
 
-            # Optimize for speed and resource usage:
-            # - threads=4 limits CPU usage while maintaining good throughput
-            # - lazy_load=False ensures first request is fast
-            self._model = TextEmbedding(
-                model_name=self._model_name,
-                cache_dir=self._cache_dir,
-                threads=4,
+            # Initialize Llama.cpp in embedding mode
+            logger.info("Initializing Llama.cpp embedding engine for %s", self._model_repo)
+            self._model = Llama.from_pretrained(
+                repo_id=self._model_repo,
+                filename=self._model_file,
+                embedding=True,
+                verbose=False,
             )
             _MODEL_CACHE[cache_key] = self._model
         except Exception as e:
             logger.warning(
-                f"Failed to initialize FastEmbed model {self._model_name}: {e}. Using mock."
+                f"Failed to initialize Llama.cpp model {self._model_repo}: {e}. Using mock."
             )
             self._model = None
 
@@ -69,7 +68,7 @@ class LocalEmbeddingProvider:
     def runtime(self) -> str:
         if self._runtime != "auto":
             return self._runtime
-        return "fastembed" if self._model is not None else "mock"
+        return "llama_cpp" if self._model is not None else "mock"
 
     def embed(self, text: str) -> list[float]:
         if not text:
@@ -85,16 +84,14 @@ class LocalEmbeddingProvider:
 
         # 3. Perform embedding
         embedding: list[float]
-        if self.runtime == "fastembed" and self._model is not None:
+        if self.runtime == "llama_cpp" and self._model is not None:
             try:
-                # FastEmbed returns a generator of numpy arrays
-                embeddings = list(self._model.embed([safe_text]))
-                if embeddings:
-                    embedding = embeddings[0].tolist()[: self._dimensions]
-                else:
-                    embedding = self._hash_embed(safe_text)
+                # llama_cpp returns a dict with 'data'
+                result = self._model.create_embedding(safe_text)
+                vector = result["data"][0]["embedding"]
+                embedding = vector[: self._dimensions]
             except Exception as e:
-                logger.warning(f"FastEmbed failed during inference: {e}")
+                logger.warning(f"Llama.cpp failed during embedding inference: {e}")
                 embedding = self._hash_embed(safe_text)
         else:
             embedding = self._hash_embed(safe_text)
@@ -130,17 +127,19 @@ class LocalEmbeddingProvider:
             return results
 
         # 2. Batch embed the missing ones
-        if self.runtime == "fastembed" and self._model is not None:
+        if self.runtime == "llama_cpp" and self._model is not None:
             try:
-                embeddings = list(self._model.embed(to_embed_texts))
+                # pass list of strings directly
+                res = self._model.create_embedding(to_embed_texts)
+                embeddings = [data["embedding"] for data in res["data"]]
                 for i, emb in enumerate(embeddings):
                     idx = to_embed_indices[i]
-                    vector = emb.tolist()[: self._dimensions]
+                    vector = emb[: self._dimensions]
                     results[idx] = vector
                     # Update cache
                     _EMBEDDING_CACHE[to_embed_texts[i]] = vector
             except Exception as e:
-                logger.warning(f"FastEmbed batch failed: {e}")
+                logger.warning(f"Llama.cpp batch embedding failed: {e}")
                 for i, idx in enumerate(to_embed_indices):
                     vector = self._hash_embed(to_embed_texts[i])
                     results[idx] = vector
@@ -178,7 +177,13 @@ class LocalEmbeddingProvider:
 def clear_caches() -> None:
     """Clear global model and embedding caches to reclaim memory."""
     global _MODEL_CACHE, _EMBEDDING_CACHE
+    for model in _MODEL_CACHE.values():
+        try:
+            if hasattr(model, "close"):
+                model.close()
+        except Exception:
+            pass
     _MODEL_CACHE.clear()
     _EMBEDDING_CACHE.clear()
     gc.collect()
-    logger.debug("Cleared FastEmbed global caches.")
+    logger.debug("Cleared Llama.cpp embedding global caches.")

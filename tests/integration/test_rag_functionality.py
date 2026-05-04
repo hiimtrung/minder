@@ -210,8 +210,8 @@ async def test_rag_pipeline_end_to_end(tmp_path: Path, store: RelationalStore, g
 
     vector_store = VectorStore(store, store)
     embedder = LocalEmbeddingProvider(
-        fastembed_model=config.embedding.fastembed_model,
-        fastembed_cache_dir=config.embedding.fastembed_cache_dir,
+        llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+        llama_cpp_model_file=config.embedding.llama_cpp_model_file,
         dimensions=16,
         runtime="mock",
     )

@@ -52,10 +52,10 @@ def allowed_tools_for_step(step_name: str | None) -> list[str]:
     if "test" in normalized:
         return base_tools + ["minder_search_code", "minder_search_errors"]
     if "implement" in normalized:
-        return base_tools + ["minder_search_code", "minder_query"]
+        return base_tools + ["minder_search_code", "minder_skill_recall"]
     if "review" in normalized:
-        return base_tools + ["minder_query", "minder_search_code"]
-    return base_tools + ["minder_search", "minder_search_code"]
+        return base_tools + ["minder_skill_recall", "minder_search_code"]
+    return base_tools + ["minder_memory_recall", "minder_search_code"]
 
 
 def forbidden_actions_for_step(

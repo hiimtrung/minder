@@ -138,7 +138,7 @@ async def test_stdio_roundtrip(tmp_path, uv_path):
             if resp.get("id") == 2:
                 tools = resp["result"]["tools"]
                 tool_names = [t["name"] for t in tools]
-                assert "minder_query" in tool_names
+                assert "minder_search_code" in tool_names
                 break
         else:
             pytest.fail("Did not receive tools/list response within 50 messages")

@@ -27,25 +27,22 @@ Developer → minder-cli → Minder Server ←→ AI agents (Codex / Copilot / C
                │
           ┌─────┴──────┐
           │            │
-       LiteRT-LM    FastEmbed
+       llama.cpp    llama.cpp
        (LLM gen)   (embedding)
 ```
 
-- **LLM inference**: LiteRT-LM (Google AI Edge) — on-device, hardware-accelerated, no HTTP overhead
-- **Embedding inference**: FastEmbed running natively in-process (`mxbai-embed-large-v1`) — zero-dependency ONNX acceleration
+- **LLM inference**: llama-cpp-python — GGUF models auto-downloaded from HuggingFace, hardware-accelerated (Metal on Mac, CPU elsewhere)
+- **Embedding inference**: llama-cpp-python — dedicated GGUF embedding model, in-process, no HTTP overhead
 
 ## Quick Start
 
 ### Run the server
 
 ```bash
-# 1. Download the LiteRT-LM model
-./scripts/download_models.sh
-
-# 2. Start infra (MongoDB + Redis + Milvus)
+# 1. Start infra (MongoDB + Redis + Milvus)
 docker compose -f docker/docker-compose.local.yml up -d
 
-# 3. Run Minder Server
+# 2. Run Minder Server (GGUF models auto-download on first start)
 uv run python -m minder.server
 ```
 

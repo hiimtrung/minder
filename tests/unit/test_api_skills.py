@@ -42,7 +42,7 @@ def _build_client(store: AsyncMock) -> TestClient:
 
 def test_list_skills_returns_serialized_rows() -> None:
     store = AsyncMock(spec=IOperationalStore)
-    store.list_skills.return_value = [_skill()]
+    store.list_skills_by_kind = AsyncMock(return_value=[_skill()])
     client = _build_client(store)
 
     response = client.get("/api/v1/skills")

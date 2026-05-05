@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from .memory import MemoryTools
     from .query import QueryTools
     from .repo_scanner import RepoScanner
-    from .search import SearchTools
     from .session import SessionTools
     from .workflow import WorkflowTools
 
@@ -19,7 +18,6 @@ __all__ = [
     "MemoryTools",
     "QueryTools",
     "RepoScanner",
-    "SearchTools",
     "SessionTools",
     "WorkflowTools",
 ]
@@ -30,7 +28,6 @@ _LAZY_EXPORTS: dict[str, tuple[str, str]] = {
     "MemoryTools": (".memory", "MemoryTools"),
     "QueryTools": (".query", "QueryTools"),
     "RepoScanner": (".repo_scanner", "RepoScanner"),
-    "SearchTools": (".search", "SearchTools"),
     "SessionTools": (".session", "SessionTools"),
     "WorkflowTools": (".workflow", "WorkflowTools"),
 }

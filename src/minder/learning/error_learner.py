@@ -27,7 +27,7 @@ class ErrorLearner:
         if not failures:
             return None
 
-        existing = await self._store.list_skills()
+        existing = await self._store.list_skills_by_kind(is_memory=False)
         error_count = sum(
             1 for s in existing if _ERROR_TAG in (getattr(s, "tags", []) or [])
         )

@@ -59,19 +59,15 @@ jobs:
           name: python-dist
           path: dist/*
 
-  release:
+  release-pypi:
     needs: build-dist
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 15
     environment: pypi
     permissions:
-      contents: write
+      contents: read
       id-token: write
-      packages: write
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Download Python distribution artifacts
         uses: actions/download-artifact@v4
         with:
@@ -84,6 +80,32 @@ jobs:
           packages-dir: dist
           skip-existing: true
 
+  # Native ARM64 + AMD64 builds in parallel — needed because llama-cpp-python
+  # compiles Rust/C++ and is prohibitively slow under QEMU emulation.
+  build-api:
+    needs: build-dist
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set platform pair env
+        run: |
+          platform="${{ matrix.platform }}"
+          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -94,18 +116,59 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push API image
+      - name: Build and push by digest
+        id: build
         uses: docker/build-push-action@v6
         with:
           context: .
           file: docker/Dockerfile.api
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha,scope=minder-api
-          cache-to: type=gha,mode=max,scope=minder-api
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/minder-api:${{ github.ref_name }}
+          platforms: ${{ matrix.platform }}
+          cache-from: type=gha,scope=minder-api-${{ env.PLATFORM_PAIR }}
+          cache-to: type=gha,mode=max,scope=minder-api-${{ env.PLATFORM_PAIR }}
+          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/minder-api,push-by-digest=true,name-canonical=true,push=true
 
-      - name: Build and push dashboard image
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-api-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # Dashboard is pure Bun/Node — no Rust compilation, QEMU overhead is negligible.
+  # Single job building both platforms is simpler and fast enough.
+  build-dashboard:
+    needs: build-dist
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -114,7 +177,47 @@ jobs:
           cache-from: type=gha,scope=minder-dashboard
           cache-to: type=gha,mode=max,scope=minder-dashboard
           push: true
-          tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ github.ref_name }}
+          tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}
+
+  release-github:
+    needs: [build-dist, release-pypi, build-api, build-dashboard]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download API digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests/api
+          pattern: digest-api-*
+          merge-multiple: true
+
+      - name: Create and push API manifest
+        run: |
+          docker buildx imagetools create \
+            -t ghcr.io/${{ github.repository_owner }}/minder-api:${{ needs.build-dist.outputs.release_tag }} \
+            $(printf 'ghcr.io/${{ github.repository_owner }}/minder-api@sha256:%s ' $(ls /tmp/digests/api))
+
+      - name: Download Python distribution artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
 
       - name: Prepare release assets
         run: |

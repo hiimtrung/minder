@@ -42,7 +42,7 @@ class ResourceRegistry:
             mime_type="application/json",
         )
         async def skills_resource() -> str:
-            skills = await store.list_skills()
+            skills = await store.list_skills_by_kind(is_memory=False)
             return json.dumps(
                 [
                     {

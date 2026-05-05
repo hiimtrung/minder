@@ -73,20 +73,12 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(
-        name="minder_search",
-        description="Search Minder knowledge and stored project context.",
-    ),
-    ToolMeta(
         name="minder_search_code",
         description="Search indexed repository code for relevant files and snippets.",
     ),
     ToolMeta(
         name="minder_search_errors",
         description="Search indexed errors and troubleshooting history for relevant matches.",
-    ),
-    ToolMeta(
-        name="minder_query",
-        description="Run a full Minder repository query with retrieval, reasoning, and verification.",
     ),
     ToolMeta(
         name="minder_find_impact",
@@ -200,6 +192,33 @@ ALL_TOOLS: list[ToolMeta] = [
         description="Create a new MCP client and issue its initial client API key.",
         scopeable=False,
     ),
+    ToolMeta(
+        name="minder_agent_list",
+        description="List available SubAgent definitions (without system_prompt). Filter by workflow_step, tag, or is_default.",
+        scopeable=True,
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_agent_get",
+        description="Get the full SubAgent definition by name, including system_prompt, tools list, and workflow steps.",
+        scopeable=True,
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_agent_store",
+        description="Create or update (upsert) a SubAgent definition by name.",
+        scopeable=True,
+    ),
+    ToolMeta(
+        name="minder_agent_update",
+        description="Partially update an existing SubAgent definition by name.",
+        scopeable=True,
+    ),
+    ToolMeta(
+        name="minder_agent_delete",
+        description="Delete a SubAgent definition by name.",
+        scopeable=False,
+    ),
 ]
 
 # Flat dict for fast lookup by name (used in bootstrap/transport.py)
@@ -228,8 +247,9 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     "minder_session_save": "Call after each significant wave of work — decisions made, files changed, next steps planned.",
     "minder_session_find": "Call on any machine restart or after /compact to recover full session context by project name.",
     "minder_session_summarize": "Call when the session is getting long or before a /compact to capture a structured work summary.",
-    "minder_query": "Use for complex questions that need retrieval + reasoning over the repository codebase.",
-    "minder_search_code": "Use for targeted code lookup by file, symbol, or pattern — faster than minder_query.",
+    "minder_search_code": "Use for targeted code lookup by file, symbol, or pattern within a repository.",
+    "minder_agent_list": "Call at the start of a review or test step to discover which subagents are available for delegation.",
+    "minder_agent_get": "Call to retrieve the full system_prompt and tool list before spawning a subagent.",
 }
 
 
@@ -238,11 +258,7 @@ def _tool_category(tool_name: str) -> str:
         return "Memory"
     if tool_name.startswith("minder_skill_"):
         return "Skills"
-    if tool_name.startswith("minder_search_") or tool_name in {
-        "minder_search",
-        "minder_query",
-        "minder_find_impact",
-    }:
+    if tool_name.startswith("minder_search_") or tool_name == "minder_find_impact":
         return "Search and query"
     if tool_name.startswith("minder_workflow_"):
         return "Workflow"
@@ -250,6 +266,8 @@ def _tool_category(tool_name: str) -> str:
         return "Sessions"
     if tool_name.startswith("minder_auth_"):
         return "Auth and identity"
+    if tool_name.startswith("minder_agent_"):
+        return "SubAgents"
     return "Other"
 
 
@@ -264,6 +282,7 @@ def tool_capability_manifest() -> str:
         "Search and query",
         "Workflow",
         "Sessions",
+        "SubAgents",
         "Auth and identity",
         "Other",
     ]

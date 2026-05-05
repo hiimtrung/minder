@@ -36,18 +36,11 @@ At runtime:
 ## Prerequisites
 
 - Docker Engine or Docker Desktop
-- LiteRT-LM model file under `~/.minder/models`
-- enough memory for MongoDB, Redis, Milvus, and LiteRT-LM inference
+- enough memory for MongoDB, Redis, Milvus, and llama-cpp-python inference (~4 GB RAM minimum)
 - `Bun 1.2.21` for local dashboard work
 - `Node 22.12+` only if you run frontend tooling outside Bun
 
-Expected local model file:
-
-```text
-~/.minder/models/gemma-4-E2B-it.litertlm
-```
-
-Embedding model (`onnx-community/embeddinggemma-300m-ONNX`) is auto-downloaded by FastEmbed — no manual download needed.
+GGUF models (`ggml-org/gemma-4-E2B-it-GGUF` for LLM, `ggml-org/embeddinggemma-300M-GGUF` for embedding) are downloaded automatically by llama-cpp-python from HuggingFace on first startup. No manual download required.
 
 ## 1. Recommended Release Install
 
@@ -119,7 +112,7 @@ If you want Docker Compose to build everything from the checked-out source inste
 docker compose -f docker/docker-compose.full.yml up --build -d
 ```
 
-`docker-compose.full.yml` mounts `${MINDER_MODELS_DIR:-~/.minder/models}` as a read-only volume for LiteRT-LM, so `MINDER_MODELS_DIR` is only needed when your models live elsewhere.
+`docker-compose.full.yml` mounts `${MINDER_MODELS_DIR:-~/.minder/models}` as a read-only volume, so `MINDER_MODELS_DIR` is only needed when your HuggingFace model cache lives elsewhere.
 
 The public gateway will listen on:
 

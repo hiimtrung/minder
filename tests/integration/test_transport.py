@@ -603,7 +603,7 @@ async def test_build_transport_rejects_client_query_outside_repo_scope(
         name="Query Client",
         slug="query-client",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_query"],
+        tool_scopes=["minder_search_code"],
         repo_scopes=[str(allowed_repo)],
     )
     transport = build_transport(
@@ -612,7 +612,7 @@ async def test_build_transport_rejects_client_query_outside_repo_scope(
 
     with pytest.raises(Exception) as exc:
         await transport.call_tool(
-            "minder_query",
+            "minder_search_code",
             arguments={"query": "explain checkout", "repo_path": str(blocked_repo)},
             client_key=client_api_key,
         )

@@ -12,6 +12,7 @@ from minder.config import Settings
 from minder.presentation.http.admin.context import AdminRouteContext
 from minder.presentation.http.admin.memories import build_memories_routes
 from minder.store.interfaces import IOperationalStore
+from minder.tools.memory import is_memory_record
 
 
 def _memory(**overrides: object) -> SimpleNamespace:
@@ -39,14 +40,17 @@ def _build_client(store: AsyncMock) -> TestClient:
 
 def test_list_memories_includes_human_languages() -> None:
     store = AsyncMock(spec=IOperationalStore)
-    # Mocking different languages
-    memories = [
+    all_records = [
         _memory(title="Markdown Memory", language="markdown"),
         _memory(title="English Memory", language="en"),
         _memory(title="Vietnamese Memory", language="vi"),
-        _memory(title="Python Skill", language="python"), # Should be filtered out
+        _memory(title="Python Skill", language="python"),  # Should be filtered out
     ]
-    store.list_skills.return_value = memories
+    store.list_skills_by_kind = AsyncMock(
+        side_effect=lambda *, is_memory, exclude_deprecated=True: [
+            s for s in all_records if is_memory_record(s) == is_memory
+        ]
+    )
     client = _build_client(store)
 
     response = client.get("/api/v1/memories")
@@ -68,11 +72,15 @@ def test_list_memories_includes_human_languages() -> None:
 
 def test_list_memories_excludes_imported_skills() -> None:
     store = AsyncMock(spec=IOperationalStore)
-    memories = [
+    all_records = [
         _memory(title="Local Memory", source_metadata=None),
-        _memory(title="Imported Skill", source_metadata={"repo": "git"}), # Should be filtered out
+        _memory(title="Imported Skill", source_metadata={"repo": "git"}),  # Should be filtered out
     ]
-    store.list_skills.return_value = memories
+    store.list_skills_by_kind = AsyncMock(
+        side_effect=lambda *, is_memory, exclude_deprecated=True: [
+            s for s in all_records if is_memory_record(s) == is_memory
+        ]
+    )
     client = _build_client(store)
 
     response = client.get("/api/v1/memories")

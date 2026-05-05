@@ -88,3 +88,9 @@ async def ensure_indexes(db: AsyncIOMotorDatabase) -> None:  # type: ignore[type
     # Errors
     errors = db["errors"]
     await errors.create_index([("error_code", ASCENDING)])
+
+    # SubAgents
+    subagents = db["subagents"]
+    await subagents.create_index([("name", ASCENDING)], unique=True)
+    await subagents.create_index([("is_default", ASCENDING)])
+    await subagents.create_index([("company_id", ASCENDING)])

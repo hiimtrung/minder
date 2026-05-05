@@ -62,9 +62,14 @@ from .graph import (
     GraphNodeSchema as GraphNodeSchema,
 )
 
+# SubAgent
+from .agent import SubAgent as SubAgent, SubAgentSchema as SubAgentSchema
+
 __all__ = [
     "Base",
     "AuditLog",
+    "SubAgent",
+    "SubAgentSchema",
     "AuditLogSchema",
     "AdminJob",
     "AdminJobSchema",

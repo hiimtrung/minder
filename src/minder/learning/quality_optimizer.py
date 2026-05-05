@@ -61,7 +61,7 @@ class QualityOptimizer:
     ) -> list[dict[str, Any]]:
         query_emb = self._embedder.embed(query)
         updated: list[dict[str, Any]] = []
-        for skill in await self._store.list_skills():
+        for skill in await self._store.list_skills_by_kind(is_memory=False):
             tags = list(getattr(skill, "tags", []) or [])
             if _PATTERN_TAG not in tags:
                 continue

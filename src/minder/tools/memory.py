@@ -17,6 +17,8 @@ MEMORY_LANGUAGES: frozenset[str | None] = frozenset(
     {"markdown", "text", "en", "vi", "", None}
 )
 
+_RECALL_CONTENT_MAX_CHARS = 2000
+
 
 def is_memory_record(skill: Any) -> bool:
     return (
@@ -100,13 +102,9 @@ class MemoryTools:
         skip_synthesis: bool = False,
     ) -> list[dict[str, Any]]:
         query_embedding = self._embedder.embed(query)
-        skills = await self._store.list_skills()
+        skills = await self._store.list_skills_by_kind(is_memory=True)
         ranked: list[dict[str, Any]] = []
         for skill in skills:
-            # Differentiation: Memories are human-language records with no import/source metadata.
-            if not is_memory_record(skill):
-                continue
-
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
             if not embedding:
                 continue
@@ -119,11 +117,12 @@ class MemoryTools:
                 artifact_type=artifact_type,
             )
             score = min((semantic_score * 0.8) + (compatibility_score * 0.2), 1.0)
+            raw_content = str(skill.content)
             ranked.append(
                 {
                     "id": str(skill.id),
                     "title": skill.title,
-                    "content": skill.content,
+                    "content": raw_content[:_RECALL_CONTENT_MAX_CHARS],
                     "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
                     "language": str(getattr(skill, "language", "") or "markdown"),
                     "score": round(score, 4),
@@ -156,7 +155,7 @@ class MemoryTools:
         return limited
 
     async def minder_memory_list(self) -> list[dict[str, Any]]:
-        skills = await self._store.list_skills()
+        skills = await self._store.list_skills_by_kind(is_memory=True)
         return [
             {
                 "id": str(skill.id),
@@ -165,7 +164,6 @@ class MemoryTools:
                 "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
             }
             for skill in skills
-            if is_memory_record(skill)
         ]
 
     async def minder_memory_update(

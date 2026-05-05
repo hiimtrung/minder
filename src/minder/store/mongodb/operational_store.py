@@ -85,6 +85,19 @@ def _to_doc(data: dict[str, Any]) -> _MongoDoc:
     return _MongoDoc(data)
 
 
+def _filter_agents_mongo(
+    agents: list[_MongoDoc],
+    *,
+    workflow_step: str | None = None,
+    tag: str | None = None,
+) -> list[_MongoDoc]:
+    if workflow_step:
+        agents = [a for a in agents if workflow_step in (a.workflow_steps or [])]
+    if tag:
+        agents = [a for a in agents if tag in (a.tags or [])]
+    return agents
+
+
 class MongoOperationalStore:
     """
     MongoDB-backed operational store implementing the full
@@ -435,6 +448,26 @@ class MongoOperationalStore:
 
     async def list_skills(self) -> list[_MongoDoc]:
         cursor = self._db.skills.find()
+        return [_to_doc(doc) async for doc in cursor]
+
+    async def list_skills_by_kind(
+        self,
+        *,
+        is_memory: bool,
+        exclude_deprecated: bool = True,
+    ) -> list[_MongoDoc]:
+        _memory_langs: list[Any] = ["markdown", "text", "en", "vi", "", None]
+        _memory_match: dict[str, Any] = {
+            "source_metadata": None,
+            "language": {"$in": _memory_langs},
+        }
+        if is_memory:
+            query: dict[str, Any] = _memory_match
+        else:
+            query = {"$nor": [_memory_match]}
+            if exclude_deprecated:
+                query["deprecated"] = {"$ne": True}
+        cursor = self._db.skills.find(query)
         return [_to_doc(doc) async for doc in cursor]
 
     async def update_skill(
@@ -1002,3 +1035,64 @@ class MongoOperationalStore:
         if left_norm == 0 or right_norm == 0:
             return 0.0
         return numerator / (left_norm * right_norm)
+
+    # ------------------------------------------------------------------
+    # SubAgent Repository
+    # ------------------------------------------------------------------
+
+    async def create_agent(self, **kwargs: Any) -> _MongoDoc:
+        agent_id = kwargs.pop("id", None) or uuid.uuid4()
+        now = datetime.now(UTC)
+        doc = {
+            "_id": _uuid_to_str(agent_id),
+            "created_at": now,
+            "updated_at": now,
+            **kwargs,
+        }
+        await self._db.subagents.insert_one(doc)
+        return _to_doc(doc)
+
+    async def get_agent_by_id(self, agent_id: uuid.UUID) -> _MongoDoc | None:
+        doc = await self._db.subagents.find_one({"_id": _uuid_to_str(agent_id)})
+        return _to_doc(doc) if doc else None
+
+    async def get_agent_by_name(self, name: str) -> _MongoDoc | None:
+        doc = await self._db.subagents.find_one({"name": name})
+        return _to_doc(doc) if doc else None
+
+    async def list_agents(
+        self,
+        *,
+        workflow_step: str | None = None,
+        tag: str | None = None,
+        is_default: bool | None = None,
+    ) -> list[_MongoDoc]:
+        query: dict[str, Any] = {}
+        if is_default is not None:
+            query["is_default"] = is_default
+        cursor = self._db.subagents.find(query)
+        agents = [_to_doc(doc) async for doc in cursor]
+        return _filter_agents_mongo(agents, workflow_step=workflow_step, tag=tag)
+
+    async def upsert_agent(self, name: str, **kwargs: Any) -> _MongoDoc:
+        now = datetime.now(UTC)
+        kwargs.setdefault("updated_at", now)
+        existing = await self.get_agent_by_name(name)
+        if existing is not None:
+            await self._db.subagents.update_one(
+                {"name": name}, {"$set": kwargs}
+            )
+            doc = await self._db.subagents.find_one({"name": name})
+            return _to_doc(doc) if doc is not None else existing
+        return await self.create_agent(name=name, **kwargs)
+
+    async def update_agent(self, agent_id: uuid.UUID, **kwargs: Any) -> _MongoDoc | None:
+        kwargs["updated_at"] = datetime.now(UTC)
+        await self._db.subagents.update_one(
+            {"_id": _uuid_to_str(agent_id)}, {"$set": kwargs}
+        )
+        doc = await self._db.subagents.find_one({"_id": _uuid_to_str(agent_id)})
+        return _to_doc(doc) if doc else None
+
+    async def delete_agent(self, agent_id: uuid.UUID) -> None:
+        await self._db.subagents.delete_one({"_id": _uuid_to_str(agent_id)})

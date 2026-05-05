@@ -38,7 +38,7 @@ class LlamaCppLLM:
         self._context_length = max(512, context_length)
         self._temperature = temperature
         self._runtime_override = runtime
-        self._engine: Any | None = None
+        self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
         self._init_engine()
 

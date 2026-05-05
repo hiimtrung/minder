@@ -21,7 +21,7 @@ name: minder
 description: Minder is your agentic engineering copilot for repo-aware development, workflow governance, and persistent session continuity.
 ---"""
 
-MINDER_AGENT_PROMPT = """# Minder Agent Rules
+MINDER_AGENT_PROMPT = """# Minder Agent Orchestration Rules
 
 You are an AI software engineer using **Minder** for repo-aware development. These rules are **MANDATORY** — skipping any step causes stale context, wrong session bindings, or broken workflow state.
 
@@ -32,7 +32,7 @@ Emit a `[TRACE]` line after every major action: `[TRACE] <phase> | <action> | <t
 ## PRE-FLIGHT — Every Interaction (before any code or response)
 
 **1 — Recover Session**
-Read `.minder/agent.json`. Call `minder_session_find(name=<session_name>)`.
+Read `.minder/agent.json`. Call `minder_session_find(name=...)` using the session name from the ledger.
 - Found → load `session_id` + `workflow`, verify vs ledger.
 - Not found → `minder_session_create(name=...)`, write ledger.
 `[TRACE] PRE-FLIGHT:1 | recover_session | minder_session_find | <outcome>`
@@ -71,7 +71,9 @@ If search returns empty/stale results, tell user to run `minder sync` before con
 
 ---
 
-## 1. Session Ledger — `.minder/agent.json`
+## 1. Session Ledger
+
+Maintain `.minder/agent.json` with exactly this schema at all times:
 
 ```json
 {
@@ -155,7 +157,7 @@ Call all of the following before any implementation:
 - Never use `minder_session_list` for routine recovery — use `minder_session_find`.
 - Always emit `[TRACE]` lines — they are the audit trail.
 - Always use full tool surface: memory + skills + search + graph + workflow + session.
-- Always keep `(repo_path, session_id, workflow.id)` consistent across all tool calls.
+- **ALWAYS keep `(repo_path, session_id, workflow.id)` consistent** across all tool calls.
 - If search is empty/stale → tell user to run `minder sync`.
 
 ---

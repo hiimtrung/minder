@@ -13,7 +13,6 @@ from minder.store.relational import RelationalStore
 from minder.store.repo_state import RepoStateStore
 from minder.tools.auth import AuthTools
 from minder.tools.memory import MemoryTools
-from minder.tools.search import SearchTools
 from minder.tools.session import SessionTools
 from minder.tools.skills import SkillTools
 from minder.tools.workflow import WorkflowTools
@@ -169,7 +168,6 @@ async def test_phase1_tool_modules_round_trip(
     workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
     skill_tools = SkillTools(store, config)
-    search_tools = SearchTools(store, config)
 
     created_user, api_key = await auth_service.register_user(
         email="login@example.com",
@@ -320,7 +318,7 @@ async def test_phase1_tool_modules_round_trip(
     listed_skills = await skill_tools.minder_skill_list(current_step="Test Writing")
     assert any(item["id"] == stored_skill["id"] for item in listed_skills)
 
-    search_result = await search_tools.minder_search("implementation")
+    search_result = await memory_tools.minder_memory_recall("implementation", skip_synthesis=True)
     assert search_result
 
     metrics_summary = await get_metrics_summary(store=store)

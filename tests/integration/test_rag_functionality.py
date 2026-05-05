@@ -294,7 +294,7 @@ async def test_rag_pipeline_end_to_end(tmp_path: Path, store: RelationalStore, g
         id=uuid.uuid4(),
         title="Billing Retry",
         content="Use charge_customer retry semantics for network failures.",
-        language="markdown",
+        language="python",
         tags=["billing", "retry"],
         embedding=[0.1] * 16,
         usage_count=0,

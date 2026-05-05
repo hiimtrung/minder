@@ -60,13 +60,13 @@ async def test_member_limit_exceeded_after_configured_threshold(
     )
     principal = AdminUserPrincipal(user)
 
-    first = await limiter.enforce(principal=principal, tool_name="minder_query")
-    second = await limiter.enforce(principal=principal, tool_name="minder_query")
+    first = await limiter.enforce(principal=principal, tool_name="minder_search_code")
+    second = await limiter.enforce(principal=principal, tool_name="minder_search_code")
     assert first.remaining == 1
     assert second.remaining == 0
 
     with pytest.raises(RateLimitError) as exc:
-        await limiter.enforce(principal=principal, tool_name="minder_query")
+        await limiter.enforce(principal=principal, tool_name="minder_search_code")
 
     assert exc.value.code == "AUTH_RATE_LIMITED"
 
@@ -88,9 +88,9 @@ async def test_admin_gets_higher_limit_than_member(
     principal = AdminUserPrincipal(admin)
 
     for _ in range(config.rate_limit.admin_limit):
-        await limiter.enforce(principal=principal, tool_name="minder_query")
+        await limiter.enforce(principal=principal, tool_name="minder_search_code")
 
-    usage = await limiter.get_usage(principal=principal, tool_name="minder_query")
+    usage = await limiter.get_usage(principal=principal, tool_name="minder_search_code")
     assert usage["count"] == config.rate_limit.admin_limit
     assert usage["limit"] == config.rate_limit.admin_limit
 
@@ -103,11 +103,11 @@ async def test_client_limit_is_tracked_separately(
     principal = ClientPrincipal(
         client_id=uuid.uuid4(),
         client_slug="client-one",
-        scopes=["minder_query"],
+        scopes=["minder_search_code"],
         repo_scope=[],
     )
 
-    await limiter.enforce(principal=principal, tool_name="minder_query")
-    usage = await limiter.get_usage(principal=principal, tool_name="minder_query")
+    await limiter.enforce(principal=principal, tool_name="minder_search_code")
+    usage = await limiter.get_usage(principal=principal, tool_name="minder_search_code")
     assert usage["count"] == 1
     assert usage["limit"] == config.rate_limit.client_limit

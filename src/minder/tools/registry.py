@@ -192,6 +192,33 @@ ALL_TOOLS: list[ToolMeta] = [
         description="Create a new MCP client and issue its initial client API key.",
         scopeable=False,
     ),
+    ToolMeta(
+        name="minder_agent_list",
+        description="List available SubAgent definitions (without system_prompt). Filter by workflow_step, tag, or is_default.",
+        scopeable=True,
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_agent_get",
+        description="Get the full SubAgent definition by name, including system_prompt, tools list, and workflow steps.",
+        scopeable=True,
+        always_available=True,
+    ),
+    ToolMeta(
+        name="minder_agent_store",
+        description="Create or update (upsert) a SubAgent definition by name.",
+        scopeable=True,
+    ),
+    ToolMeta(
+        name="minder_agent_update",
+        description="Partially update an existing SubAgent definition by name.",
+        scopeable=True,
+    ),
+    ToolMeta(
+        name="minder_agent_delete",
+        description="Delete a SubAgent definition by name.",
+        scopeable=False,
+    ),
 ]
 
 # Flat dict for fast lookup by name (used in bootstrap/transport.py)
@@ -221,6 +248,8 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     "minder_session_find": "Call on any machine restart or after /compact to recover full session context by project name.",
     "minder_session_summarize": "Call when the session is getting long or before a /compact to capture a structured work summary.",
     "minder_search_code": "Use for targeted code lookup by file, symbol, or pattern within a repository.",
+    "minder_agent_list": "Call at the start of a review or test step to discover which subagents are available for delegation.",
+    "minder_agent_get": "Call to retrieve the full system_prompt and tool list before spawning a subagent.",
 }
 
 
@@ -237,6 +266,8 @@ def _tool_category(tool_name: str) -> str:
         return "Sessions"
     if tool_name.startswith("minder_auth_"):
         return "Auth and identity"
+    if tool_name.startswith("minder_agent_"):
+        return "SubAgents"
     return "Other"
 
 
@@ -251,6 +282,7 @@ def tool_capability_manifest() -> str:
         "Search and query",
         "Workflow",
         "Sessions",
+        "SubAgents",
         "Auth and identity",
         "Other",
     ]

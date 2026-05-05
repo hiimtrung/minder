@@ -466,6 +466,28 @@ class IAdminJobRepository(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Agent Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class IAgentRepository(Protocol):
+    async def create_agent(self, **kwargs: Any) -> Any: ...
+    async def get_agent_by_id(self, agent_id: uuid.UUID) -> Any | None: ...
+    async def get_agent_by_name(self, name: str) -> Any | None: ...
+    async def list_agents(
+        self,
+        *,
+        workflow_step: str | None = None,
+        tag: str | None = None,
+        is_default: bool | None = None,
+    ) -> list[Any]: ...
+    async def upsert_agent(self, name: str, **kwargs: Any) -> Any: ...
+    async def update_agent(self, agent_id: uuid.UUID, **kwargs: Any) -> Any | None: ...
+    async def delete_agent(self, agent_id: uuid.UUID) -> None: ...
+
+
+# ---------------------------------------------------------------------------
 # Cache Provider (for Redis)
 # ---------------------------------------------------------------------------
 
@@ -534,6 +556,7 @@ class IOperationalStore(
     IFeedbackRepository,
     IClientRepository,
     IAdminJobRepository,
+    IAgentRepository,
     Protocol,
 ):
     """

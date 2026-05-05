@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import sys
 
+from minder.bootstrap.agent_seeder import seed_default_agents
 from minder.bootstrap.providers import (
     build_cache,
     build_graph_store,
@@ -75,6 +76,7 @@ async def _async_run() -> None:
 
     store = build_store(config)
     await store.init_db()
+    await seed_default_agents(store)
 
     graph_store = build_graph_store(config)
     if graph_store is not None and hasattr(graph_store, "init_db"):

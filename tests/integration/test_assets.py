@@ -181,7 +181,7 @@ async def test_server_build_transport_registers_expected_tools(
     assert "minder_session_create" in tool_names
     assert "minder_session_cleanup" in tool_names
     assert "minder_workflow_get" in tool_names
-    assert "minder_query" in tool_names
+    assert "minder_search_code" in tool_names
 
 
 def test_wave3_assets_exist_and_contain_expected_commands() -> None:

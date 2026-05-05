@@ -94,7 +94,7 @@ Call ALL four — do not skip any based on assumed knowledge:
 1. `minder_memory_recall` — past decisions, constraints, gotchas → emit count of entries loaded
 2. `minder_skill_recall` — existing patterns to reuse → emit names of matched skills
 3. `minder_search_code` — locate actual source nodes; never guess paths → emit count of nodes found
-4. `minder_search` or `minder_search_graph` — semantic and dependency signals
+4. `minder_search_graph` — semantic and dependency signals
 
 Emit one `[TRACE]` line per call above.
 
@@ -149,14 +149,13 @@ REQUIRED before any implementation. Call ALL of the following — do not skip ba
 
 | Tool | Purpose | When to skip |
 |------|---------|--------------|
-| `minder_search` | Broad semantic search | Never |
+| `minder_memory_recall` | Past decisions & gotchas | Never |
+| `minder_skill_recall` | Reusable patterns | Never |
 | `minder_search_code` | Locate actual source nodes | Never |
 | `minder_search_errors` | Known error patterns | Only for purely additive, isolated work |
 | `minder_find_impact` | Blast radius of changes | Only if no existing code is modified |
 | `minder_search_graph` | Dependency mapping | Only if no cross-module changes |
-| `minder_memory_recall` | Past decisions & gotchas | Never |
 | `minder_memory_list` | Full memory index | If `memory_recall` returns sparse results |
-| `minder_skill_recall` | Reusable patterns | Never |
 | `minder_skill_list` | All available skills | If `skill_recall` returns sparse results |
 
 Emit a `[TRACE] PHASE-B | <tool_purpose> | <tool_name> | <summary>` line for each call.
@@ -265,6 +264,66 @@ FINALIZATION CHECKLIST
 - **ALWAYS check index freshness**: if search results are empty or stale, alert the user to run `minder sync` before continuing.
 - **ALWAYS keep `(repo_path, session_id, workflow.id)` consistent**: every tool call must target the same tuple recorded in `.minder/agent.json`.
 - **ALWAYS emit `[TRACE]` lines**: they are the audit trail. Without them, there is no way to verify the session was executed correctly.
+
+---
+
+## 4. SubAgent Delegation (REQUIRED for review and test steps)
+
+When the current workflow step is `review`, `write_tests`, or `verify_tests`, you MUST delegate to the appropriate subagent. Do not attempt these steps yourself.
+
+### Step 1 — Discover available subagents
+
+Call `minder_agent_list` at the start of any review or test step:
+```
+minder_agent_list(workflow_step=<current_step>)
+```
+
+This returns a compact list (without `system_prompt`). Use it to find the right subagent name.
+
+### Step 2 — Fetch full subagent definition
+
+Call `minder_agent_get(name=<name>)` to retrieve the full definition including `system_prompt` and the `tools` list.
+
+Emit: `[TRACE] SUBAGENT | fetch_definition | minder_agent_get | name=<name>, tools=<count>`
+
+### Step 3 — Spawn subagent
+
+Use the `system_prompt` from `minder_agent_get` as the system prompt for the spawned agent. Restrict the spawned agent to ONLY the tools listed in the `tools` field — do not grant additional tools.
+
+Pass the following context to the spawned agent:
+- Current `session_id`, `repo_path`, `workflow.current_step`
+- The `instruction_envelope` from the last `minder_workflow_step` call
+- All relevant artifacts collected during the current phase
+
+Emit: `[TRACE] SUBAGENT | spawn | <subagent_name> | session_id=<id>, step=<step>`
+
+### Mandatory subagent assignment table
+
+| Workflow step | Required subagent | Artifact types |
+|---|---|---|
+| `review` | `code_reviewer` | `review_notes`, `approval_summary` |
+| `write_tests` | `tester` | `failing_tests`, `test_plan` |
+| `verify_tests` | `tester` | `test_results` |
+
+> **HARD RULE**: You MUST NOT perform code review or write/verify tests yourself. These steps exist to enforce a dedicated agent with a focused system prompt. Bypassing this rule breaks the quality pipeline.
+
+### Creating custom subagents
+
+If the required subagent does not exist (e.g., `minder_agent_list` returns empty for the current step), create it:
+```
+minder_agent_store(
+  name=<slug>,
+  title=<title>,
+  description=<desc>,
+  system_prompt=<system_prompt>,
+  tools=[...],
+  workflow_steps=[<step>],
+  artifact_types=[...],
+  is_default=False
+)
+```
+
+Emit: `[TRACE] SUBAGENT | create_definition | minder_agent_store | name=<name>`
 """
 
 def _agent_instruction_path(target: str, cwd: Path) -> Path | None:

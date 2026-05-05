@@ -166,7 +166,7 @@ async def test_mcp_auth_and_session_flow(
     
     # 1. Server starts with SSE transport.
     assert transport.transport_name == "sse"
-    assert "minder_query" in transport.list_tools()
+    assert "minder_search_code" in transport.list_tools()
     assert config.server.transport == "sse"
 
     # 2. Admin user is created via script.
@@ -235,12 +235,6 @@ async def test_mcp_auth_and_session_flow(
         authorization=authorization,
     )
     assert recalled
-    searched = await transport.call_tool(
-        "minder_search",
-        arguments={"query": "implementation", "limit": 3},
-        authorization=authorization,
-    )
-    assert searched
 
     # 6. Repository-local `.minder/` state writes and restores.
     updated = await transport.call_tool(
@@ -270,20 +264,6 @@ async def test_mcp_auth_and_session_flow(
         authorization=authorization,
     )
     assert saved["state"]["checkpoint"] == "phase1-gate"
-
-    # Query/search flow is exposed through the transport.
-    query_result = await transport.call_tool(
-        "minder_query",
-        arguments={
-            "query": "explain add",
-            "repo_path": str(repo_path),
-            "session_id": str(session.id),
-            "repo_id": str(repo.id),
-            "workflow_name": "tdd",
-        },
-        authorization=authorization,
-    )
-    assert query_result["answer"]
 
     # 7. CI pipeline contract exists in GitHub Actions.
     ci_content = Path(".github/workflows/ci.yml").read_text(encoding="utf-8")

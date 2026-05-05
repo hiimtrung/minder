@@ -19,6 +19,7 @@ from minder.store.interfaces import (
     IVectorStore,
 )
 from minder.store.repo_state import RepoStateStore
+from minder.tools.agents import AgentTools
 from minder.tools.auth import AuthTools
 from minder.tools.graph import GraphTools
 from minder.tools.memory import MemoryTools
@@ -41,6 +42,7 @@ def build_transport(
     auth_service = AuthService(store, config, cache=cache)
     cache_provider = cache or LRUCacheProvider()
     repo_state_store = RepoStateStore(config.workflow.repo_state_dir)
+    agent_tools = AgentTools(store)
     auth_tools = AuthTools(store, auth_service)
     session_tools = SessionTools(store)
     workflow_tools = WorkflowTools(store, repo_state_store)
@@ -791,6 +793,123 @@ def build_transport(
         minder_find_impact,
         require_auth=True,
         description=TOOL_DESCRIPTIONS["minder_find_impact"],
+    )
+
+    async def minder_agent_list(
+        *,
+        user=None,  # noqa: ANN001
+        workflow_step: str | None = None,
+        tag: str | None = None,
+        is_default: bool | None = None,
+    ) -> list[dict[str, Any]]:
+        del user
+        return await agent_tools.minder_agent_list(
+            workflow_step=workflow_step,
+            tag=tag,
+            is_default=is_default,
+        )
+
+    async def minder_agent_get(
+        *,
+        user=None,  # noqa: ANN001
+        name: str,
+    ) -> dict[str, Any] | None:
+        del user
+        return await agent_tools.minder_agent_get(name)
+
+    async def minder_agent_store(
+        *,
+        user=None,  # noqa: ANN001
+        name: str,
+        title: str,
+        description: str,
+        system_prompt: str,
+        tools: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        tags: list[str] | None = None,
+        is_default: bool = False,
+    ) -> dict[str, Any]:
+        del user
+        return await agent_tools.minder_agent_store(
+            name,
+            title=title,
+            description=description,
+            system_prompt=system_prompt,
+            tools=tools,
+            workflow_steps=workflow_steps,
+            artifact_types=artifact_types,
+            tags=tags,
+            is_default=is_default,
+        )
+
+    async def minder_agent_update(
+        *,
+        user=None,  # noqa: ANN001
+        name: str,
+        title: str | None = None,
+        description: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        tags: list[str] | None = None,
+        is_default: bool | None = None,
+    ) -> dict[str, Any] | None:
+        del user
+        kwargs = {
+            k: v
+            for k, v in {
+                "title": title,
+                "description": description,
+                "system_prompt": system_prompt,
+                "tools": tools,
+                "workflow_steps": workflow_steps,
+                "artifact_types": artifact_types,
+                "tags": tags,
+                "is_default": is_default,
+            }.items()
+            if v is not None
+        }
+        return await agent_tools.minder_agent_update(name, **kwargs)
+
+    async def minder_agent_delete(
+        *,
+        user=None,  # noqa: ANN001
+        name: str,
+    ) -> dict[str, Any]:
+        del user
+        return await agent_tools.minder_agent_delete(name)
+
+    transport.register_tool(
+        "minder_agent_list",
+        minder_agent_list,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_agent_list"],
+    )
+    transport.register_tool(
+        "minder_agent_get",
+        minder_agent_get,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_agent_get"],
+    )
+    transport.register_tool(
+        "minder_agent_store",
+        minder_agent_store,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_agent_store"],
+    )
+    transport.register_tool(
+        "minder_agent_update",
+        minder_agent_update,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_agent_update"],
+    )
+    transport.register_tool(
+        "minder_agent_delete",
+        minder_agent_delete,
+        require_auth=True,
+        description=TOOL_DESCRIPTIONS["minder_agent_delete"],
     )
 
     ResourceRegistry.register(transport.app, store, graph_store=graph_store)

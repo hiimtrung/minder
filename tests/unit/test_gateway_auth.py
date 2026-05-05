@@ -50,13 +50,13 @@ async def test_register_client_returns_client_and_bootstrap_key(auth: AuthServic
         name="Codex Local",
         slug="codex-local",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_query", "minder_search_code"],
+        tool_scopes=["minder_search_code", "minder_search_code"],
         repo_scopes=["/workspace/repo"],
     )
 
     assert client.name == "Codex Local"
     assert client.slug == "codex-local"
-    assert client.tool_scopes == ["minder_query", "minder_search_code"]
+    assert client.tool_scopes == ["minder_search_code", "minder_search_code"]
     assert client_api_key.startswith("mkc_")
 
 
@@ -74,12 +74,12 @@ async def test_exchange_client_api_key_returns_short_lived_access_token(
         name="Codex Local",
         slug="codex-local",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_query", "minder_search_code"],
+        tool_scopes=["minder_search_code", "minder_search_code"],
     )
 
     exchange = await auth.exchange_client_api_key(
         client_api_key,
-        requested_scopes=["minder_query"],
+        requested_scopes=["minder_search_code"],
     )
 
     assert exchange["token_type"] == "Bearer"
@@ -88,7 +88,7 @@ async def test_exchange_client_api_key_returns_short_lived_access_token(
     principal = await auth.get_principal_from_token(exchange["access_token"])
     assert isinstance(principal, ClientPrincipal)
     assert principal.client_id == client.id
-    assert principal.scopes == ["minder_query"]
+    assert principal.scopes == ["minder_search_code"]
 
 
 @pytest.mark.asyncio
@@ -107,14 +107,14 @@ async def test_client_exchange_tool_is_admin_and_client_friendly(
         actor_user_id=admin.id,
         name="VS Code Copilot",
         slug="copilot-local",
-        tool_scopes=["minder_query"],
+        tool_scopes=["minder_search_code"],
     )
     assert created["client"]["slug"] == "copilot-local"
     assert created["client_api_key"].startswith("mkc_")
 
     exchanged = await auth_tools.minder_auth_exchange_client_key(
         created["client_api_key"],
-        requested_scopes=["minder_query"],
+        requested_scopes=["minder_search_code"],
     )
     assert exchanged["token_type"] == "Bearer"
     assert exchanged["client_id"] == created["client"]["id"]
@@ -132,7 +132,7 @@ async def test_revoked_client_key_cannot_exchange(auth: AuthService) -> None:
         name="Claude Desktop",
         slug="claude-desktop",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_query"],
+        tool_scopes=["minder_search_code"],
     )
     await auth.revoke_client_api_keys(client.id)
 

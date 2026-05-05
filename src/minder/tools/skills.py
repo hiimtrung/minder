@@ -17,7 +17,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_continuity_skill_recall
 from minder.store.interfaces import IOperationalStore
-from minder.tools.memory import is_memory_record, _RECALL_CONTENT_MAX_CHARS
+from minder.tools.memory import _RECALL_CONTENT_MAX_CHARS
 
 
 @dataclass(frozen=True)

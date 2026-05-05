@@ -340,12 +340,12 @@ async def test_audit_emitter_token_exchanged_convenience() -> None:
     await emitter.token_exchanged(
         actor_id=str(uuid.uuid4()),
         client_id=str(uuid.uuid4()),
-        scopes=["minder_query"],
+        scopes=["minder_search_code"],
     )
 
     call_kwargs = mock_store.create_audit_log.call_args.kwargs
     assert call_kwargs["event_type"] == "token.exchanged"
-    assert call_kwargs["audit_metadata"]["scopes"] == ["minder_query"]
+    assert call_kwargs["audit_metadata"]["scopes"] == ["minder_search_code"]
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ from minder.observability.logging import AccessLogMiddleware, CorrelationIdMiddl
 from minder.observability.metrics import metrics_endpoint
 from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore
 
+from .agents import build_agents_routes
 from .api import build_admin_api_routes
 from .context import AdminRouteContext
 from .dashboard import build_dashboard_routes
@@ -82,6 +83,7 @@ def build_http_routes(
         *build_memories_routes(context),
         *build_runtime_routes(context),
         *build_search_routes(context),
+        *build_agents_routes(context),
         *build_dashboard_routes(context),
     ]
 

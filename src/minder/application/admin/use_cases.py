@@ -66,21 +66,19 @@ _UNSET: Any = object()  # sentinel for optional update fields
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
 DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
-    "Query Only": ["minder_query", "minder_search_code", "minder_search_errors"],
+    "Query Only": ["minder_search_code", "minder_search_errors", "minder_memory_recall"],
     "Read Only": [
-        "minder_query",
         "minder_search_code",
         "minder_search_errors",
-        "minder_search",
         "minder_memory_recall",
+        "minder_skill_recall",
         "minder_workflow_get",
     ],
     "Full Dev Assistant": [
-        "minder_query",
         "minder_search_code",
         "minder_search_errors",
-        "minder_search",
         "minder_memory_recall",
+        "minder_skill_recall",
         "minder_workflow_get",
         "minder_workflow_step",
     ],

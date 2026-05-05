@@ -41,6 +41,7 @@ from minder.models import (
     Session,
     Skill,
     Prompt,
+    SubAgent,
     User,
     Workflow,
 )
@@ -61,9 +62,23 @@ _REGISTERED_MODELS = (
     Session,
     Skill,
     Prompt,
+    SubAgent,
     User,
     Workflow,
 )
+
+
+def _filter_agents(
+    agents: list[Any],
+    *,
+    workflow_step: str | None = None,
+    tag: str | None = None,
+) -> list[Any]:
+    if workflow_step:
+        agents = [a for a in agents if workflow_step in (a.workflow_steps or [])]
+    if tag:
+        agents = [a for a in agents if tag in (a.tags or [])]
+    return agents
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
@@ -1127,3 +1142,73 @@ class RelationalStore:
     async def delete_feedback(self, feedback_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(Feedback).where(Feedback.id == feedback_id))
+
+    # ------------------------------------------------------------------
+    # SubAgent Repository
+    # ------------------------------------------------------------------
+
+    async def create_agent(self, **kwargs: Any) -> SubAgent:
+        async with self._session() as sess:
+            agent = SubAgent(**kwargs)
+            sess.add(agent)
+            await sess.flush()
+            await sess.refresh(agent)
+            return agent
+
+    async def get_agent_by_id(self, agent_id: uuid.UUID) -> Optional[SubAgent]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(SubAgent).where(SubAgent.id == agent_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def get_agent_by_name(self, name: str) -> Optional[SubAgent]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(SubAgent).where(SubAgent.name == name)
+            )
+            return result.scalar_one_or_none()
+
+    async def list_agents(
+        self,
+        *,
+        workflow_step: str | None = None,
+        tag: str | None = None,
+        is_default: bool | None = None,
+    ) -> List[SubAgent]:
+        async with self._session() as sess:
+            stmt = select(SubAgent)
+            if is_default is not None:
+                stmt = stmt.where(SubAgent.is_default == is_default)
+            result = await sess.execute(stmt)
+            agents = list(result.scalars().all())
+        return _filter_agents(agents, workflow_step=workflow_step, tag=tag)
+
+    async def upsert_agent(self, name: str, **kwargs: Any) -> SubAgent:
+        existing = await self.get_agent_by_name(name)
+        if existing is not None:
+            async with self._session() as sess:
+                await sess.execute(
+                    update(SubAgent).where(SubAgent.name == name).values(**kwargs)
+                )
+                result = await sess.execute(
+                    select(SubAgent).where(SubAgent.name == name)
+                )
+                return result.scalar_one()
+        return await self.create_agent(name=name, **kwargs)
+
+    async def update_agent(
+        self, agent_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[SubAgent]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(SubAgent).where(SubAgent.id == agent_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(SubAgent).where(SubAgent.id == agent_id)
+            )
+            return result.scalar_one_or_none()
+
+    async def delete_agent(self, agent_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            await sess.execute(delete(SubAgent).where(SubAgent.id == agent_id))

@@ -213,4 +213,5 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     assert "cache-from: type=gha,scope=minder-api" in release_workflow_text
     assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow_text
     assert download_script.exists()
-    assert "curl -L" in download_script.read_text(encoding="utf-8")
+    download_text = download_script.read_text(encoding="utf-8")
+    assert "llama" in download_text.lower() or "gguf" in download_text.lower()

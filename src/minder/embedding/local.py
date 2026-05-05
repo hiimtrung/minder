@@ -13,6 +13,8 @@ import math
 from collections import OrderedDict
 from typing import Any
 
+from minder.runtime import llama_cpp_usable
+
 logger = logging.getLogger(__name__)
 
 
@@ -35,7 +37,12 @@ class LocalEmbeddingProvider:
         self._dimensions = dimensions
         self._runtime = runtime
         self._model: Any | None = None
-        self._init_model()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        if not self._initialized:
+            self._init_model()
+            self._initialized = True
 
     def _init_model(self) -> None:
         if self._runtime == "mock":
@@ -46,10 +53,15 @@ class LocalEmbeddingProvider:
             self._model = _MODEL_CACHE[cache_key]
             return
 
+        if not llama_cpp_usable():
+            logger.warning(
+                "CPU does not support AVX2; llama.cpp unavailable. Using mock embedding."
+            )
+            return
+
         try:
             from llama_cpp import Llama
 
-            # Initialize Llama.cpp in embedding mode
             logger.info("Initializing Llama.cpp embedding engine for %s", self._model_repo)
             self._model = Llama.from_pretrained(
                 repo_id=self._model_repo,
@@ -60,7 +72,8 @@ class LocalEmbeddingProvider:
             _MODEL_CACHE[cache_key] = self._model
         except Exception as e:
             logger.warning(
-                f"Failed to initialize Llama.cpp model {self._model_repo}: {e}. Using mock."
+                "Failed to initialize Llama.cpp model %s: %s. Using mock.",
+                self._model_repo, e,
             )
             self._model = None
 
@@ -71,6 +84,7 @@ class LocalEmbeddingProvider:
         return "llama_cpp" if self._model is not None else "mock"
 
     def embed(self, text: str) -> list[float]:
+        self._ensure_initialized()
         if not text:
             return [0.0] * self._dimensions
 
@@ -104,6 +118,7 @@ class LocalEmbeddingProvider:
         return embedding
 
     def embed_many(self, texts: list[str]) -> list[list[float]]:
+        self._ensure_initialized()
         if not texts:
             return []
 

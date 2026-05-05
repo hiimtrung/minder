@@ -12,7 +12,7 @@ from collections.abc import Generator
 from typing import Any, cast
 
 from minder.graph.state import GraphState
-
+from minder.runtime import llama_cpp_usable
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +38,23 @@ class LlamaCppLLM:
         self._context_length = max(512, context_length)
         self._temperature = temperature
         self._runtime_override = runtime
-        self._engine: Any | None = None
+        self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
-        self._init_engine()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        if not self._initialized:
+            self._init_engine()
+            self._initialized = True
 
     def _init_engine(self) -> None:
-        """Initialize the Llama.cpp engine."""
         if self._runtime_override == "mock":
+            return
+
+        if not llama_cpp_usable():
+            logger.warning(
+                "CPU does not support AVX2; llama.cpp unavailable. Falling back to mock mode."
+            )
             return
 
         cache_key = f"{self._model_repo}:{self._model_file}"
@@ -54,10 +64,8 @@ class LlamaCppLLM:
 
         try:
             from llama_cpp import Llama
-            
-            # Determine n_gpu_layers (offload all layers to GPU by default if available)
+
             n_gpu_layers = -1  # Let llama.cpp handle Metal / CUDA layer offloading
-            
             logger.info("Initializing Llama.cpp engine for %s", self._model_repo)
             self._engine = Llama.from_pretrained(
                 repo_id=self._model_repo,
@@ -95,7 +103,7 @@ class LlamaCppLLM:
     # ------------------------------------------------------------------
 
     def generate(self, state: GraphState) -> dict[str, object]:
-        """Synchronous generation (full response)."""
+        self._ensure_initialized()
         reranked = getattr(state, "reranked_docs", []) or []
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
@@ -129,7 +137,7 @@ class LlamaCppLLM:
     def stream_generate(
         self, state: GraphState
     ) -> Generator[dict[str, object], None, None]:
-        """Streaming generation."""
+        self._ensure_initialized()
         reranked = getattr(state, "reranked_docs", []) or []
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
@@ -188,7 +196,7 @@ class LlamaCppLLM:
         temperature: float = 0.1,
         fallback: str = "",
     ) -> str:
-        """Simple text-in/text-out completion."""
+        self._ensure_initialized()
         if self.runtime != "llama_cpp":
             return fallback
 

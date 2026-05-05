@@ -40,10 +40,14 @@ class LlamaCppLLM:
         self._runtime_override = runtime
         self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
-        self._init_engine()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        if not self._initialized:
+            self._init_engine()
+            self._initialized = True
 
     def _init_engine(self) -> None:
-        """Initialize the Llama.cpp engine."""
         if self._runtime_override == "mock":
             return
 
@@ -95,7 +99,7 @@ class LlamaCppLLM:
     # ------------------------------------------------------------------
 
     def generate(self, state: GraphState) -> dict[str, object]:
-        """Synchronous generation (full response)."""
+        self._ensure_initialized()
         reranked = getattr(state, "reranked_docs", []) or []
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
@@ -129,7 +133,7 @@ class LlamaCppLLM:
     def stream_generate(
         self, state: GraphState
     ) -> Generator[dict[str, object], None, None]:
-        """Streaming generation."""
+        self._ensure_initialized()
         reranked = getattr(state, "reranked_docs", []) or []
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
@@ -188,7 +192,7 @@ class LlamaCppLLM:
         temperature: float = 0.1,
         fallback: str = "",
     ) -> str:
-        """Simple text-in/text-out completion."""
+        self._ensure_initialized()
         if self.runtime != "llama_cpp":
             return fallback
 

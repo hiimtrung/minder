@@ -35,7 +35,12 @@ class LocalEmbeddingProvider:
         self._dimensions = dimensions
         self._runtime = runtime
         self._model: Any | None = None
-        self._init_model()
+        self._initialized = False
+
+    def _ensure_initialized(self) -> None:
+        if not self._initialized:
+            self._init_model()
+            self._initialized = True
 
     def _init_model(self) -> None:
         if self._runtime == "mock":
@@ -71,6 +76,7 @@ class LocalEmbeddingProvider:
         return "llama_cpp" if self._model is not None else "mock"
 
     def embed(self, text: str) -> list[float]:
+        self._ensure_initialized()
         if not text:
             return [0.0] * self._dimensions
 
@@ -104,6 +110,7 @@ class LocalEmbeddingProvider:
         return embedding
 
     def embed_many(self, texts: list[str]) -> list[list[float]]:
+        self._ensure_initialized()
         if not texts:
             return []
 

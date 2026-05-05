@@ -56,7 +56,8 @@ def _detect_llama_cpp_runtime(config: Settings) -> str:
         try:
             import llama_cpp  # type: ignore[import-not-found]  # noqa: F401
             return "llama_cpp"
-        except ImportError:
+        except (ImportError, RuntimeError, OSError):
+            # RuntimeError/OSError when the .so loads but a system lib (e.g. libgomp.so.1) is absent
             return "mock"
     return config.embedding.runtime
 

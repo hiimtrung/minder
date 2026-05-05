@@ -437,6 +437,26 @@ class MongoOperationalStore:
         cursor = self._db.skills.find()
         return [_to_doc(doc) async for doc in cursor]
 
+    async def list_skills_by_kind(
+        self,
+        *,
+        is_memory: bool,
+        exclude_deprecated: bool = True,
+    ) -> list[_MongoDoc]:
+        _memory_langs: list[Any] = ["markdown", "text", "en", "vi", "", None]
+        _memory_match: dict[str, Any] = {
+            "source_metadata": None,
+            "language": {"$in": _memory_langs},
+        }
+        if is_memory:
+            query: dict[str, Any] = _memory_match
+        else:
+            query = {"$nor": [_memory_match]}
+            if exclude_deprecated:
+                query["deprecated"] = {"$ne": True}
+        cursor = self._db.skills.find(query)
+        return [_to_doc(doc) async for doc in cursor]
+
     async def update_skill(
         self, skill_id: uuid.UUID, **kwargs: Any
     ) -> _MongoDoc | None:

@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from typing import Any, AsyncGenerator, List, Optional, cast
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
@@ -242,6 +242,26 @@ class RelationalStore:
     async def list_skills(self) -> List[Skill]:
         async with self._session() as sess:
             result = await sess.execute(select(Skill))
+            return list(result.scalars().all())
+
+    async def list_skills_by_kind(
+        self,
+        *,
+        is_memory: bool,
+        exclude_deprecated: bool = True,
+    ) -> List[Skill]:
+        _memory_langs = ["markdown", "text", "en", "vi", ""]
+        _is_memory_cond = Skill.source_metadata.is_(None) & (
+            or_(Skill.language.in_(_memory_langs), Skill.language.is_(None))
+        )
+        async with self._session() as sess:
+            if is_memory:
+                stmt = select(Skill).where(_is_memory_cond)
+            else:
+                stmt = select(Skill).where(~_is_memory_cond)
+                if exclude_deprecated:
+                    stmt = stmt.where(Skill.deprecated.isnot(True))
+            result = await sess.execute(stmt)
             return list(result.scalars().all())
 
     async def update_skill(self, skill_id: uuid.UUID, **kwargs) -> Optional[Skill]:

@@ -102,6 +102,7 @@ def _make_store(
 ) -> MagicMock:
     store = MagicMock()
     store.list_skills = AsyncMock(return_value=skills or [])
+    store.list_skills_by_kind = AsyncMock(return_value=skills or [])
     store.list_repositories = AsyncMock(return_value=repos or [])
     store.list_workflows = AsyncMock(return_value=workflows or [])
     store.list_errors = AsyncMock(return_value=errors or [])

@@ -16,29 +16,9 @@ System-level architecture lives in:
 
 - Docker Desktop or compatible Docker runtime
 - `uv`
-- enough disk for MongoDB, Redis, Milvus, and LiteRT-LM model files
+- enough disk for MongoDB, Redis, Milvus, and GGUF model files (~4 GB for default models)
 
-## 1. Download the LiteRT-LM model
-
-Run:
-
-```bash
-./scripts/download_models.sh
-```
-
-This script stores models in:
-
-```text
-~/.minder/models
-```
-
-Expected files:
-
-```text
-~/.minder/models/gemma-4-E2B-it.litertlm
-Note: The primary embedding model (`onnx-community/embeddinggemma-300m-ONNX`) is auto-downloaded by FastEmbed on first run.
-
-## 1a. Create local env files
+## 1. Create local env files
 
 Backend:
 
@@ -91,7 +71,7 @@ Local Docker now provides the shared infra runtime:
 
 It intentionally does not start the Minder app or the Astro dashboard. You run those locally so you can debug them directly.
 
-LLM inference runs on the host via LiteRT-LM (no Docker required for LLM).
+LLM inference runs on the host via llama-cpp-python (no Docker required for LLM). GGUF models are downloaded automatically from HuggingFace on first startup.
 
 ## 2a. Start Minder locally against the Docker infra
 
@@ -229,12 +209,12 @@ Split frontend-dev URL map:
 
 ## Troubleshooting
 
-### Models are missing
+### Models are not downloading
 
-Check:
+GGUF models are fetched automatically via HuggingFace Hub on first startup. Check HuggingFace cache:
 
 ```bash
-ls ~/.minder/models
+ls ~/.cache/huggingface/hub/
 ```
 
 ### Minder process cannot boot

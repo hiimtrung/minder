@@ -17,7 +17,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_continuity_skill_recall
 from minder.store.interfaces import IOperationalStore
-from minder.tools.memory import is_memory_record
+from minder.tools.memory import is_memory_record, _RECALL_CONTENT_MAX_CHARS
 
 
 @dataclass(frozen=True)
@@ -137,15 +137,9 @@ class SkillTools:
     ) -> list[dict[str, Any]]:
         query_embedding = self._embedder.embed(query)
         ranked: list[dict[str, Any]] = []
-        for skill in await self._store.list_skills():
+        for skill in await self._store.list_skills_by_kind(is_memory=False):
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
-                continue
-
-            # Skills exclude memory-classified records and deprecated skills.
-            if is_memory_record(skill):
-                continue
-            if getattr(skill, "deprecated", False):
                 continue
 
             embedding = skill.embedding if isinstance(skill.embedding, list) else None
@@ -166,7 +160,7 @@ class SkillTools:
                 1.5,
             )
             ranked_item = {
-                **self._serialize_skill_compact(skill),
+                **self._serialize_skill_compact(skill, truncate_content=True),
                 "score": round(blended_score, 4),
                 # kept for internal record_continuity_skill_recall below
                 "_step_compat": round(compatibility_score, 4),
@@ -204,15 +198,9 @@ class SkillTools:
         if current_step:
             required_tags.update(step_keywords(current_step))
         items: list[dict[str, Any]] = []
-        for skill in await self._store.list_skills():
+        for skill in await self._store.list_skills_by_kind(is_memory=False):
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
-                continue
-
-            # Skills exclude memory-classified records and deprecated skills.
-            if is_memory_record(skill):
-                continue
-            if getattr(skill, "deprecated", False):
                 continue
 
             normalized_tags = {
@@ -350,7 +338,7 @@ class SkillTools:
             )
 
             existing_by_source_key = self._skills_by_source_key(
-                await self._store.list_skills()
+                await self._store.list_skills_by_kind(is_memory=False)
             )
             imported: list[dict[str, Any]] = []
             created_count = 0
@@ -491,15 +479,20 @@ class SkillTools:
             ),
         }
 
-    def _serialize_skill_compact(self, skill: Any) -> dict[str, Any]:
+    def _serialize_skill_compact(
+        self, skill: Any, *, truncate_content: bool = False
+    ) -> dict[str, Any]:
         """Minimal skill representation for LLM tool output — omits metadata-only fields."""
         source_metadata = self._normalized_source_metadata(
             getattr(skill, "source_metadata", None)
         )
+        content = str(skill.content)
+        if truncate_content:
+            content = content[:_RECALL_CONTENT_MAX_CHARS]
         return {
             "id": str(skill.id),
             "title": str(skill.title),
-            "content": str(skill.content),
+            "content": content,
             "language": str(getattr(skill, "language", "")),
             "tags": list(getattr(skill, "tags", []) or []),
             "quality_score": round(float(getattr(skill, "quality_score", 0.0) or 0.0), 4),

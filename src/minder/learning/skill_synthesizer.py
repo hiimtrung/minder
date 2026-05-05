@@ -30,7 +30,7 @@ class SkillSynthesizer:
         content = _render_pattern(pattern)
         embedding = self._embedder.embed(f"{title}\n{content}")
 
-        for skill in await self._store.list_skills():
+        for skill in await self._store.list_skills_by_kind(is_memory=False):
             tags = list(getattr(skill, "tags", []) or [])
             if _SYNTHESIS_TAG not in tags:
                 continue

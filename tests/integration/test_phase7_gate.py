@@ -58,6 +58,7 @@ def _make_store(*, existing_skills: list[Any] | None = None) -> Any:
     store = AsyncMock()
     skills = existing_skills or []
     store.list_skills = AsyncMock(return_value=skills)
+    store.list_skills_by_kind = AsyncMock(return_value=skills)
     store.create_skill = AsyncMock(side_effect=lambda **kw: _MockSkill(kw))
     store.get_skill_by_id = AsyncMock(return_value=None)
     store.update_skill = AsyncMock(return_value=None)
@@ -367,6 +368,7 @@ class TestSkillUsageIncrement:
         )
         store = AsyncMock()
         store.list_skills = AsyncMock(return_value=[skill])
+        store.list_skills_by_kind = AsyncMock(return_value=[skill])
         store.update_skill = AsyncMock(return_value=None)
 
         config = MagicMock()

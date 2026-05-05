@@ -32,7 +32,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 2. Implement the auth layer with user model, API keys, JWTs, and RBAC.
 3. Implement SSE transport as the primary transport and stdio for local dev.
 4. Add auth middleware for SSE connections.
-5. Integrate mandatory `onnx-community/embeddinggemma-300m-ONNX` embeddings through `FastEmbed`.
+5. Integrate mandatory `ggml-org/embeddinggemma-300M-GGUF` embeddings through `llama-cpp-python`.
 6. Add optional OpenAI embedding fallback.
 7. Implement Milvus Lite for semantic search.
 8. Implement SQLite metadata storage for users, sessions, workflows, and repo state.
@@ -60,7 +60,7 @@ scripts/{download_models,seed_skills,create_admin}.py|sh
 
 1. Define LangGraph state.
 2. Build Workflow Planner, Planning, Retriever, Reasoning, LLM, Guard, Verification, and Evaluator nodes.
-3. Integrate mandatory `gemma-4-E2B-it.litertlm` through `LiteRT-LM`.
+3. Integrate mandatory `ggml-org/gemma-4-E2B-it-GGUF` through `llama-cpp-python`.
 4. Add optional OpenAI fallback through LiteLLM.
 5. Implement Docker sandbox verification.
 6. Keep subprocess verification available in dev mode only.

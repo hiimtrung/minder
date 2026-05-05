@@ -89,9 +89,9 @@ be a hard filter (exclude entirely) not a score penalty.
 ### P8-T03 — Session summarize tool
 `build_continuity_brief()` in `continuity.py:134` already extracts `task`, `blockers`,
 `next_valid_actions`, `confirmed_progress` from `session.state + workflow_state`. The MCP tool
-wrapper is thin: load session → call `build_continuity_brief()` → optionally call LiteRT via
+wrapper is thin: load session → call `build_continuity_brief()` → optionally call llama.cpp via
 `ContinuitySynthesizer` for richer prose → store back into `session.state["summary"]`.
-The LiteRT call is optional; if runtime is `"mock"`, the heuristic brief is returned as-is.
+The llama.cpp call is optional; if runtime is `"mock"`, the heuristic brief is returned as-is.
 
 ### P8-T04 — Tool usage guidance
 New `TOOL_USAGE_PATTERNS` constant in `tools/registry.py`. Format: dict keyed by tool name,

@@ -398,16 +398,18 @@ api_key_prefix = "mk_"
 default_admin_email = "${MINDER_ADMIN_EMAIL}"
 
 [embedding]
-provider = "fastembed"
+provider = "llama_cpp"
 runtime = "auto"
-fastembed_model = "onnx-community/embeddinggemma-300m-ONNX"
+llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
+llama_cpp_model_file = "*.gguf"
 dimensions = 768
 openai_api_key = "${OPENAI_API_KEY}"
 openai_model = "text-embedding-3-small"
 
 [llm]
-provider = "litert"
-litert_model_path = "~/.minder/models/gemma-4-E2B-it.litertlm"
+provider = "llama_cpp"
+llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
+llama_cpp_model_file = "*.gguf"
 context_length = 32768
 temperature = 0.1
 openai_api_key = "${OPENAI_API_KEY}"

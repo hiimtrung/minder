@@ -10,7 +10,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.prompts import PromptRegistry
-from minder.tools.memory import MemoryTools, is_memory_record
+from minder.tools.memory import MemoryTools
 from minder.tools.skills import SkillTools
 
 from .context import AdminRouteContext
@@ -308,12 +308,8 @@ def build_search_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 context=context,
             )
         elif resource == "memories":
-            all_skills = await context.store.list_skills()
-            all_memory_items = [
-                _serialize_memory(skill)
-                for skill in all_skills
-                if is_memory_record(skill)
-            ]
+            all_skills = await context.store.list_skills_by_kind(is_memory=True)
+            all_memory_items = [_serialize_memory(skill) for skill in all_skills]
             if query:
                 memory_tools = MemoryTools(context.store, context.config)
                 ranked = await memory_tools.minder_memory_recall(

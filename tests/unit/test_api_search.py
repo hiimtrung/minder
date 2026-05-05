@@ -12,6 +12,7 @@ from minder.config import Settings
 from minder.presentation.http.admin.context import AdminRouteContext
 from minder.presentation.http.admin.search import build_search_routes
 from minder.store.interfaces import IOperationalStore
+from minder.tools.memory import is_memory_record
 
 
 def _skill_record(**overrides: object) -> SimpleNamespace:
@@ -91,10 +92,15 @@ def test_skill_search_prefers_exact_language_and_tag_matches() -> None:
 def test_memories_search_includes_en_language_records() -> None:
     store = AsyncMock(spec=IOperationalStore)
     client = _build_client(store)
-    store.list_skills.return_value = [
+    all_skills = [
         _skill_record(title="English Memory", language="en", source_metadata=None),
         _skill_record(title="Python Skill", language="python", source_metadata=None),
     ]
+    store.list_skills_by_kind = AsyncMock(
+        side_effect=lambda *, is_memory, exclude_deprecated=True: [
+            s for s in all_skills if is_memory_record(s) == is_memory
+        ]
+    )
 
     with patch.object(
         AdminRouteContext,
@@ -113,10 +119,15 @@ def test_memories_search_includes_en_language_records() -> None:
 def test_skills_search_excludes_en_memory_records() -> None:
     store = AsyncMock(spec=IOperationalStore)
     client = _build_client(store)
-    store.list_skills.return_value = [
+    all_skills = [
         _skill_record(title="English Memory", language="en", source_metadata=None),
         _skill_record(title="Python Skill", language="python", source_metadata=None),
     ]
+    store.list_skills_by_kind = AsyncMock(
+        side_effect=lambda *, is_memory, exclude_deprecated=True: [
+            s for s in all_skills if is_memory_record(s) == is_memory
+        ]
+    )
 
     with patch.object(
         AdminRouteContext,

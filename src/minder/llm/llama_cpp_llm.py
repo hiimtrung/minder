@@ -8,6 +8,7 @@ Automatically downloads models from Hugging Face Hub if they don't exist locally
 from __future__ import annotations
 import gc
 import logging
+import platform
 from collections.abc import Generator
 from typing import Any, cast
 
@@ -15,6 +16,17 @@ from minder.graph.state import GraphState
 
 
 logger = logging.getLogger(__name__)
+
+
+def _llama_cpp_usable() -> bool:
+    """Return False on x86_64 machines that lack AVX2 — llama.cpp requires it."""
+    if platform.machine() not in ("x86_64", "AMD64"):
+        return True
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8") as f:
+            return "avx2" in f.read()
+    except OSError:
+        return True
 
 
 _ENGINE_CACHE: dict[str, Any] = {}
@@ -51,6 +63,12 @@ class LlamaCppLLM:
         if self._runtime_override == "mock":
             return
 
+        if not _llama_cpp_usable():
+            logger.warning(
+                "CPU does not support AVX2; llama.cpp unavailable. Falling back to mock mode."
+            )
+            return
+
         cache_key = f"{self._model_repo}:{self._model_file}"
         if cache_key in _ENGINE_CACHE:
             self._engine = _ENGINE_CACHE[cache_key]
@@ -58,10 +76,8 @@ class LlamaCppLLM:
 
         try:
             from llama_cpp import Llama
-            
-            # Determine n_gpu_layers (offload all layers to GPU by default if available)
+
             n_gpu_layers = -1  # Let llama.cpp handle Metal / CUDA layer offloading
-            
             logger.info("Initializing Llama.cpp engine for %s", self._model_repo)
             self._engine = Llama.from_pretrained(
                 repo_id=self._model_repo,

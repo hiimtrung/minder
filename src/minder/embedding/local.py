@@ -10,26 +10,16 @@ import gc
 import hashlib
 import logging
 import math
-import platform
 from collections import OrderedDict
 from typing import Any
+
+from minder.runtime import llama_cpp_usable
 
 logger = logging.getLogger(__name__)
 
 
 _MODEL_CACHE: dict[str, Any] = {}
 _EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
-
-
-def _llama_cpp_usable() -> bool:
-    """Return False on x86_64 machines that lack AVX2 — llama.cpp requires it."""
-    if platform.machine() not in ("x86_64", "AMD64"):
-        return True  # ARM / Apple Silicon use different backends; safe to try
-    try:
-        with open("/proc/cpuinfo", encoding="utf-8") as f:
-            return "avx2" in f.read()
-    except OSError:
-        return True
 MAX_CACHE_SIZE = 100
 MAX_TEXT_LENGTH = 8000  # Safety truncation to avoid over-context (~2000 tokens)
 
@@ -63,7 +53,7 @@ class LocalEmbeddingProvider:
             self._model = _MODEL_CACHE[cache_key]
             return
 
-        if not _llama_cpp_usable():
+        if not llama_cpp_usable():
             logger.warning(
                 "CPU does not support AVX2; llama.cpp unavailable. Using mock embedding."
             )

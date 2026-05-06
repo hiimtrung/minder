@@ -1,0 +1,134 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/PageHero.astro";
+import Toolbar from "./ui/Toolbar.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+---
+
+<DashboardLayout
+  title="SubAgent Registry · Minder"
+  description="Manage SubAgent definitions — create and configure AI agents with custom system prompts, tools, and workflow step assignments."
+  navTitle="Minder Dashboard"
+  navDescription="Define and manage SubAgents that operate within your delivery workflows."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="SubAgent Registry"
+    title="Manage AI SubAgents."
+    description="Create and configure SubAgent definitions that Minder can delegate to during workflow execution. Each agent has its own system prompt, tool grants, and workflow step bindings."
+  />
+
+  <section class="u-grid-sidebar">
+    <!-- Create agent form -->
+    <aside class="shell-card p-6">
+      <p class="eyebrow">Create Agent</p>
+      <h2
+        class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+      >
+        New SubAgent definition
+      </h2>
+      <p class="mt-2 text-sm leading-6 text-stone-600">
+        Define a named agent with a system prompt, tool grants, and optional
+        workflow step bindings.
+      </p>
+
+      <form id="create-agent-form" class="mt-5 grid gap-4">
+        <Field label="Identifier name" htmlFor="agent-name">
+          <Input
+            id="agent-name"
+            placeholder="code_reviewer"
+            autocomplete="off"
+          />
+        </Field>
+        <Field label="Display title" htmlFor="agent-title">
+          <Input id="agent-title" placeholder="Code Reviewer" />
+        </Field>
+        <Field label="Description" htmlFor="agent-description">
+          <Textarea
+            id="agent-description"
+            rows={2}
+            placeholder="What this agent does"
+          />
+        </Field>
+        <Field label="System prompt" htmlFor="agent-system-prompt">
+          <Textarea
+            id="agent-system-prompt"
+            rows={6}
+            placeholder="You are a senior software engineer acting as a code reviewer..."
+          />
+        </Field>
+
+        <!-- Tool grants combobox -->
+        <div class="grid gap-2">
+          <div class="flex items-center justify-between gap-2">
+            <span class="u-field-label mb-0">Tool grants</span>
+            <div class="flex gap-1">
+              <button
+                type="button"
+                id="create-agent-tools-all"
+                class="rounded px-2 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+              >
+                All
+              </button>
+              <button
+                type="button"
+                id="create-agent-tools-none"
+                class="rounded px-2 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+              >
+                None
+              </button>
+            </div>
+          </div>
+          <div
+            id="create-agent-tools"
+            class="shell-card max-h-64 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2 grid gap-0.5"
+          >
+            <p class="px-1 text-sm text-stone-400">Loading tools...</p>
+          </div>
+        </div>
+
+        <Field
+          label="Workflow steps (comma-separated)"
+          htmlFor="agent-workflow-steps"
+        >
+          <Input
+            id="agent-workflow-steps"
+            placeholder="review, verify_tests"
+          />
+        </Field>
+        <Field label="Tags (comma-separated)" htmlFor="agent-tags">
+          <Input id="agent-tags" placeholder="review, quality" />
+        </Field>
+
+        <FormStatus id="create-agent-status" />
+        <Button type="submit" variant="primary" fullWidth>
+          Create agent
+        </Button>
+      </form>
+    </aside>
+
+    <!-- Agent list -->
+    <div class="flex flex-col gap-5">
+      <Toolbar
+        idPrefix="agent"
+        description="Open any agent card to edit its system prompt, tool grants, and workflow step bindings."
+        searchPlaceholder="Quick filter agents"
+      >
+        <Button slot="leading" href="/dashboard" size="sm">
+          Dashboard home
+        </Button>
+      </Toolbar>
+
+      <div id="agent-registry" class="grid gap-4 md:grid-cols-2">
+        <article class="u-placeholder-card">Loading agents...</article>
+      </div>
+    </div>
+  </section>
+
+  <script src="../scripts/agents-page.ts"></script>
+</DashboardLayout>

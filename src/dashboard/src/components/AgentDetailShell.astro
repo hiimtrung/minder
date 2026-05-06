@@ -1,0 +1,195 @@
+---
+interface Props {
+  agentId?: string;
+}
+const { agentId: _agentId } = Astro.props;
+
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import DetailHeader from "./ui/DetailHeader.astro";
+import Card from "./ui/Card.astro";
+import Field from "./ui/Field.astro";
+import Input from "./ui/Input.astro";
+import Textarea from "./ui/Textarea.astro";
+import Button from "./ui/Button.astro";
+import FormStatus from "./ui/FormStatus.astro";
+---
+
+<DashboardLayout
+  title="SubAgent Detail · Minder"
+  description="Edit a SubAgent definition — system prompt, tool grants, and workflow step bindings."
+  navTitle="Minder Dashboard"
+  navDescription="Configure a SubAgent's identity, capabilities, and workflow integration."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <DetailHeader
+    breadcrumb={[
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/dashboard/agents", label: "Agents" },
+      { label: "Agent Detail" },
+    ]}
+    eyebrow="SubAgent Detail"
+    title="Loading agent..."
+    titleId="agent-detail-title"
+    description="Edit the system prompt, tool grants, workflow step bindings, and metadata for this SubAgent."
+  >
+    <Button slot="actions" href="/dashboard/agents" size="sm">
+      Back to registry
+    </Button>
+    <Button slot="actions" href="/dashboard" size="sm">Dashboard home</Button>
+  </DetailHeader>
+
+  <section class="u-grid-sidebar">
+    <!-- Left: identity + metadata + danger zone -->
+    <aside class="space-y-5">
+      <Card padding="lg">
+        <p class="eyebrow">Identity</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Name, title &amp; metadata
+        </h2>
+
+        <form id="edit-agent-form" class="mt-5 grid gap-4">
+          <Field label="Identifier name" htmlFor="edit-agent-name">
+            <Input
+              id="edit-agent-name"
+              placeholder="code_reviewer"
+              autocomplete="off"
+            />
+          </Field>
+          <Field label="Display title" htmlFor="edit-agent-title">
+            <Input id="edit-agent-title" placeholder="Code Reviewer" />
+          </Field>
+          <Field label="Description" htmlFor="edit-agent-description">
+            <Textarea
+              id="edit-agent-description"
+              rows={3}
+              placeholder="What this agent does"
+            />
+          </Field>
+          <Field
+            label="Workflow steps (comma-separated)"
+            htmlFor="edit-agent-workflow-steps"
+          >
+            <Input
+              id="edit-agent-workflow-steps"
+              placeholder="review, verify_tests"
+            />
+          </Field>
+          <Field
+            label="Artifact types (comma-separated)"
+            htmlFor="edit-agent-artifact-types"
+          >
+            <Input
+              id="edit-agent-artifact-types"
+              placeholder="review_notes, approval_summary"
+            />
+          </Field>
+          <Field label="Tags (comma-separated)" htmlFor="edit-agent-tags">
+            <Input id="edit-agent-tags" placeholder="review, quality" />
+          </Field>
+
+          <label class="flex cursor-pointer items-center gap-2 text-sm text-stone-700">
+            <input
+              id="edit-agent-is-default"
+              type="checkbox"
+              class="rounded border-stone-300 accent-amber-600"
+            />
+            Mark as default agent
+          </label>
+
+          <FormStatus id="edit-agent-status" />
+          <Button type="submit" variant="primary" fullWidth>
+            Save changes
+          </Button>
+        </form>
+      </Card>
+
+      <!-- Danger zone -->
+      <Card padding="lg">
+        <p class="eyebrow">Danger Zone</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Delete agent
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Permanently remove this SubAgent definition. MCP clients that
+          reference it by name will no longer be able to retrieve it.
+        </p>
+        <Button
+          id="delete-agent-button"
+          variant="danger"
+          fullWidth
+          class="mt-4"
+        >
+          Delete this agent
+        </Button>
+        <FormStatus id="delete-agent-status" tone="danger" class="mt-3" />
+      </Card>
+    </aside>
+
+    <!-- Right: system prompt + tool grants -->
+    <div class="grid gap-5 self-start">
+      <Card padding="lg">
+        <p class="eyebrow">System Prompt</p>
+        <h2
+          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+        >
+          Agent instructions
+        </h2>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Defines how this agent reasons, which tools it calls, and what output
+          format it returns.
+        </p>
+        <Textarea
+          id="edit-agent-system-prompt"
+          rows={18}
+          placeholder="You are a senior software engineer..."
+          class="mt-4 font-mono text-xs"
+        />
+      </Card>
+
+      <Card padding="lg">
+        <div class="flex items-center justify-between gap-4">
+          <div>
+            <p class="eyebrow">Tool Grants</p>
+            <h2
+              class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
+            >
+              Allowed tools
+            </h2>
+          </div>
+          <div class="flex shrink-0 gap-1">
+            <button
+              type="button"
+              id="edit-agent-tools-all"
+              class="rounded px-2 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+            >
+              All
+            </button>
+            <button
+              type="button"
+              id="edit-agent-tools-none"
+              class="rounded px-2 py-0.5 text-xs text-stone-500 hover:bg-stone-100 hover:text-stone-900 transition"
+            >
+              None
+            </button>
+          </div>
+        </div>
+        <p class="mt-2 text-sm leading-6 text-stone-600">
+          Check tools to grant them to this agent when Minder spawns it.
+        </p>
+        <div
+          id="edit-agent-tools"
+          class="mt-4 max-h-96 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2 grid gap-0.5"
+        >
+          <p class="px-1 text-sm text-stone-400">Loading tools...</p>
+        </div>
+      </Card>
+    </div>
+  </section>
+
+  <script src="../scripts/agents-page.ts"></script>
+</DashboardLayout>

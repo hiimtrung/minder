@@ -543,6 +543,79 @@ export type WorkflowListPayload = { workflows: WorkflowPayload[] };
 export type WorkflowDetailPayload = { workflow: WorkflowPayload };
 
 // ---------------------------------------------------------------------------
+// SubAgent management
+// ---------------------------------------------------------------------------
+
+export type AgentPayload = {
+  id: string;
+  name: string;
+  title: string;
+  description: string;
+  system_prompt: string;
+  tools: string[];
+  workflow_steps: string[];
+  artifact_types: string[];
+  tags: string[];
+  is_default: boolean;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type AgentListPayload = { agents: AgentPayload[] };
+export type AgentDetailPayload = { agent: AgentPayload };
+
+export async function listAgents(): Promise<AgentListPayload> {
+  return requestJson<AgentListPayload>("/v1/admin/agents");
+}
+
+export async function getAgentDetail(agentId: string): Promise<AgentDetailPayload> {
+  return requestJson<AgentDetailPayload>(`/v1/admin/agents/${agentId}`);
+}
+
+export async function createAgent(payload: {
+  name: string;
+  title?: string;
+  description?: string;
+  system_prompt?: string;
+  tools?: string[];
+  workflow_steps?: string[];
+  artifact_types?: string[];
+  tags?: string[];
+  is_default?: boolean;
+}): Promise<AgentDetailPayload> {
+  return requestJson<AgentDetailPayload>("/v1/admin/agents", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateAgent(
+  agentId: string,
+  payload: {
+    name?: string;
+    title?: string;
+    description?: string;
+    system_prompt?: string;
+    tools?: string[];
+    workflow_steps?: string[];
+    artifact_types?: string[];
+    tags?: string[];
+    is_default?: boolean;
+  },
+): Promise<AgentDetailPayload> {
+  return requestJson<AgentDetailPayload>(`/v1/admin/agents/${agentId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function deleteAgent(agentId: string): Promise<{ deleted: boolean }> {
+  return requestJson<{ deleted: boolean }>(`/v1/admin/agents/${agentId}`, {
+    method: "DELETE",
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Prompt management
 // ---------------------------------------------------------------------------
 

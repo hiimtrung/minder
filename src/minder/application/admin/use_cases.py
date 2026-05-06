@@ -13,6 +13,9 @@ from minder.application.admin.dto import (
     ActivityEventPayload,
     AdminLoginPayload,
     AdminSessionPayload,
+    AgentDetailPayload,
+    AgentListPayload,
+    AgentPayload,
     AuditEventPayload,
     AuditListPayload,
     ClientConnectionTestPayload,
@@ -652,6 +655,116 @@ class AdminConsoleUseCases:
         }
 
     # ------------------------------------------------------------------
+    # SubAgent management
+    # ------------------------------------------------------------------
+
+    async def list_agents(self) -> AgentListPayload:
+        agents = await self._store.list_agents()
+        return {"agents": [self.serialize_agent(a) for a in agents]}
+
+    async def get_agent_detail(self, agent_id: uuid.UUID) -> AgentDetailPayload:
+        agent = await self._store.get_agent_by_id(agent_id)
+        if agent is None:
+            raise LookupError(f"Agent {agent_id} not found")
+        return {"agent": self.serialize_agent(agent)}
+
+    async def create_agent(
+        self,
+        *,
+        name: str,
+        title: str = "",
+        description: str = "",
+        system_prompt: str = "",
+        tools: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        tags: list[str] | None = None,
+        is_default: bool = False,
+    ) -> AgentDetailPayload:
+        agent = await self._store.create_agent(
+            name=name,
+            title=title,
+            description=description,
+            system_prompt=system_prompt,
+            tools=tools or [],
+            workflow_steps=workflow_steps or [],
+            artifact_types=artifact_types or [],
+            tags=tags or [],
+            is_default=is_default,
+        )
+        return {"agent": self.serialize_agent(agent)}
+
+    async def update_agent(
+        self,
+        agent_id: uuid.UUID,
+        *,
+        name: str | None = None,
+        title: str | None = None,
+        description: str | None = None,
+        system_prompt: str | None = None,
+        tools: list[str] | None = None,
+        workflow_steps: list[str] | None = None,
+        artifact_types: list[str] | None = None,
+        tags: list[str] | None = None,
+        is_default: bool | None = None,
+    ) -> AgentDetailPayload:
+        kwargs: dict[str, Any] = {}
+        if name is not None:
+            kwargs["name"] = name
+        if title is not None:
+            kwargs["title"] = title
+        if description is not None:
+            kwargs["description"] = description
+        if system_prompt is not None:
+            kwargs["system_prompt"] = system_prompt
+        if tools is not None:
+            kwargs["tools"] = tools
+        if workflow_steps is not None:
+            kwargs["workflow_steps"] = workflow_steps
+        if artifact_types is not None:
+            kwargs["artifact_types"] = artifact_types
+        if tags is not None:
+            kwargs["tags"] = tags
+        if is_default is not None:
+            kwargs["is_default"] = is_default
+        updated = await self._store.update_agent(agent_id, **kwargs)
+        if updated is None:
+            raise LookupError(f"Agent {agent_id} not found")
+        return {"agent": self.serialize_agent(updated)}
+
+    async def delete_agent(self, agent_id: uuid.UUID) -> dict[str, bool]:
+        existing = await self._store.get_agent_by_id(agent_id)
+        if existing is None:
+            raise LookupError(f"Agent {agent_id} not found")
+        await self._store.delete_agent(agent_id)
+        return {"deleted": True}
+
+    @staticmethod
+    def serialize_agent(agent: Any) -> AgentPayload:
+        return {
+            "id": str(agent.id),
+            "name": getattr(agent, "name", ""),
+            "title": getattr(agent, "title", ""),
+            "description": getattr(agent, "description", ""),
+            "system_prompt": getattr(agent, "system_prompt", ""),
+            "tools": list(getattr(agent, "tools", []) or []),
+            "workflow_steps": list(getattr(agent, "workflow_steps", []) or []),
+            "artifact_types": list(getattr(agent, "artifact_types", []) or []),
+            "tags": list(getattr(agent, "tags", []) or []),
+            "is_default": bool(getattr(agent, "is_default", False)),
+            "created_at": (
+                agent.created_at.isoformat()
+                if getattr(agent, "created_at", None)
+                else None
+            ),
+            "updated_at": (
+                agent.updated_at.isoformat()
+                if getattr(agent, "updated_at", None)
+                else None
+            ),
+        }
+
+    # ------------------------------------------------------------------
     # Session management
     # ------------------------------------------------------------------
 
@@ -788,19 +901,43 @@ class AdminConsoleUseCases:
             if not normalized_path:
                 raise ValueError("Repository path is required")
             updates["state_path"] = normalized_path
+        new_workflow_id: uuid.UUID | None = _UNSET  # type: ignore[assignment]
         if workflow_id is not _UNSET:
             if workflow_id is None or str(workflow_id).strip() == "":
                 updates["workflow_id"] = None
+                new_workflow_id = None
             else:
                 wf_id = uuid.UUID(str(workflow_id))
                 workflow = await self._store.get_workflow_by_id(wf_id)
                 if workflow is None:
                     raise LookupError(f"Workflow {wf_id} not found")
                 updates["workflow_id"] = str(wf_id)
+                new_workflow_id = wf_id
 
         updated = await self._store.update_repository(repo_id, **updates)
         if updated is None:
             raise LookupError("Repository not found")
+
+        # Create workflow_state when a workflow is first assigned to a repo
+        if new_workflow_id is not _UNSET and new_workflow_id is not None:  # type: ignore[comparison-overlap]
+            existing_state = await self._store.get_workflow_state_by_repo(repo_id)
+            if existing_state is None:
+                workflow_obj = await self._store.get_workflow_by_id(new_workflow_id)
+                steps = list(getattr(workflow_obj, "steps", []) or []) if workflow_obj else []
+                step_names = [
+                    s["name"] for s in steps if isinstance(s, dict) and "name" in s
+                ]
+                first_step = step_names[0] if step_names else ""
+                second_step = step_names[1] if len(step_names) > 1 else None
+                await self._store.create_workflow_state(
+                    repo_id=repo_id,
+                    current_step=first_step,
+                    completed_steps=[],
+                    blocked_by=[],
+                    artifacts={},
+                    next_step=second_step,
+                )
+
         return await self.get_repository_detail(repo_id)
 
     async def delete_repository(self, repo_id: uuid.UUID) -> DeleteRepositoryPayload:

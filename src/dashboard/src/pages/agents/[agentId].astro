@@ -1,0 +1,9 @@
+---
+import AgentDetailShell from "../../components/AgentDetailShell.astro";
+
+export const prerender = false;
+
+const { agentId } = Astro.params;
+---
+
+<AgentDetailShell agentId={agentId} />

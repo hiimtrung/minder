@@ -8,10 +8,20 @@ ENV UV_PROJECT_ENVIRONMENT=/app/.venv
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app/src
 
+# CPU ISA flags for llama-cpp-python compilation.
+#
+# Default: portable SSE2-only build — runs on any x86_64 CPU, including VMs
+# and CI runners that don't expose AVX2 to the guest.
+#
+# Override at build time for better performance on known hardware:
+#   --build-arg LLAMA_CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_AVX2=ON -DGGML_AVX=ON -DGGML_FMA=ON -DGGML_F16C=ON"
+ARG LLAMA_CMAKE_ARGS="-DGGML_NATIVE=OFF -DGGML_AVX2=OFF -DGGML_AVX=OFF -DGGML_F16C=OFF -DGGML_FMA=OFF"
+ENV CMAKE_ARGS=${LLAMA_CMAKE_ARGS}
+
 WORKDIR /app
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates build-essential cargo \
+    && apt-get install -y --no-install-recommends ca-certificates build-essential cmake cargo \
     && rm -rf /var/lib/apt/lists/*
 
 COPY pyproject.toml uv.lock /app/

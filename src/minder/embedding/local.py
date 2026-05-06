@@ -54,9 +54,7 @@ class LocalEmbeddingProvider:
             return
 
         if not llama_cpp_usable():
-            logger.warning(
-                "CPU does not support AVX2; llama.cpp unavailable. Using mock embedding."
-            )
+            logger.warning("llama.cpp not usable on this host; embedding running in mock mode.")
             return
 
         try:

@@ -479,3 +479,27 @@ class RepositoryLandscapePayload(TypedDict):
     nodes: list[RepositoryLandscapeNodePayload]
     edges: list[RepositoryLandscapeEdgePayload]
     summary: dict[str, int]
+
+
+
+class AgentPayload(TypedDict):
+    id: str
+    name: str
+    title: str
+    description: str
+    system_prompt: str
+    tools: list[str]
+    workflow_steps: list[str]
+    artifact_types: list[str]
+    tags: list[str]
+    is_default: bool
+    created_at: str | None
+    updated_at: str | None
+
+
+class AgentListPayload(TypedDict):
+    agents: list[AgentPayload]
+
+
+class AgentDetailPayload(TypedDict):
+    agent: AgentPayload

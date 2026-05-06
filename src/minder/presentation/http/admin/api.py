@@ -521,6 +521,98 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         return JSONResponse({"error": "Method not allowed"}, status_code=405)
 
     # ------------------------------------------------------------------
+    # SubAgent management
+    # ------------------------------------------------------------------
+
+    async def admin_agents(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if request.method == "GET":
+            return JSONResponse(await context.use_cases.list_agents())
+
+        if request.method == "POST":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            name = str(payload.get("name", "")).strip()
+            if not name:
+                return JSONResponse({"error": "name is required"}, status_code=400)
+            try:
+                return JSONResponse(
+                    await context.use_cases.create_agent(
+                        name=name,
+                        title=str(payload.get("title", "")),
+                        description=str(payload.get("description", "")),
+                        system_prompt=str(payload.get("system_prompt", "")),
+                        tools=payload.get("tools") or [],
+                        workflow_steps=payload.get("workflow_steps") or [],
+                        artifact_types=payload.get("artifact_types") or [],
+                        tags=payload.get("tags") or [],
+                        is_default=bool(payload.get("is_default", False)),
+                    ),
+                    status_code=201,
+                )
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    async def agent_detail(request):
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        agent_id = uuid.UUID(str(request.path_params["agent_id"]))
+
+        if request.method == "GET":
+            try:
+                return JSONResponse(await context.use_cases.get_agent_detail(agent_id))
+            except LookupError:
+                return JSONResponse({"error": "Agent not found"}, status_code=404)
+
+        if request.method == "PATCH":
+            try:
+                payload = await request.json()
+            except Exception:
+                return JSONResponse({"error": "Invalid JSON"}, status_code=400)
+            try:
+                return JSONResponse(
+                    await context.use_cases.update_agent(
+                        agent_id,
+                        name=payload.get("name"),
+                        title=payload.get("title"),
+                        description=payload.get("description"),
+                        system_prompt=payload.get("system_prompt"),
+                        tools=payload.get("tools"),
+                        workflow_steps=payload.get("workflow_steps"),
+                        artifact_types=payload.get("artifact_types"),
+                        tags=payload.get("tags"),
+                        is_default=payload.get("is_default"),
+                    )
+                )
+            except LookupError:
+                return JSONResponse({"error": "Agent not found"}, status_code=404)
+            except Exception as exc:
+                return JSONResponse({"error": str(exc)}, status_code=400)
+
+        if request.method == "DELETE":
+            try:
+                return JSONResponse(await context.use_cases.delete_agent(agent_id))
+            except LookupError:
+                return JSONResponse({"error": "Agent not found"}, status_code=404)
+
+        return JSONResponse({"error": "Method not allowed"}, status_code=405)
+
+    # ------------------------------------------------------------------
     # Workflow management
     # ------------------------------------------------------------------
 
@@ -1329,6 +1421,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route(
             "/v1/admin/users/{user_id:uuid}",
             user_detail,
+            methods=["GET", "PATCH", "DELETE"],
+        ),
+        # SubAgent management
+        Route("/v1/admin/agents", admin_agents, methods=["GET", "POST"]),
+        Route(
+            "/v1/admin/agents/{agent_id:uuid}",
+            agent_detail,
             methods=["GET", "PATCH", "DELETE"],
         ),
         # Workflow management

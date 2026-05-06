@@ -52,9 +52,7 @@ class LlamaCppLLM:
             return
 
         if not llama_cpp_usable():
-            logger.warning(
-                "CPU does not support AVX2; llama.cpp unavailable. Falling back to mock mode."
-            )
+            logger.warning("llama.cpp not usable on this host; LLM running in mock mode.")
             return
 
         cache_key = f"{self._model_repo}:{self._model_file}"

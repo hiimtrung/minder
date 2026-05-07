@@ -109,9 +109,9 @@ async def test_planning_and_reasoning_nodes(tmp_path: Path) -> None:
     assert state.plan["intent"] == "code_gen"
     assert state.retrieved_docs[0]["path"] == str(file_path)
     assert "Current step: Test Writing" in state.reasoning_output["prompt"]
-    assert "Instruction envelope:" in state.reasoning_output["prompt"]
-    assert "Continuity packet:" in state.reasoning_output["prompt"]
-    assert "Tool capabilities:" in state.reasoning_output["prompt"]
+    assert "<envelope>" in state.reasoning_output["prompt"]
+    assert "<continuity>" in state.reasoning_output["prompt"]
+    assert "<tools>" in state.reasoning_output["prompt"]
     assert "minder_memory_store" in state.reasoning_output["prompt"]
     assert "User account records are read-only" in state.reasoning_output["prompt"]
     assert state.reasoning_output["prompt_name"] == "query_reasoning"

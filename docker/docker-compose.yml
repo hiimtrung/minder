@@ -17,7 +17,7 @@ services:
     image: ${MINDER_API_IMAGE:-ghcr.io/hiimtrung/minder-api:latest}
     restart: unless-stopped
     volumes:
-      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0

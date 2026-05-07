@@ -488,6 +488,26 @@ class IAgentRepository(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Checkpoint Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class ICheckpointRepository(Protocol):
+    async def get_checkpoint(self, thread_id: str) -> dict[str, Any] | None: ...
+    async def save_checkpoint(
+        self,
+        thread_id: str,
+        checkpoint_id: str,
+        checkpoint: bytes,
+        metadata: dict[str, Any] | None = None,
+    ) -> None: ...
+    async def list_checkpoints(
+        self, thread_id: str, limit: int = 10
+    ) -> list[dict[str, Any]]: ...
+
+
+# ---------------------------------------------------------------------------
 # Cache Provider (for Redis)
 # ---------------------------------------------------------------------------
 
@@ -557,6 +577,7 @@ class IOperationalStore(
     IClientRepository,
     IAdminJobRepository,
     IAgentRepository,
+    ICheckpointRepository,
     Protocol,
 ):
     """

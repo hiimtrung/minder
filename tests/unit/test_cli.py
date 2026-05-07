@@ -201,6 +201,51 @@ def test_install_mcp_antigravity_writes_gemini_config(
     )
 
 
+def test_install_mcp_gemini_writes_settings_json(
+    tmp_path, monkeypatch
+) -> None:  # noqa: ANN001
+    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
+    config_path = tmp_path / "client.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "client_api_key": "mkc_test_client_key_123",
+                "protocol": "sse",
+                "server_url": "http://localhost:8801/sse",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = main(
+        [
+            "install",
+            "mcp",
+            "--config-path",
+            str(config_path),
+            "--cwd",
+            str(tmp_path),
+            "--target",
+            "gemini",
+        ]
+    )
+
+    assert exit_code == 0
+    # Checks local config by default (not --global)
+    gemini_payload = json.loads(
+        (tmp_path / ".gemini" / "settings.json").read_text(encoding="utf-8")
+    )
+    assert (
+        gemini_payload["mcpServers"]["minder"]["serverUrl"]
+        == "http://localhost:8801/sse"
+    )
+    assert (
+        gemini_payload["mcpServers"]["minder"]["headers"]["X-Minder-Client-Key"]
+        == "mkc_test_client_key_123"
+    )
+    assert ".gemini/settings.json" in (tmp_path / ".gitignore").read_text()
+
+
 def test_install_ide_creates_repo_local_assets_and_gitignore(
     tmp_path, capsys
 ) -> None:  # noqa: ANN001

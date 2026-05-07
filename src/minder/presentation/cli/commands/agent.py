@@ -195,7 +195,7 @@ def _agent_instruction_path(target: str, cwd: Path) -> Path | None:
         return cwd / ".cursor" / "rules" / "minder.mdc"
     if target == "claude-code":
         return Path.home() / ".claude" / "agents" / "minder.md"
-    if target == "antigravity":
+    if target in ("antigravity", "gemini"):
         return Path.home() / ".gemini" / "GEMINI.md"
     if target == "codex":
         return Path.home() / ".codex" / "AGENTS.md"
@@ -262,7 +262,7 @@ def install_agent_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = ["vscode", "cursor", "claude-code", "antigravity", "codex"]
+        targets = ["vscode", "cursor", "claude-code", "antigravity", "gemini", "codex"]
 
     version = installed_package_version() or "unknown"
     installed_list: list[tuple[Path, str | None]] = []
@@ -314,7 +314,7 @@ def uninstall_agent_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = ["vscode", "cursor", "claude-code", "antigravity", "codex"]
+        targets = ["vscode", "cursor", "claude-code", "antigravity", "gemini", "codex"]
 
     removed: list[Path] = []
     for target in targets:

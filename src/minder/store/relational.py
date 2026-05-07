@@ -44,6 +44,7 @@ from minder.models import (
     SubAgent,
     User,
     Workflow,
+    Checkpoint,
 )
 
 _REGISTERED_MODELS = (
@@ -65,6 +66,7 @@ _REGISTERED_MODELS = (
     SubAgent,
     User,
     Workflow,
+    Checkpoint,
 )
 
 
@@ -798,6 +800,67 @@ class RelationalStore:
                 )
             )
             return result.scalar_one_or_none()
+
+    # ------------------------------------------------------------------
+    # Checkpoint
+    # ------------------------------------------------------------------
+
+    async def get_checkpoint(self, thread_id: str) -> dict[str, Any] | None:
+        from sqlalchemy import select
+
+        async with self._session() as sess:
+            # We want the latest checkpoint for the thread if not filtering by checkpoint_id,
+            # but usually LangGraph asks for a specific thread_id.
+            stmt = select(Checkpoint).where(Checkpoint.thread_id == thread_id).order_by(Checkpoint.created_at.desc()).limit(1)
+            result = await sess.execute(stmt)
+            chk = result.scalar_one_or_none()
+            if not chk:
+                return None
+            return {
+                "checkpoint_id": chk.checkpoint_id,
+                "checkpoint": chk.checkpoint,
+                "metadata": chk.metadata_,
+            }
+
+    async def save_checkpoint(
+        self,
+        thread_id: str,
+        checkpoint_id: str,
+        checkpoint: bytes,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        async with self._session() as sess:
+            chk = Checkpoint(
+                thread_id=thread_id,
+                checkpoint_id=checkpoint_id,
+                checkpoint=checkpoint,
+                metadata_=metadata or {},
+            )
+            sess.add(chk)
+            await sess.flush()
+
+    async def list_checkpoints(
+        self, thread_id: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        from sqlalchemy import select
+
+        async with self._session() as sess:
+            stmt = (
+                select(Checkpoint)
+                .where(Checkpoint.thread_id == thread_id)
+                .order_by(Checkpoint.created_at.desc())
+                .limit(limit)
+            )
+            result = await sess.execute(stmt)
+            records = result.scalars().all()
+            return [
+                {
+                    "checkpoint_id": r.checkpoint_id,
+                    "checkpoint": r.checkpoint,
+                    "metadata": r.metadata_,
+                }
+                for r in records
+            ]
 
     async def delete_workflow_state(self, state_id: uuid.UUID) -> None:
         async with self._session() as sess:

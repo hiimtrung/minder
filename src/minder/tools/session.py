@@ -33,13 +33,43 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.config import MinderConfig
 from minder.observability.metrics import record_continuity_packet
 from minder.store.interfaces import IOperationalStore
 
 
 class SessionTools:
-    def __init__(self, store: IOperationalStore) -> None:
+    def __init__(
+        self,
+        store: IOperationalStore,
+        config: MinderConfig | None = None,
+        memory_tools: Any | None = None,
+    ) -> None:
         self._store = store
+        self._config = config or MinderConfig()
+        self._memory_tools = memory_tools
+        self._agentic_graph: Any | None = None
+
+    def _use_agentic_restore(self) -> bool:
+        return bool(self._config.session.agentic_restore)
+
+    def _get_memory_tools(self) -> Any:
+        if self._memory_tools is None:
+            from minder.tools.memory import MemoryTools
+
+            self._memory_tools = MemoryTools(self._store, self._config)
+        return self._memory_tools
+
+    def _get_agentic_graph(self) -> Any:
+        if self._agentic_graph is None:
+            from minder.graph.session_graph import SessionContextGraph
+
+            self._agentic_graph = SessionContextGraph(
+                self,
+                self._get_memory_tools(),
+                self._config,
+            )
+        return self._agentic_graph
 
     def _normalize_datetime(self, value: datetime | None) -> datetime | None:
         if value is None:
@@ -239,6 +269,14 @@ class SessionTools:
         Use ``minder_session_find`` instead when you know the session name —
         it performs owner-scoped lookup and returns the same payload.
         """
+        if self._use_agentic_restore():
+            try:
+                return await self._agentic_restore(session_id)
+            except ValueError:
+                raise
+            except Exception:
+                pass
+
         session = await self._require_active_session(session_id)
 
         continuity_packet: dict[str, Any] | None = None
@@ -273,6 +311,30 @@ class SessionTools:
         if continuity_packet is not None:
             record_continuity_packet("session_restore")
             payload["continuity_packet"] = continuity_packet
+        return payload
+
+    async def _agentic_restore(self, session_id: uuid.UUID) -> dict[str, Any]:
+        graph = self._get_agentic_graph()
+        result = await graph.run(
+            {
+                "session_id": str(session_id),
+                "session_model": None,
+                "workflow_model": None,
+                "workflow_state_model": None,
+                "session_name": None,
+                "session_state": {},
+                "workflow_step": None,
+                "workflow_context": {},
+                "project_context": {},
+                "active_skills": {},
+                "recalled_memories": [],
+                "coherence_result": {},
+                "unified_context": {},
+            }
+        )
+        payload = dict(result.get("unified_context", {}))
+        if payload.get("continuity_packet") is not None:
+            record_continuity_packet("session_restore")
         return payload
 
     async def minder_session_context(

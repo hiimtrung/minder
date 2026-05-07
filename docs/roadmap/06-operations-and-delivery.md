@@ -149,7 +149,6 @@ minder/
 │       ├── 05-implementation-phases.md
 │       └── 06-operations-and-delivery.md
 └── scripts/
-    ├── download_models.sh
     ├── seed_skills.py
     └── create_admin.py
 ```

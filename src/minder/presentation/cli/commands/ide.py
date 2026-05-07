@@ -19,7 +19,7 @@ def _ide_instruction_path(target: str, cwd: Path) -> Path | None:
         return cwd / ".cursor" / "rules" / "minder.mdc"
     if target == "claude-code":
         return cwd / "CLAUDE.md"
-    if target == "antigravity":
+    if target in ("antigravity", "gemini"):
         return cwd / ".agents" / "workflows" / "minder.md"
     return None
 
@@ -29,7 +29,7 @@ def _ide_agent_path(target: str, cwd: Path) -> Path | None:
         return cwd / ".minder" / "agent.json"
     if target == "claude-code":
         return cwd / ".claude" / "agents" / "minder-repo-guide.md"
-    if target == "antigravity":
+    if target in ("antigravity", "gemini"):
         return cwd / ".minder" / "agent.json"
     return None
 
@@ -58,7 +58,7 @@ def install_ide_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = ["vscode", "cursor", "claude-code", "antigravity"]
+        targets = ["vscode", "cursor", "claude-code", "antigravity", "gemini"]
         
     for target in targets:
         # Instruction
@@ -119,7 +119,7 @@ def uninstall_ide_command(args: argparse.Namespace) -> int:
     cwd = Path(args.cwd).resolve()
     targets = args.target or ["all"]
     if "all" in targets:
-        targets = ["vscode", "cursor", "claude-code", "antigravity"]
+        targets = ["vscode", "cursor", "claude-code", "antigravity", "gemini"]
         
     # Remove assets...
     for target in targets:

@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import importlib.util
 import logging
+import os
 import signal
 import subprocess
 import sys
+from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -75,3 +77,65 @@ def llama_cpp_usable() -> bool:
         _LLAMA_CPP_PROBE = False
 
     return _LLAMA_CPP_PROBE
+
+
+def get_writable_hf_cache_dir() -> str | None:
+    """Return a writable HuggingFace Hub cache directory.
+
+    When ``HUGGINGFACE_HUB_CACHE`` (or ``HF_HOME``) points to a read-only
+    path — common in Docker where the models volume is mounted ``:ro`` — HF Hub
+    cannot create the per-repo directories and raises ``[Errno 30] Read-only
+    file system``.  This helper detects that situation and returns a writable
+    fallback so callers can pass it as ``cache_dir`` to
+    ``Llama.from_pretrained()``.
+
+    Returns:
+        ``None``  — no override needed; HF Hub will use its env-configured
+                    cache (which is writable or not set).
+        ``str``   — path of a writable fallback directory that the caller
+                    should pass as ``cache_dir``.
+    """
+    hf_cache = os.environ.get("HUGGINGFACE_HUB_CACHE") or os.environ.get("HF_HOME", "")
+    if not hf_cache:
+        return None  # no env override; HF uses ~/.cache/huggingface (writable)
+
+    if os.access(hf_cache, os.W_OK):
+        return None  # configured cache is writable; no override needed
+
+    # Configured cache exists but is read-only (e.g. Docker :ro volume).
+    fallback = os.environ.get("MINDER_MODEL_CACHE_DIR", "/tmp/minder_hf_cache")
+    try:
+        Path(fallback).mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        logger.warning("Could not create HF fallback cache dir %r: %s", fallback, exc)
+        return None
+    logger.info(
+        "HF model cache %r is read-only; downloads will use writable fallback: %s",
+        hf_cache,
+        fallback,
+    )
+    return fallback
+
+
+def get_effective_hf_cache_dir() -> str | None:
+    """Return the effective HF Hub cache directory to pass as ``cache_dir``.
+
+    Unlike ``get_writable_hf_cache_dir()`` which returns ``None`` when no
+    override is needed, this always returns the resolved path so callers can
+    use it for local-existence checks without knowing about the env-var
+    fallback chain.
+
+    Returns the fallback writable path when the env-configured dir is
+    read-only, the env-configured dir when it is writable, or ``None`` when no
+    env var is set (HF Hub resolves its own default cache).
+    """
+    fallback = get_writable_hf_cache_dir()
+    if fallback is not None:
+        return fallback  # read-only env cache — use writable fallback
+
+    hf_cache = os.environ.get("HUGGINGFACE_HUB_CACHE") or os.environ.get("HF_HOME", "")
+    if hf_cache:
+        return hf_cache  # writable env-configured cache
+
+    # No env override — let HF resolve its default (~/.cache/huggingface/hub)
+    return None

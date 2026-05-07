@@ -12,7 +12,7 @@ from collections.abc import Generator
 from typing import Any, cast
 
 from minder.graph.state import GraphState
-from minder.runtime import llama_cpp_usable
+from minder.runtime import get_writable_hf_cache_dir, llama_cpp_usable
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +65,17 @@ class LlamaCppLLM:
 
             n_gpu_layers = -1  # Let llama.cpp handle Metal / CUDA layer offloading
             logger.info("Initializing Llama.cpp engine for %s", self._model_repo)
+            cache_dir = get_writable_hf_cache_dir()
+            cache_kwargs: dict[str, Any] = (
+                {} if cache_dir is None else {"cache_dir": cache_dir}
+            )
             self._engine = Llama.from_pretrained(
                 repo_id=self._model_repo,
                 filename=self._model_file,
                 n_ctx=self._context_length,
                 n_gpu_layers=n_gpu_layers,
                 verbose=False,
+                **cache_kwargs,
             )
             _ENGINE_CACHE[cache_key] = self._engine
         except Exception as e:

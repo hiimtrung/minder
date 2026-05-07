@@ -112,3 +112,6 @@ __all__ = [
 
 # Prompts
 from .prompt import Prompt as Prompt, PromptSchema as PromptSchema
+
+# Checkpoint
+from .checkpoint import Checkpoint as Checkpoint

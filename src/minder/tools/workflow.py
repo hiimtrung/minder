@@ -14,10 +14,25 @@ from minder.store.repo_state import RepoStateStore
 
 class WorkflowTools:
     def __init__(
-        self, store: IOperationalStore, repo_state_store: RepoStateStore
+        self,
+        store: IOperationalStore,
+        repo_state_store: RepoStateStore,
+        *,
+        graph: Any | None = None,
+        config: Any | None = None,
     ) -> None:
         self._store = store
         self._repo_state = repo_state_store
+        self._graph = graph
+        self._config = config
+
+    def _get_graph(self) -> Any:
+        if self._graph is None:
+            from minder.config import MinderConfig
+            from minder.graph import MinderGraph
+
+            self._graph = MinderGraph(self._store, self._config or MinderConfig())
+        return self._graph
 
     async def minder_workflow_get(
         self, *, repo_id: uuid.UUID, repo_path: str
@@ -49,8 +64,40 @@ class WorkflowTools:
         }
 
     async def minder_workflow_step(
-        self, *, repo_id: uuid.UUID, repo_path: str
+        self,
+        *,
+        repo_id: uuid.UUID | None = None,
+        repo_path: str | None = None,
+        session_id: uuid.UUID | None = None,
+        decision: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        if session_id is not None or decision is not None:
+            if session_id is None or decision is None:
+                raise ValueError("session_id and decision are required to resume a workflow")
+            result = await self._get_graph().resume(session_id, decision)
+            approval_request = None
+            if result.metadata.get("waiting_for_approval"):
+                approval_request = list(
+                    result.metadata.get("interrupts", []) or [{}]
+                )[0].get("value")
+            return {
+                "status": (
+                    "waiting_approval"
+                    if result.metadata.get("waiting_for_approval")
+                    else "resumed"
+                ),
+                "edge": result.metadata.get("edge"),
+                "guard_result": result.guard_result,
+                "verification_result": result.verification_result,
+                "approval_request": approval_request,
+                "supervisor": {
+                    "used": bool(result.metadata.get("supervisor_used", False)),
+                    "selected_agent": result.metadata.get("supervisor_selected_agent"),
+                    "agents": list(result.metadata.get("supervisor_agents", []) or []),
+                },
+            }
+        if repo_id is None or repo_path is None:
+            raise ValueError("repo_id and repo_path are required when not resuming")
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
         state = await self._require_workflow_state(repo_id)

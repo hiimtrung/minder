@@ -7,6 +7,7 @@ from .reranker import RerankerNode
 from .reasoning import ReasoningNode
 from .reflection import ReflectionNode
 from .retriever import RetrieverNode
+from .parallel_retriever import ParallelRetrieverNode
 from .verification import (
     DockerSandboxRunner,
     SubprocessVerificationRunner,
@@ -21,6 +22,7 @@ __all__ = [
     "GuardNode",
     "LLMNode",
     "PlanningNode",
+    "ParallelRetrieverNode",
     "ReasoningNode",
     "RerankerNode",
     "ReflectionNode",

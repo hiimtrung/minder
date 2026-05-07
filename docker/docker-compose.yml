@@ -17,8 +17,7 @@ services:
     image: ${MINDER_API_IMAGE:-ghcr.io/hiimtrung/minder-api:latest}
     restart: unless-stopped
     volumes:
-      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
-      - model-cache:/tmp/minder_hf_cache
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
@@ -32,7 +31,6 @@ services:
       MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       HUGGINGFACE_HUB_CACHE: /models
-      MINDER_MODEL_CACHE_DIR: /tmp/minder_hf_cache
       MINDER_LLM__PROVIDER: llama_cpp
       MINDER_LLM__LLAMA_CPP_MODEL_REPO: ggml-org/gemma-4-E2B-it-GGUF
       MINDER_LLM__LLAMA_CPP_MODEL_FILE: "gemma-4-E2B-it-Q8_0.gguf"
@@ -145,4 +143,3 @@ volumes:
   etcd-data:
   minio-data:
   milvus-data:
-  model-cache:

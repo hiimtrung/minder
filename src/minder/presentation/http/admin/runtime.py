@@ -30,6 +30,15 @@ _PROMPT_LEAK_MARKERS = (
     "User query:",
     "Retrieved context:",
     "Correction required:",
+    "<workflow>",
+    "<envelope>",
+    "<continuity>",
+    "<tools>",
+    "<policy>",
+    "<repo_context>",
+    "<retrieved>",
+    "<correction>",
+    "<question>",
 )
 
 
@@ -505,7 +514,7 @@ def _sanitize_answer(
     marker_hits = sum(text.count(marker) for marker in _PROMPT_LEAK_MARKERS)
     looks_like_prompt_echo = marker_hits >= 2 or text.startswith(
         "Workflow instruction:"
-    )
+    ) or text.startswith("<workflow>")
 
     if not looks_like_prompt_echo:
         return text, False, None

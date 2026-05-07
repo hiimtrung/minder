@@ -1,6 +1,5 @@
 from minder.config import Settings
 from minder.bootstrap.providers import build_graph_store
-from minder.store.graph import KnowledgeGraphStore
 from minder.store.mongodb.graph_store import MongoGraphStore
 
 

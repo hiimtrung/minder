@@ -37,6 +37,7 @@ const snippetTitles: Record<string, string> = {
   vscode: "VS Code / GitHub Copilot",
   copilot_cli: "GitHub Copilot CLI",
   antigravity: "Google Antigravity",
+  gemini: "Gemini CLI",
   cursor: "Cursor",
   claude_code: "Claude Code",
 };
@@ -88,6 +89,12 @@ const docsByTarget: Record<string, SnippetDoc[]> = {
     {
       label: "Google Antigravity MCP docs",
       href: "https://antigravity.google/docs/mcp",
+    },
+  ],
+  gemini: [
+    {
+      label: "Gemini CLI MCP docs",
+      href: "https://geminicli.com/docs/tools/mcp-server/",
     },
   ],
   cursor: [
@@ -151,6 +158,23 @@ const localSnippetTemplates: Record<string, string> = {
     2,
   ),
   antigravity: JSON.stringify(
+    {
+      mcpServers: {
+        minder: {
+          command: "uv",
+          args: ["run", "python", "-m", "minder.server"],
+          cwd: "/absolute/path/to/minder",
+          env: {
+            MINDER_SERVER__TRANSPORT: "stdio",
+            MINDER_CLIENT_API_KEY: "<mkc_...>",
+          },
+        },
+      },
+    },
+    null,
+    2,
+  ),
+  gemini: JSON.stringify(
     {
       mcpServers: {
         minder: {
@@ -390,7 +414,7 @@ const buildSnippetVariants = (
             "Replace <mkc_...> with the client API key shown in this dashboard.",
             "Save the config and verify the server reconnects.",
           ],
-          docs,
+          docs: docsByTarget["antigravity"] ?? [],
           template: formattedRemote,
           preferred: true,
           copyTargets: buildCopyTargets(
@@ -410,7 +434,50 @@ const buildSnippetVariants = (
             "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
             "Save the config and confirm the server reconnects.",
           ],
-          docs,
+          docs: docsByTarget["antigravity"] ?? [],
+          template: formattedLocal,
+          copyTargets: buildCopyTargets(
+            formattedLocal,
+            localEntry,
+            "Copy Full File",
+          ),
+        },
+      ];
+    case "gemini":
+      return [
+        {
+          id: "remote",
+          label: "Preferred Remote",
+          transport: "Remote SSE",
+          summary:
+            "Use this for the cleanest Gemini CLI setup against Minder's remote endpoint.",
+          steps: [
+            "Open ~/.gemini/settings.json or the project-local .gemini/settings.json.",
+            "Add or replace the minder entry under mcpServers with this remote configuration.",
+            "Replace <mkc_...> with the client API key shown in this dashboard.",
+            "Save the file and verify tools with 'gemini mcp list' inside a session.",
+          ],
+          docs: docsByTarget["gemini"] ?? [],
+          template: formattedRemote,
+          preferred: true,
+          copyTargets: buildCopyTargets(
+            formattedRemote,
+            remoteEntry,
+            "Copy Full File",
+          ),
+        },
+        {
+          id: "local",
+          label: "Local stdio",
+          transport: "Optional fallback",
+          summary:
+            "Use this when you want Gemini CLI to start Minder locally instead of connecting to the remote endpoint.",
+          steps: [
+            "Keep the configuration in ~/.gemini/settings.json or .gemini/settings.json.",
+            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
+            "Verify the server is registered with 'gemini mcp list'.",
+          ],
+          docs: docsByTarget["gemini"] ?? [],
           template: formattedLocal,
           copyTargets: buildCopyTargets(
             formattedLocal,

@@ -15,7 +15,7 @@ from ..utils.common import (
 )
 from ..utils.config import require_client_settings
 
-_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity")
+_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity", "gemini")
 _ALL_MCP_TARGETS = (*_LOCAL_MCP_TARGETS, "codex")
 
 # Matches [mcp_servers.minder] and all its key/value lines up to the next
@@ -42,6 +42,8 @@ def _global_target_path(target: str) -> Path:
         return Path.home() / ".claude.json"
     if target == "antigravity":
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
+    if target == "gemini":
+        return Path.home() / ".gemini" / "settings.json"
     if target == "codex":
         return Path.home() / ".codex" / "config.toml"
     raise ValueError(f"Unknown global target: {target}")
@@ -96,6 +98,8 @@ def local_target_path(target: str, cwd: Path) -> Path:
     if target == "antigravity":
         del cwd
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
+    if target == "gemini":
+        return cwd / ".gemini" / "settings.json"
     raise ValueError(f"Unknown local target: {target}")
 
 
@@ -154,7 +158,7 @@ def _target_entry(
     url = _remote_url(protocol, server_url or "")
     headers = {"X-Minder-Client-Key": client_key}
 
-    if target == "antigravity":
+    if target in ("antigravity", "gemini"):
         # Gemini CLI expects "serverUrl" instead of "url"
         return {"serverUrl": url, "headers": headers}
     if target in ("vscode", "claude-code"):
@@ -204,8 +208,11 @@ def install_mcp_command(args: argparse.Namespace) -> int:
             write_json(path, payload)
             print(f"Installed Minder MCP config for {target} at {path}")
 
-            if not args.global_install and target == "claude-code":
-                _ensure_gitignored(cwd, ".mcp.json")
+            if not args.global_install:
+                if target == "claude-code":
+                    _ensure_gitignored(cwd, ".mcp.json")
+                elif target == "gemini":
+                    _ensure_gitignored(cwd, ".gemini/settings.json")
         except Exception as e:
             print(f"Failed to install MCP for {target}: {e}")
             
@@ -250,8 +257,11 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                     write_json(path, payload)
                 print(f"Removed Minder MCP config for {target} from {path}")
 
-            if not args.global_install and target == "claude-code":
-                _remove_gitignored(cwd, ".mcp.json")
+            if not args.global_install:
+                if target == "claude-code":
+                    _remove_gitignored(cwd, ".mcp.json")
+                elif target == "gemini":
+                    _remove_gitignored(cwd, ".gemini/settings.json")
         except Exception as e:
             print(f"Failed to uninstall MCP for {target}: {e}")
 

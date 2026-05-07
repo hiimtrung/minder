@@ -23,7 +23,7 @@ src/minder/models/{user,skill,memory,session,workflow,repo}.py
 docker/Dockerfile.api
 docker/Dockerfile.dashboard
 docker/docker-compose.local.yml
-scripts/{download_models,seed_skills,create_admin}.py|sh
+scripts/{seed_skills,create_admin}.py
 ```
 
 ### Tasks

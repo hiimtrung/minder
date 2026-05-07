@@ -115,3 +115,27 @@ def get_writable_hf_cache_dir() -> str | None:
         fallback,
     )
     return fallback
+
+
+def get_effective_hf_cache_dir() -> str | None:
+    """Return the effective HF Hub cache directory to pass as ``cache_dir``.
+
+    Unlike ``get_writable_hf_cache_dir()`` which returns ``None`` when no
+    override is needed, this always returns the resolved path so callers can
+    use it for local-existence checks without knowing about the env-var
+    fallback chain.
+
+    Returns the fallback writable path when the env-configured dir is
+    read-only, the env-configured dir when it is writable, or ``None`` when no
+    env var is set (HF Hub resolves its own default cache).
+    """
+    fallback = get_writable_hf_cache_dir()
+    if fallback is not None:
+        return fallback  # read-only env cache — use writable fallback
+
+    hf_cache = os.environ.get("HUGGINGFACE_HUB_CACHE") or os.environ.get("HF_HOME", "")
+    if hf_cache:
+        return hf_cache  # writable env-configured cache
+
+    # No env override — let HF resolve its default (~/.cache/huggingface/hub)
+    return None

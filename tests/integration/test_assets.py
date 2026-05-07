@@ -188,7 +188,6 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     compose = Path("docker/docker-compose.local.yml")
     ci_workflow = Path(".github/workflows/ci.yml")
     release_workflow = Path(".github/workflows/release.yml")
-    download_script = Path("scripts/download_models.sh")
 
     assert compose.exists()
     compose_text = compose.read_text(encoding="utf-8")
@@ -212,6 +211,17 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
     assert "body_path: dist/release/release-notes.md" in release_workflow_text
     assert "cache-from: type=gha,scope=minder-api" in release_workflow_text
     assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow_text
-    assert download_script.exists()
-    download_text = download_script.read_text(encoding="utf-8")
-    assert "llama" in download_text.lower() or "gguf" in download_text.lower()
+
+
+def test_model_bootstrap_replaces_download_script() -> None:
+    # download_models.sh is removed — bootstrap now happens at server startup.
+    assert not Path("scripts/download_models.sh").exists(), (
+        "download_models.sh must be deleted: model bootstrap is now handled "
+        "by minder.model_bootstrap.ensure_models_available() at server startup."
+    )
+    bootstrap = Path("src/minder/model_bootstrap.py")
+    assert bootstrap.exists()
+    text = bootstrap.read_text(encoding="utf-8")
+    assert "ensure_models_available" in text
+    assert "hf_hub_download" in text
+    assert "_fix_permissions" in text

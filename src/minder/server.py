@@ -4,6 +4,7 @@ import asyncio
 import sys
 
 from minder.bootstrap.agent_seeder import seed_default_agents
+from minder.model_bootstrap import ensure_models_available
 from minder.bootstrap.providers import (
     build_cache,
     build_graph_store,
@@ -74,6 +75,10 @@ async def _async_run() -> None:
         service_name=config.server.name,
         service_version=config.server.version,
     )
+
+    # Pre-download GGUF models before any provider tries lazy-loading them.
+    # Runs in a thread so the async event loop stays responsive during download.
+    await asyncio.to_thread(ensure_models_available, config)
 
     store = build_store(config)
     await store.init_db()

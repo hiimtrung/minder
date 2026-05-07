@@ -31,11 +31,18 @@ class PlanningNode:
         if intent == "search":
             retrieval_strategy = "lexical"
         complexity = "high" if len(query.split()) > 12 else "medium"
+        current_step = str(state.workflow_context.get("current_step", "") or "").lower()
+        required_agents: list[str] = []
+        if "review" in current_step or "review" in query:
+            required_agents.append("code_reviewer")
+        elif "test" in current_step or "test" in query:
+            required_agents.append("tester")
 
         state.plan = {
             "intent": intent,
             "knowledge_layer": "repository",
             "retrieval_strategy": retrieval_strategy,
             "complexity": complexity,
+            "required_agents": required_agents,
         }
         return state

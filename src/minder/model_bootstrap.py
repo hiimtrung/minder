@@ -18,12 +18,11 @@ Design
 from __future__ import annotations
 
 import logging
-import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from minder.runtime import get_effective_hf_cache_dir, get_writable_hf_cache_dir
+from minder.runtime import get_effective_hf_cache_dir
 
 if TYPE_CHECKING:
     from minder.config import MinderConfig

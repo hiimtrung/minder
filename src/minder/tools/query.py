@@ -33,7 +33,7 @@ class QueryTools:
 
         self._store = store
         self._config = config
-        self._graph = graph or MinderGraph(store, config)
+        self._graph = graph or MinderGraph(store, config, graph_tools=graph_tools)
         self._vector_store = vector_store or VectorStore(store, store)
         self._embedding_provider = LocalEmbeddingProvider(
             llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
@@ -159,22 +159,7 @@ class QueryTools:
                 if str(item.get("edge")) == "guard_failed"
             ),
         )
-        return {
-            "answer": result.llm_output.get("text", ""),
-            "sources": result.reasoning_output.get("sources", []),
-            "workflow_name": result.workflow_context.get("workflow_name"),
-            "provider": result.llm_output.get("provider"),
-            "model": result.llm_output.get("model"),
-            "runtime": result.llm_output.get("runtime"),
-            "orchestration_runtime": result.metadata.get("orchestration_runtime"),
-            "edge": result.metadata.get("edge"),
-            "guard_result": result.guard_result,
-            "verification_result": result.verification_result,
-            "transition_log": result.transition_log,
-            "history_source": result.metadata.get("history_source"),
-            "history_message_count": result.metadata.get("history_message_count"),
-            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
-        }
+        return self._result_from_state(result)
 
     async def minder_query_stream(
         self,
@@ -265,31 +250,77 @@ class QueryTools:
                 ),
             },
         )
-
-        async for event in self._graph.stream(state):
-            if str(event.get("type")) == "final":
-                final_state = event.get("state")
-                if isinstance(final_state, GraphState):
-                    result = self._result_from_state(final_state)
-                    record_continuity_packet("query")
-                    record_query_prompt_render(
-                        str(
-                            final_state.metadata.get(
-                                "query_prompt_source",
-                                state.metadata.get("query_prompt_source", "unknown"),
-                            )
-                        ),
-                        correction_retries=sum(
-                            1
-                            for item in final_state.transition_log
-                            if str(item.get("edge")) == "guard_failed"
-                        ),
-                    )
-                    yield {"type": "final", "payload": result}
-                continue
-            yield event
+        if self._config.graph.runtime == "langgraph":
+            config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
+            async for event in self._graph.astream_events(state, config, version="v2"):
+                event_name = event.get("event")
+                name = event.get("name", "")
+                
+                if event_name == "on_chain_start" and name == "reasoning":
+                    yield {"type": "attempt", "attempt": 1}
+                
+                elif event_name == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content"):
+                        yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
+                
+                elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
+                    output = event.get("data", {}).get("output", {})
+                    docs = output.get("reranked_docs", []) or output.get("retrieved_docs", [])
+                    if docs:
+                        yield {"type": "sources", "sources": [{"path": d["path"], "score": d.get("score", 0.0)} for d in docs[:5]]}
+                
+                elif event_name == "on_chain_end" and name == "LangGraph":
+                    final_data = event.get("data", {}).get("output", {})
+                    if final_data:
+                        final_state = GraphState.model_validate(final_data)
+                        result = self._result_from_state(final_state)
+                        
+                        record_continuity_packet("query")
+                        record_query_prompt_render(
+                            str(
+                                final_state.metadata.get(
+                                    "query_prompt_source",
+                                    state.metadata.get("query_prompt_source", "unknown"),
+                                )
+                            ),
+                            correction_retries=sum(
+                                1
+                                for item in final_state.transition_log
+                                if str(item.get("edge")) == "guard_failed"
+                            ),
+                        )
+                        yield {"type": "final", "payload": result}
+        else:
+            async for event in self._graph.stream(state):
+                if str(event.get("type")) == "final":
+                    final_state = event.get("state")
+                    if isinstance(final_state, GraphState):
+                        result = self._result_from_state(final_state)
+                        record_continuity_packet("query")
+                        record_query_prompt_render(
+                            str(
+                                final_state.metadata.get(
+                                    "query_prompt_source",
+                                    state.metadata.get("query_prompt_source", "unknown"),
+                                )
+                            ),
+                            correction_retries=sum(
+                                1
+                                for item in final_state.transition_log
+                                if str(item.get("edge")) == "guard_failed"
+                            ),
+                        )
+                        yield {"type": "final", "payload": result}
+                    continue
+                yield event
 
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
+        approval_request = None
+        if result.metadata.get("waiting_for_approval"):
+            approval_request = list(result.metadata.get("interrupts", []) or [{}])[0].get(
+                "value"
+            )
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
@@ -305,6 +336,18 @@ class QueryTools:
             "history_source": result.metadata.get("history_source"),
             "history_message_count": result.metadata.get("history_message_count"),
             "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
+            "status": (
+                "waiting_approval"
+                if result.metadata.get("waiting_for_approval")
+                else "completed"
+            ),
+            "approval_request": approval_request,
+            "session_id": str(result.session_id) if result.session_id else None,
+            "supervisor": {
+                "used": bool(result.metadata.get("supervisor_used", False)),
+                "selected_agent": result.metadata.get("supervisor_selected_agent"),
+                "agents": list(result.metadata.get("supervisor_agents", []) or []),
+            },
         }
 
     async def minder_search_code(

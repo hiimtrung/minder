@@ -1,4 +1,5 @@
 import pytest
+from typing import Any
 
 import minder.graph.executor as executor_module
 import minder.graph.graph as graph_module
@@ -127,7 +128,7 @@ async def test_langgraph_adapter_reports_detected_runtime(
         evaluator=EvaluatorNode(),
     )
     state = GraphState(query="hello", repo_path=".")
-    state = await LangGraphExecutorAdapter(nodes).run(state)
+    state = await LangGraphExecutorAdapter(nodes, store).run(state)
     assert state.metadata["orchestration_runtime"] in {"internal", "langgraph"}
 
 
@@ -137,8 +138,11 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
     store: RelationalStore,
 ) -> None:
     class FakeCompiledGraph:
-        async def ainvoke(self, state: GraphState) -> GraphState:
-            state.metadata["fake_langgraph"] = True
+        async def ainvoke(
+            self, state: dict[str, Any], config: dict[str, Any] | None = None
+        ) -> dict[str, Any]:
+            del config
+            state["metadata"] = {**dict(state.get("metadata", {}) or {}), "fake_langgraph": True}
             return state
 
     class FakeStateGraph:
@@ -161,7 +165,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         def set_finish_point(self, name: str) -> None:
             self.finish = name
 
-        def compile(self) -> FakeCompiledGraph:
+        def compile(self, **kwargs: Any) -> FakeCompiledGraph:
             return FakeCompiledGraph()
 
     monkeypatch.setattr(
@@ -191,7 +195,7 @@ async def test_langgraph_adapter_uses_stategraph_when_available(
         evaluator=EvaluatorNode(),
     )
     state = GraphState(query="hello", repo_path=".")
-    state = await LangGraphExecutorAdapter(nodes).run(state)
+    state = await LangGraphExecutorAdapter(nodes, store).run(state)
     assert state.metadata["orchestration_runtime"] == "langgraph"
     assert state.metadata["fake_langgraph"] is True
 

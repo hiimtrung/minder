@@ -812,6 +812,55 @@ class MongoOperationalStore:
         )
         return await self.get_workflow_state_by_id(state_id)
 
+    # ------------------------------------------------------------------
+    # Checkpoint
+    # ------------------------------------------------------------------
+
+    async def get_checkpoint(self, thread_id: str) -> dict[str, Any] | None:
+        doc = await self._db.checkpoints.find_one(
+            {"thread_id": thread_id}, sort=[("created_at", -1)]
+        )
+        if not doc:
+            return None
+        return {
+            "checkpoint_id": doc["checkpoint_id"],
+            "checkpoint": doc["checkpoint"],
+            "metadata": doc.get("metadata", {}),
+        }
+
+    async def save_checkpoint(
+        self,
+        thread_id: str,
+        checkpoint_id: str,
+        checkpoint: bytes,
+        metadata: dict[str, Any] | None = None,
+    ) -> None:
+        doc = {
+            "thread_id": thread_id,
+            "checkpoint_id": checkpoint_id,
+            "checkpoint": checkpoint,
+            "metadata": metadata or {},
+            "created_at": _now(),
+        }
+        await self._db.checkpoints.insert_one(doc)
+
+    async def list_checkpoints(
+        self, thread_id: str, limit: int = 10
+    ) -> list[dict[str, Any]]:
+        cursor = (
+            self._db.checkpoints.find({"thread_id": thread_id})
+            .sort("created_at", -1)
+            .limit(limit)
+        )
+        return [
+            {
+                "checkpoint_id": doc["checkpoint_id"],
+                "checkpoint": doc["checkpoint"],
+                "metadata": doc.get("metadata", {}),
+            }
+            async for doc in cursor
+        ]
+
     async def delete_workflow_state(self, state_id: uuid.UUID) -> None:
         await self._db.repository_workflow_states.delete_one(
             {"_id": _uuid_to_str(state_id)}

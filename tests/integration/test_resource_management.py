@@ -55,7 +55,9 @@ async def store() -> RelationalStore:
 
 @pytest.fixture
 def config() -> MinderConfig:
-    return MinderConfig()
+    c = MinderConfig()
+    c.graph.runtime = "internal"
+    return c
 
 
 @pytest.mark.asyncio

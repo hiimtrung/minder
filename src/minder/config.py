@@ -92,6 +92,24 @@ class RetrievalConfig(BaseModel):
     hybrid_alpha: float = 0.7
 
 
+class MemoryConfig(BaseModel):
+    agentic_recall: bool = False
+    recall_min_score: float = 0.4
+    recall_max_iterations: int = 3
+
+
+class SessionConfig(BaseModel):
+    agentic_restore: bool = False
+    restore_recall_count: int = 8
+
+
+class GraphConfig(BaseModel):
+    runtime: str = "langgraph"
+    enable_parallel_retrieval: bool = False
+    enable_checkpointing: bool = True
+    checkpoint_ttl_days: int = 7
+
+
 class CacheConfig(BaseModel):
     enabled: bool = True
     provider: str = "redis"  # "redis" is the only supported runtime backend
@@ -145,6 +163,9 @@ class Settings(BaseSettings):
     mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
+    memory: MemoryConfig = Field(default_factory=MemoryConfig)
+    session: SessionConfig = Field(default_factory=SessionConfig)
+    graph: GraphConfig = Field(default_factory=GraphConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)
     rate_limit: RateLimitConfig = Field(default_factory=RateLimitConfig)
     verification: VerificationConfig = Field(default_factory=VerificationConfig)

@@ -8,6 +8,7 @@ from minder.continuity import compatibility_score_for_memory
 from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_continuity_recall
+from minder.retrieval.hybrid import HybridRetriever
 from minder.store.interfaces import IOperationalStore
 
 if TYPE_CHECKING:
@@ -38,6 +39,7 @@ class MemoryTools:
             runtime=config.embedding.runtime,
         )
         self._synthesizer: ContinuitySynthesizer | None = None
+        self._agentic_graph: Any | None = None
 
     def _get_synthesizer(self) -> "ContinuitySynthesizer":
         if self._synthesizer is None:
@@ -45,6 +47,113 @@ class MemoryTools:
 
             self._synthesizer = ContinuitySynthesizer(self._config)
         return self._synthesizer
+
+    def _use_agentic_loop(self) -> bool:
+        return bool(self._config.memory.agentic_recall)
+
+    def _get_agentic_graph(self) -> Any:
+        if self._agentic_graph is None:
+            from minder.graph.memory_graph import AgenticMemoryGraph
+
+            self._agentic_graph = AgenticMemoryGraph(self, self._config)
+        return self._agentic_graph
+
+    async def _agentic_recall(
+        self,
+        query: str,
+        *,
+        limit: int,
+        current_step: str | None,
+        artifact_type: str | None,
+    ) -> list[dict[str, Any]]:
+        graph = self._get_agentic_graph()
+        result = await graph.run(
+            {
+                "original_query": query,
+                "current_step": current_step,
+                "artifact_type": artifact_type,
+                "target_count": limit,
+                "min_score": float(self._config.memory.recall_min_score),
+                "all_memories": [],
+                "search_queries": [],
+                "current_query": query,
+                "iteration": 0,
+                "max_iterations": int(self._config.memory.recall_max_iterations),
+                "latest_memories": [],
+                "verdict": {},
+                "final_memories": [],
+                "recall_summary": "",
+            }
+        )
+        return list(result.get("final_memories", []))
+
+    async def _recall_candidates(
+        self,
+        query: str,
+        *,
+        limit: int,
+        current_step: str | None,
+        artifact_type: str | None,
+        include_raw_scores: bool = False,
+    ) -> list[dict[str, Any]]:
+        query_embedding = self._embedder.embed(query)
+        skills = await self._store.list_skills_by_kind(is_memory=True)
+        vector_results: list[dict[str, Any]] = []
+        corpus: list[dict[str, Any]] = []
+        for skill in skills:
+            raw_content = str(skill.content)
+            tags = list(skill.tags) if isinstance(skill.tags, list) else []
+            compatibility_score, compatibility_reasons = compatibility_score_for_memory(
+                tags=tags,
+                title=str(skill.title),
+                content=raw_content,
+                current_step=current_step,
+                artifact_type=artifact_type,
+            )
+            base_doc = {
+                "id": str(skill.id),
+                "title": skill.title,
+                "content": raw_content[:_RECALL_CONTENT_MAX_CHARS],
+                "tags": tags,
+                "language": str(getattr(skill, "language", "") or "markdown"),
+                "continuity_reasons": compatibility_reasons,
+                "_step_compat": round(compatibility_score / 1.5, 4),
+            }
+            corpus.append(base_doc)
+            embedding = skill.embedding if isinstance(skill.embedding, list) else None
+            if not embedding:
+                continue
+            vector_results.append(
+                {
+                    **base_doc,
+                    "score": self._cosine_similarity(query_embedding, embedding),
+                }
+            )
+
+        if not corpus:
+            return []
+
+        hybrid_limit = max(limit, len(corpus))
+        merged = HybridRetriever(alpha=self._config.retrieval.hybrid_alpha).merge(
+            query,
+            vector_results=vector_results,
+            corpus=corpus,
+            limit=hybrid_limit,
+            content_key="content",
+            id_key="id",
+        )
+        ranked: list[dict[str, Any]] = []
+        for item in merged:
+            compatibility = float(item.get("_step_compat", 0.0))
+            base_score = float(item.get("score", 0.0))
+            score = min((base_score * 0.8) + (compatibility * 0.2), 1.0)
+            normalized = {**item, "score": round(score, 4)}
+            if not include_raw_scores:
+                normalized.pop("vector_score", None)
+                normalized.pop("bm25_score", None)
+            ranked.append(normalized)
+        ranked.sort(key=lambda item: float(item["score"]), reverse=True)
+        return ranked[:limit]
 
     async def minder_memory_store(
         self,
@@ -101,42 +210,34 @@ class MemoryTools:
         artifact_type: str | None = None,
         skip_synthesis: bool = False,
     ) -> list[dict[str, Any]]:
-        query_embedding = self._embedder.embed(query)
-        skills = await self._store.list_skills_by_kind(is_memory=True)
-        ranked: list[dict[str, Any]] = []
-        for skill in skills:
-            embedding = skill.embedding if isinstance(skill.embedding, list) else None
-            if not embedding:
-                continue
-            semantic_score = self._cosine_similarity(query_embedding, embedding)
-            compatibility_score, compatibility_reasons = compatibility_score_for_memory(
-                tags=list(skill.tags) if isinstance(skill.tags, list) else [],
-                title=str(skill.title),
-                content=str(skill.content),
+        if skip_synthesis:
+            limited = await self._recall_candidates(
+                query,
+                limit=limit,
                 current_step=current_step,
                 artifact_type=artifact_type,
             )
-            score = min((semantic_score * 0.8) + (compatibility_score * 0.2), 1.0)
-            raw_content = str(skill.content)
-            ranked.append(
-                {
-                    "id": str(skill.id),
-                    "title": skill.title,
-                    "content": raw_content[:_RECALL_CONTENT_MAX_CHARS],
-                    "tags": list(skill.tags) if isinstance(skill.tags, list) else [],
-                    "language": str(getattr(skill, "language", "") or "markdown"),
-                    "score": round(score, 4),
-                    # kept internally for record_continuity_recall below
-                    "_step_compat": round(compatibility_score, 4),
-                }
-            )
-        ranked.sort(key=lambda item: float(item["score"]), reverse=True)
-        limited = ranked[:limit]
-
-        if skip_synthesis:
             for item in limited:
                 item.pop("_step_compat", None)
             return limited
+
+        if self._use_agentic_loop():
+            try:
+                return await self._agentic_recall(
+                    query,
+                    limit=limit,
+                    current_step=current_step,
+                    artifact_type=artifact_type,
+                )
+            except Exception:
+                pass
+
+        limited = await self._recall_candidates(
+            query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+        )
 
         synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
             query=query,

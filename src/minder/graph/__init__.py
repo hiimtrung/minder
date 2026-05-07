@@ -1,6 +1,6 @@
-from .state import GraphState
+from .state import GraphState, GraphStateSchema
 
-__all__ = ["GraphState", "MinderGraph"]
+__all__ = ["GraphState", "GraphStateSchema", "MinderGraph"]
 
 
 def __getattr__(name: str):

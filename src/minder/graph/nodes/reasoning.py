@@ -89,6 +89,9 @@ class ReasoningNode:
             },
             defaults=prompt_defaults,
         )
+        agent_system_prompt = str(state.metadata.get("agent_system_prompt", "") or "").strip()
+        if agent_system_prompt:
+            prompt = f"{agent_system_prompt}\n\n{prompt}"
         state.reasoning_output = {
             "prompt": prompt,
             "sources": sources,

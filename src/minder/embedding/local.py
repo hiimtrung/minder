@@ -62,12 +62,15 @@ class LocalEmbeddingProvider:
 
             logger.info("Initializing Llama.cpp embedding engine for %s", self._model_repo)
             cache_dir = get_writable_hf_cache_dir()
+            cache_kwargs: dict[str, Any] = (
+                {} if cache_dir is None else {"cache_dir": cache_dir}
+            )
             self._model = Llama.from_pretrained(
                 repo_id=self._model_repo,
                 filename=self._model_file,
                 embedding=True,
                 verbose=False,
-                **({} if cache_dir is None else {"cache_dir": cache_dir}),
+                **cache_kwargs,
             )
             _MODEL_CACHE[cache_key] = self._model
         except Exception as e:

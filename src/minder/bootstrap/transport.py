@@ -9,6 +9,7 @@ from minder.auth.service import AuthError
 from minder.auth.service import AuthService
 from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
+from minder.graph import MinderGraph
 from minder.presentation.http.admin.routes import build_http_routes
 from minder.prompts import PromptRegistry
 from minder.resources import ResourceRegistry
@@ -45,13 +46,20 @@ def build_transport(
     agent_tools = AgentTools(store)
     auth_tools = AuthTools(store, auth_service)
     session_tools = SessionTools(store)
-    workflow_tools = WorkflowTools(store, repo_state_store)
     memory_tools = MemoryTools(store, config)
     skill_tools = SkillTools(store, config)
     graph_tools = GraphTools(graph_store, store)
+    shared_graph = MinderGraph(store, config, graph_tools=graph_tools)
+    workflow_tools = WorkflowTools(
+        store,
+        repo_state_store,
+        graph=shared_graph,
+        config=config,
+    )
     query_tools = QueryTools(
         store,
         config,
+        graph=shared_graph,
         vector_store=vector_store,
         graph_tools=graph_tools,
     )
@@ -302,12 +310,19 @@ def build_transport(
         )
 
     async def minder_workflow_step(
-        *, user=None, repo_id: str, repo_path: str
+        *,
+        user=None,
+        repo_id: str | None = None,
+        repo_path: str | None = None,
+        session_id: str | None = None,
+        decision: dict[str, Any] | None = None,
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_step(
-            repo_id=uuid.UUID(repo_id),
+            repo_id=uuid.UUID(repo_id) if repo_id else None,
             repo_path=repo_path,
+            session_id=uuid.UUID(session_id) if session_id else None,
+            decision=decision,
         )
 
     async def minder_workflow_update(

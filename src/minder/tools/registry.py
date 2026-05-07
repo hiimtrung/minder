@@ -95,7 +95,7 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     ToolMeta(
         name="minder_workflow_step",
-        description="Return the current workflow step for a repository and sync repo-state files.",
+        description="Return the current workflow step for a repository, or resume an approval-interrupted workflow when session_id and decision are provided.",
     ),
     ToolMeta(
         name="minder_workflow_update",

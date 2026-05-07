@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import AsyncGenerator
+from typing import Any
 from time import perf_counter
 
 from minder.config import MinderConfig
@@ -51,6 +52,7 @@ class MinderGraph:
         evaluator: EvaluatorNode | None = None,
         history_store: IHistoryRepository | None = None,
         error_store: IErrorRepository | None = None,
+        graph_tools: Any | None = None,
     ) -> None:
         from minder.store.vector import VectorStore
 
@@ -90,6 +92,7 @@ class MinderGraph:
         self._evaluator = evaluator or EvaluatorNode()
         self._history_store = history_store or store
         self._error_store = error_store or store
+        self._graph_tools = graph_tools
         self._nodes = GraphNodes(
             workflow_planner=self._workflow_planner,
             planning=self._planning,
@@ -106,10 +109,22 @@ class MinderGraph:
     async def run(self, state: GraphState) -> GraphState:
         executor = self._select_executor()
         state = await executor.run(state)
+        await self._finalize_state(state)
+        return state
 
-        await self._persist_history(state)
-        await self._persist_error_if_needed(state)
-        await self._advance_workflow_if_needed(state)
+    async def astream_events(self, state: GraphState, config: dict[str, Any], version: str = "v2") -> AsyncGenerator[dict[str, Any], None]:
+        executor = self._select_executor()
+        if not hasattr(executor, "astream_events"):
+            raise NotImplementedError("astream_events is only supported for langgraph runtime")
+        async for event in executor.astream_events(state, config, version=version):
+            yield event
+
+    async def resume(self, session_id, decision: dict[str, Any]) -> GraphState:  # noqa: ANN001
+        executor = self._select_executor()
+        if not hasattr(executor, "resume"):
+            raise NotImplementedError("resume is only supported for langgraph runtime")
+        state = await executor.resume(session_id, decision)
+        await self._finalize_state(state)
         return state
 
     async def stream(
@@ -189,7 +204,12 @@ class MinderGraph:
 
     def _select_executor(self) -> InternalGraphExecutor | LangGraphExecutorAdapter:
         if self._config.workflow.orchestration_runtime == "langgraph":
-            return LangGraphExecutorAdapter(self._nodes)
+            return LangGraphExecutorAdapter(
+                self._nodes,
+                self._store,
+                self._config,
+                graph_tools=self._graph_tools,
+            )
         return InternalGraphExecutor(self._nodes)
 
     async def _persist_history(self, state: GraphState) -> None:
@@ -267,3 +287,10 @@ class MinderGraph:
                 "last_edge": state.metadata.get("edge"),
             },
         )
+
+    async def _finalize_state(self, state: GraphState) -> None:
+        if state.metadata.get("waiting_for_approval"):
+            return
+        await self._persist_history(state)
+        await self._persist_error_if_needed(state)
+        await self._advance_workflow_if_needed(state)

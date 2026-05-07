@@ -79,9 +79,9 @@ async def test_builtin_query_reasoning_prompt_renders_with_defaults() -> None:
     query_prompt = app._prompt_manager.get_prompt("query_reasoning")
     rendered = await query_prompt.render({})
 
-    assert "Continuity packet:" in str(rendered[0])
-    assert "Tool capabilities:" in str(rendered[0])
-    assert "Data access policy:" in str(rendered[0])
+    assert "<continuity>" in str(rendered[0])
+    assert "<tools>" in str(rendered[0])
+    assert "<policy>" in str(rendered[0])
     assert "Summarize the current repository state." in str(rendered[0])
 
 

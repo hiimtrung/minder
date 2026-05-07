@@ -34,7 +34,7 @@ class EmbeddingConfig(BaseModel):
     provider: str = "llama_cpp"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
     llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF"
-    llama_cpp_model_file: str = "*Q4_K_M.gguf"
+    llama_cpp_model_file: str = "embeddinggemma-300M-Q8_0.gguf"
     dimensions: int = 768
     openai_api_key: Optional[str] = None
     openai_model: str = "text-embedding-3-small"

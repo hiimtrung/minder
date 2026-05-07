@@ -1,6 +1,6 @@
 from minder.config import Settings
 from minder.bootstrap.providers import build_graph_store
-from minder.store.graph import KnowledgeGraphStore
+from minder.store.mongodb.graph_store import MongoGraphStore
 
 
 def test_default_config_loading():
@@ -46,12 +46,12 @@ def test_dotenv_file_override(tmp_path, monkeypatch):
     assert settings.vector_store.provider == "milvus"
 
 
-def test_graph_store_defaults_to_auto_sqlite_fallback_for_mongodb() -> None:
+def test_graph_store_defaults_to_auto_mongodb_for_mongodb() -> None:
     settings = Settings(_env_file=None)
 
     graph_store = build_graph_store(settings)
 
-    assert isinstance(graph_store, KnowledgeGraphStore)
+    assert isinstance(graph_store, MongoGraphStore)
 
 
 def test_graph_store_env_override(monkeypatch) -> None:

@@ -1,15 +1,37 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# llama-cpp-python downloads GGUF models automatically via Llama.from_pretrained()
-# when the server starts. No manual download is required.
+# Pre-download GGUF models to MINDER_MODELS_DIR so the container doesn't
+# fetch them from HuggingFace on every start.
 #
-# Default model repos (override via env vars):
-#   LLM:       MINDER_LLM__LLAMA_CPP_MODEL_REPO   (default: ggml-org/gemma-4-E2B-it-GGUF)
-#   Embedding: MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO (default: ggml-org/embeddinggemma-300M-GGUF)
+# The container sets HUGGINGFACE_HUB_CACHE=/models (mounted from MINDER_MODELS_DIR),
+# so this script must download to the same directory using the same env var.
 #
-# The HuggingFace cache is stored in ~/.cache/huggingface/ by default.
+# Usage:
+#   ./scripts/download_models.sh
+#   MINDER_MODELS_DIR=/custom/path ./scripts/download_models.sh
 
-echo "GGUF models are downloaded automatically by llama-cpp-python on first server start."
-echo "  LLM repo:       ${MINDER_LLM__LLAMA_CPP_MODEL_REPO:-ggml-org/gemma-4-E2B-it-GGUF}"
-echo "  Embedding repo: ${MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO:-ggml-org/embeddinggemma-300M-GGUF}"
+MODELS_DIR="${MINDER_MODELS_DIR:-$HOME/.minder/models}"
+LLM_REPO="${MINDER_LLM__LLAMA_CPP_MODEL_REPO:-ggml-org/gemma-4-E2B-it-GGUF}"
+LLM_FILE="${MINDER_LLM__LLAMA_CPP_MODEL_FILE:-gemma-4-E2B-it-Q8_0.gguf}"
+EMBEDDING_REPO="${MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO:-ggml-org/embeddinggemma-300M-GGUF}"
+EMBEDDING_FILE="${MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE:-*Q4_K_M.gguf}"
+
+mkdir -p "$MODELS_DIR"
+
+echo "Downloading models to: $MODELS_DIR"
+echo "  LLM:       $LLM_REPO / $LLM_FILE"
+echo "  Embedding: $EMBEDDING_REPO / $EMBEDDING_FILE"
+echo ""
+
+if ! command -v huggingface-cli &>/dev/null; then
+    echo "Error: huggingface-cli not found. Install it with: pip install huggingface-hub[cli]"
+    exit 1
+fi
+
+HUGGINGFACE_HUB_CACHE="$MODELS_DIR" huggingface-cli download "$LLM_REPO" "$LLM_FILE"
+HUGGINGFACE_HUB_CACHE="$MODELS_DIR" huggingface-cli download "$EMBEDDING_REPO" --include "$EMBEDDING_FILE"
+
+echo ""
+echo "Done. Models cached at: $MODELS_DIR"
+echo "Run 'docker compose up' to start the server — models will load from disk."

@@ -10,6 +10,7 @@ from typing import Any
 from minder.config import MinderConfig
 from minder.store.interfaces import IOperationalStore
 from minder.tools.skills import SkillTools
+from minder.utils import _iso
 
 
 def _utcnow() -> datetime:
@@ -304,10 +305,10 @@ class AdminJobService:
             "progress_total": int(getattr(job, "progress_total", 0) or 0),
             "message": getattr(job, "message", None),
             "events": list(getattr(job, "events", []) or []),
-            "created_at": created_at.isoformat() if created_at else None,
-            "updated_at": updated_at.isoformat() if updated_at else None,
-            "started_at": started_at.isoformat() if started_at else None,
-            "finished_at": finished_at.isoformat() if finished_at else None,
+            "created_at": _iso(created_at),
+            "updated_at": _iso(updated_at),
+            "started_at": _iso(started_at),
+            "finished_at": _iso(finished_at),
         }
 
 

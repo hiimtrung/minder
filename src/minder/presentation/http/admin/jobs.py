@@ -11,6 +11,7 @@ from starlette.responses import JSONResponse, StreamingResponse
 from starlette.routing import BaseRoute, Route
 
 from minder.application.admin.jobs import AdminJobService, iter_job_stream
+from minder.utils import _iso
 
 from .context import AdminRouteContext
 
@@ -62,10 +63,10 @@ def _serialize_job(job: Any) -> dict[str, Any]:
         "progress_percent": progress_percent,
         "message": getattr(job, "message", None),
         "events": list(getattr(job, "events", []) or []),
-        "created_at": created_at.isoformat() if created_at else None,
-        "updated_at": updated_at.isoformat() if updated_at else None,
-        "started_at": started_at.isoformat() if started_at else None,
-        "finished_at": finished_at.isoformat() if finished_at else None,
+        "created_at": _iso(created_at),
+        "updated_at": _iso(updated_at),
+        "started_at": _iso(started_at),
+        "finished_at": _iso(finished_at),
     }
 
 

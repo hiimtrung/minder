@@ -11,6 +11,7 @@ from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.prompts.formatter import PromptDraft, polish_prompt_draft
 from minder.prompts import PromptRegistry
+from minder.utils import _iso
 from .context import AdminRouteContext
 
 logger = logging.getLogger(__name__)
@@ -48,8 +49,8 @@ def _serialize_prompt(prompt: Any) -> dict[str, Any]:
         "description": prompt.description,
         "content_template": prompt.content_template,
         "arguments": list(getattr(prompt, "arguments", []) or []),
-        "created_at": prompt.created_at.isoformat() if prompt.created_at else None,
-        "updated_at": prompt.updated_at.isoformat() if prompt.updated_at else None,
+        "created_at": _iso(prompt.created_at),
+        "updated_at": _iso(prompt.updated_at),
         "is_builtin": bool(getattr(prompt, "is_builtin", False)),
     }
 

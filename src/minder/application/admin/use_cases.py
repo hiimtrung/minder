@@ -63,6 +63,7 @@ from minder.observability.audit import AuditEmitter
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 from minder.tools.graph import GraphTools
 from minder.tools.registry import SCOPEABLE_TOOLS
+from minder.utils import _iso
 
 _UNSET: Any = object()  # sentinel for optional update fields
 
@@ -335,9 +336,7 @@ class AdminConsoleUseCases:
             {
                 "event_type": str(getattr(event, "event_type", "")),
                 "created_at": (
-                    getattr(event, "created_at").isoformat()
-                    if getattr(event, "created_at", None)
-                    else "unknown time"
+                    _iso(getattr(event, "created_at", None)) or "unknown time"
                 ),
             }
             for event in filtered[:limit]
@@ -424,7 +423,7 @@ class AdminConsoleUseCases:
             "resource_id": event.resource_id,
             "resource_name": None,
             "outcome": event.outcome,
-            "created_at": event.created_at.isoformat() if event.created_at else None,
+            "created_at": _iso(event.created_at),
             "audit_metadata": getattr(event, "audit_metadata", None),
         }
 
@@ -563,11 +562,7 @@ class AdminConsoleUseCases:
             "display_name": getattr(user, "display_name", user.username),
             "role": user.role,
             "is_active": bool(getattr(user, "is_active", True)),
-            "created_at": (
-                user.created_at.isoformat()
-                if getattr(user, "created_at", None)
-                else None
-            ),
+            "created_at": _iso(getattr(user, "created_at", None)),
         }
 
     # ------------------------------------------------------------------
@@ -650,11 +645,7 @@ class AdminConsoleUseCases:
             "description": getattr(workflow, "description", ""),
             "enforcement": getattr(workflow, "enforcement", "strict"),
             "steps": steps,
-            "created_at": (
-                workflow.created_at.isoformat()
-                if getattr(workflow, "created_at", None)
-                else None
-            ),
+            "created_at": _iso(getattr(workflow, "created_at", None)),
         }
 
     # ------------------------------------------------------------------
@@ -755,16 +746,8 @@ class AdminConsoleUseCases:
             "artifact_types": list(getattr(agent, "artifact_types", []) or []),
             "tags": list(getattr(agent, "tags", []) or []),
             "is_default": bool(getattr(agent, "is_default", False)),
-            "created_at": (
-                agent.created_at.isoformat()
-                if getattr(agent, "created_at", None)
-                else None
-            ),
-            "updated_at": (
-                agent.updated_at.isoformat()
-                if getattr(agent, "updated_at", None)
-                else None
-            ),
+            "created_at": _iso(getattr(agent, "created_at", None)),
+            "updated_at": _iso(getattr(agent, "updated_at", None)),
         }
 
     # ------------------------------------------------------------------
@@ -827,16 +810,8 @@ class AdminConsoleUseCases:
             "active_skills": dict(getattr(session, "active_skills", {}) or {}),
             "state": dict(getattr(session, "state", {}) or {}),
             "ttl": int(getattr(session, "ttl", 86400) or 86400),
-            "created_at": (
-                session.created_at.isoformat()
-                if getattr(session, "created_at", None)
-                else ""
-            ),
-            "last_active": (
-                session.last_active.isoformat()
-                if getattr(session, "last_active", None)
-                else ""
-            ),
+            "created_at": _iso(getattr(session, "created_at", None)) or "",
+            "last_active": _iso(getattr(session, "last_active", None)) or "",
         }
 
     # ------------------------------------------------------------------
@@ -1034,11 +1009,7 @@ class AdminConsoleUseCases:
             "workflow_name": getattr(state, "workflow_name", None) if state else None,
             "workflow_state": getattr(state, "state", None) if state else None,
             "current_step": getattr(state, "current_step", None) if state else None,
-            "created_at": (
-                repo.created_at.isoformat()
-                if getattr(repo, "created_at", None)
-                else None
-            ),
+            "created_at": _iso(getattr(repo, "created_at", None)),
         }
 
     async def sync_repository_graph(

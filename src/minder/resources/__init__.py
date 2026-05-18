@@ -10,6 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from minder.store.interfaces import IGraphRepository, IOperationalStore
+from minder.utils import _iso
 
 
 class ResourceRegistry:
@@ -296,7 +297,7 @@ def _serialize_graph_node(node: Any) -> dict[str, Any]:
         "node_type": node.node_type,
         "name": node.name,
         "metadata": node.extra_metadata or {},
-        "created_at": node.created_at.isoformat() if node.created_at else None,
+        "created_at": _iso(node.created_at),
     }
 
 

@@ -12,6 +12,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.tools.skills import SkillTools
+from minder.utils import _iso
 
 from .context import AdminRouteContext
 
@@ -86,8 +87,8 @@ def _serialize_skill(skill: Any) -> dict[str, Any]:
         ),
         "source": dict(source_metadata) if isinstance(source_metadata, dict) else None,
         "excerpt_kind": str(getattr(skill, "excerpt_kind", "none") or "none"),
-        "created_at": skill.created_at.isoformat() if skill.created_at else None,
-        "updated_at": skill.updated_at.isoformat() if skill.updated_at else None,
+        "created_at": _iso(skill.created_at),
+        "updated_at": _iso(skill.updated_at),
     }
 
 

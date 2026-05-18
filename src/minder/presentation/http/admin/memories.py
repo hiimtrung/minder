@@ -13,6 +13,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_admin_operation
 from minder.tools.memory import MemoryTools
+from minder.utils import _iso
 
 from .context import AdminRouteContext
 
@@ -47,8 +48,8 @@ def _serialize_memory(skill: Any) -> dict[str, Any]:
         "content": str(skill.content),
         "language": str(getattr(skill, "language", "markdown") or "markdown"),
         "tags": list(getattr(skill, "tags", []) or []),
-        "created_at": skill.created_at.isoformat() if skill.created_at else None,
-        "updated_at": skill.updated_at.isoformat() if skill.updated_at else None,
+        "created_at": _iso(skill.created_at),
+        "updated_at": _iso(skill.updated_at),
     }
 
 

@@ -20,18 +20,15 @@ services:
     image: minder-api:full
     restart: unless-stopped
     volumes:
-      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
       MINDER_SERVER__PORT: 8801
       MINDER_DASHBOARD__BASE_PATH: /dashboard
-      MINDER_RELATIONAL_STORE__PROVIDER: mongodb
-      MINDER_MONGODB__URI: mongodb://mongodb:27017
-      MINDER_CACHE__PROVIDER: redis
-      MINDER_REDIS__URI: redis://redis:6379/0
-      MINDER_VECTOR_STORE__PROVIDER: milvus
-      MINDER_VECTOR_STORE__URI: http://milvus-standalone:19530
+      MINDER_RELATIONAL_STORE__PROVIDER: qdrant
+      MINDER_VECTOR_STORE__PROVIDER: qdrant
+      MINDER_QDRANT__URL: http://qdrant:6333
       MINDER_WORKFLOW__ORCHESTRATION_RUNTIME: langgraph
       HUGGINGFACE_HUB_CACHE: /models
       MINDER_LLM__PROVIDER: llama_cpp
@@ -42,15 +39,9 @@ services:
       MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO: ggml-org/embeddinggemma-300M-GGUF
       MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE: "embeddinggemma-300M-Q8_0.gguf"
       MINDER_EMBEDDING__DIMENSIONS: 768
-      MINDER_MONGODB__MAX_POOL_SIZE: 10
-      MINDER_MONGODB__MIN_POOL_SIZE: 2
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
-      mongodb:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      milvus-standalone:
+      qdrant:
         condition: service_healthy
 
   dashboard:
@@ -63,92 +54,18 @@ services:
     depends_on:
       - minder-api
 
-  mongodb:
-    container_name: minder-mongodb
-    image: mongo:8.2.6
+  qdrant:
+    container_name: minder-qdrant
+    image: qdrant/qdrant:latest
     restart: unless-stopped
     volumes:
-      - mongodb-data:/data/db
+      - qdrant-data:/qdrant/storage
     healthcheck:
-      test: echo "db.runCommand('ping').ok" | mongosh localhost:27017/test --quiet
-      interval: 10s
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
-
-  redis:
-    container_name: minder-redis
-    image: redis:8.6.2-alpine
-    restart: unless-stopped
-    volumes:
-      - redis-data:/data
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
-  etcd:
-    container_name: minder-etcd
-    image: quay.io/coreos/etcd:v3.6.10
-    restart: unless-stopped
-    environment:
-      ETCD_AUTO_COMPACTION_MODE: revision
-      ETCD_AUTO_COMPACTION_RETENTION: 1000
-      ETCD_QUOTA_BACKEND_BYTES: 4294967296
-      ETCD_SNAPSHOT_COUNT: 50000
-    volumes:
-      - etcd-data:/etcd
-    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
-    healthcheck:
-      test: ["CMD", "etcdctl", "endpoint", "health"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  minio:
-    container_name: minder-minio
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
-    restart: unless-stopped
-    environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
-    volumes:
-      - minio-data:/minio_data
-    command: minio server /minio_data --console-address ":9001"
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
-
-  milvus-standalone:
-    container_name: minder-milvus
-    image: milvusdb/milvus:v2.6.14
-    restart: unless-stopped
-    command: ["milvus", "run", "standalone"]
-    security_opt:
-      - seccomp:unconfined
-    environment:
-      ETCD_ENDPOINTS: etcd:2379
-      MINIO_ADDRESS: minio:9000
-    volumes:
-      - milvus-data:/var/lib/milvus
-    ports:
-      - "${MILVUS_PORT:-19530}:19530"
-    depends_on:
-      etcd:
-        condition: service_started
-      minio:
-        condition: service_started
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
-      interval: 30s
-      timeout: 20s
-      retries: 3
+      retries: 10
+      start_period: 10s
 
 volumes:
-  mongodb-data:
-  redis-data:
-  etcd-data:
-  minio-data:
-  milvus-data:
+  qdrant-data:

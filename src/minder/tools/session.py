@@ -36,6 +36,7 @@ from minder.continuity import build_continuity_brief, build_instruction_envelope
 from minder.config import MinderConfig
 from minder.observability.metrics import record_continuity_packet
 from minder.store.interfaces import IOperationalStore
+from minder.utils import _iso
 
 
 class SessionTools:
@@ -181,7 +182,7 @@ class SessionTools:
                 "state": session.state,
                 "active_skills": session.active_skills,
                 "project_context": session.project_context,
-                "last_active": session.last_active.isoformat(),
+                "last_active": _iso(session.last_active),
             }
         raise ValueError(
             f"No session named '{name}' found for the current principal. "
@@ -215,8 +216,8 @@ class SessionTools:
                     "name": s.name,
                     "repo_id": str(s.repo_id) if s.repo_id else None,
                     "project_context": s.project_context,
-                    "last_active": s.last_active.isoformat(),
-                    "created_at": s.created_at.isoformat(),
+                    "last_active": _iso(s.last_active),
+                    "created_at": _iso(s.created_at),
                 }
                 for s in sorted(
                     active_sessions, key=lambda s: s.last_active, reverse=True

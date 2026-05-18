@@ -191,11 +191,7 @@ def test_wave3_assets_exist_and_contain_expected_commands() -> None:
 
     assert compose.exists()
     compose_text = compose.read_text(encoding="utf-8")
-    assert "mongodb:" in compose_text
-    assert "redis:" in compose_text
-    assert "milvus-standalone:" in compose_text
-    assert "etcd:" in compose_text
-    assert "minio:" in compose_text
+    assert "qdrant:" in compose_text
     assert ci_workflow.exists()
     assert "make test" in ci_workflow.read_text(encoding="utf-8")
     assert release_workflow.exists()

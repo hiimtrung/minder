@@ -54,9 +54,14 @@ async def test_checkpointing_is_gated_by_config(
     compile_kwargs: list[dict[str, Any]] = []
 
     class FakeCompiledGraph:
-        async def ainvoke(self, state: dict[str, Any], config: dict[str, Any] | None = None) -> dict[str, Any]:
+        async def ainvoke(
+            self, state: dict[str, Any], config: dict[str, Any] | None = None
+        ) -> dict[str, Any]:
             del config
-            state["metadata"] = {**dict(state.get("metadata", {}) or {}), "compiled": True}
+            state["metadata"] = {
+                **dict(state.get("metadata", {}) or {}),
+                "compiled": True,
+            }
             return state
 
     class FakeStateGraph:
@@ -69,7 +74,9 @@ async def test_checkpointing_is_gated_by_config(
         def add_edge(self, source: str, target: str) -> None:
             del source, target
 
-        def add_conditional_edges(self, source: str, path: object, path_map: object = None) -> None:
+        def add_conditional_edges(
+            self, source: str, path: object, path_map: object = None
+        ) -> None:
             del source, path, path_map
 
         def set_entry_point(self, name: str) -> None:
@@ -79,18 +86,32 @@ async def test_checkpointing_is_gated_by_config(
             compile_kwargs.append(kwargs)
             return FakeCompiledGraph()
 
-    monkeypatch.setattr(graph_runtime_module, "graph_runtime_name", lambda preferred="langgraph": "langgraph")
-    monkeypatch.setattr(graph_runtime_module, "load_langgraph_state_graph", lambda: FakeStateGraph)
-    monkeypatch.setattr(executor_module, "graph_runtime_name", lambda preferred="langgraph": "langgraph")
-    monkeypatch.setattr(executor_module, "load_langgraph_state_graph", lambda: FakeStateGraph)
+    monkeypatch.setattr(
+        graph_runtime_module,
+        "graph_runtime_name",
+        lambda preferred="langgraph": "langgraph",
+    )
+    monkeypatch.setattr(
+        graph_runtime_module, "load_langgraph_state_graph", lambda: FakeStateGraph
+    )
+    monkeypatch.setattr(
+        executor_module, "graph_runtime_name", lambda preferred="langgraph": "langgraph"
+    )
+    monkeypatch.setattr(
+        executor_module, "load_langgraph_state_graph", lambda: FakeStateGraph
+    )
 
     enabled = MinderConfig()
     enabled.graph = GraphConfig(enable_checkpointing=True)
-    await LangGraphExecutorAdapter(_build_nodes(store), store, enabled).run(GraphState(query="x"))
+    await LangGraphExecutorAdapter(_build_nodes(store), store, enabled).run(
+        GraphState(query="x")
+    )
 
     disabled = MinderConfig()
     disabled.graph = GraphConfig(enable_checkpointing=False)
-    await LangGraphExecutorAdapter(_build_nodes(store), store, disabled).run(GraphState(query="x"))
+    await LangGraphExecutorAdapter(_build_nodes(store), store, disabled).run(
+        GraphState(query="x")
+    )
 
     assert "checkpointer" in compile_kwargs[0]
     assert "checkpointer" not in compile_kwargs[1]

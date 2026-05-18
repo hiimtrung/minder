@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 from collections.abc import AsyncGenerator, Sequence
 import zlib
 from typing import Any
@@ -20,6 +21,18 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
         super().__init__()
         self._store = store
 
+    @staticmethod
+    def _load_payload(record: dict[str, Any]) -> bytes:
+        payload = record.get("checkpoint")
+        if payload is not None:
+            return bytes(payload)
+
+        payload_b64 = record.get("checkpoint_b64")
+        if payload_b64 is not None:
+            return base64.b64decode(payload_b64)
+
+        raise KeyError("checkpoint")
+
     async def aget_tuple(self, config: RunnableConfig) -> CheckpointTuple | None:
         configurable = config.get("configurable", {})
         thread_id = configurable.get("thread_id")
@@ -34,13 +47,13 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
         if data is None:
             return None
 
-        metadata = data.get("metadata", {})
+        metadata = dict(data.get("metadata", {}))
         type_name = metadata.pop("_checkpoint_type", "msgpack")
-        payload = bytes(data["checkpoint"])
+        payload = self._load_payload(data)
         if metadata.pop("_checkpoint_compression", None) == "zlib":
             payload = zlib.decompress(payload)
         checkpoint = self.serde.loads_typed((type_name, payload))
-        
+
         return CheckpointTuple(
             config=config,
             checkpoint=checkpoint,
@@ -75,7 +88,7 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
             checkpoint=payload,
             metadata=db_metadata,
         )
-        
+
         return {
             "configurable": {
                 "thread_id": thread_id,
@@ -94,7 +107,7 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
     ) -> AsyncGenerator[CheckpointTuple, None]:
         if config is None:
             return
-            
+
         configurable = config.get("configurable", {})
         thread_id = configurable.get("thread_id")
         if not thread_id:
@@ -105,9 +118,9 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
 
         records = await self._store.list_checkpoints(thread_id, limit=limit or 10)
         for record in records:
-            metadata = record.get("metadata", {})
+            metadata = dict(record.get("metadata", {}))
             type_name = metadata.pop("_checkpoint_type", "msgpack")
-            payload = bytes(record["checkpoint"])
+            payload = self._load_payload(record)
             if metadata.pop("_checkpoint_compression", None) == "zlib":
                 payload = zlib.decompress(payload)
             checkpoint = self.serde.loads_typed((type_name, payload))

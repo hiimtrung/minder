@@ -845,7 +845,7 @@ class QdrantOperationalStore:
             "metadata": metadata or {},
         }
         if existing:
-            await self._col("checkpoints").update(str(existing.id), payload)
+            await self._col("checkpoints").set_payload(str(existing.id), payload)
         else:
             payload["id"] = _uid(uuid.uuid4())
             await self._col("checkpoints").insert(payload, payload.pop("id"))

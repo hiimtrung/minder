@@ -7,7 +7,10 @@ TTL, namespaced operations, and health checks.
 
 from __future__ import annotations
 
-import redis.asyncio as aioredis
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import redis.asyncio as aioredis
 
 
 class RedisCacheProvider:
@@ -20,6 +23,7 @@ class RedisCacheProvider:
         prefix: str = "minder:",
         default_ttl: int = 3600,
     ) -> None:
+        import redis.asyncio as aioredis  # lazy — only needed when Redis provider is used
         self._prefix = prefix
         self._default_ttl = default_ttl
         self._client: aioredis.Redis = aioredis.from_url(  # type: ignore[type-arg]

@@ -51,24 +51,30 @@ class LLMConfig(BaseModel):
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str = "milvus_lite"  # "milvus" (standalone) | "milvus_lite" | "memory"
-    db_path: str = "~/.minder/data/milvus.db"  # used by milvus_lite only
-    uri: str = "http://localhost:19530"  # used by milvus standalone
+    provider: str = "qdrant"  # "qdrant" | "milvus" | "milvus_lite" | "memory"
+    db_path: str = "~/.minder/data/milvus.db"  # milvus_lite only
+    uri: str = "http://localhost:19530"           # milvus standalone only
     collection_prefix: str = "minder_"
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "mongodb"  # "mongodb" | "sqlite" | "postgresql"
-    db_path: str = "minder.db"  # used by sqlite
-    uri: str = "postgresql+asyncpg://localhost/minder"  # used by postgresql
+    provider: str = "qdrant"  # "qdrant" | "mongodb" | "sqlite" | "postgresql"
+    db_path: str = "~/.minder/minder.db"  # sqlite fallback
+    uri: str = "postgresql+asyncpg://localhost/minder"  # postgresql only
 
 
 class GraphStoreConfig(BaseModel):
     enabled: bool = True
-    provider: str = "auto"  # "auto" | "mongodb" | "sqlite" | "postgresql"
-    # auto: mirrors relational_store.provider (mongodb → mongodb, sqlite → sqlite, postgresql → postgresql)
+    provider: str = "auto"  # "auto" mirrors relational_store.provider
     db_path: str = "~/.minder/data/graph.db"  # sqlite only
     uri: str = "postgresql+asyncpg://localhost/minder_graph"  # postgresql only
+
+
+class QdrantConfig(BaseModel):
+    url: str = "http://localhost:6333"
+    api_key: Optional[str] = None
+    prefer_grpc: bool = False
+    collection_prefix: str = "minder_"
 
 
 class MongoDBConfig(BaseModel):
@@ -112,10 +118,8 @@ class GraphConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     enabled: bool = True
-    provider: str = "redis"  # "redis" is the only supported runtime backend
-    max_size: int = (
-        1000  # unused; kept for backwards-compat with any existing .env files
-    )
+    provider: str = "memory"  # "memory" (LRU) | "redis"
+    max_size: int = 1000
     ttl_seconds: int = 3600
 
 
@@ -160,6 +164,7 @@ class Settings(BaseSettings):
         default_factory=RelationalStoreConfig
     )
     graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
+    qdrant: QdrantConfig = Field(default_factory=QdrantConfig)
     mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
     redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)

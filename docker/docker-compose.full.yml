@@ -20,7 +20,7 @@ services:
     image: minder-api:full
     restart: unless-stopped
     volumes:
-      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models:ro
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
     environment:
       MINDER_SERVER__TRANSPORT: sse
       MINDER_SERVER__HOST: 0.0.0.0
@@ -61,10 +61,11 @@ services:
     volumes:
       - qdrant-data:/qdrant/storage
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/healthz"]
-      interval: 10s
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 10s
 
 volumes:
   qdrant-data:

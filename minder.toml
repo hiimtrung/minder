@@ -36,14 +36,18 @@ temperature = 0.1
 openai_api_key = ""
 openai_model = "gpt-4o-mini"
 
+[qdrant]
+url = "http://localhost:6333"
+api_key = ""
+prefer_grpc = false
+collection_prefix = "minder_"
+
 [vector_store]
-provider = "milvus_lite"
-db_path = "~/.minder/data/milvus.db"
-uri = "http://localhost:19530"
+provider = "qdrant"
 collection_prefix = "minder_"
 
 [relational_store]
-provider = "mongodb"
+provider = "qdrant"
 
 [mongodb]
 uri = "mongodb://localhost:27017"
@@ -80,7 +84,8 @@ checkpoint_ttl_days = 7
 
 [cache]
 enabled = true
-provider = "redis"
+provider = "memory"
+max_size = 1000
 ttl_seconds = 3600
 
 [verification]

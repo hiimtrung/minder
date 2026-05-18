@@ -41,17 +41,6 @@ def build_store(config: MinderConfig) -> IOperationalStore:
         from minder.store.qdrant.operational_store import QdrantOperationalStore
         return QdrantOperationalStore(_get_qdrant_client(config))  # type: ignore[return-value]
 
-    if provider == "mongodb":
-        from minder.store.mongodb.client import MongoClient
-        from minder.store.mongodb.operational_store import MongoOperationalStore
-        client = MongoClient(
-            uri=config.mongodb.uri,
-            database=config.mongodb.database,
-            min_pool_size=config.mongodb.min_pool_size,
-            max_pool_size=config.mongodb.max_pool_size,
-        )
-        return MongoOperationalStore(client)  # type: ignore[return-value]
-
     if provider in ("sqlite", "postgresql"):
         from minder.store.relational import RelationalStore
         db_url = (
@@ -63,24 +52,11 @@ def build_store(config: MinderConfig) -> IOperationalStore:
 
     raise ValueError(
         f"Unsupported relational_store.provider '{provider}'. "
-        "Supported: 'qdrant', 'mongodb', 'sqlite', 'postgresql'."
+        "Supported: 'qdrant', 'sqlite', 'postgresql'."
     )
 
 
 def build_cache(config: MinderConfig) -> ICacheProvider:
-    provider = config.cache.provider
-
-    if provider == "redis":
-        try:
-            from minder.cache.providers import RedisCacheProvider
-            return RedisCacheProvider(
-                uri=config.redis.uri,
-                prefix=config.redis.prefix,
-                default_ttl=config.redis.cache_ttl,
-            )
-        except Exception:
-            pass  # fall through to in-memory
-
     return LRUCacheProvider(
         max_size=config.cache.max_size,
         default_ttl=config.cache.ttl_seconds,
@@ -99,19 +75,6 @@ def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVecto
             dimensions=config.embedding.dimensions,
         )
 
-    if provider in ("milvus", "milvus_lite"):
-        try:
-            from minder.store.milvus.client import MilvusClient
-            from minder.store.milvus.vector_store import MilvusVectorStore
-            client = MilvusClient(uri=config.vector_store.uri if provider == "milvus" else config.vector_store.db_path)
-            return MilvusVectorStore(
-                client, store,
-                prefix=config.vector_store.collection_prefix,
-                dimensions=config.embedding.dimensions,
-            )
-        except ImportError:
-            pass  # pymilvus not installed, fall through
-
     return VectorStore(store, store)  # type: ignore[arg-type]
 
 
@@ -126,17 +89,6 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
     if provider == "qdrant":
         from minder.store.qdrant.graph_store import QdrantGraphStore
         return QdrantGraphStore(_get_qdrant_client(config))  # type: ignore[return-value]
-
-    if provider == "mongodb":
-        from minder.store.mongodb.client import MongoClient
-        from minder.store.mongodb.graph_store import MongoGraphStore
-        client = MongoClient(
-            uri=config.mongodb.uri,
-            database=config.mongodb.database,
-            min_pool_size=config.mongodb.min_pool_size,
-            max_pool_size=config.mongodb.max_pool_size,
-        )
-        return MongoGraphStore(client)  # type: ignore[return-value]
 
     if provider in ("sqlite", "postgresql"):
         from minder.store.graph import KnowledgeGraphStore
@@ -154,5 +106,5 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
 
     raise ValueError(
         f"Unsupported graph_store.provider '{provider}'. "
-        "Supported: 'auto', 'qdrant', 'mongodb', 'sqlite', 'postgresql'."
+        "Supported: 'auto', 'qdrant', 'sqlite', 'postgresql'."
     )

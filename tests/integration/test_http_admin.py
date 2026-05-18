@@ -8,24 +8,13 @@ import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
 from minder.auth.service import AuthService, UserRole
-from minder.cache.providers import LRUCacheProvider, RedisCacheProvider
+from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
 from minder.server import build_http_app
 from minder.store.relational import RelationalStore
 
-try:
-    import fakeredis.aioredis
-
-    _fakeredis_available = True
-except ImportError:
-    _fakeredis_available = False
-
 
 IN_MEMORY_URL = "sqlite+aiosqlite:///:memory:"
-requires_fakeredis = pytest.mark.skipif(
-    not _fakeredis_available,
-    reason="fakeredis not installed",
-)
 
 
 def _seed_dashboard_dist(dist: Path) -> None:
@@ -281,16 +270,11 @@ async def test_dashboard_bootstrap_state_reports_setup_and_session_state(
     assert authed_state.json() == {"has_admin_users": True, "has_admin_session": True}
 
 
-@requires_fakeredis
-@pytest.mark.asyncio
-async def test_token_exchange_persists_client_session_in_redis_cache(
+async def test_token_exchange_persists_client_session_in_cache(
     store: RelationalStore,
     config: MinderConfig,
 ) -> None:
-    cache = RedisCacheProvider.__new__(RedisCacheProvider)
-    cache._prefix = "phase4:"
-    cache._default_ttl = 3600
-    cache._client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    cache = LRUCacheProvider()
     auth = AuthService(store=store, config=config, cache=cache)
 
     admin, _ = await auth.register_user(

@@ -51,15 +51,13 @@ class LLMConfig(BaseModel):
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str = "qdrant"  # "qdrant" | "milvus" | "milvus_lite" | "memory"
-    db_path: str = "~/.minder/data/milvus.db"  # milvus_lite only
-    uri: str = "http://localhost:19530"           # milvus standalone only
+    provider: str = "qdrant"  # "qdrant" | "memory"
     collection_prefix: str = "minder_"
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "qdrant"  # "qdrant" | "mongodb" | "sqlite" | "postgresql"
-    db_path: str = "~/.minder/minder.db"  # sqlite fallback
+    provider: str = "qdrant"  # "qdrant" | "sqlite" | "postgresql"
+    db_path: str = "minder.db"  # sqlite fallback
     uri: str = "postgresql+asyncpg://localhost/minder"  # postgresql only
 
 
@@ -76,19 +74,6 @@ class QdrantConfig(BaseModel):
     prefer_grpc: bool = False
     collection_prefix: str = "minder_"
 
-
-class MongoDBConfig(BaseModel):
-    uri: str = "mongodb://localhost:27017"
-    database: str = "minder"
-    min_pool_size: int = 2
-    max_pool_size: int = 10
-
-
-class RedisConfig(BaseModel):
-    uri: str = "redis://localhost:6379/0"
-    prefix: str = "minder:"
-    session_ttl: int = 86400
-    cache_ttl: int = 3600
 
 
 class RetrievalConfig(BaseModel):
@@ -118,7 +103,6 @@ class GraphConfig(BaseModel):
 
 class CacheConfig(BaseModel):
     enabled: bool = True
-    provider: str = "memory"  # "memory" (LRU) | "redis"
     max_size: int = 1000
     ttl_seconds: int = 3600
 
@@ -165,8 +149,6 @@ class Settings(BaseSettings):
     )
     graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
     qdrant: QdrantConfig = Field(default_factory=QdrantConfig)
-    mongodb: MongoDBConfig = Field(default_factory=MongoDBConfig)
-    redis: RedisConfig = Field(default_factory=RedisConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     session: SessionConfig = Field(default_factory=SessionConfig)

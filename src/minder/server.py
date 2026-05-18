@@ -4,6 +4,7 @@ import asyncio
 import sys
 
 from minder.bootstrap.agent_seeder import seed_default_agents
+from minder.bootstrap.workflow_seeder import seed_default_workflows
 from minder.model_bootstrap import ensure_models_available
 from minder.bootstrap.providers import (
     build_cache,
@@ -87,6 +88,7 @@ async def _async_run() -> None:
     store = build_store(config)
     await store.init_db()
     await seed_default_agents(store)
+    await seed_default_workflows(store)
 
     graph_store = build_graph_store(config)
     if graph_store is not None and hasattr(graph_store, "init_db"):
@@ -113,7 +115,7 @@ async def _async_run() -> None:
     await PromptRegistry.sync(transport.app, store)
 
     print(
-        f"Minder store={config.relational_store.provider} cache={config.cache.provider} "
+        f"Minder store={config.relational_store.provider} "
         f"transport={transport.transport_name} host={config.server.host}:{config.server.port}",
         file=sys.stderr,
         flush=True,

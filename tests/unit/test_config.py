@@ -1,6 +1,6 @@
 from minder.config import Settings
 from minder.bootstrap.providers import build_graph_store
-from minder.store.mongodb.graph_store import MongoGraphStore
+
 
 
 def test_default_config_loading():
@@ -14,17 +14,14 @@ def test_default_config_loading():
 
 def test_env_override(monkeypatch):
     monkeypatch.setenv("MINDER_SERVER__PORT", "9999")
-    monkeypatch.setenv("MINDER_MONGODB__URI", "mongodb://example:27017")
 
     settings = Settings(_env_file=None)
 
     assert settings.server.port == 9999
-    assert settings.mongodb.uri == "mongodb://example:27017"
 
 
 def test_dotenv_file_override(tmp_path, monkeypatch):
     monkeypatch.delenv("MINDER_SERVER__PORT", raising=False)
-    monkeypatch.delenv("MINDER_REDIS__URI", raising=False)
     monkeypatch.delenv("MINDER_VECTOR_STORE__PROVIDER", raising=False)
 
     env_file = tmp_path / ".env"
@@ -32,8 +29,7 @@ def test_dotenv_file_override(tmp_path, monkeypatch):
         "\n".join(
             [
                 "MINDER_SERVER__PORT=7777",
-                "MINDER_REDIS__URI=redis://example:6379/7",
-                "MINDER_VECTOR_STORE__PROVIDER=milvus",
+                "MINDER_VECTOR_STORE__PROVIDER=memory",
             ]
         ),
         encoding="utf-8",
@@ -42,16 +38,16 @@ def test_dotenv_file_override(tmp_path, monkeypatch):
     settings = Settings(_env_file=env_file)
 
     assert settings.server.port == 7777
-    assert settings.redis.uri == "redis://example:6379/7"
-    assert settings.vector_store.provider == "milvus"
+    assert settings.vector_store.provider == "memory"
 
 
-def test_graph_store_defaults_to_auto_mongodb_for_mongodb() -> None:
+def test_graph_store_defaults_to_auto_qdrant_for_qdrant() -> None:
     settings = Settings(_env_file=None)
 
     graph_store = build_graph_store(settings)
-
-    assert isinstance(graph_store, MongoGraphStore)
+    
+    from minder.store.qdrant.graph_store import QdrantGraphStore
+    assert isinstance(graph_store, QdrantGraphStore)
 
 
 def test_graph_store_env_override(monkeypatch) -> None:

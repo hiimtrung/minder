@@ -49,6 +49,36 @@ class QueryTools:
         self._graph_tools = graph_tools
         self._history_compactor = HistoryCompactor()
 
+    @staticmethod
+    def _history_sort_key(doc: Any) -> tuple[str, str]:
+        created_at = getattr(doc, "created_at", None)
+        created_at_key = (
+            created_at.isoformat() if hasattr(created_at, "isoformat") else ""
+        )
+        return created_at_key, str(getattr(doc, "id", ""))
+
+    async def _load_chat_history(
+        self,
+        session_id: uuid.UUID,
+    ) -> tuple[list[dict[str, str]], str]:
+        try:
+            history_docs = await self._store.list_history_for_session(session_id)
+        except Exception:
+            return [], "none"
+
+        ordered_docs = sorted(history_docs, key=self._history_sort_key)
+        raw_history = [
+            {
+                "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
+                "content": str(getattr(doc, "content", "")),
+            }
+            for doc in ordered_docs
+            if getattr(doc, "role", "") and getattr(doc, "content", "")
+        ]
+        if not raw_history:
+            return [], "none"
+        return raw_history, "mongodb"
+
     async def minder_query(
         self,
         query: str,
@@ -91,21 +121,7 @@ class QueryTools:
         chat_history = []
         history_source = "none"
         if session_id:
-            try:
-                history_docs = await self._store.list_history_for_session(session_id)
-                raw_history = [
-                    {
-                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
-                        "content": str(getattr(doc, "content", "")),
-                    }
-                    for doc in history_docs
-                    if getattr(doc, "role", "") and getattr(doc, "content", "")
-                ]
-                if raw_history:
-                    history_source = "mongodb"
-                    chat_history = raw_history
-            except Exception:
-                pass
+            chat_history, history_source = await self._load_chat_history(session_id)
 
             chat_history = self._history_compactor.compact(
                 chat_history,
@@ -133,7 +149,9 @@ class QueryTools:
                 "project_name": project_name,
                 "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
                 "query_prompt_template": (
-                    "" if is_builtin_prompt else getattr(query_prompt, "content_template", "")
+                    ""
+                    if is_builtin_prompt
+                    else getattr(query_prompt, "content_template", "")
                 ),
                 "query_prompt_defaults": dict(
                     getattr(query_prompt, "defaults", {}) or {}
@@ -201,18 +219,7 @@ class QueryTools:
         )
         chat_history = []
         if session_id:
-            try:
-                history_docs = await self._store.list_history_for_session(session_id)
-                chat_history = [
-                    {
-                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
-                        "content": str(getattr(doc, "content", "")),
-                    }
-                    for doc in history_docs
-                    if getattr(doc, "role", "") and getattr(doc, "content", "")
-                ]
-            except Exception:
-                pass
+            chat_history, _ = await self._load_chat_history(session_id)
 
             chat_history = self._history_compactor.compact(
                 chat_history,
@@ -240,7 +247,9 @@ class QueryTools:
                 "project_name": project_name,
                 "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
                 "query_prompt_template": (
-                    "" if is_builtin_prompt else getattr(query_prompt, "content_template", "")
+                    ""
+                    if is_builtin_prompt
+                    else getattr(query_prompt, "content_template", "")
                 ),
                 "query_prompt_defaults": dict(
                     getattr(query_prompt, "defaults", {}) or {}
@@ -274,9 +283,9 @@ class QueryTools:
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
         approval_request = None
         if result.metadata.get("waiting_for_approval"):
-            approval_request = list(result.metadata.get("interrupts", []) or [{}])[0].get(
-                "value"
-            )
+            approval_request = list(result.metadata.get("interrupts", []) or [{}])[
+                0
+            ].get("value")
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
@@ -330,7 +339,7 @@ class QueryTools:
                 }
                 for doc in semantic_code_hits[:limit]
             ]
-        
+
         project_name = Path(repo_path).name
         state = GraphState(
             query=query,
@@ -366,11 +375,24 @@ class QueryTools:
     @staticmethod
     def discover_repo_files(repo_path: str) -> list[str]:
         import os
-        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
+
+        ignore_dirs = {
+            ".git",
+            ".svn",
+            ".hg",
+            "node_modules",
+            "venv",
+            ".venv",
+            "__pycache__",
+            ".minder_cache",
+            ".gemini",
+        }
         discovered: list[str] = []
         root_path = os.path.abspath(repo_path)
         for dirpath, dirnames, filenames in os.walk(root_path):
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+            dirnames[:] = [
+                d for d in dirnames if d not in ignore_dirs and not d.startswith(".")
+            ]
             for filename in filenames:
                 if filename.startswith("."):
                     continue

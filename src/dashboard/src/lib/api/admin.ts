@@ -110,7 +110,29 @@ export type RuntimeQueryPayload = {
   edge: string | null;
   cross_repo_graph: Record<string, unknown> | null;
   agent_actions: Array<Record<string, unknown>>;
+  history_message_count?: number;
   session_id?: string | null;
+};
+
+export type RuntimeConversationMessagePayload = {
+  id: string;
+  role: string;
+  content: string;
+  created_at: string | null;
+};
+
+export type RuntimeConversationSessionPayload = {
+  id: string;
+  name: string | null;
+  repo_id: string | null;
+  project_context: Record<string, unknown>;
+  created_at: string | null;
+  last_active: string | null;
+};
+
+export type RuntimeConversationPayload = {
+  session: RuntimeConversationSessionPayload;
+  history: RuntimeConversationMessagePayload[];
 };
 
 export type RuntimeQueryStreamEvent =
@@ -420,6 +442,39 @@ export async function queryRuntimeStream(
   }
 }
 
+export async function createRuntimeConversation(payload?: {
+  repo_id?: string;
+  name?: string;
+}): Promise<RuntimeConversationPayload> {
+  return requestJson<RuntimeConversationPayload>(
+    "/api/v1/runtime/conversations",
+    {
+      method: "POST",
+      body: JSON.stringify(payload ?? {}),
+    },
+  );
+}
+
+export async function getRuntimeConversation(
+  sessionId: string,
+): Promise<RuntimeConversationPayload> {
+  return requestJson<RuntimeConversationPayload>(
+    `/api/v1/runtime/conversations/${sessionId}`,
+  );
+}
+
+export async function deleteRuntimeConversation(
+  sessionId: string,
+): Promise<{ deleted: boolean; deleted_history: number }> {
+  return requestJson<{ deleted: boolean; deleted_history: number }>(
+    `/api/v1/runtime/conversations/${sessionId}`,
+    {
+      method: "DELETE",
+      body: JSON.stringify({}),
+    },
+  );
+}
+
 export async function updateClient(
   clientId: string,
   payload: {
@@ -568,7 +623,9 @@ export async function listAgents(): Promise<AgentListPayload> {
   return requestJson<AgentListPayload>("/v1/admin/agents");
 }
 
-export async function getAgentDetail(agentId: string): Promise<AgentDetailPayload> {
+export async function getAgentDetail(
+  agentId: string,
+): Promise<AgentDetailPayload> {
   return requestJson<AgentDetailPayload>(`/v1/admin/agents/${agentId}`);
 }
 
@@ -609,7 +666,9 @@ export async function updateAgent(
   });
 }
 
-export async function deleteAgent(agentId: string): Promise<{ deleted: boolean }> {
+export async function deleteAgent(
+  agentId: string,
+): Promise<{ deleted: boolean }> {
   return requestJson<{ deleted: boolean }>(`/v1/admin/agents/${agentId}`, {
     method: "DELETE",
   });

@@ -587,6 +587,18 @@ body.graph-fullwidth .graph-canvas-wrap {
   min-width: 14rem;
 }
 
+.runtime-chat-session-badge {
+  margin-top: 0.55rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  font-size: 0.6875rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgb(120 113 108);
+}
+
 .runtime-chat-thread {
   display: flex;
   flex-direction: column;
@@ -734,6 +746,10 @@ body.graph-fullwidth .graph-canvas-wrap {
   .runtime-chat-header-meta {
     min-width: 0;
     width: 100%;
+  }
+
+  .runtime-chat-session-badge {
+    justify-content: flex-start;
   }
 
   .runtime-chat-bubble {

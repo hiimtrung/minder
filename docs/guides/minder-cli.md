@@ -77,6 +77,10 @@ Install into user-level config locations instead:
 minder install-mcp --global
 ```
 
+For VS Code, `--global` now writes to the active user MCP config file, not the older `globalStorage/mcp-servers.json` location. On macOS that file is `~/Library/Application Support/Code/User/mcp.json`.
+
+If you previously installed Minder into the legacy VS Code globalStorage file, rerun `minder install-mcp --global --target vscode` and then restart the MCP server from VS Code so the active profile picks up the current config.
+
 Supported targets:
 
 - `vscode`

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 import uuid
@@ -21,39 +22,45 @@ def test_runtime_query_returns_query_result() -> None:
     client = TestClient(app)
     repo_id = uuid.uuid4()
 
-    with patch(
-        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
-        new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
-    ), patch.object(
-        context.use_cases,
-        "get_repository_detail",
-        new=AsyncMock(
-            return_value={
-                "repository": {
-                    "id": str(repo_id),
-                    "name": "minder",
-                    "path": "/tmp/minder",
-                }
-            }
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
         ),
-    ), patch(
-        "minder.presentation.http.admin.runtime.QueryTools.minder_query",
-        new=AsyncMock(
-            return_value={
-                "answer": "Instruction envelope:\n{}\n\nUser query:\nWhat should I inspect first?\n\nRetrieved context:\nNone",
-                "sources": [{"path": "src/minder/presentation/http/admin/runtime.py"}],
-                "workflow": {},
-                "guard_result": None,
-                "verification_result": None,
-                "evaluation": None,
-                "provider": "local",
-                "model": "gemma",
-                "runtime": "auto",
-                "orchestration_runtime": "langgraph",
-                "transition_log": [{"edge": "complete"}],
-                "edge": "complete",
-                "cross_repo_graph": None,
-            }
+        patch.object(
+            context.use_cases,
+            "get_repository_detail",
+            new=AsyncMock(
+                return_value={
+                    "repository": {
+                        "id": str(repo_id),
+                        "name": "minder",
+                        "path": "/tmp/minder",
+                    }
+                }
+            ),
+        ),
+        patch(
+            "minder.presentation.http.admin.runtime.QueryTools.minder_query",
+            new=AsyncMock(
+                return_value={
+                    "answer": "Instruction envelope:\n{}\n\nUser query:\nWhat should I inspect first?\n\nRetrieved context:\nNone",
+                    "sources": [
+                        {"path": "src/minder/presentation/http/admin/runtime.py"}
+                    ],
+                    "workflow": {},
+                    "guard_result": None,
+                    "verification_result": None,
+                    "evaluation": None,
+                    "provider": "local",
+                    "model": "gemma",
+                    "runtime": "auto",
+                    "orchestration_runtime": "langgraph",
+                    "transition_log": [{"edge": "complete"}],
+                    "edge": "complete",
+                    "cross_repo_graph": None,
+                }
+            ),
         ),
     ):
         response = client.post(
@@ -102,24 +109,28 @@ def test_runtime_query_stream_returns_chunked_events() -> None:
             },
         }
 
-    with patch(
-        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
-        new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
-    ), patch.object(
-        context.use_cases,
-        "get_repository_detail",
-        new=AsyncMock(
-            return_value={
-                "repository": {
-                    "id": str(repo_id),
-                    "name": "minder",
-                    "path": "/tmp/minder",
-                }
-            }
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
         ),
-    ), patch(
-        "minder.presentation.http.admin.runtime.QueryTools.minder_query_stream",
-        new=fake_stream,
+        patch.object(
+            context.use_cases,
+            "get_repository_detail",
+            new=AsyncMock(
+                return_value={
+                    "repository": {
+                        "id": str(repo_id),
+                        "name": "minder",
+                        "path": "/tmp/minder",
+                    }
+                }
+            ),
+        ),
+        patch(
+            "minder.presentation.http.admin.runtime.QueryTools.minder_query_stream",
+            new=fake_stream,
+        ),
     ):
         response = client.post(
             "/api/v1/runtime/query/stream",
@@ -143,29 +154,32 @@ def test_runtime_query_allows_missing_repository_scope() -> None:
     app.state.config = Settings()
     client = TestClient(app)
 
-    with patch(
-        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
-        new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
-    ), patch(
-        "minder.presentation.http.admin.runtime.QueryTools.minder_query",
-        new=AsyncMock(
-            return_value={
-                "answer": "General dashboard guidance.",
-                "sources": [],
-                "workflow": {},
-                "guard_result": None,
-                "verification_result": None,
-                "evaluation": None,
-                "provider": "local",
-                "model": "gemma",
-                "runtime": "auto",
-                "orchestration_runtime": "internal",
-                "transition_log": [{"edge": "complete"}],
-                "edge": "complete",
-                "cross_repo_graph": None,
-            }
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4(), role="admin")),
         ),
-    ) as query_mock:
+        patch(
+            "minder.presentation.http.admin.runtime.QueryTools.minder_query",
+            new=AsyncMock(
+                return_value={
+                    "answer": "General dashboard guidance.",
+                    "sources": [],
+                    "workflow": {},
+                    "guard_result": None,
+                    "verification_result": None,
+                    "evaluation": None,
+                    "provider": "local",
+                    "model": "gemma",
+                    "runtime": "auto",
+                    "orchestration_runtime": "internal",
+                    "transition_log": [{"edge": "complete"}],
+                    "edge": "complete",
+                    "cross_repo_graph": None,
+                }
+            ),
+        ) as query_mock,
+    ):
         response = client.post(
             "/api/v1/runtime/query",
             json={
@@ -189,16 +203,20 @@ def test_runtime_query_executes_safe_memory_action_before_query_fallback() -> No
     client = TestClient(app)
     admin_id = uuid.uuid4()
 
-    with patch(
-        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
-        new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
-    ), patch(
-        "minder.presentation.http.admin.runtime.MemoryTools.minder_memory_store",
-        new=AsyncMock(return_value={"id": "memory-1", "title": "Release note"}),
-    ) as memory_store_mock, patch(
-        "minder.presentation.http.admin.runtime.QueryTools.minder_query",
-        new=AsyncMock(),
-    ) as query_mock:
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
+        ),
+        patch(
+            "minder.presentation.http.admin.runtime.MemoryTools.minder_memory_store",
+            new=AsyncMock(return_value={"id": "memory-1", "title": "Release note"}),
+        ) as memory_store_mock,
+        patch(
+            "minder.presentation.http.admin.runtime.QueryTools.minder_query",
+            new=AsyncMock(),
+        ) as query_mock,
+    ):
         response = client.post(
             "/api/v1/runtime/query",
             json={
@@ -223,16 +241,20 @@ def test_runtime_query_stream_executes_safe_session_action() -> None:
     client = TestClient(app)
     admin_id = uuid.uuid4()
 
-    with patch(
-        "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
-        new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
-    ), patch(
-        "minder.presentation.http.admin.runtime.SessionTools.minder_session_cleanup",
-        new=AsyncMock(return_value={"deleted_sessions": 2, "deleted_history": 4}),
-    ) as cleanup_mock, patch(
-        "minder.presentation.http.admin.runtime.QueryTools.minder_query_stream",
-        new=AsyncMock(),
-    ) as query_stream_mock:
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
+        ),
+        patch(
+            "minder.presentation.http.admin.runtime.SessionTools.minder_session_cleanup",
+            new=AsyncMock(return_value={"deleted_sessions": 2, "deleted_history": 4}),
+        ) as cleanup_mock,
+        patch(
+            "minder.presentation.http.admin.runtime.QueryTools.minder_query_stream",
+            new=AsyncMock(),
+        ) as query_stream_mock,
+    ):
         response = client.post(
             "/api/v1/runtime/query/stream",
             json={
@@ -246,3 +268,97 @@ def test_runtime_query_stream_executes_safe_session_action() -> None:
     assert any("minder_session_cleanup" in line for line in lines)
     cleanup_mock.assert_awaited_once_with(user_id=admin_id)
     query_stream_mock.assert_not_called()
+
+
+def test_runtime_conversation_lifecycle_routes() -> None:
+    store = AsyncMock(spec=IOperationalStore)
+    context = AdminRouteContext.build(config=Settings(), store=store, cache=None)
+    app = Starlette(routes=build_runtime_routes(context))
+    app.state.config = Settings()
+    client = TestClient(app)
+    admin_id = uuid.uuid4()
+    repo_id = uuid.uuid4()
+    session_id = uuid.uuid4()
+    created_at = datetime.now(UTC)
+    restored_session = SimpleNamespace(
+        id=session_id,
+        name=None,
+        repo_id=repo_id,
+        project_context={
+            "source": "dashboard_runtime_chat",
+            "repository_name": "minder",
+            "repository_path": "/tmp/minder",
+        },
+        created_at=created_at,
+        last_active=created_at,
+    )
+    store.create_session = AsyncMock(return_value=restored_session)
+    store.get_session_by_id = AsyncMock(
+        side_effect=[restored_session, restored_session, restored_session]
+    )
+    store.list_history_for_session = AsyncMock(
+        return_value=[
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                role="assistant",
+                content="Second answer",
+                created_at=created_at + timedelta(seconds=1),
+            ),
+            SimpleNamespace(
+                id=uuid.uuid4(),
+                role="user",
+                content="First question",
+                created_at=created_at,
+            ),
+        ]
+    )
+    store.delete_history_for_session = AsyncMock(return_value=2)
+    store.delete_session = AsyncMock(return_value=None)
+
+    with (
+        patch(
+            "minder.presentation.http.admin.runtime.AdminRouteContext.admin_user_from_request",
+            new=AsyncMock(return_value=SimpleNamespace(id=admin_id, role="admin")),
+        ),
+        patch.object(
+            context.use_cases,
+            "get_repository_detail",
+            new=AsyncMock(
+                return_value={
+                    "repository": {
+                        "id": str(repo_id),
+                        "name": "minder",
+                        "path": "/tmp/minder",
+                    }
+                }
+            ),
+        ),
+    ):
+        create_response = client.post(
+            "/api/v1/runtime/conversations",
+            json={"repo_id": str(repo_id)},
+        )
+        get_response = client.get(f"/api/v1/runtime/conversations/{session_id}")
+        delete_response = client.delete(f"/api/v1/runtime/conversations/{session_id}")
+
+    assert create_response.status_code == 201
+    create_payload = create_response.json()
+    assert create_payload["session"]["id"] == str(session_id)
+    assert create_payload["session"]["repo_id"] == str(repo_id)
+    assert create_payload["history"] == []
+
+    assert get_response.status_code == 200
+    get_payload = get_response.json()
+    assert [item["role"] for item in get_payload["history"]] == [
+        "user",
+        "assistant",
+    ]
+    assert [item["content"] for item in get_payload["history"]] == [
+        "First question",
+        "Second answer",
+    ]
+
+    assert delete_response.status_code == 200
+    assert delete_response.json() == {"deleted": True, "deleted_history": 2}
+    store.delete_history_for_session.assert_awaited_once_with(session_id)
+    store.delete_session.assert_awaited_once_with(session_id)

@@ -1,8 +1,12 @@
 import {
+  createRuntimeConversation,
+  deleteRuntimeConversation,
+  getRuntimeConversation,
   listRepositories,
   listTools,
   listWorkflows,
   queryRuntimeStream,
+  type RuntimeConversationPayload,
   type RepositoryPayload,
   type RuntimeQueryPayload,
   type RuntimeQueryStreamEvent,
@@ -35,6 +39,14 @@ const actionsEl = document.querySelector("#runtime-chat-actions");
 const summaryEl = document.querySelector("#runtime-chat-summary");
 const engineEl = document.querySelector("#runtime-chat-engine");
 const warningEl = document.querySelector("#runtime-chat-warning");
+const sessionBadgeEl = document.querySelector("#runtime-chat-session-badge");
+const sessionStateEl = document.querySelector("#runtime-chat-session-state");
+const newConversationEl = document.querySelector(
+  "#runtime-chat-new",
+) as HTMLButtonElement | null;
+const deleteConversationEl = document.querySelector(
+  "#runtime-chat-delete",
+) as HTMLButtonElement | null;
 const submitEl = document.querySelector(
   "#runtime-chat-submit",
 ) as HTMLButtonElement | null;
@@ -55,9 +67,35 @@ let workflows: WorkflowPayload[] = [];
 let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
 let sessionId: string | null = null;
+let conversationSession: RuntimeConversationPayload["session"] | null = null;
+
+const SESSION_STORAGE_KEY = "minder:runtime-chat:session-id";
 
 const QUERY_MIN_ROWS = 2;
 const QUERY_MAX_ROWS = 4;
+const EMPTY_THREAD_MARKUP =
+  emptyEl instanceof HTMLElement ? emptyEl.outerHTML : "";
+
+const readStoredSessionId = (): string | null => {
+  try {
+    const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    return stored?.trim() || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredSessionId = (nextSessionId: string | null) => {
+  try {
+    if (nextSessionId) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId);
+      return;
+    }
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures in private browsing or locked-down environments.
+  }
+};
 
 const syncQueryHeight = () => {
   if (!(queryEl instanceof HTMLTextAreaElement)) return;
@@ -110,14 +148,138 @@ const setStatus = (
   if (tone === "danger") statusEl.classList.add("u-status-danger");
 };
 
+const renderSessionState = () => {
+  const hasSession = Boolean(sessionId);
+  const shortId = hasSession && sessionId ? sessionId.slice(0, 8) : null;
+  if (sessionBadgeEl instanceof HTMLElement) {
+    sessionBadgeEl.textContent = shortId
+      ? `Saved conversation · ${shortId}`
+      : "No saved conversation";
+  }
+  if (sessionStateEl instanceof HTMLElement) {
+    if (!hasSession) {
+      sessionStateEl.textContent = "Not saved yet.";
+    } else {
+      const repositoryName = String(
+        conversationSession?.project_context?.repository_name ?? "",
+      ).trim();
+      sessionStateEl.textContent = repositoryName
+        ? `Saved on the server for reload recovery. Repository: ${repositoryName}.`
+        : "Saved on the server for reload recovery.";
+    }
+  }
+  if (deleteConversationEl instanceof HTMLButtonElement) {
+    deleteConversationEl.disabled = !hasSession;
+  }
+};
+
+const resetInsights = () => {
+  setWarning(null);
+  if (engineEl instanceof HTMLElement) {
+    engineEl.textContent = "";
+  }
+  if (sourcesEl instanceof HTMLElement) {
+    sourcesEl.innerHTML =
+      '<div class="text-sm text-stone-500">No sources yet.</div>';
+  }
+  if (transitionsEl instanceof HTMLElement) {
+    transitionsEl.innerHTML =
+      '<div class="text-sm text-stone-500">No transition log yet.</div>';
+  }
+  if (actionsEl instanceof HTMLElement) {
+    actionsEl.innerHTML =
+      '<div class="text-sm text-stone-500">No tool actions yet.</div>';
+  }
+  if (summaryEl instanceof HTMLElement) {
+    summaryEl.innerHTML =
+      '<div class="text-sm text-stone-500">No answer context yet.</div>';
+  }
+};
+
+const resetConversation = () => {
+  messages = [];
+  activeAssistantMessageIndex = null;
+  sessionId = null;
+  conversationSession = null;
+  writeStoredSessionId(null);
+  renderThread();
+  renderSessionState();
+  resetInsights();
+};
+
+const applyConversation = (payload: RuntimeConversationPayload) => {
+  conversationSession = payload.session;
+  sessionId = payload.session.id;
+  writeStoredSessionId(sessionId);
+  messages = payload.history.map((message) => ({
+    role: message.role === "user" ? "user" : "assistant",
+    content: message.content,
+    meta: {
+      repositoryName:
+        String(payload.session.project_context?.repository_name ?? "").trim() ||
+        null,
+    },
+  }));
+  activeAssistantMessageIndex = null;
+  renderThread();
+  renderSessionState();
+
+  if (
+    repositoryEl instanceof HTMLSelectElement &&
+    payload.session.repo_id &&
+    repositories.some((item) => item.id === payload.session.repo_id)
+  ) {
+    repositoryEl.value = payload.session.repo_id;
+    repositoryEl.dispatchEvent(new Event("change"));
+  }
+};
+
+const ensureConversation = async (): Promise<string> => {
+  if (sessionId) {
+    return sessionId;
+  }
+  const created = await createRuntimeConversation({
+    repo_id: repositoryEl?.value?.trim() || undefined,
+  });
+  applyConversation(created);
+  return created.session.id;
+};
+
+const restoreConversation = async (): Promise<boolean> => {
+  const storedSessionId = readStoredSessionId();
+  if (!storedSessionId) {
+    renderSessionState();
+    return false;
+  }
+  try {
+    const conversation = await getRuntimeConversation(storedSessionId);
+    applyConversation(conversation);
+    setStatus(
+      conversation.history.length
+        ? "Restored saved conversation."
+        : "Restored empty saved conversation.",
+      "success",
+    );
+    return true;
+  } catch (error) {
+    resetConversation();
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to restore the saved conversation.";
+    setStatus(message, "danger");
+    setWarning(message);
+    return false;
+  }
+};
+
 const renderThread = () => {
   if (!(threadEl instanceof HTMLElement)) return;
   if (!messages.length) {
-    emptyEl?.classList.remove("hidden");
+    threadEl.innerHTML = EMPTY_THREAD_MARKUP;
     return;
   }
 
-  emptyEl?.classList.add("hidden");
   threadEl.innerHTML = messages
     .map((message) => {
       const isAssistant = message.role === "assistant";
@@ -195,6 +357,11 @@ const renderWorkflowOptions = (items: WorkflowPayload[]) => {
 };
 
 const renderResult = (payload: RuntimeQueryPayload) => {
+  if (payload.session_id) {
+    sessionId = payload.session_id;
+    writeStoredSessionId(sessionId);
+    renderSessionState();
+  }
   if (typeof activeAssistantMessageIndex === "number") {
     messages[activeAssistantMessageIndex] = {
       role: "assistant",
@@ -294,6 +461,11 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       ["Path", payload.repository.path || "-"],
       ["Orchestration", payload.orchestration_runtime || "-"],
       ["Edge", payload.edge || "-"],
+      [
+        "Conversation",
+        payload.session_id ? payload.session_id.slice(0, 8) : "-",
+      ],
+      ["History messages", payload.history_message_count ?? 0],
       ["Agent actions", payload.agent_actions?.length ?? 0],
       ["Answer sanitized", payload.answer_sanitized ? "yes" : "no"],
       ["Guard", payload.guard_result ? "returned" : "-"],
@@ -424,6 +596,18 @@ formEl?.addEventListener("submit", async (event) => {
     return;
   }
 
+  try {
+    await ensureConversation();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to create a conversation.";
+    setStatus(message, "danger");
+    setWarning(message);
+    return;
+  }
+
   messages.push({
     role: "user",
     content: query,
@@ -496,11 +680,49 @@ document
     });
   });
 
+newConversationEl?.addEventListener("click", () => {
+  resetConversation();
+  setStatus("Started a new empty conversation.", "success");
+  setWarning(null);
+  queryEl?.focus();
+});
+
+deleteConversationEl?.addEventListener("click", async () => {
+  if (!sessionId) {
+    resetConversation();
+    setStatus("Nothing to delete.", "success");
+    return;
+  }
+  const confirmed = window.confirm(
+    "Delete this saved conversation and its history?",
+  );
+  if (!confirmed) {
+    return;
+  }
+  try {
+    await deleteRuntimeConversation(sessionId);
+    resetConversation();
+    setStatus("Deleted the saved conversation.", "success");
+    queryEl?.focus();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to delete the saved conversation.";
+    setStatus(message, "danger");
+    setWarning(message);
+  }
+});
+
 void loadBootstrap()
-  .then(() => {
-    sessionId = crypto.randomUUID();
+  .then(async () => {
     renderThread();
-    setStatus("Ask a question. Repository scope is optional.");
+    renderSessionState();
+    resetInsights();
+    const restored = await restoreConversation();
+    if (!restored) {
+      setStatus("Ask a question. Repository scope is optional.");
+    }
     syncQueryHeight();
   })
   .catch((error) => {

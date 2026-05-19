@@ -245,6 +245,8 @@ Open this from either:
 - workspace: `.vscode/mcp.json`
 - user profile: `MCP: Open User Configuration`
 
+For current VS Code builds, the user-level MCP file is `~/Library/Application Support/Code/User/mcp.json` on macOS. If you previously installed MCP servers into a legacy `globalStorage/mcp-servers.json` file, move or reinstall the `minder` entry into `mcp.json` so Copilot Chat reads the active config.
+
 Recommended flow based on the GitHub Copilot Chat MCP guide:
 
 1. Save the `mcp.json` file and start or restart the server from the inline action or `MCP: List Servers`.
@@ -419,7 +421,7 @@ After revocation:
 
 ## 11. LLM Session Management — Cross-Environment Context Continuity
 
-Minder sessions are the server-side checkpoint for an LLM work context.  Because
+Minder sessions are the server-side checkpoint for an LLM work context. Because
 sessions are stored in MongoDB (not in the client process), the same LLM can
 resume exactly where it left off from **any machine** using the same client API key.
 
@@ -438,14 +440,14 @@ rehydrates it on demand.
 
 ### Session tool reference
 
-| Tool                     | Always available | Description                                    |
-| ------------------------ | ---------------- | ---------------------------------------------- |
-| `minder_session_create`  | ✅               | Create a named session                         |
-| `minder_session_find`    | ✅               | Find session by name — primary recovery tool   |
-| `minder_session_list`    | ✅               | List all sessions for the current client       |
-| `minder_session_save`    | ✅               | Checkpoint state after each wave               |
-| `minder_session_restore` | ✅               | Load session by UUID                           |
-| `minder_session_context` | ✅               | Update branch and open-file context            |
+| Tool                     | Always available | Description                                  |
+| ------------------------ | ---------------- | -------------------------------------------- |
+| `minder_session_create`  | ✅               | Create a named session                       |
+| `minder_session_find`    | ✅               | Find session by name — primary recovery tool |
+| `minder_session_list`    | ✅               | List all sessions for the current client     |
+| `minder_session_save`    | ✅               | Checkpoint state after each wave             |
+| `minder_session_restore` | ✅               | Load session by UUID                         |
+| `minder_session_context` | ✅               | Update branch and open-file context          |
 
 All session tools are **always available** to any authenticated principal — no
 `tool_scopes` grant is needed.
@@ -466,7 +468,7 @@ minder_session_create(
 → { session_id: "a1b2c3d4-...", name: "my-project-phase3" }
 ```
 
-Save the `session_id` in your active context.  The `name` is the durable key
+Save the `session_id` in your active context. The `name` is the durable key
 across environments.
 
 #### 2. After each wave of work (before `/compact`)
@@ -501,8 +503,9 @@ minder_session_find(name="my-project-phase3")
 ```
 
 The LLM immediately knows:
+
 - what was done
-- what is in progress  
+- what is in progress
 - what to do next
 - key architectural decisions already taken
 
@@ -525,7 +528,7 @@ minder_session_context(
 ### Cross-machine guarantee
 
 The `mkc_...` client API key resolves to the same `client_id` UUID on any
-machine.  Sessions owned by that `client_id` are stored in shared MongoDB.
+machine. Sessions owned by that `client_id` are stored in shared MongoDB.
 `minder_session_find(name=...)` filters by `client_id` automatically, so only
 sessions belonging to the calling client are returned.
 

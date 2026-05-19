@@ -39,6 +39,12 @@ import GuideAside from "./ui/GuideAside.astro";
             class="text-right text-xs text-stone-500"
           >
           </div>
+          <div
+            id="runtime-chat-session-badge"
+            class="runtime-chat-session-badge"
+          >
+            No saved conversation
+          </div>
         </div>
       </header>
 
@@ -116,6 +122,38 @@ import GuideAside from "./ui/GuideAside.astro";
         </h2>
 
         <div class="mt-2.5 grid gap-2">
+          <div
+            class="rounded-2xl border border-stone-200 bg-white/80 px-3 py-2"
+          >
+            <p
+              class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500"
+            >
+              Conversation
+            </p>
+            <p
+              id="runtime-chat-session-state"
+              class="mt-1 text-sm text-stone-800"
+            >
+              Not saved yet.
+            </p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                id="runtime-chat-new"
+                type="button"
+                class="action-pill u-btn-sm"
+              >
+                New conversation
+              </button>
+              <button
+                id="runtime-chat-delete"
+                type="button"
+                class="action-pill u-btn-sm"
+              >
+                Delete conversation
+              </button>
+            </div>
+          </div>
+
           <Field label="Repository" htmlFor="runtime-chat-repository">
             <Select id="runtime-chat-repository">
               <option value="">Select a repository</option>

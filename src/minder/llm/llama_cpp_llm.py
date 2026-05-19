@@ -121,13 +121,24 @@ class LlamaCppLLM:
         )
 
         reasoning_output = getattr(state, "reasoning_output", {}) or {}
-        prompt = reasoning_output.get("prompt") or state.query
-        text = self.complete_text(
-            str(prompt),
-            max_tokens=256,
-            temperature=self._temperature,
-            fallback=fallback,
-        )
+        messages = reasoning_output.get("messages") or []
+
+        if messages and self.runtime == "llama_cpp" and self._engine is not None:
+            try:
+                response = self._engine.create_chat_completion(
+                    messages,
+                    max_tokens=1024,
+                    temperature=self._temperature,
+                    stream=False,
+                )
+                text = str(response["choices"][0]["message"].get("content", "")).strip() or fallback
+            except Exception as e:
+                logger.warning("create_chat_completion failed, falling back to text: %s", e)
+                prompt = reasoning_output.get("prompt") or state.query
+                text = self.complete_text(str(prompt), max_tokens=1024, temperature=self._temperature, fallback=fallback)
+        else:
+            prompt = reasoning_output.get("prompt") or state.query
+            text = self.complete_text(str(prompt), max_tokens=1024, temperature=self._temperature, fallback=fallback)
 
         return {
             "text": text,
@@ -164,22 +175,37 @@ class LlamaCppLLM:
             return
 
         deltas: list[str] = []
+        reasoning_output = getattr(state, "reasoning_output", {}) or {}
+        messages = reasoning_output.get("messages") or []
+
         try:
-            reasoning_output = getattr(state, "reasoning_output", {}) or {}
-            prompt = self._truncate_prompt(str(reasoning_output.get("prompt") or state.query))
-
-            response = self._engine(
-                prompt,
-                max_tokens=2048,
-                temperature=self._temperature,
-                stream=True,
-            )
-
-            for chunk in response:
-                delta = chunk["choices"][0]["text"]
-                if delta:
-                    deltas.append(delta)
-                    yield {"type": "chunk", "delta": delta}
+            if messages:
+                response = self._engine.create_chat_completion(
+                    messages,
+                    max_tokens=2048,
+                    temperature=self._temperature,
+                    stream=True,
+                )
+                for chunk in response:
+                    delta = chunk["choices"][0]["delta"].get("content", "")
+                    if delta:
+                        deltas.append(delta)
+                        yield {"type": "chunk", "delta": delta}
+            else:
+                prompt = self._truncate_prompt(
+                    str(reasoning_output.get("prompt") or state.query)
+                )
+                response = self._engine(
+                    prompt,
+                    max_tokens=2048,
+                    temperature=self._temperature,
+                    stream=True,
+                )
+                for chunk in response:
+                    delta = chunk["choices"][0]["text"]
+                    if delta:
+                        deltas.append(delta)
+                        yield {"type": "chunk", "delta": delta}
         except Exception as e:
             logger.warning("Llama.cpp stream failed: %s", e)
             if fallback:
@@ -221,15 +247,20 @@ class LlamaCppLLM:
     # ------------------------------------------------------------------
 
     def _truncate_prompt(self, prompt: str) -> str:
-        """Truncate prompt to fit within context_length."""
+        """Truncate prompt to fit within context_length, preserving head and tail."""
         max_chars = int(self._context_length * 0.9) * _CHARS_PER_TOKEN
         if len(prompt) <= max_chars:
             return prompt
         logger.warning(
             "Prompt truncated from %d to %d chars to fit context_length=%d",
-            len(prompt), max_chars, self._context_length,
+            len(prompt),
+            max_chars,
+            self._context_length,
         )
-        return prompt[-max_chars:]
+        # Keep the first 25% (system/workflow instructions) and last 75% (recent context + question).
+        head = max_chars // 4
+        tail = max_chars - head
+        return prompt[:head] + "\n[...context truncated...]\n" + prompt[-tail:]
 
     def _build_result(
         self,

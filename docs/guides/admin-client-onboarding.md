@@ -397,17 +397,30 @@ The dashboard is at:
 
 If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
-From the dashboard today you can:
+From the dashboard you can:
 
-- create a client
+- create a client (API key shown once in a modal)
 - open a client detail page
-- issue a new client key
+- issue a new client key (shown in a modal with a copy button)
 - revoke all client keys for that client
 - run a connection test
-- inspect onboarding snippets and recent client activity
-- read onboarding snippets for Codex, GitHub Copilot CLI, Google Antigravity, and Claude Code
-- run a browser-based connection test by pasting a client API key
-- inspect recent activity for that client from audit events
+- copy MCP config snippets for any IDE from the **Copy-ready MCP snippets** card
+- copy IDE instruction files from **Agent Instructions** or from `/dashboard/instruction`
+- inspect recent audit activity for that client
+
+### Agent Instructions
+
+Open `/dashboard/instruction` to get the full Minder Agent Orchestration Rules prompt for your IDE:
+
+| IDE | Target file |
+|-----|-------------|
+| Claude Code | `~/.claude/agents/minder.md` |
+| Cursor | `.cursor/rules/minder.mdc` (per-repo) |
+| VS Code / Copilot | `~/.copilot/agents/minder.agent.md` |
+| Antigravity / Gemini | `~/.gemini/GEMINI.md` |
+| Codex | `~/.codex/AGENTS.md` |
+
+Each card shows the exact content to paste (including any required front matter) and a one-click copy button.
 
 ## 10. Revoke a client key
 

@@ -146,10 +146,10 @@ Use the saved `mk_...` admin API key.
 After login:
 
 1. Open the client registry at [http://localhost:8800/dashboard/clients](http://localhost:8800/dashboard/clients)
-2. Create a client
-3. Save the one-time `mkc_...` client API key
-4. Open the client detail view
-5. Copy the onboarding snippet for `Codex`, `Copilot-style MCP`, or `Claude Desktop`
+2. Create a client — the `mkc_...` API key is shown once in a modal with a copy button
+3. Open the client detail view
+4. Copy the MCP config snippet for your IDE from **Copy-ready MCP snippets**
+5. Open [http://localhost:8800/dashboard/instruction](http://localhost:8800/dashboard/instruction) to copy the agent orchestration rules for your IDE
 
 ## 6. Verify SSE Access
 

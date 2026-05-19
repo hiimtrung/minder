@@ -455,6 +455,14 @@ export async function createRuntimeConversation(payload?: {
   );
 }
 
+export type RuntimeConversationListPayload = {
+  sessions: RuntimeConversationSessionPayload[];
+};
+
+export async function listRuntimeConversations(): Promise<RuntimeConversationListPayload> {
+  return requestJson<RuntimeConversationListPayload>("/api/v1/runtime/conversations");
+}
+
 export async function getRuntimeConversation(
   sessionId: string,
 ): Promise<RuntimeConversationPayload> {

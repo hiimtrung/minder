@@ -17,7 +17,8 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
-import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
+import { getEl, setText, escapeHtml, escapeAttr, showToast } from "./ui-utils";
+import { showApiKeyModal } from "./modal-controller";
 
 // (registry, status, etc. now accessed via getEl)
 // (toastRegion moved to ui-utils.ts)
@@ -999,8 +1000,8 @@ const renderDetail = async () => {
                   <button
                     type="button"
                     class="action-pill snippet-copy-button"
-                    data-snippet-label="${escapeHtml(title)} ${escapeHtml(variant.label)} ${escapeHtml(copyTarget.label)}"
-                    data-snippet-content="${escapeHtml(copyTarget.content)}"
+                    data-snippet-label="${escapeAttr(`${title} ${variant.label} ${copyTarget.label}`)}"
+                    data-snippet-content="${escapeAttr(copyTarget.content)}"
                   >
                     ${escapeHtml(copyTarget.label)}
                   </button>
@@ -1206,11 +1207,8 @@ document
         tool_scopes: selectedTools,
         repo_scopes,
       });
-      const createdKey = getEl("client-created-key");
-      const createdResult = getEl("client-created-result");
-      if (createdKey) createdKey.textContent = created.client_api_key;
-      createdResult?.classList.remove("hidden");
       if (status) status.textContent = `Created ${created.client.slug}.`;
+      showApiKeyModal(created.client_api_key);
       showToast(`Created client ${created.client.slug}.`, "success");
       await syncVisibleClients();
     } catch (error) {
@@ -1229,11 +1227,8 @@ document
     setDetailStatus("Issuing new client key...");
     try {
       const rotated = await rotateClientKey(selectedClientId);
-      const rotatedKeyValue = getEl("rotated-key-value");
-      const rotatedKeyResult = getEl("rotated-key-result");
-      if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
-      rotatedKeyResult?.classList.remove("hidden");
       setDetailStatus("Issued new client key.", "success");
+      showApiKeyModal(rotated.client_api_key);
       showToast("Issued new client key.", "success");
       await renderDetail();
     } catch (error) {
@@ -1400,6 +1395,179 @@ getEl("edit-client-form")?.addEventListener("submit", async (event) => {
   }
 });
 
+// ─── Agent instruction snippets ───────────────────────────────────────────────
+
+const ideInstructions: Array<{
+  id: string;
+  title: string;
+  filename: string;
+  content: string;
+}> = [
+  {
+    id: "claude_code",
+    title: "Claude Code",
+    filename: "CLAUDE.md",
+    content: [
+      "## Minder MCP Integration",
+      "",
+      "This project uses Minder for persistent AI context. Minder MCP tools are available in this workspace.",
+      "",
+      "### Session continuity",
+      "Create a named session at the start of each significant task and save state before /compact:",
+      "- `minder_session_create` — create a named session",
+      "- `minder_session_save` — checkpoint work state (run before /compact)",
+      "- `minder_session_restore` — load a session by ID",
+      "- `minder_session_find` — find a session by name (primary recovery tool)",
+      "- `minder_session_context` — update branch and open-file context",
+      "",
+      "### Memory",
+      "- `minder_memory_store` — store a persistent fact or decision",
+      "- `minder_memory_recall` — retrieve a stored fact",
+      "- `minder_memory_list` — list stored memories",
+      "",
+      "### Code intelligence",
+      "- `minder_search_code` — search code by symbol or concept",
+      "- `minder_search_errors` — look up past error patterns",
+      "- `minder_query` — query the repository knowledge graph",
+      "- `minder_find_impact` — find what a change might affect",
+      "",
+      "Always create a session at the start of a significant task. Save state before /compact or switching machines.",
+    ].join("\n"),
+  },
+  {
+    id: "vscode",
+    title: "VS Code / GitHub Copilot",
+    filename: ".github/copilot-instructions.md",
+    content: [
+      "## Minder MCP Integration",
+      "",
+      "This project uses Minder for persistent AI context. Minder MCP tools are available when connected.",
+      "",
+      "### Session continuity",
+      "- minder_session_create — create a named session at the start of each project",
+      "- minder_session_save — checkpoint work after each significant task",
+      "- minder_session_restore — load a session by ID",
+      "- minder_session_find — find a session by name",
+      "",
+      "### Memory",
+      "- minder_memory_store / minder_memory_recall / minder_memory_list — persistent facts",
+      "",
+      "### Code intelligence",
+      "- minder_search_code — search code by symbol or concept",
+      "- minder_search_errors — look up past error patterns",
+      "- minder_query — query the repository knowledge graph",
+      "- minder_find_impact — find what a change might affect",
+    ].join("\n"),
+  },
+  {
+    id: "cursor",
+    title: "Cursor",
+    filename: ".cursorrules",
+    content: [
+      "# Minder MCP Integration",
+      "",
+      "This project uses Minder for persistent AI context. Available MCP tools:",
+      "",
+      "Session continuity:",
+      "- minder_session_create / minder_session_save / minder_session_restore — checkpoint work",
+      "- minder_session_find — recover a session by name",
+      "",
+      "Memory:",
+      "- minder_memory_store / minder_memory_recall / minder_memory_list",
+      "",
+      "Code intelligence:",
+      "- minder_search_code / minder_search_errors / minder_query / minder_find_impact",
+      "",
+      "Always create a named session at the start of a significant task.",
+    ].join("\n"),
+  },
+  {
+    id: "gemini",
+    title: "Gemini CLI",
+    filename: "GEMINI.md",
+    content: [
+      "## Minder MCP Integration",
+      "",
+      "This project uses Minder for persistent AI context. Minder MCP tools are available when connected.",
+      "",
+      "Session continuity:",
+      "- minder_session_create / minder_session_save / minder_session_restore — checkpoint work",
+      "- minder_session_find — recover a session by name",
+      "",
+      "Memory:",
+      "- minder_memory_store / minder_memory_recall / minder_memory_list",
+      "",
+      "Code intelligence:",
+      "- minder_search_code / minder_search_errors / minder_query / minder_find_impact",
+    ].join("\n"),
+  },
+];
+
+const renderAgentInstructions = () => {
+  const container = getEl("agent-instruction-snippets");
+  if (!container) return;
+
+  container.innerHTML = ideInstructions
+    .map(
+      ({ id, title, filename, content }) => `
+      <details class="snippet-card rounded-3xl border border-stone-300 bg-stone-50/80 p-5 open:border-amber-300 open:bg-amber-50/40">
+        <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">${escapeHtml(title)}</h3>
+            <p class="mt-2 text-sm text-stone-600">Paste into <code class="text-xs font-mono">${escapeHtml(filename)}</code> in your project root.</p>
+          </div>
+          <span class="action-pill" data-instruction-toggle-label="${escapeAttr(id)}">Expand</span>
+        </summary>
+        <div class="mt-4 border-t border-stone-200 pt-4">
+          <div class="flex flex-wrap items-center justify-end gap-3">
+            <button
+              type="button"
+              class="action-pill instruction-copy-button"
+              data-instruction-content="${escapeAttr(content)}"
+              data-instruction-label="${escapeAttr(title)}"
+            >
+              Copy instruction
+            </button>
+          </div>
+          <pre class="snippet-pre mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-stone-700">${escapeHtml(content)}</pre>
+        </div>
+      </details>
+    `,
+    )
+    .join("");
+
+  container
+    .querySelectorAll<HTMLDetailsElement>("details.snippet-card")
+    .forEach((card) => {
+      const id = card.querySelector<HTMLElement>("[data-instruction-toggle-label]")
+        ?.dataset.instructionToggleLabel ?? "";
+      const updateLabel = () => {
+        const label = card.querySelector<HTMLElement>(
+          `[data-instruction-toggle-label="${id}"]`,
+        );
+        if (label) label.textContent = card.open ? "Collapse" : "Expand";
+      };
+      updateLabel();
+      card.addEventListener("toggle", updateLabel);
+    });
+};
+
+getEl("agent-instruction-snippets")?.addEventListener("click", async (event) => {
+  const button = (event.target as HTMLElement | null)?.closest(
+    ".instruction-copy-button",
+  );
+  if (!(button instanceof HTMLButtonElement)) return;
+  const content = button.dataset.instructionContent ?? "";
+  const label = button.dataset.instructionLabel ?? "instruction";
+  try {
+    await navigator.clipboard.writeText(content);
+    showToast(`Copied ${label} instruction.`, "success");
+  } catch {
+    showToast(`Unable to copy ${label} instruction.`, "danger");
+  }
+});
+
 void syncVisibleClients();
 void renderDetail();
+if (getEl("agent-instruction-snippets")) renderAgentInstructions();
 if (getEl("client-tool-scopes")) void loadCreateTools();

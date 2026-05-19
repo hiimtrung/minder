@@ -67,6 +67,61 @@ export async function showDangerConfirm(message: string, title = "Danger Zone", 
   return (await openModal({ message, title, confirmText, isDanger: true, showPrompt: false })) === true;
 }
 
+export function initApiKeyModal() {
+  const backdrop = document.getElementById("api-key-modal-backdrop");
+  const container = document.getElementById("api-key-modal-container");
+  const copyBtn = document.getElementById("api-key-modal-copy");
+  const doneBtn = document.getElementById("api-key-modal-done");
+
+  if (!backdrop || !container || !copyBtn || !doneBtn) return;
+
+  const close = () => {
+    backdrop.classList.remove("flex");
+    backdrop.classList.add("hidden", "opacity-0");
+    backdrop.classList.remove("opacity-100");
+    container.classList.remove("scale-100", "opacity-100");
+    container.classList.add("scale-95", "opacity-0");
+  };
+
+  doneBtn.onclick = close;
+
+  copyBtn.onclick = async () => {
+    const valueEl = document.getElementById("api-key-modal-value");
+    const key = valueEl?.textContent?.trim() ?? "";
+    try {
+      await navigator.clipboard.writeText(key);
+      copyBtn.textContent = "Copied!";
+      window.setTimeout(() => { copyBtn.textContent = "Copy"; }, 1500);
+    } catch {
+      // clipboard unavailable — user can select the text manually
+    }
+  };
+
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !backdrop.classList.contains("hidden")) {
+      close();
+    }
+  });
+}
+
+export function showApiKeyModal(key: string): void {
+  const backdrop = document.getElementById("api-key-modal-backdrop");
+  const container = document.getElementById("api-key-modal-container");
+  const valueEl = document.getElementById("api-key-modal-value");
+
+  if (!backdrop || !container || !valueEl) return;
+
+  valueEl.textContent = key;
+
+  backdrop.classList.remove("hidden");
+  backdrop.classList.add("flex");
+  void backdrop.offsetWidth;
+  backdrop.classList.remove("opacity-0");
+  backdrop.classList.add("opacity-100");
+  container.classList.remove("scale-95", "opacity-0");
+  container.classList.add("scale-100", "opacity-100");
+}
+
 async function openModal(options: ModalOptions): Promise<string | boolean | null> {
   const backdrop = document.getElementById("common-modal-backdrop");
   const container = document.getElementById("common-modal-container");

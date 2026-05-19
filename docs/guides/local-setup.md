@@ -195,10 +195,20 @@ Continue with:
 
 - `/dashboard/setup`: first-run admin bootstrap
 - `/dashboard/login`: admin browser login
-- `/dashboard/clients`: Astro client registry and detail shell
+- `/dashboard/clients`: client registry — create clients, copy MCP snippets
+- `/dashboard/instruction`: agent orchestration rules — copy for Claude Code, Cursor, VS Code, Gemini, Codex
+- `/dashboard/sessions`: LLM session management
+- `/dashboard/memories`: persistent memory browser
+- `/dashboard/skills`: skill / pattern catalog
+- `/dashboard/agents`: SubAgent registry
+- `/dashboard/chat`: browser-based runtime chat
+- `/dashboard/repositories`: repo graph explorer
+- `/dashboard/workflows`: workflow definitions
+- `/dashboard/observability`: audit and trace
 - `/v1/admin/*`: admin JSON APIs used by the dashboard
 - `/v1/auth/token-exchange`: client key to bearer token exchange
 - `/sse`: MCP SSE entrypoint
+- `/mcp`: MCP streamable HTTP entrypoint
 
 Split frontend-dev URL map:
 

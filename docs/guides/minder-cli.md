@@ -2,32 +2,33 @@
 
 Use `minder` as the repo-local edge extractor for fast graph sync.
 
+> **MCP snippets and agent instructions** are available directly from the Minder dashboard — no CLI install commands needed. Open `/dashboard/clients` for per-IDE MCP config and `/dashboard/instruction` for agent orchestration rules.
+
 ## Install
 
 Preferred install methods:
 
 ```bash
-uv tool install minder
+uv tool install minder-cli
 ```
 
 Or:
 
 ```bash
-pipx install minder
+pipx install minder-cli
 ```
 
 Upgrade later with:
 
 ```bash
-uv tool upgrade minder
+uv tool upgrade minder-cli
 ```
 
-Or let Minder manage both the check and upgrade flow:
+Or use Minder's built-in update surface:
 
 ```bash
-minder check-version
-minder check-update --component cli
 minder update --component cli
+minder check-update --component cli
 ```
 
 ## Login
@@ -43,72 +44,24 @@ minder login \
 
 This writes `~/.minder/client.json` by default.
 
-## Install MCP Config
+## Install MCP Config (optional)
 
-Install MCP config files into the current workspace:
+Write MCP config files directly into your IDE config:
 
 ```bash
-minder install-mcp
+# Per-repo (default)
+minder install --target vscode --target claude-code
+
+# Global
+minder install --target cursor --global
 ```
 
-Install a full repo-local IDE bootstrap instead:
+Supported targets: `vscode`, `cursor`, `claude-code`, `antigravity`, `gemini`, `codex`.
+
+Remove them later with:
 
 ```bash
-minder install-ide
-```
-
-This repo-local bootstrap currently:
-
-- writes target-specific MCP config into `.vscode/`, `.cursor/`, and/or `.claude/`
-- installs supported instruction files for VS Code, Cursor, and Claude Code
-- installs a Claude Code repo agent file
-- patches existing instruction files in place using Minder-managed blocks
-- updates local `.gitignore` so generated MCP config and `.minder/` metadata do not get committed accidentally
-
-Remove the repo-local bootstrap later with:
-
-```bash
-minder uninstall-ide
-```
-
-Install into user-level config locations instead:
-
-```bash
-minder install-mcp --global
-```
-
-For VS Code, `--global` now writes to the active user MCP config file, not the older `globalStorage/mcp-servers.json` location. On macOS that file is `~/Library/Application Support/Code/User/mcp.json`.
-
-If you previously installed Minder into the legacy VS Code globalStorage file, rerun `minder install-mcp --global --target vscode` and then restart the MCP server from VS Code so the active profile picks up the current config.
-
-Supported targets:
-
-- `vscode`
-- `cursor`
-- `claude-code`
-
-Select one or more targets explicitly:
-
-```bash
-minder install-mcp --target vscode --target cursor
-```
-
-The same target selection works for repo-local IDE bootstrap:
-
-```bash
-minder install-ide --target vscode --target claude-code
-```
-
-Remove the generated entries later with:
-
-```bash
-minder uninstall-mcp
-```
-
-Or globally:
-
-```bash
-minder uninstall-mcp --global
+minder uninstall --target vscode
 ```
 
 ## Sync Repository Metadata

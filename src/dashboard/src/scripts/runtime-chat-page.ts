@@ -3,10 +3,12 @@ import {
   deleteRuntimeConversation,
   getRuntimeConversation,
   listRepositories,
+  listRuntimeConversations,
   listTools,
   listWorkflows,
   queryRuntimeStream,
   type RuntimeConversationPayload,
+  type RuntimeConversationSessionPayload,
   type RepositoryPayload,
   type RuntimeQueryPayload,
   type RuntimeQueryStreamEvent,
@@ -40,12 +42,11 @@ const summaryEl = document.querySelector("#runtime-chat-summary");
 const engineEl = document.querySelector("#runtime-chat-engine");
 const warningEl = document.querySelector("#runtime-chat-warning");
 const sessionBadgeEl = document.querySelector("#runtime-chat-session-badge");
-const sessionStateEl = document.querySelector("#runtime-chat-session-state");
+const conversationListEl = document.querySelector(
+  "#runtime-chat-conversation-list",
+) as HTMLElement | null;
 const newConversationEl = document.querySelector(
   "#runtime-chat-new",
-) as HTMLButtonElement | null;
-const deleteConversationEl = document.querySelector(
-  "#runtime-chat-delete",
 ) as HTMLButtonElement | null;
 const submitEl = document.querySelector(
   "#runtime-chat-submit",
@@ -68,6 +69,7 @@ let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
 let sessionId: string | null = null;
 let conversationSession: RuntimeConversationPayload["session"] | null = null;
+let conversationList: RuntimeConversationSessionPayload[] = [];
 
 const SESSION_STORAGE_KEY = "minder:runtime-chat:session-id";
 
@@ -148,29 +150,64 @@ const setStatus = (
   if (tone === "danger") statusEl.classList.add("u-status-danger");
 };
 
+const formatShortDate = (iso: string | null): string => {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+};
+
+const convLabel = (conv: RuntimeConversationSessionPayload): string => {
+  if (conv.name?.trim()) return conv.name.trim();
+  const date = formatShortDate(conv.created_at);
+  return date ? `Chat · ${date}` : "New conversation";
+};
+
+const renderConversationList = () => {
+  if (!(conversationListEl instanceof HTMLElement)) return;
+  if (!conversationList.length) {
+    conversationListEl.innerHTML =
+      '<div class="text-sm text-stone-500">No conversations yet.</div>';
+    return;
+  }
+  conversationListEl.innerHTML = conversationList
+    .map((conv) => {
+      const isActive = conv.id === sessionId;
+      const label = convLabel(conv);
+      const repoName = String(
+        conv.project_context?.repository_name ?? "",
+      ).trim();
+      return `
+        <div class="runtime-conv-item${isActive ? " active" : ""}" data-conv-id="${escapeHtml(conv.id)}">
+          <div class="runtime-conv-body" data-switch-conv-id="${escapeHtml(conv.id)}">
+            <span class="runtime-conv-name">${escapeHtml(label)}</span>
+            ${repoName ? `<span class="runtime-conv-meta">${escapeHtml(repoName)}</span>` : ""}
+          </div>
+          <button
+            type="button"
+            class="runtime-conv-delete"
+            data-delete-conv-id="${escapeHtml(conv.id)}"
+            aria-label="Delete conversation"
+          >×</button>
+        </div>
+      `;
+    })
+    .join("");
+};
+
 const renderSessionState = () => {
-  const hasSession = Boolean(sessionId);
-  const shortId = hasSession && sessionId ? sessionId.slice(0, 8) : null;
+  const shortId = sessionId ? sessionId.slice(0, 8) : null;
   if (sessionBadgeEl instanceof HTMLElement) {
     sessionBadgeEl.textContent = shortId
       ? `Saved conversation · ${shortId}`
       : "No saved conversation";
   }
-  if (sessionStateEl instanceof HTMLElement) {
-    if (!hasSession) {
-      sessionStateEl.textContent = "Not saved yet.";
-    } else {
-      const repositoryName = String(
-        conversationSession?.project_context?.repository_name ?? "",
-      ).trim();
-      sessionStateEl.textContent = repositoryName
-        ? `Saved on the server for reload recovery. Repository: ${repositoryName}.`
-        : "Saved on the server for reload recovery.";
-    }
-  }
-  if (deleteConversationEl instanceof HTMLButtonElement) {
-    deleteConversationEl.disabled = !hasSession;
-  }
+  renderConversationList();
 };
 
 const resetInsights = () => {
@@ -241,6 +278,7 @@ const ensureConversation = async (): Promise<string> => {
   const created = await createRuntimeConversation({
     repo_id: repositoryEl?.value?.trim() || undefined,
   });
+  conversationList = [created.session, ...conversationList];
   applyConversation(created);
   return created.session.id;
 };
@@ -557,16 +595,20 @@ const handleStreamEvent = (event: RuntimeQueryStreamEvent) => {
 };
 
 const loadBootstrap = async () => {
-  const [repositoryPayload, toolPayload, workflowPayload] = await Promise.all([
-    listRepositories(),
-    listTools(),
-    listWorkflows(),
-  ]);
+  const [repositoryPayload, toolPayload, workflowPayload, conversationPayload] =
+    await Promise.all([
+      listRepositories(),
+      listTools(),
+      listWorkflows(),
+      listRuntimeConversations().catch(() => ({ sessions: [] })),
+    ]);
   repositories = repositoryPayload.repositories;
   workflows = workflowPayload.workflows;
+  conversationList = conversationPayload.sessions;
   renderRepositoryOptions(repositories);
   renderWorkflowOptions(workflows);
   renderTools(toolPayload.tools);
+  renderConversationList();
 };
 
 repositoryEl?.addEventListener("change", () => {
@@ -687,30 +729,56 @@ newConversationEl?.addEventListener("click", () => {
   queryEl?.focus();
 });
 
-deleteConversationEl?.addEventListener("click", async () => {
-  if (!sessionId) {
-    resetConversation();
-    setStatus("Nothing to delete.", "success");
+conversationListEl?.addEventListener("click", async (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+
+  const switchId = target.closest<HTMLElement>("[data-switch-conv-id]")?.dataset
+    .switchConvId;
+  if (switchId && switchId !== sessionId) {
+    try {
+      const conversation = await getRuntimeConversation(switchId);
+      applyConversation(conversation);
+      setStatus("Loaded conversation.", "success");
+      setWarning(null);
+      queryEl?.focus();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load the conversation.";
+      setStatus(message, "danger");
+      setWarning(message);
+    }
     return;
   }
-  const confirmed = window.confirm(
-    "Delete this saved conversation and its history?",
-  );
-  if (!confirmed) {
+
+  const deleteId = target.closest<HTMLElement>("[data-delete-conv-id]")?.dataset
+    .deleteConvId;
+  if (deleteId) {
+    const confirmed = window.confirm(
+      "Delete this conversation and its history?",
+    );
+    if (!confirmed) return;
+    try {
+      await deleteRuntimeConversation(deleteId);
+      conversationList = conversationList.filter((c) => c.id !== deleteId);
+      if (sessionId === deleteId) {
+        resetConversation();
+      } else {
+        renderConversationList();
+      }
+      setStatus("Deleted the conversation.", "success");
+      queryEl?.focus();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to delete the conversation.";
+      setStatus(message, "danger");
+      setWarning(message);
+    }
     return;
-  }
-  try {
-    await deleteRuntimeConversation(sessionId);
-    resetConversation();
-    setStatus("Deleted the saved conversation.", "success");
-    queryEl?.focus();
-  } catch (error) {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "Unable to delete the saved conversation.";
-    setStatus(message, "danger");
-    setWarning(message);
   }
 });
 

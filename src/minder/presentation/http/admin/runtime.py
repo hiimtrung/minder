@@ -691,6 +691,30 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
             }
         )
 
+    async def runtime_conversation_list(request) -> JSONResponse:
+        try:
+            admin_user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        all_sessions = await context.store.get_sessions_by_user(admin_user.id)
+        dashboard_sessions = [
+            s for s in all_sessions
+            if isinstance(getattr(s, "project_context", None), dict)
+            and s.project_context.get("source") == "dashboard_runtime_chat"
+        ]
+
+        def _sort_key(s: Any) -> str:
+            ts = getattr(s, "last_active", None) or getattr(s, "created_at", None)
+            if ts is None:
+                return ""
+            return ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+
+        dashboard_sessions.sort(key=_sort_key, reverse=True)
+        return JSONResponse({"sessions": [_serialize_runtime_session(s) for s in dashboard_sessions]})
+
     async def runtime_conversation_create(request) -> JSONResponse:
         try:
             admin_user = await context.admin_user_from_request(request)
@@ -871,6 +895,11 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         )
 
     return [
+        Route(
+            "/api/v1/runtime/conversations",
+            runtime_conversation_list,
+            methods=["GET"],
+        ),
         Route(
             "/api/v1/runtime/conversations",
             runtime_conversation_create,

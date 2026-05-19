@@ -7,7 +7,6 @@ import Input from "./ui/Input.astro";
 import Textarea from "./ui/Textarea.astro";
 import Button from "./ui/Button.astro";
 import FormStatus from "./ui/FormStatus.astro";
-import ResultCallout from "./ui/ResultCallout.astro";
 ---
 
 <DashboardLayout
@@ -92,18 +91,6 @@ import ResultCallout from "./ui/ResultCallout.astro";
           Create client
         </Button>
       </form>
-
-      <ResultCallout
-        id="client-created-result"
-        tone="amber"
-        eyebrow="New Client API Key"
-        class="mt-5"
-      >
-        <code
-          id="client-created-key"
-          class="font-mono-ui mt-3 block overflow-x-auto rounded-xl bg-white px-4 py-3 text-sm text-stone-800"
-        ></code>
-      </ResultCallout>
     </aside>
 
     <div class="flex flex-col gap-5">

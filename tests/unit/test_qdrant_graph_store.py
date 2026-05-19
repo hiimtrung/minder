@@ -11,14 +11,14 @@ from minder.store.qdrant.graph_store import QdrantGraphStore
 class FakeBatchCollection:
     def __init__(self, existing_docs: list[SimpleNamespace]) -> None:
         self.existing_docs = existing_docs
-        self.find_many_calls: list[tuple[dict[str, object], int]] = []
+        self.find_many_calls: list[tuple[dict[str, object], int | None]] = []
         self.upsert_many_calls: list[list[tuple[str, dict[str, object]]]] = []
 
     async def find_many(
         self,
         filters: dict[str, object] | None = None,
         *,
-        limit: int = 1000,
+        limit: int | None = 1000,
         offset: int = 0,
         order_field: str | None = None,
         order_desc: bool = True,
@@ -140,3 +140,32 @@ async def test_bulk_upsert_edges_batches_qdrant_writes() -> None:
     assert batched[0][0] == str(existing_edge_id)
     assert batched[0][1]["weight"] == 2.0
     assert batched[0][1]["created_at"] == "2026-05-18T10:01:00+00:00"
+
+
+@pytest.mark.asyncio
+async def test_scope_list_methods_bypass_default_qdrant_limit() -> None:
+    node_doc = SimpleNamespace(
+        id=uuid.uuid4(), _data={"repo_id": "repo-1", "node_type": "file"}
+    )
+    edge_doc = SimpleNamespace(id=uuid.uuid4(), _data={"repo_id": "repo-1"})
+    store = QdrantGraphStore(SimpleNamespace(client=object(), prefix="test_"))
+    store._nodes = FakeBatchCollection([node_doc])  # type: ignore[assignment]
+    store._edges = FakeBatchCollection([edge_doc])  # type: ignore[assignment]
+
+    scoped_nodes = await store.list_nodes_by_scope(repo_id="repo-1", branch="main")
+    scoped_edges = await store.list_edges_by_scope(repo_id="repo-1")
+    all_nodes = await store.list_nodes()
+    all_edges = await store.list_edges()
+
+    assert scoped_nodes == [node_doc]
+    assert scoped_edges == [edge_doc]
+    assert all_nodes == [node_doc]
+    assert all_edges == [edge_doc]
+    assert store._nodes.find_many_calls == [
+        ({"repo_id": "repo-1", "branch": "main"}, None),
+        ({}, None),
+    ]
+    assert store._edges.find_many_calls == [
+        ({"repo_id": "repo-1"}, None),
+        ({}, None),
+    ]

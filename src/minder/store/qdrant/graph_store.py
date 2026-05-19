@@ -92,7 +92,7 @@ class QdrantGraphStore:
         return await self._find_node(repo_id, branch, node_type, name)
 
     async def list_nodes(self) -> list[Any]:
-        return await self._nodes.find_many()
+        return await self._nodes.find_many(limit=None)
 
     async def list_nodes_by_scope(
         self,
@@ -104,22 +104,22 @@ class QdrantGraphStore:
         f: dict[str, Any] = {"repo_id": repo_id}
         if branch is not None:
             f["branch"] = branch
-        nodes = await self._nodes.find_many(f)
+        nodes = await self._nodes.find_many(f, limit=None)
         if node_types:
             nodes = [n for n in nodes if n._data.get("node_type") in node_types]
         return nodes
 
     async def list_edges(self) -> list[Any]:
-        return await self._edges.find_many()
+        return await self._edges.find_many(limit=None)
 
     async def list_edges_by_scope(self, *, repo_id: str) -> list[Any]:
-        return await self._edges.find_many({"repo_id": repo_id})
+        return await self._edges.find_many({"repo_id": repo_id}, limit=None)
 
     async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[Any]:
         f: dict[str, Any] = {"node_type": node_type}
         if repo_id:
             f["repo_id"] = repo_id
-        return await self._nodes.find_many(f)
+        return await self._nodes.find_many(f, limit=None)
 
     async def _cascade_delete_edges(self, nid: str) -> None:
         """Delete all edges connected to a node using a targeted OR-filter."""
@@ -138,7 +138,7 @@ class QdrantGraphStore:
         f: dict[str, Any] = {"repo_id": repo_id}
         if branch is not None:
             f["branch"] = branch
-        nodes = await self._nodes.find_many(f)
+        nodes = await self._nodes.find_many(f, limit=None)
         to_delete = []
         for n in nodes:
             if paths is not None:
@@ -153,7 +153,7 @@ class QdrantGraphStore:
         return len(to_delete)
 
     async def list_repo_branches(self, repo_id: str) -> list[str]:
-        nodes = await self._nodes.find_many({"repo_id": repo_id})
+        nodes = await self._nodes.find_many({"repo_id": repo_id}, limit=None)
         return list({n._data.get("branch", "") for n in nodes if n._data.get("branch")})
 
     # -- Edges --

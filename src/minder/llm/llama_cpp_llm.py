@@ -41,6 +41,7 @@ class LlamaCppLLM:
         self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
         self._initialized = False
+        self._ensure_initialized()
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:

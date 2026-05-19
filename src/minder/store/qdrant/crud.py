@@ -153,7 +153,7 @@ class CollectionCRUD:
         self,
         filters: dict[str, Any] | None = None,
         *,
-        limit: int = 1000,
+        limit: int | None = 1000,
         offset: int = 0,
         order_field: str | None = None,
         order_desc: bool = True,
@@ -183,7 +183,8 @@ class CollectionCRUD:
 
         # Qdrant scroll uses a cursor (point-ID), not a numeric offset.
         # We page through using the cursor and stop once we have enough records.
-        need = min(limit + offset, _SCROLL_CAP)
+        requested = _SCROLL_CAP if limit is None else limit + offset
+        need = min(requested, _SCROLL_CAP)
         all_docs: list[_Doc] = []
         cursor: Any = None
         while len(all_docs) < need:
@@ -209,6 +210,8 @@ class CollectionCRUD:
             all_docs.sort(
                 key=lambda d: d._data.get(order_field, ""), reverse=order_desc
             )
+        if limit is None:
+            return all_docs[offset:]
         return all_docs[offset : offset + limit]
 
     async def find_or(

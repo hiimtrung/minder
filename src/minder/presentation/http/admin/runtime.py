@@ -538,6 +538,8 @@ def _sanitize_answer(
 
 
 def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
+    _query_tools = QueryTools(context.store, context.config)
+
     async def _resolve_request(
         request,
     ) -> tuple[RuntimeQueryRequest, Mapping[str, object], str | None] | JSONResponse:
@@ -613,7 +615,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse(agentic_result)
 
         try:
-            result = await QueryTools(context.store, context.config).minder_query(
+            result = await _query_tools.minder_query(
                 query=query,
                 repo_path=repo_path,
                 repo_id=repo_id,
@@ -676,9 +678,8 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 yield json.dumps({"type": "final", "payload": agentic_result}) + "\n"
                 return
 
-            query_tools = QueryTools(context.store, context.config)
             try:
-                async for event in query_tools.minder_query_stream(
+                async for event in _query_tools.minder_query_stream(
                     query=query,
                     repo_path=repo_path,
                     repo_id=repo_id,

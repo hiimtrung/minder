@@ -92,6 +92,19 @@ class ReasoningNode:
         agent_system_prompt = str(state.metadata.get("agent_system_prompt", "") or "").strip()
         if agent_system_prompt:
             prompt = f"{agent_system_prompt}\n\n{prompt}"
+
+        # Strip large content field from docs now that snippets are extracted
+        if state.retrieved_docs:
+            state.retrieved_docs = [
+                {k: v for k, v in doc.items() if k != "content"}
+                for doc in state.retrieved_docs
+            ]
+        if state.reranked_docs:
+            state.reranked_docs = [
+                {k: v for k, v in doc.items() if k != "content"}
+                for doc in state.reranked_docs
+            ]
+
         state.reasoning_output = {
             "prompt": prompt,
             "sources": sources,

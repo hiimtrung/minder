@@ -118,6 +118,7 @@ class QueryTools:
                 content=query,
             )
 
+        is_builtin_prompt = bool(getattr(query_prompt, "is_builtin", False))
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -131,15 +132,13 @@ class QueryTools:
                 "max_attempts": max_attempts,
                 "project_name": project_name,
                 "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
-                "query_prompt_template": getattr(query_prompt, "content_template", ""),
+                "query_prompt_template": (
+                    "" if is_builtin_prompt else getattr(query_prompt, "content_template", "")
+                ),
                 "query_prompt_defaults": dict(
                     getattr(query_prompt, "defaults", {}) or {}
                 ),
-                "query_prompt_source": (
-                    "builtin"
-                    if bool(getattr(query_prompt, "is_builtin", False))
-                    else "custom"
-                ),
+                "query_prompt_source": "builtin" if is_builtin_prompt else "custom",
                 "history_source": history_source,
                 "history_message_count": len(chat_history),
             },
@@ -226,6 +225,7 @@ class QueryTools:
                 content=query,
             )
 
+        is_builtin_prompt = bool(getattr(query_prompt, "is_builtin", False))
         state = GraphState(
             query=query,
             session_id=session_id,
@@ -239,81 +239,37 @@ class QueryTools:
                 "max_attempts": max_attempts,
                 "project_name": project_name,
                 "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
-                "query_prompt_template": getattr(query_prompt, "content_template", ""),
+                "query_prompt_template": (
+                    "" if is_builtin_prompt else getattr(query_prompt, "content_template", "")
+                ),
                 "query_prompt_defaults": dict(
                     getattr(query_prompt, "defaults", {}) or {}
                 ),
-                "query_prompt_source": (
-                    "builtin"
-                    if bool(getattr(query_prompt, "is_builtin", False))
-                    else "custom"
-                ),
+                "query_prompt_source": "builtin" if is_builtin_prompt else "custom",
             },
         )
-        if self._config.graph.runtime == "langgraph":
-            config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
-            async for event in self._graph.astream_events(state, config, version="v2"):
-                event_name = event.get("event")
-                name = event.get("name", "")
-                
-                if event_name == "on_chain_start" and name == "reasoning":
-                    yield {"type": "attempt", "attempt": 1}
-                
-                elif event_name == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk")
-                    if chunk and hasattr(chunk, "content"):
-                        yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
-                
-                elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
-                    output = event.get("data", {}).get("output", {})
-                    docs = output.get("reranked_docs", []) or output.get("retrieved_docs", [])
-                    if docs:
-                        yield {"type": "sources", "sources": [{"path": d["path"], "score": d.get("score", 0.0)} for d in docs[:5]]}
-                
-                elif event_name == "on_chain_end" and name == "LangGraph":
-                    final_data = event.get("data", {}).get("output", {})
-                    if final_data:
-                        final_state = GraphState.model_validate(final_data)
-                        result = self._result_from_state(final_state)
-                        
-                        record_continuity_packet("query")
-                        record_query_prompt_render(
-                            str(
-                                final_state.metadata.get(
-                                    "query_prompt_source",
-                                    state.metadata.get("query_prompt_source", "unknown"),
-                                )
-                            ),
-                            correction_retries=sum(
-                                1
-                                for item in final_state.transition_log
-                                if str(item.get("edge")) == "guard_failed"
-                            ),
-                        )
-                        yield {"type": "final", "payload": result}
-        else:
-            async for event in self._graph.stream(state):
-                if str(event.get("type")) == "final":
-                    final_state = event.get("state")
-                    if isinstance(final_state, GraphState):
-                        result = self._result_from_state(final_state)
-                        record_continuity_packet("query")
-                        record_query_prompt_render(
-                            str(
-                                final_state.metadata.get(
-                                    "query_prompt_source",
-                                    state.metadata.get("query_prompt_source", "unknown"),
-                                )
-                            ),
-                            correction_retries=sum(
-                                1
-                                for item in final_state.transition_log
-                                if str(item.get("edge")) == "guard_failed"
-                            ),
-                        )
-                        yield {"type": "final", "payload": result}
-                    continue
-                yield event
+        async for event in self._graph.stream(state):
+            if str(event.get("type")) == "final":
+                final_state = event.get("state")
+                if isinstance(final_state, GraphState):
+                    result = self._result_from_state(final_state)
+                    record_continuity_packet("query")
+                    record_query_prompt_render(
+                        str(
+                            final_state.metadata.get(
+                                "query_prompt_source",
+                                state.metadata.get("query_prompt_source", "unknown"),
+                            )
+                        ),
+                        correction_retries=sum(
+                            1
+                            for item in final_state.transition_log
+                            if str(item.get("edge")) == "guard_failed"
+                        ),
+                    )
+                    yield {"type": "final", "payload": result}
+                continue
+            yield event
 
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
         approval_request = None

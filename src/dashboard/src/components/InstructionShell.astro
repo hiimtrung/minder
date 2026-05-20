@@ -221,16 +221,7 @@ const ideTargets: IdeTarget[] = [
     title: "Google Antigravity",
     path: "~/.gemini/GEMINI.md",
     scope: "Global — all repos",
-    note: "Shared with Gemini CLI. Antigravity reads GEMINI.md from the user home directory.",
-    frontMatter: ANTIGRAVITY_FRONT_MATTER,
-    content: `${ANTIGRAVITY_FRONT_MATTER}\n\n${MINDER_AGENT_PROMPT}`,
-  },
-  {
-    id: "gemini",
-    title: "Gemini CLI",
-    path: "~/.gemini/GEMINI.md",
-    scope: "Global — all repos",
-    note: "Shared with Antigravity. Gemini CLI reads GEMINI.md from the user home directory.",
+    note: "Antigravity reads GEMINI.md from the user home directory.",
     frontMatter: ANTIGRAVITY_FRONT_MATTER,
     content: `${ANTIGRAVITY_FRONT_MATTER}\n\n${MINDER_AGENT_PROMPT}`,
   },
@@ -253,7 +244,7 @@ const ideTargetsJson = JSON.stringify(
 
 <DashboardLayout
   title="Agent Instructions · Minder"
-  description="Minder agent orchestration rules for IDE integration — copy-ready for Claude Code, Cursor, VS Code, Gemini, and Codex."
+  description="Minder agent orchestration rules for IDE integration — copy-ready for Claude Code, Cursor, VS Code, and Codex."
   navTitle="Minder Dashboard"
   navDescription="Distribute the Minder agent prompt to your IDE without running CLI install commands."
   sessionControls={true}

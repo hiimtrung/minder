@@ -38,7 +38,7 @@
   --r-pill: 9999px;
 
   /* Layout */
-  --layout-max: 1440px;
+  --layout-max: 100%;
   --sidebar-w: 320px;
   --section-gap: 1.25rem;
 
@@ -572,8 +572,8 @@ minder-tip:empty {
 
 /* Page width container */
 .u-page-container {
-  @apply mx-auto w-full px-6;
-  max-width: var(--layout-max);
+  @apply mx-auto w-full px-6 lg:px-8 xl:px-10;
+  max-width: 100%;
 }
 
 .u-page-stack {

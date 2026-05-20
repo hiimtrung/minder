@@ -56,7 +56,7 @@ minder install --target vscode --target claude-code
 minder install --target cursor --global
 ```
 
-Supported targets: `vscode`, `cursor`, `claude-code`, `antigravity`, `gemini`, `codex`.
+Supported targets: `vscode`, `cursor`, `claude-code`, `antigravity`, `codex`.
 
 Remove them later with:
 

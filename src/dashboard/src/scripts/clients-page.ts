@@ -270,11 +270,13 @@ const renderClients = () => {
   registry.innerHTML = visibleClients
     .map(
       (client) => `
-          <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
-            <p class="eyebrow">${client.slug}</p>
-            <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
-            <p class="mt-3 text-sm leading-6 text-stone-700">${client.description || "No description yet."}</p>
-            <p class="mt-5 text-sm text-stone-500">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
+          <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card flex flex-col justify-between p-6 h-[220px] transition hover:-translate-y-0.5">
+            <div class="min-w-0">
+              <p class="eyebrow truncate">${client.slug}</p>
+              <h2 class="mt-2.5 text-xl font-semibold tracking-tight text-stone-950 truncate">${client.name}</h2>
+              <p class="mt-2 text-sm leading-6 text-stone-700 line-clamp-2">${client.description || "No description yet."}</p>
+            </div>
+            <p class="mt-4 text-sm text-stone-500 truncate" title="${escapeAttr(client.tool_scopes.join(" · "))}">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
           </a>
         `,
     )

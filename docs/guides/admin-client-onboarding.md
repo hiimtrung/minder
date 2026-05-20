@@ -417,7 +417,7 @@ Open `/dashboard/instruction` to get the full Minder Agent Orchestration Rules p
 | Claude Code          | `~/.claude/agents/minder.md`          |
 | Cursor               | `.cursor/rules/minder.mdc` (per-repo) |
 | VS Code / Copilot    | `~/.copilot/agents/minder.agent.md`   |
-| Antigravity / Gemini | `~/.gemini/GEMINI.md`                 |
+| Google Antigravity | `~/.gemini/GEMINI.md`                 |
 | Codex                | `~/.codex/AGENTS.md`                  |
 
 Each card shows the exact content to paste (including any required front matter) and a one-click copy button.

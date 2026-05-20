@@ -191,7 +191,7 @@ Continue with:
 - `/dashboard/setup`: first-run admin bootstrap
 - `/dashboard/login`: admin browser login
 - `/dashboard/clients`: client registry — create clients, copy MCP snippets
-- `/dashboard/instruction`: agent orchestration rules — copy for Claude Code, Cursor, VS Code, Gemini, Codex
+- `/dashboard/instruction`: agent orchestration rules — copy for Claude Code, Cursor, VS Code, Codex
 - `/dashboard/sessions`: LLM session management
 - `/dashboard/memories`: persistent memory browser
 - `/dashboard/skills`: skill / pattern catalog

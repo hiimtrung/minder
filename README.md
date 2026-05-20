@@ -104,7 +104,7 @@ When connected, Minder exposes these tools to your AI agents:
 | -------------------------- | -------------------------------------------------------------------------------- |
 | `/dashboard`               | Home — stats and quick nav                                                       |
 | `/dashboard/clients`       | Create clients, copy MCP snippets                                                |
-| `/dashboard/instruction`   | Agent orchestration rules — copy for Claude Code, Cursor, VS Code, Gemini, Codex |
+| `/dashboard/instruction`   | Agent orchestration rules — copy for Claude Code, Cursor, VS Code, Codex |
 | `/dashboard/sessions`      | LLM session management                                                           |
 | `/dashboard/memories`      | Persistent memory browser                                                        |
 | `/dashboard/skills`        | Skill / pattern catalog                                                          |

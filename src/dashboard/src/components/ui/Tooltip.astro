@@ -1,0 +1,12 @@
+---
+interface Props {
+  content: string;
+  class?: string;
+}
+const { content, class: className = "" } = Astro.props;
+---
+
+<span class={`u-tip ${className}`}>
+  <button type="button" class="u-tip-btn" tabindex="0" aria-label="More info">i</button>
+  <span role="tooltip" class="u-tip-panel">{content}</span>
+</span>

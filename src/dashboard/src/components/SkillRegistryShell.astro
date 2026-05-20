@@ -8,7 +8,7 @@ import Select from "./ui/Select.astro";
 import Textarea from "./ui/Textarea.astro";
 import Button from "./ui/Button.astro";
 import FormStatus from "./ui/FormStatus.astro";
-import GuideAside from "./ui/GuideAside.astro";
+import HelpToggle from "./ui/HelpToggle.astro";
 ---
 
 <DashboardLayout
@@ -102,7 +102,7 @@ import GuideAside from "./ui/GuideAside.astro";
           <Field
             label="Skill content"
             htmlFor="skill-content"
-            hint="Saving this form ingests the skill into the continuity store."
+            tooltip="Saving this form ingests the skill into the continuity store."
           >
             <Textarea
               id="skill-content"
@@ -149,14 +149,7 @@ import GuideAside from "./ui/GuideAside.astro";
         >
           Import from Git
         </Button>
-      </Toolbar>
-
-      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div id="skill-registry" class="grid gap-4">
-          <article class="u-placeholder-card">Loading skills...</article>
-        </div>
-
-        <GuideAside eyebrow="Ingest Guide" title="What makes a good skill">
+        <HelpToggle slot="trailing" title="What makes a good skill">
           <p>
             Write a single reusable pattern per skill. Keep it operational and
             specific to a workflow step or artifact outcome.
@@ -174,8 +167,12 @@ import GuideAside from "./ui/GuideAside.astro";
             Imported skill packs upsert by source metadata so rerunning an
             import updates the same skill set instead of multiplying duplicates.
           </p>
-        </GuideAside>
-      </section>
+        </HelpToggle>
+      </Toolbar>
+
+      <div id="skill-registry" class="grid gap-4">
+        <article class="u-placeholder-card">Loading skills...</article>
+      </div>
     </div>
   </section>
 

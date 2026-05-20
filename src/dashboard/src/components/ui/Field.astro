@@ -1,21 +1,26 @@
 ---
-/**
- * Field — label + control wrapper.
- * Use the default slot for the actual input/textarea/select element.
- * Pass hint via prop or named slot; error via slot.
- */
+import Tooltip from "./Tooltip.astro";
+
 interface Props {
   label?: string;
   htmlFor?: string;
   hint?: string;
+  tooltip?: string;
   class?: string;
 }
 
-const { label, htmlFor, hint, class: className = "" } = Astro.props;
+const { label, htmlFor, hint, tooltip, class: className = "" } = Astro.props;
 ---
 
 <label class={`block ${className}`} for={htmlFor}>
-  {label && <span class="u-field-label">{label}</span>}
+  {
+    label && (
+      <span class="u-field-label-row">
+        <span class="u-field-label">{label}</span>
+        {tooltip && <Tooltip content={tooltip} />}
+      </span>
+    )
+  }
   <slot />
   {
     (hint || Astro.slots.has("hint")) && (

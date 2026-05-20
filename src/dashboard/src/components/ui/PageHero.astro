@@ -11,13 +11,38 @@ interface Props {
 }
 
 const { eyebrow, title, description, class: className = "" } = Astro.props;
+// Create a deterministic id for the tooltip based on the title
+const _slug = (title || "")
+  .toLowerCase()
+  .replace(/[^a-z0-9]+/g, "-")
+  .replace(/(^-|-$)/g, "");
+const descId = `page-hero-desc-${_slug || "0"}`;
 ---
 
 <section class={`u-page-hero ${className}`}>
   <div class="min-w-0 flex-1 space-y-2">
     {eyebrow && <p class="eyebrow">{eyebrow}</p>}
     <h1 class="u-page-hero-title">{title}</h1>
-    {description && <p class="u-page-hero-sub">{description}</p>}
+    {
+      description && (
+        <div class="u-page-hero-sub">
+          <span class="u-tip">
+            <button
+              type="button"
+              class="u-tip-btn"
+              tabindex="0"
+              aria-label="More info"
+              aria-describedby={descId}
+            >
+              i
+            </button>
+            <span role="tooltip" id={descId} class="u-tip-panel">
+              {description}
+            </span>
+          </span>
+        </div>
+      )
+    }
   </div>
   {
     Astro.slots.has("actions") && (

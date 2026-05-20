@@ -7,7 +7,7 @@ import Input from "./ui/Input.astro";
 import Textarea from "./ui/Textarea.astro";
 import Button from "./ui/Button.astro";
 import FormStatus from "./ui/FormStatus.astro";
-import GuideAside from "./ui/GuideAside.astro";
+import HelpToggle from "./ui/HelpToggle.astro";
 ---
 
 <DashboardLayout
@@ -64,7 +64,7 @@ import GuideAside from "./ui/GuideAside.astro";
         <Field
           label="Memory content"
           htmlFor="memory-content"
-          hint="Memories share the continuity store and are available to semantic recall."
+          tooltip="Memories share the continuity store and are available to semantic recall."
         >
           <Textarea
             id="memory-content"
@@ -92,14 +92,7 @@ import GuideAside from "./ui/GuideAside.astro";
         <Button slot="leading" id="memory-refresh-button" size="sm">
           Refresh list
         </Button>
-      </Toolbar>
-
-      <section class="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_340px]">
-        <div id="memory-registry" class="grid gap-4">
-          <article class="u-placeholder-card">Loading memories...</article>
-        </div>
-
-        <GuideAside eyebrow="Recall Guide" title="What makes a useful memory">
+        <HelpToggle slot="trailing" title="What makes a useful memory">
           <p>
             Keep each memory focused on a single operational lesson, decision,
             or runtime behavior that should be recalled later.
@@ -111,8 +104,12 @@ import GuideAside from "./ui/GuideAside.astro";
           <p>
             Prefer concise, action-oriented content over long narrative notes.
           </p>
-        </GuideAside>
-      </section>
+        </HelpToggle>
+      </Toolbar>
+
+      <div id="memory-registry" class="grid gap-4">
+        <article class="u-placeholder-card">Loading memories...</article>
+      </div>
     </div>
   </section>
 

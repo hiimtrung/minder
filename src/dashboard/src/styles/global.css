@@ -449,6 +449,139 @@ body.graph-fullwidth .graph-canvas-wrap {
   @apply rounded-2xl border border-stone-200/80 bg-white/80 p-5;
 }
 
+/* Field label row — label + optional tooltip icon */
+.u-field-label-row {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-bottom: 0.375rem;
+}
+.u-field-label-row .u-field-label {
+  margin-bottom: 0;
+}
+
+/* Inline tooltip */
+.u-tip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.u-tip-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: rgb(231 229 228);
+  color: rgb(120 113 108);
+  font-size: 0.6rem;
+  font-weight: 800;
+  border: none;
+  cursor: default;
+  flex-shrink: 0;
+  line-height: 1;
+  font-family: var(--font-sans);
+  user-select: none;
+  font-style: italic;
+}
+.u-tip-panel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: 18rem;
+  background: rgb(28 25 23);
+  color: rgb(231 229 228);
+  font-size: 0.75rem;
+  line-height: 1.55;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.625rem;
+  visibility: hidden;
+  opacity: 0;
+  transition: opacity 0.12s, visibility 0.12s;
+  z-index: 50;
+  pointer-events: none;
+  white-space: normal;
+  text-align: left;
+  font-weight: 400;
+  box-shadow: 0 8px 24px rgba(28, 25, 23, 0.2);
+}
+.u-tip-panel::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid transparent;
+  border-top-color: rgb(28 25 23);
+}
+.u-tip:hover .u-tip-panel,
+.u-tip:focus-within .u-tip-panel {
+  visibility: visible;
+  opacity: 1;
+}
+
+/* Help toggle — collapsible guide panel */
+.u-help-details {
+  position: relative;
+  display: inline-block;
+}
+.u-help-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  list-style: none;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(214 211 209);
+  background: white;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgb(87 83 78);
+  user-select: none;
+  transition: border-color 0.12s, color 0.12s;
+}
+.u-help-summary::-webkit-details-marker,
+.u-help-summary::marker {
+  display: none;
+}
+.u-help-summary:hover {
+  border-color: rgb(146 64 14);
+  color: rgb(146 64 14);
+}
+.u-help-panel {
+  display: none;
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 21rem;
+  background: white;
+  border: 1px solid rgb(231 229 228 / 0.9);
+  border-radius: 1rem;
+  padding: 1.125rem;
+  box-shadow: var(--shadow-popover);
+  z-index: 40;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: rgb(87 83 78);
+}
+details[open] .u-help-panel {
+  display: block;
+}
+.u-help-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: rgb(28 25 23);
+  margin-bottom: 0.625rem;
+}
+.u-help-panel p + p {
+  margin-top: 0.5rem;
+}
+
 /* Dashboard footer */
 .u-dashboard-footer {
   @apply mx-auto flex flex-wrap items-center justify-between gap-3 border-t border-stone-200/80 px-6 py-5 text-xs text-stone-500;
@@ -496,18 +629,18 @@ body.graph-fullwidth .graph-canvas-wrap {
 
 /* Page hero */
 .u-page-hero {
-  @apply mb-6 flex flex-wrap items-start justify-between gap-4;
+  @apply mb-4 flex flex-wrap items-start justify-between gap-4;
 }
 .u-page-hero-title {
   font-family: var(--font-display);
-  font-size: var(--fs-display-xl);
-  line-height: 1.15;
+  font-size: var(--fs-display-lg);
+  line-height: 1.2;
   letter-spacing: -0.02em;
   font-weight: 600;
   @apply text-stone-950;
 }
 .u-page-hero-sub {
-  @apply mt-3 max-w-3xl text-sm leading-7 text-stone-600;
+  @apply mt-1.5 max-w-3xl text-sm leading-6 text-stone-600;
 }
 
 /* Detail hero */

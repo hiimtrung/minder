@@ -366,9 +366,16 @@ def test_metrics_route_is_in_http_app() -> None:
 
     with patch("minder.presentation.http.admin.context.AdminRouteContext.build") as mock_ctx:
         mock_ctx.return_value = MagicMock()
-        with patch("minder.presentation.http.admin.routes.build_admin_api_routes", return_value=[]):
-            with patch("minder.presentation.http.admin.routes.build_dashboard_routes", return_value=[]):
-                routes = build_http_routes(config=config, store=mock_store)
+        with patch("minder.presentation.http.admin.routes.build_admin_api_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_dashboard_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_prompts_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_jobs_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_skills_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_memories_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_runtime_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_search_routes", return_value=[]), \
+             patch("minder.presentation.http.admin.routes.build_agents_routes", return_value=[]):
+            routes = build_http_routes(config=config, store=mock_store)
 
     paths = [r.path for r in routes if hasattr(r, "path")]
     assert "/health" in paths

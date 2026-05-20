@@ -1,0 +1,73 @@
+---
+interface Props {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  class?: string;
+}
+
+const { eyebrow, title, description, class: className = "" } = Astro.props;
+---
+
+<div class:list={["section-header", className]}>
+  <div>
+    {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+    <h2 class="section-header-title">{title}</h2>
+    {description && <p class="section-header-desc">{description}</p>}
+  </div>
+  {Astro.slots.has("actions") && (
+    <div class="section-header-actions">
+      <slot name="actions" />
+    </div>
+  )}
+</div>
+
+<style>
+  .section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+  }
+
+  .section-header-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: rgb(9 9 11);
+    margin-top: 0.125rem;
+  }
+
+  .section-header-desc {
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: rgb(87 83 78);
+  }
+
+  .section-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+</style>
+
+<style is:global>
+  /* Legacy classes used by JS-injected HTML */
+  .u-section-header {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.625rem;
+  }
+  .u-section-header-title {
+    font-size: 1.0625rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: rgb(9 9 11);
+  }
+</style>

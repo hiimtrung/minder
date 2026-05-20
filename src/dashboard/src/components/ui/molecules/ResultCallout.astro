@@ -1,0 +1,50 @@
+---
+interface Props {
+  id?: string;
+  tone?: "amber" | "emerald" | "danger";
+  eyebrow?: string;
+  hidden?: boolean;
+  class?: string;
+}
+
+const {
+  id,
+  tone = "amber",
+  eyebrow,
+  hidden = true,
+  class: className = "",
+} = Astro.props;
+
+const toneClass =
+  tone === "emerald" ? "callout-emerald"
+  : tone === "danger" ? "callout-danger"
+  : "callout-amber";
+---
+
+<div id={id} class:list={["result-callout", toneClass, hidden && "hidden", className]}>
+  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+  <slot />
+</div>
+
+<style>
+  .result-callout {
+    border-radius: 1rem;
+    border: 1px solid;
+    padding: 1rem;
+  }
+  .callout-amber   { border-color: rgb(253 230 138); background: rgb(255 251 235); }
+  .callout-emerald { border-color: rgb(167 243 208); background: rgb(236 253 245 / 0.8); }
+  .callout-danger  { border-color: rgb(254 205 211); background: rgb(255 241 242); }
+</style>
+
+<style is:global>
+  /* Legacy classes used by JS-injected HTML */
+  .u-result-callout {
+    border-radius: 1rem;
+    border: 1px solid;
+    padding: 1rem;
+  }
+  .u-result-callout-amber   { border-color: rgb(253 230 138); background: rgb(255 251 235); }
+  .u-result-callout-emerald { border-color: rgb(167 243 208); background: rgb(236 253 245 / 0.8); }
+  .u-result-callout-danger  { border-color: rgb(254 205 211); background: rgb(255 241 242); }
+</style>

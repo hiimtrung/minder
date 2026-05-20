@@ -21,9 +21,12 @@ def _build_chat_messages(
     are only meaningful for MCP tool-call routing, not for dashboard chat answers.
     """
     system_parts: list[str] = [
-        "You are Minder, a repository-aware engineering assistant. "
-        "Answer the user's question clearly and concisely. "
-        "Cite specific file paths when referencing code."
+        "You are Minder, a repository-aware engineering assistant.",
+        "Answer the user's question with absolute completeness yet extreme conciseness.",
+        "Cite specific file paths when referencing code.",
+        "To maximize response speed and ensure a purely professional engineering tone:",
+        "1. Answer directly and immediately. Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help').",
+        "2. NEVER use exclamation marks (!) or any exclamatory sentences/words. Keep everything strictly declarative and professional.",
     ]
     if guidance and guidance.strip():
         system_parts.append(f"Workflow guidance: {guidance.strip()}")
@@ -70,7 +73,7 @@ class ReasoningNode:
         ]
         snippets = []
         for doc in docs[:3]:
-            content = str(doc["content"]).strip()
+            content = str(doc.get("content", "")).strip()
             snippets.append(f"Source: {doc['path']}\n{content[:240]}")
 
         guidance = state.workflow_context.get("guidance", "")

@@ -36,7 +36,7 @@ At runtime:
 ## Prerequisites
 
 - Docker Engine or Docker Desktop
-- enough memory for MongoDB, Redis, Milvus, and llama-cpp-python inference (~4 GB RAM minimum)
+- enough memory for Qdrant and llama-cpp-python inference (~4 GB RAM minimum)
 - `Bun 1.2.21` for local dashboard work
 - `Node 22.12+` only if you run frontend tooling outside Bun
 
@@ -66,7 +66,6 @@ Overridable environment variables (identical across platforms):
 - `MINDER_CURRENT_LINK` — stable symlink/junction path
 - `MINDER_MODELS_DIR` — GGUF model directory
 - `MINDER_PORT` — public gateway port
-- `MILVUS_PORT` — internal Milvus port
 - `OPENAI_API_KEY` — optional OpenAI fallback
 
 If you also want the repo-local sync CLI on operator or developer machines, install it separately from PyPI:
@@ -230,9 +229,7 @@ docker compose -f docker/docker-compose.yml ps
 docker compose -f docker/docker-compose.yml logs gateway
 docker compose -f docker/docker-compose.yml logs dashboard
 docker compose -f docker/docker-compose.yml logs minder-api
-docker compose -f docker/docker-compose.yml logs mongodb
-docker compose -f docker/docker-compose.yml logs redis
-docker compose -f docker/docker-compose.yml logs milvus-standalone
+docker compose -f docker/docker-compose.yml logs qdrant
 ```
 
 ## Rollback

@@ -154,7 +154,7 @@ def _agentic_payload(
 
 def _history_sort_key(doc: Any) -> tuple[str, str]:
     created_at = getattr(doc, "created_at", None)
-    created_at_key = created_at.isoformat() if hasattr(created_at, "isoformat") else ""
+    created_at_key = created_at.isoformat() if (created_at is not None and hasattr(created_at, "isoformat")) else ""
     return created_at_key, str(getattr(doc, "id", ""))
 
 

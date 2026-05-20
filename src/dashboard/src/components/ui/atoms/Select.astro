@@ -1,0 +1,44 @@
+---
+interface Props {
+  id?: string;
+  name?: string;
+  required?: boolean;
+  disabled?: boolean;
+  class?: string;
+}
+
+const { id, name, required = false, disabled = false, class: className = "" } = Astro.props;
+---
+
+<select id={id} name={name} required={required} disabled={disabled} class={`u-select ${className}`}>
+  <slot />
+</select>
+
+<style is:global>
+  .u-select {
+    display: block;
+    width: 100%;
+    border-radius: 0.625rem;
+    border: 1px solid rgb(214 211 209);
+    background: white;
+    padding: 0.5rem 0.875rem;
+    padding-right: 2.25rem;
+    font-size: 0.875rem;
+    color: rgb(28 25 23);
+    outline: none;
+    transition: border-color 150ms, box-shadow 150ms;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%2378716c'><path fill-rule='evenodd' d='M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z' clip-rule='evenodd'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 0.9rem center;
+    background-size: 1rem;
+    font-family: var(--font-sans);
+    cursor: pointer;
+  }
+  .u-select:hover { border-color: rgb(168 162 158); }
+  .u-select:focus {
+    border-color: rgb(180 83 9);
+    box-shadow: 0 0 0 3px var(--color-brand-ring);
+  }
+  .u-select:disabled { cursor: not-allowed; background-color: rgb(250 250 249); color: rgb(168 162 158); }
+</style>

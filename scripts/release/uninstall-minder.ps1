@@ -71,11 +71,11 @@ if ($KeepData) {
     Write-Host ""
     Write-Host "Kept:"
     Write-Host "  - Downloaded models"
-    Write-Host "  - Docker volumes (mongodb-data, redis-data, milvus-data, etc.)"
+    Write-Host "  - Docker volumes (for example qdrant-data)"
     Write-Host "  - Config files in $MinderDir\"
     Write-Host ""
     Write-Host "To remove Docker volumes manually:"
-    Write-Host "  docker volume ls | Select-String 'minder|mongodb|redis|milvus'"
+    Write-Host "  docker volume ls | Select-String 'minder|qdrant'"
     Write-Host "  docker volume rm <volume-name>"
     exit 0
 }
@@ -85,7 +85,7 @@ if ($KeepData) {
 # ------------------------------------------------------------------
 
 Write-Host "Removing Docker volumes..."
-$volumes = docker volume ls -q 2>$null | Where-Object { $_ -match 'mongodb|redis|milvus|etcd|minio' }
+$volumes = docker volume ls -q 2>$null | Where-Object { $_ -match 'minder|qdrant' }
 foreach ($vol in $volumes) {
     Write-Host "  Removing volume: $vol"
     docker volume rm $vol 2>$null

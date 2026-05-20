@@ -14,14 +14,8 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
-import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
-import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
-
-// ---------------------------------------------------------------------------
-// Shared element refs
-// ---------------------------------------------------------------------------
-
-const toastRegion = document.querySelector("#dashboard-toast-region");
+import { showDangerConfirm } from "./modal-controller";
+import { escapeHtml, showToast } from "./ui-utils";
 
 // (showToast moved to ui-utils.ts)
 
@@ -200,6 +194,9 @@ const promptEditStep = async (
 // ---------------------------------------------------------------------------
 
 const workflowRegistry = document.querySelector("#workflow-registry");
+const workflowFormDialogEl = document.querySelector(
+  "#workflow-form-dialog",
+) as HTMLDialogElement | null;
 const createWorkflowForm = document.querySelector("#create-workflow-form");
 const createStatusEl = document.querySelector("#create-workflow-status");
 const stepsListEl = document.querySelector("#workflow-steps-list");
@@ -354,6 +351,7 @@ createWorkflowForm?.addEventListener("submit", async (event) => {
     });
     setCreateStatus(`Created ${result.workflow.name}.`, "success");
     showToast(`Created workflow ${result.workflow.name}.`, "success");
+    workflowFormDialogEl?.close();
     createSteps = [];
     refreshCreateStepList();
     (document.querySelector("#workflow-name") as HTMLInputElement | null) &&
@@ -372,6 +370,22 @@ createWorkflowForm?.addEventListener("submit", async (event) => {
     setCreateStatus(message, "danger");
     showToast(message, "danger");
   }
+});
+
+document
+  .querySelector("#workflow-new-button")
+  ?.addEventListener("click", () => {
+    workflowFormDialogEl?.showModal();
+  });
+
+document
+  .querySelector("#workflow-close-dialog")
+  ?.addEventListener("click", () => {
+    workflowFormDialogEl?.close();
+  });
+
+workflowFormDialogEl?.addEventListener("click", (event) => {
+  if (event.target === workflowFormDialogEl) workflowFormDialogEl.close();
 });
 
 pagePrevButton?.addEventListener("click", () => {

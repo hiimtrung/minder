@@ -8,6 +8,7 @@ import {
   type AuditEventPayload,
   type MetricsSummaryPayload,
 } from "../lib/api/admin";
+import { escapeHtml } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // Element refs
@@ -128,13 +129,7 @@ let jobsStream: EventSource | null = null;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+
 
 const fmt = (n: number): string =>
   Number.isFinite(n) ? Math.round(n).toLocaleString() : "0";

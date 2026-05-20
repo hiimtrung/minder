@@ -1,0 +1,172 @@
+---
+import Breadcrumb from "./Breadcrumb.astro";
+
+interface BreadcrumbItem {
+  href?: string;
+  label: string;
+}
+
+interface Props {
+  breadcrumb?: BreadcrumbItem[];
+  eyebrow?: string;
+  title: string;
+  titleId?: string;
+  description?: string;
+  class?: string;
+}
+
+const {
+  breadcrumb = [],
+  eyebrow,
+  title,
+  titleId,
+  description,
+  class: className = "",
+} = Astro.props;
+
+const hasActions = Astro.slots.has("actions");
+const hasMeta = Astro.slots.has("meta");
+---
+
+<section class:list={["dashboard-page-header", className]}>
+  <div class="dashboard-page-header-shell">
+    {breadcrumb.length > 0 && (
+      <Breadcrumb
+        items={breadcrumb}
+        class="dashboard-page-header-breadcrumb"
+      />
+    )}
+
+    <div class="dashboard-page-header-row">
+      <div class="dashboard-page-header-copy">
+        {eyebrow && <p class="eyebrow dashboard-page-header-eyebrow">{eyebrow}</p>}
+        <h1 id={titleId} class="dashboard-page-header-title">{title}</h1>
+        {description && (
+          <p class="dashboard-page-header-description">{description}</p>
+        )}
+      </div>
+
+      {hasActions && (
+        <div class="dashboard-page-header-actions">
+          <slot name="actions" />
+        </div>
+      )}
+    </div>
+
+    {hasMeta && (
+      <div class="dashboard-page-header-meta">
+        <slot name="meta" />
+      </div>
+    )}
+  </div>
+</section>
+
+<style>
+  .dashboard-page-header {
+    margin-bottom: 0.55rem;
+  }
+
+  .dashboard-page-header-shell {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.95rem;
+    border: 1px solid rgba(231, 229, 228, 0.9);
+    background:
+      radial-gradient(circle at top right, rgba(251, 191, 36, 0.14), transparent 24%),
+      linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(255, 255, 255, 0.94));
+    padding: 0.72rem 0.85rem 0.74rem;
+    box-shadow:
+      0 8px 22px rgba(120, 113, 108, 0.055),
+      inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  }
+
+  .dashboard-page-header-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(135deg, rgba(146, 64, 14, 0.04), transparent 42%),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.22), transparent 52%);
+    pointer-events: none;
+  }
+
+  .dashboard-page-header-shell > * {
+    position: relative;
+    z-index: 1;
+  }
+
+  .dashboard-page-header-breadcrumb {
+    margin-bottom: 0.42rem;
+  }
+
+  .dashboard-page-header-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.6rem;
+  }
+
+  .dashboard-page-header-copy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dashboard-page-header-eyebrow {
+    color: rgb(120 113 108);
+  }
+
+  .dashboard-page-header-title {
+    margin-top: 0.16rem;
+    font-family: var(--font-display);
+    font-size: clamp(1.05rem, 0.96rem + 0.42vw, 1.4rem);
+    line-height: 1.08;
+    letter-spacing: -0.03em;
+    font-weight: 700;
+    color: rgb(28 25 23);
+    text-wrap: balance;
+  }
+
+  .dashboard-page-header-description {
+    margin-top: 0.28rem;
+    max-width: 54ch;
+    font-size: 0.78rem;
+    line-height: 1.45;
+    color: rgb(87 83 78);
+    text-wrap: pretty;
+  }
+
+  .dashboard-page-header-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    min-width: min(100%, 12rem);
+  }
+
+  .dashboard-page-header-meta {
+    margin-top: 0.45rem;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.42rem;
+  }
+
+  @media (max-width: 767px) {
+    .dashboard-page-header-shell {
+      padding-inline: 0.8rem;
+      padding-block: 0.72rem;
+    }
+
+    .dashboard-page-header-actions {
+      width: 100%;
+      justify-content: flex-start;
+      min-width: 0;
+    }
+
+    .dashboard-page-header-meta {
+      margin-top: 0.42rem;
+    }
+  }
+</style>

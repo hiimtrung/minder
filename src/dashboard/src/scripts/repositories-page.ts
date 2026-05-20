@@ -37,14 +37,12 @@ import {
   setText,
   escapeHtml,
   switchTab as uiSwitchTab,
-  setGraphFullWidth,
 } from "./ui-utils";
 import {
   D3GraphRenderer,
   type SimNode,
   type SimEdge,
   colorForType,
-  radiusForType,
 } from "./graph-renderer";
 import {
   type ExtendedNodePayload,
@@ -302,7 +300,7 @@ async function handleExploreNode(): Promise<void> {
   if (!activeRepositoryId || !selectedNodeId) return;
 
   const statusEl = getEl("repo-graph-status");
-  
+
   if (selectedNodeId.startsWith("folder:")) {
     setText(statusEl, "Selected: Folder (virtual node)");
     return;

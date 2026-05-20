@@ -16,7 +16,7 @@ System-level architecture lives in:
 
 - Docker Desktop or compatible Docker runtime
 - `uv`
-- enough disk for MongoDB, Redis, Milvus, and GGUF model files (~4 GB for default models)
+- enough disk for Qdrant storage and GGUF model files (~4 GB for default models)
 
 ## 1. Create local env files
 
@@ -37,6 +37,7 @@ The example files already target:
 - Minder backend on `8800`
 - Astro dev server on `8808`
 - dashboard API calls to `http://localhost:8800`
+- local Qdrant on `http://localhost:6333`
 
 ## 2. Start the local infrastructure stack
 
@@ -48,9 +49,7 @@ docker compose -f docker/docker-compose.local.yml up -d
 
 The stack exposes:
 
-- MongoDB: `localhost:27017`
-- Redis: `localhost:6379`
-- Milvus: `localhost:19530`
+- Qdrant: `http://localhost:6333`
 
 Wait until all infra services are healthy.
 
@@ -62,12 +61,7 @@ docker compose -f docker/docker-compose.local.yml ps
 
 Local Docker now provides the shared infra runtime:
 
-
-- `mongodb`
-- `redis`
-- `etcd`
-- `minio`
-- `milvus-standalone`
+- `qdrant`
 
 It intentionally does not start the Minder app or the Astro dashboard. You run those locally so you can debug them directly.
 
@@ -82,6 +76,7 @@ uv run python scripts/dev_server.py
 ```
 
 This launcher watches `src/**/*.py`, `.env`, and `minder.toml`, then restarts Minder automatically after code or config changes.
+If Qdrant is not reachable, the launcher prints a preflight hint before starting the server process.
 
 Useful options:
 
@@ -234,6 +229,14 @@ Check:
 ```bash
 PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
 ```
+
+If startup fails with `ResponseHandlingException: All connection attempts failed`, the current config is still targeting Qdrant and the local dependency is not up yet. Start it with:
+
+```bash
+docker compose -f docker/docker-compose.local.yml up -d
+```
+
+Or switch `MINDER_RELATIONAL_STORE__PROVIDER`, `MINDER_VECTOR_STORE__PROVIDER`, and `MINDER_GRAPH_STORE__PROVIDER` in `.env` / `minder.toml` to a non-Qdrant backend.
 
 ### I lost the first admin API key
 

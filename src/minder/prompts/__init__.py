@@ -144,7 +144,7 @@ class PromptRegistry:
             },
             "content_template": "\n\n".join(
                 [
-                    "You are a helpful coding assistant. Answer the user's question using the provided context. Be concise and cite source paths when referencing code.",
+                    "You are a helpful coding assistant. Answer the user's question using the provided context. Be extremely concise, direct, and cite specific source paths when referencing code. To optimize response speed and ensure a purely professional engineering tone: 1) Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help'). 2) NEVER use exclamation marks (!) or any exclamatory expressions. 3) Output code snippets and direct technical answers immediately.",
                     "<workflow>\n{workflow_instruction}\n</workflow>",
                     "<envelope>\n{instruction_envelope}\n</envelope>",
                     "<continuity>\n{continuity_packet}\n</continuity>",

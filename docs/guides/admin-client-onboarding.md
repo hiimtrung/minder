@@ -412,13 +412,13 @@ From the dashboard you can:
 
 Open `/dashboard/instruction` to get the full Minder Agent Orchestration Rules prompt for your IDE:
 
-| IDE | Target file |
-|-----|-------------|
-| Claude Code | `~/.claude/agents/minder.md` |
-| Cursor | `.cursor/rules/minder.mdc` (per-repo) |
-| VS Code / Copilot | `~/.copilot/agents/minder.agent.md` |
-| Antigravity / Gemini | `~/.gemini/GEMINI.md` |
-| Codex | `~/.codex/AGENTS.md` |
+| IDE                  | Target file                           |
+| -------------------- | ------------------------------------- |
+| Claude Code          | `~/.claude/agents/minder.md`          |
+| Cursor               | `.cursor/rules/minder.mdc` (per-repo) |
+| VS Code / Copilot    | `~/.copilot/agents/minder.agent.md`   |
+| Antigravity / Gemini | `~/.gemini/GEMINI.md`                 |
+| Codex                | `~/.codex/AGENTS.md`                  |
 
 Each card shows the exact content to paste (including any required front matter) and a one-click copy button.
 
@@ -435,7 +435,7 @@ After revocation:
 ## 11. LLM Session Management — Cross-Environment Context Continuity
 
 Minder sessions are the server-side checkpoint for an LLM work context. Because
-sessions are stored in MongoDB (not in the client process), the same LLM can
+sessions are stored in the shared server-side operational store (not in the client process), the same LLM can
 resume exactly where it left off from **any machine** using the same client API key.
 
 ### Why this matters
@@ -492,13 +492,13 @@ minder_session_save(
   state = {
     "current_task":    "Implement data model migration",
     "completed":       ["schema design", "interface update"],
-    "in_progress":     ["MongoDB store implementation"],
+    "in_progress":     ["Qdrant operational store implementation"],
     "next_steps":      ["update relational store", "write tests"],
     "key_decisions":   ["user_id nullable", "name field for cross-env"],
-    "open_questions":  ["how to handle TTL expiry in MongoDB?"],
+    "open_questions":  ["how to handle TTL expiry in the operational store?"],
   },
   active_skills = {
-    "pattern": "MongoDB async upsert with _id remapping",
+    "pattern": "Qdrant payload upsert with stable UUID remapping",
   }
 )
 ```
@@ -532,7 +532,7 @@ minder_session_context(
   branch     = "feat/phase3-data-model",
   open_files = [
     "src/minder/models/session.py",
-    "src/minder/store/mongodb/operational_store.py",
+    "src/minder/store/qdrant/operational_store.py",
     "src/minder/tools/session.py",
   ]
 )
@@ -541,7 +541,7 @@ minder_session_context(
 ### Cross-machine guarantee
 
 The `mkc_...` client API key resolves to the same `client_id` UUID on any
-machine. Sessions owned by that `client_id` are stored in shared MongoDB.
+machine. Sessions owned by that `client_id` are stored in the shared server-side operational store.
 `minder_session_find(name=...)` filters by `client_id` automatically, so only
 sessions belonging to the calling client are returned.
 

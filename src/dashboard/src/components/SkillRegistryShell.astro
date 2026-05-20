@@ -1,14 +1,14 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import PageHero from "./ui/PageHero.astro";
-import Toolbar from "./ui/Toolbar.astro";
-import Field from "./ui/Field.astro";
-import Input from "./ui/Input.astro";
-import Select from "./ui/Select.astro";
-import Textarea from "./ui/Textarea.astro";
-import Button from "./ui/Button.astro";
-import FormStatus from "./ui/FormStatus.astro";
-import HelpToggle from "./ui/HelpToggle.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
+import Toolbar from "./ui/molecules/Toolbar.astro";
+import Field from "./ui/atoms/Field.astro";
+import Input from "./ui/atoms/Input.astro";
+import Select from "./ui/atoms/Select.astro";
+import Textarea from "./ui/atoms/Textarea.astro";
+import Button from "./ui/atoms/Button.astro";
+import FormStatus from "./ui/atoms/FormStatus.astro";
+import HelpToggle from "./ui/molecules/HelpToggle.astro";
 ---
 
 <DashboardLayout
@@ -25,24 +25,73 @@ import HelpToggle from "./ui/HelpToggle.astro";
     description="Capture reusable workflow knowledge with step tags, artifact tags, provenance, and quality signals so the runtime can recall better context."
   />
 
-  <section class="u-grid-sidebar">
-    <div class="grid gap-5">
-      <aside class="shell-card p-6">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <p class="eyebrow">Editor</p>
-            <h2
-              class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
-            >
-              Skill draft
-            </h2>
-          </div>
-          <Button id="skill-reset-button" size="sm" variant="ghost">
-            New draft
-          </Button>
-        </div>
+  <div class="flex flex-col gap-5">
+    <div
+      id="skill-import-job-summary"
+      class="hidden rounded-3xl border border-amber-200 bg-amber-50/80 px-5 py-4 text-sm text-amber-900"
+    >
+    </div>
 
-        <form id="skill-form" class="mt-5 grid gap-4">
+    <Toolbar
+      idPrefix="skill"
+      title="Registry"
+      description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
+      searchPlaceholder="Semantic quick search skills"
+    >
+      <Button slot="leading" id="skill-refresh-button" size="sm">
+        Refresh list
+      </Button>
+      <Button slot="leading" id="skill-new-button" size="sm" variant="primary">
+        New skill
+      </Button>
+      <Button slot="leading" id="skill-open-import-modal" size="sm">
+        Import from Git
+      </Button>
+      <HelpToggle slot="trailing" title="What makes a good skill">
+        <p>
+          Write a single reusable pattern per skill. Keep it operational and
+          specific to a workflow step or artifact outcome.
+        </p>
+        <p>
+          Use workflow steps to guide recall ranking, artifact types to bind the
+          skill to expected outputs, and provenance to show where it came from.
+        </p>
+        <p>
+          Quality score is a soft confidence signal. Higher values push the
+          skill up when semantic similarity is close.
+        </p>
+        <p>
+          Imported skill packs upsert by source metadata so rerunning an import
+          updates the same skill set instead of multiplying duplicates.
+        </p>
+      </HelpToggle>
+    </Toolbar>
+
+    <div id="skill-registry" class="grid gap-4">
+      <article class="u-placeholder-card">Loading skills...</article>
+    </div>
+  </div>
+
+  <!-- Skill editor dialog -->
+  <dialog id="skill-form-dialog" class="u-modal-dialog">
+    <div class="u-modal-inner">
+      <header class="u-modal-header">
+        <div>
+          <p class="eyebrow" id="skill-dialog-eyebrow">Editor</p>
+          <h2 class="u-modal-title" id="skill-dialog-title">Skill draft</h2>
+        </div>
+        <button
+          id="skill-close-dialog"
+          type="button"
+          class="u-modal-close-btn"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+      </header>
+
+      <div class="u-modal-body">
+        <form id="skill-form" class="grid gap-4">
           <input id="skill-id" type="hidden" />
           <Field label="Title" htmlFor="skill-title">
             <Input id="skill-title" placeholder="Test plan drafting pattern" />
@@ -111,97 +160,66 @@ import HelpToggle from "./ui/HelpToggle.astro";
             />
           </Field>
 
-          <div class="flex flex-wrap gap-3">
-            <Button
-              type="submit"
-              variant="primary"
-              class="flex-1 min-w-[180px]"
-            >
-              Save and ingest skill
-            </Button>
-          </div>
           <FormStatus id="skill-editor-status" />
         </form>
-      </aside>
-    </div>
-
-    <div class="flex flex-col gap-5">
-      <div
-        id="skill-import-job-summary"
-        class="hidden rounded-3xl border border-amber-200 bg-amber-50/80 px-5 py-4 text-sm text-amber-900"
-      >
       </div>
 
-      <Toolbar
-        idPrefix="skill"
-        title="Registry"
-        description="Load any skill into the editor, update metadata, or remove stale entries from the recall catalog."
-        searchPlaceholder="Semantic quick search skills"
-      >
-        <Button slot="leading" id="skill-refresh-button" size="sm">
-          Refresh list
-        </Button>
+      <div class="u-modal-footer">
         <Button
-          slot="leading"
-          id="skill-open-import-modal"
-          size="sm"
+          type="submit"
+          form="skill-form"
           variant="primary"
+          class="flex-1 min-w-[180px]"
         >
-          Import from Git
+          Save and ingest skill
         </Button>
-        <HelpToggle slot="trailing" title="What makes a good skill">
-          <p>
-            Write a single reusable pattern per skill. Keep it operational and
-            specific to a workflow step or artifact outcome.
-          </p>
-          <p>
-            Use workflow steps to guide recall ranking, artifact types to bind
-            the skill to expected outputs, and provenance to show where it came
-            from.
-          </p>
-          <p>
-            Quality score is a soft confidence signal. Higher values push the
-            skill up when semantic similarity is close.
-          </p>
-          <p>
-            Imported skill packs upsert by source metadata so rerunning an
-            import updates the same skill set instead of multiplying duplicates.
-          </p>
-        </HelpToggle>
-      </Toolbar>
-
-      <div id="skill-registry" class="grid gap-4">
-        <article class="u-placeholder-card">Loading skills...</article>
+        <Button id="skill-reset-button" size="sm" variant="ghost">
+          New draft
+        </Button>
       </div>
     </div>
-  </section>
+  </dialog>
 
+  <!-- Git import dialog (already dialog) -->
   <dialog
     id="skill-import-modal"
     class="m-auto w-[min(980px,calc(100vw-1.5rem))] max-w-[980px] max-h-[min(90vh,920px)] overflow-hidden rounded-[28px] border border-stone-200/80 bg-[rgba(255,252,245,0.99)] p-0 text-stone-900 shadow-[0_40px_120px_rgba(28,25,23,0.25)] backdrop:bg-stone-950/50 backdrop:backdrop-blur-sm"
   >
-    <div class="grid min-h-0 max-h-[min(90vh,920px)] lg:grid-cols-[minmax(0,1fr)_340px]">
-
+    <div class="grid min-h-0 max-h-[min(90vh,920px)]">
       <!-- LEFT: Form -->
       <section class="flex min-h-0 flex-col overflow-hidden">
         <!-- Modal header -->
-        <div class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-100 px-7 pt-7 pb-6">
+        <div
+          class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-100 px-7 pt-7 pb-6"
+        >
           <div>
             <p class="eyebrow">Git Import</p>
-            <h2 class="mt-2 text-2xl font-semibold tracking-tight text-stone-950">
+            <h2
+              class="mt-2 text-2xl font-semibold tracking-tight text-stone-950"
+            >
               Import skill pack
             </h2>
             <p class="mt-1.5 max-w-xs text-sm leading-relaxed text-stone-500">
-              Pull a skill pack from any Git host. The job runs in the background — you can close this modal and check progress in Observability.
+              Pull a skill pack from any Git host. The job runs in the
+              background — you can close this modal and check progress in
+              Observability.
             </p>
           </div>
-          <Button id="skill-close-import-modal" size="sm" variant="ghost" ariaLabel="Close modal">
+          <Button
+            id="skill-close-import-modal"
+            size="sm"
+            variant="ghost"
+            ariaLabel="Close modal"
+          >
             ✕
           </Button>
         </div>
 
         <!-- Scrollable form body -->
-        <form id="skill-import-form" class="flex min-h-0 flex-1 flex-col overflow-y-auto px-7 py-6">
+        <form
+          id="skill-import-form"
+          class="flex min-h-0 flex-1 flex-col overflow-y-auto px-7 py-6"
+        >
           <div class="grid gap-4">
             <Field label="Repository URL" htmlFor="skill-import-repo-url">
               <Input
@@ -212,8 +230,16 @@ import HelpToggle from "./ui/HelpToggle.astro";
             </Field>
 
             <div class="grid gap-3 sm:grid-cols-[1fr_8rem]">
-              <Field label="Skills path" htmlFor="skill-import-path" hint="Folder inside the repo">
-                <Input id="skill-import-path" value="skills" placeholder="skills" />
+              <Field
+                label="Skills path"
+                htmlFor="skill-import-path"
+                hint="Folder inside the repo"
+              >
+                <Input
+                  id="skill-import-path"
+                  value="skills"
+                  placeholder="skills"
+                />
               </Field>
               <Field label="Ref" htmlFor="skill-import-ref" hint="Branch / tag">
                 <Input id="skill-import-ref" placeholder="main" />
@@ -242,14 +268,21 @@ import HelpToggle from "./ui/HelpToggle.astro";
           <div
             id="skill-import-active-job"
             class="hidden mt-5 rounded-2xl border border-stone-200 bg-stone-50/80 px-5 py-4"
-          ></div>
+          >
+          </div>
 
           <!-- Spacer pushes submit to bottom -->
           <div class="flex-1 min-h-6"></div>
 
           <!-- Submit row -->
-          <div class="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5">
-            <Button type="submit" variant="primary" class="flex-1 min-w-[180px]">
+          <div
+            class="mt-4 flex flex-wrap items-center gap-3 border-t border-stone-100 pt-5"
+          >
+            <Button
+              type="submit"
+              variant="primary"
+              class="flex-1 min-w-[180px]"
+            >
               Queue import job
             </Button>
             <Button
@@ -264,33 +297,6 @@ import HelpToggle from "./ui/HelpToggle.astro";
           <FormStatus id="skill-import-status" />
         </form>
       </section>
-
-      <!-- RIGHT: Dark sidebar -->
-      <aside class="flex min-h-0 flex-col overflow-hidden border-t border-stone-200 bg-stone-950 text-stone-100 lg:border-l lg:border-t-0">
-
-        <!-- Progress log (rendered by JS, hidden until job has events) -->
-        <div
-          id="skill-import-progress-log"
-          class="hidden shrink-0 overflow-y-auto border-b border-stone-800/60 px-5 py-4 font-mono text-[11px] leading-5 max-h-44"
-        ></div>
-
-        <!-- Recent jobs list -->
-        <div class="flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-5">
-          <p class="eyebrow shrink-0 text-stone-400">Recent jobs</p>
-          <p class="mt-1 shrink-0 text-xs leading-5 text-stone-500">
-            Jobs persist across page reloads.
-          </p>
-          <div
-            id="skill-import-job-list"
-            class="mt-4 flex-1 overflow-y-auto grid gap-2 content-start"
-          >
-            <div class="rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-sm text-stone-400">
-              No import jobs yet.
-            </div>
-          </div>
-        </div>
-      </aside>
-
     </div>
   </dialog>
 

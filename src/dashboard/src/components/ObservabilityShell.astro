@@ -1,12 +1,12 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import PageHero from "./ui/PageHero.astro";
-import StatCard from "./ui/StatCard.astro";
-import Button from "./ui/Button.astro";
-import Select from "./ui/Select.astro";
-import Input from "./ui/Input.astro";
-import Card from "./ui/Card.astro";
-import SectionHeader from "./ui/SectionHeader.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
+import StatCard from "./ui/molecules/StatCard.astro";
+import Button from "./ui/atoms/Button.astro";
+import Select from "./ui/atoms/Select.astro";
+import Input from "./ui/atoms/Input.astro";
+import Card from "./ui/atoms/Card.astro";
+import SectionHeader from "./ui/molecules/SectionHeader.astro";
 ---
 
 <DashboardLayout
@@ -39,7 +39,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
   </PageHero>
 
   <!-- Tab Navigation -->
-  <nav class="sticky top-3 z-20 mb-8">
+  <nav class="sticky top-3 z-20 mb-4">
     <div class="shell-card flex items-center justify-between gap-4 px-1.5 py-1.5">
       <div class="flex gap-0.5 overflow-x-auto no-scrollbar">
         <button data-tab-btn="overview"   id="tab-overview"   class="tab-btn tab-btn-active">Overview</button>
@@ -54,7 +54,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
   </nav>
 
   <!-- Overview Tab Panel -->
-  <div id="panel-overview" data-tab-panel="overview" class="space-y-8">
+  <div id="panel-overview" data-tab-panel="overview" class="space-y-5">
     <!-- Metric stat cards -->
     <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -142,7 +142,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
   <div
     id="panel-continuity"
     data-tab-panel="continuity"
-    class="hidden space-y-8"
+    class="hidden space-y-5"
   >
     <section class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -192,7 +192,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
   <div
     id="panel-jobs"
     data-tab-panel="jobs"
-    class="hidden space-y-6 text-stone-900"
+    class="hidden space-y-4 text-stone-900"
   >
     <div class="grid gap-5">
       <Card padding="md">
@@ -250,7 +250,7 @@ import SectionHeader from "./ui/SectionHeader.astro";
   <div
     id="panel-audit"
     data-tab-panel="audit"
-    class="hidden space-y-6 text-stone-900"
+    class="hidden space-y-4 text-stone-900"
   >
     <div class="grid gap-5">
       <!-- Audit log header + filters -->

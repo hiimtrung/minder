@@ -1,0 +1,82 @@
+---
+interface Props {
+  title: string;
+  class?: string;
+}
+const { title, class: className = "" } = Astro.props;
+---
+
+<details class:list={["help-root", className]}>
+  <summary class="help-summary">
+    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+    </svg>
+    Tips
+  </summary>
+  <div class="help-panel">
+    <p class="help-title">{title}</p>
+    <slot />
+  </div>
+</details>
+
+<style>
+  .help-root {
+    position: relative;
+    display: inline-block;
+  }
+
+  .help-summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    cursor: pointer;
+    list-style: none;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    border: 1px solid rgb(214 211 209);
+    background: white;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: rgb(87 83 78);
+    user-select: none;
+    transition: border-color 0.12s, color 0.12s;
+  }
+  .help-summary::-webkit-details-marker,
+  .help-summary::marker { display: none; }
+  .help-summary:hover {
+    border-color: rgb(146 64 14);
+    color: rgb(146 64 14);
+  }
+
+  .help-panel {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 21rem;
+    background: white;
+    border: 1px solid rgb(231 229 228 / 0.9);
+    border-radius: 1rem;
+    padding: 1.125rem;
+    box-shadow: var(--shadow-popover);
+    z-index: 40;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: rgb(87 83 78);
+  }
+
+  .help-root[open] .help-panel {
+    display: block;
+  }
+
+  .help-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: rgb(28 25 23);
+    margin-bottom: 0.625rem;
+  }
+
+  :global(.help-panel p + p) {
+    margin-top: 0.5rem;
+  }
+</style>

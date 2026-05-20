@@ -1,5 +1,8 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
+import DashboardPageHeader from "./ui/molecules/DashboardPageHeader.astro";
+import Button from "./ui/atoms/Button.astro";
+import Tooltip from "./ui/atoms/Tooltip.astro";
 
 interface Props {
   repoId?: string;
@@ -17,22 +20,31 @@ const { repoId = "" } = Astro.props;
   showPageIntro={false}
 >
   <div id="repo-detail-context" data-repo-id={repoId} class="hidden"></div>
-  <section class="mb-4 flex flex-wrap items-end justify-between gap-3">
-    <div class="space-y-2">
-      <p class="eyebrow">Repository Detail</p>
-      <h1 class="text-3xl font-semibold tracking-tight text-stone-950">
-        Explore a single repository.
-      </h1>
-      <p class="max-w-3xl text-sm leading-7 text-stone-600">
-        Use the detail route for graph inspection, cross-repo impact, branch
-        state, and repository settings.
-      </p>
+  <DashboardPageHeader
+    breadcrumb={[
+      { href: "/dashboard", label: "Dashboard" },
+      { href: "/dashboard/repositories", label: "Repositories" },
+      { label: "Repository Detail" },
+    ]}
+    eyebrow="Repository Detail"
+    title="Explore a single repository."
+    description="Inspect graph structure, search results, cross-repo impact, branch posture, and repository settings without leaving the dashboard."
+  >
+    <Button slot="actions" href="/dashboard/repositories" size="sm">
+      All repositories
+    </Button>
+    <Button slot="actions" href="/dashboard" size="sm">Dashboard home</Button>
+    <div slot="meta" class="u-meta-row">
+      <span class="u-info-chip">Graph + search + impact</span>
+      <span class="u-info-chip">Branch aware</span>
+      <span class="u-info-chip u-info-chip-mono">
+        {repoId ? `Route: ${repoId}` : "Route scoped"}
+      </span>
     </div>
-    <a href="/dashboard/repositories" class="action-pill">All repositories</a>
-  </section>
+  </DashboardPageHeader>
 
   <!-- ── Single-column layout — sidebar removed; repo picker lives in the command bar ── -->
-  <div id="main-layout-grid" class="grid gap-6">
+  <div id="main-layout-grid" class="grid gap-4">
     <div class="min-w-0 space-y-5">
       <!-- ══════════════════════════════════════════
            COMMAND BAR — unified across every tab
@@ -526,10 +538,10 @@ const { repoId = "" } = Astro.props;
           <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p class="eyebrow">Cross-Repo Branch Links</p>
-              <p class="mt-1 text-sm leading-6 text-stone-600">
-                Track how the selected repository branch connects to other
-                repository branches for sync, search, and impact context.
-              </p>
+              <Tooltip
+                content="Track how the selected repository branch connects to other
+                repository branches for sync, search, and impact context."
+              />
             </div>
             <p id="repo-branch-links-status" class="u-status"></p>
           </div>

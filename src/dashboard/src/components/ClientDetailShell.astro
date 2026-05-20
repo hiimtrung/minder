@@ -1,12 +1,12 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import DetailHeader from "./ui/DetailHeader.astro";
-import Card from "./ui/Card.astro";
-import Field from "./ui/Field.astro";
-import Input from "./ui/Input.astro";
-import Textarea from "./ui/Textarea.astro";
-import Button from "./ui/Button.astro";
-import FormStatus from "./ui/FormStatus.astro";
+import DetailHeader from "./ui/molecules/DetailHeader.astro";
+import Card from "./ui/atoms/Card.astro";
+import Field from "./ui/atoms/Field.astro";
+import Input from "./ui/atoms/Input.astro";
+import Textarea from "./ui/atoms/Textarea.astro";
+import Button from "./ui/atoms/Button.astro";
+import FormStatus from "./ui/atoms/FormStatus.astro";
 
 interface Props {
   clientId?: string;
@@ -177,21 +177,6 @@ const detailHref = clientId
         </p>
         <div id="onboarding-snippets" class="mt-5 grid gap-4">
           <article class="u-placeholder-card">Loading snippets...</article>
-        </div>
-      </Card>
-
-      <Card padding="lg">
-        <p class="eyebrow">Agent Instructions</p>
-        <h2
-          class="font-display mt-2 text-xl font-semibold tracking-tight text-stone-950"
-        >
-          IDE instruction files
-        </h2>
-        <p class="mt-2 max-w-3xl text-sm leading-6 text-stone-600">
-          Add these snippets to your IDE's instruction file so the AI knows about Minder's tools. No CLI install commands needed — each IDE reads its own file.
-        </p>
-        <div id="agent-instruction-snippets" class="mt-5 grid gap-4">
-          <article class="u-placeholder-card">Loading instructions...</article>
         </div>
       </Card>
 

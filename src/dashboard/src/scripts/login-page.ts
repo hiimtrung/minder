@@ -37,7 +37,7 @@ void (async () => {
 // ---------------------------------------------------------------------------
 
 const redirectToDashboard = () => {
-  window.location.href = "/dashboard/clients";
+  window.location.href = "/dashboard";
 };
 
 // ---------------------------------------------------------------------------

@@ -24,23 +24,22 @@ flowchart TB
     UseCases --> Auth["Auth · RBAC · Rate Limiting"]
     UseCases --> Services["Workflow · Memory · Session · Query"]
 
-    Services --> Mongo["MongoDB"]
-    Services --> Redis["Redis"]
-    Services --> Milvus["Milvus Standalone"]
+    Services --> Qdrant["Qdrant\n(default operational + vector store)"]
+    Services --> SqlStore["SQLite / PostgreSQL\n(optional relational + graph adapters)"]
     Services -.->|"in-process"| LlamaCpp["llama-cpp-python\n(LLM, host-native)"]
     Services -.->|"in-process"| LlamaCppEmbed["llama-cpp-python\n(embedding, host-native)"]
 ```
 
 ### Why local inference?
 
-| Aspect            | LLM (llama-cpp-python)         | Embedding (llama-cpp-python)   |
-| ----------------- | ------------------------------ | ------------------------------ |
-| Deployment        | Host-native, in-process        | Host-native, in-process        |
-| Hardware acceleration | Metal (Mac), CPU elsewhere  | CPU                            |
-| Model format      | GGUF                           | GGUF                           |
-| Cold start        | Engine init ~3–10s             | Engine init ~2s                |
-| Model management  | Auto-download from HuggingFace | Auto-download from HuggingFace |
-| Performance       | No HTTP overhead, direct API   | No HTTP overhead, direct API   |
+| Aspect                | LLM (llama-cpp-python)         | Embedding (llama-cpp-python)   |
+| --------------------- | ------------------------------ | ------------------------------ |
+| Deployment            | Host-native, in-process        | Host-native, in-process        |
+| Hardware acceleration | Metal (Mac), CPU elsewhere     | CPU                            |
+| Model format          | GGUF                           | GGUF                           |
+| Cold start            | Engine init ~3–10s             | Engine init ~2s                |
+| Model management      | Auto-download from HuggingFace | Auto-download from HuggingFace |
+| Performance           | No HTTP overhead, direct API   | No HTTP overhead, direct API   |
 
 The zero-dependency in-process architecture ensures low latency and reduces the operational burden of managing external inference containers.
 
@@ -51,7 +50,7 @@ Presentation   -> src/minder/presentation/http/admin   (HTTP routes, DTOs)
                  src/dashboard                         (Astro admin console)
 Application    -> src/minder/application/admin         (use cases)
 Domain         -> src/minder/models                    (entities, value objects)
-Infrastructure -> src/minder/store                     (MongoDB, Milvus, Redis)
+Infrastructure -> src/minder/store                     (Qdrant, SQLite, PostgreSQL)
                  src/minder/auth                       (principals, middleware)
                  src/minder/llm                        (llama-cpp-python + OpenAI fallback)
                  src/minder/embedding                  (llama-cpp-python GGUF client)
@@ -116,33 +115,34 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 
 ## Configuration
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `MINDER_SERVER__PORT` | `8800` | HTTP listen port |
-| `MINDER_LLM__PROVIDER` | `llama_cpp` | LLM provider (`llama_cpp` / `openai`) |
-| `MINDER_LLM__LLAMA_CPP_MODEL_REPO` | `ggml-org/gemma-4-E2B-it-GGUF` | HuggingFace repo for LLM GGUF model |
-| `MINDER_LLM__LLAMA_CPP_MODEL_FILE` | `*.gguf` | GGUF filename pattern |
-| `MINDER_LLM__CONTEXT_LENGTH` | `32768` | LLM context window size |
-| `MINDER_LLM__TEMPERATURE` | `0.1` | Sampling temperature |
-| `MINDER_LLM__OPENAI_API_KEY` | _(empty)_ | OpenAI API key for cloud fallback |
-| `MINDER_EMBEDDING__PROVIDER` | `llama_cpp` | Embedding provider (`llama_cpp` / `openai`) |
-| `MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO` | `ggml-org/embeddinggemma-300M-GGUF` | HuggingFace repo for embedding GGUF model |
-| `MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE` | `*.gguf` | GGUF filename pattern |
-| `MINDER_EMBEDDING__DIMENSIONS` | `768` | Embedding vector dimensions |
-| `MINDER_MONGODB__URI` | `mongodb://localhost:27017` | MongoDB URI |
-| `MINDER_REDIS__URI` | `redis://localhost:6379/0` | Redis URI |
-| `MINDER_VECTOR_STORE__URI` | `http://localhost:19530` | Milvus endpoint |
+| Variable                                 | Default                             | Purpose                                                            |
+| ---------------------------------------- | ----------------------------------- | ------------------------------------------------------------------ |
+| `MINDER_SERVER__PORT`                    | `8800`                              | HTTP listen port                                                   |
+| `MINDER_LLM__PROVIDER`                   | `llama_cpp`                         | LLM provider (`llama_cpp` / `openai`)                              |
+| `MINDER_LLM__LLAMA_CPP_MODEL_REPO`       | `ggml-org/gemma-4-E2B-it-GGUF`      | HuggingFace repo for LLM GGUF model                                |
+| `MINDER_LLM__LLAMA_CPP_MODEL_FILE`       | `*.gguf`                            | GGUF filename pattern                                              |
+| `MINDER_LLM__CONTEXT_LENGTH`             | `32768`                             | LLM context window size                                            |
+| `MINDER_LLM__TEMPERATURE`                | `0.1`                               | Sampling temperature                                               |
+| `MINDER_LLM__OPENAI_API_KEY`             | _(empty)_                           | OpenAI API key for cloud fallback                                  |
+| `MINDER_EMBEDDING__PROVIDER`             | `llama_cpp`                         | Embedding provider (`llama_cpp` / `openai`)                        |
+| `MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO` | `ggml-org/embeddinggemma-300M-GGUF` | HuggingFace repo for embedding GGUF model                          |
+| `MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE` | `*.gguf`                            | GGUF filename pattern                                              |
+| `MINDER_EMBEDDING__DIMENSIONS`           | `768`                               | Embedding vector dimensions                                        |
+| `MINDER_RELATIONAL_STORE__PROVIDER`      | `qdrant`                            | Operational store provider (`qdrant` / `sqlite` / `postgresql`)    |
+| `MINDER_VECTOR_STORE__PROVIDER`          | `qdrant`                            | Vector store provider (`qdrant` / in-process fallback)             |
+| `MINDER_GRAPH_STORE__PROVIDER`           | `auto`                              | Graph store provider (`auto` / `qdrant` / `sqlite` / `postgresql`) |
+| `MINDER_QDRANT__URL`                     | `http://localhost:6333`             | Qdrant endpoint                                                    |
 
 ---
 
 ## Server Management Scripts
 
-| Script | Description |
-| --- | --- |
-| `install-minder-release.sh` | Start Minder stack (GGUF models auto-downloaded on first run) |
-| `install-minder-release.ps1` | Windows PowerShell equivalent |
-| `update-minder.sh` | Update to latest or specific version |
-| `uninstall-minder.sh` | Uninstall with `--keep-data` option |
+| Script                       | Description                                                   |
+| ---------------------------- | ------------------------------------------------------------- |
+| `install-minder-release.sh`  | Start Minder stack (GGUF models auto-downloaded on first run) |
+| `install-minder-release.ps1` | Windows PowerShell equivalent                                 |
+| `update-minder.sh`           | Update to latest or specific version                          |
+| `uninstall-minder.sh`        | Uninstall with `--keep-data` option                           |
 
 ---
 

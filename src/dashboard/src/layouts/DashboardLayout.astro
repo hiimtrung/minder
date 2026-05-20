@@ -1,7 +1,8 @@
 ---
 import "../styles/global.css";
-import Footer from "../components/ui/Footer.astro";
+import Footer from "../components/ui/molecules/Footer.astro";
 import CommonModal from "../components/CommonModal.astro";
+import DashboardPageHeader from "../components/ui/molecules/DashboardPageHeader.astro";
 
 interface Props {
   title: string;
@@ -9,9 +10,11 @@ interface Props {
   navTitle?: string;
   navDescription?: string;
   showPageIntro?: boolean;
+  contentMode?: "default" | "frame";
   navLinks?: Array<{
     href: string;
     label: string;
+    category?: string;
     tone?: "primary" | "secondary";
     currentDetail?: boolean;
   }>;
@@ -22,36 +25,46 @@ const {
   title,
   description = "Minder dashboard shell",
   navTitle = "Minder Dashboard",
-  navDescription = "Admin setup, login, client management, and onboarding on one port.",
   showPageIntro = true,
+  contentMode = "default",
   navLinks = [],
   sessionControls = false,
 } = Astro.props;
 
-const DEFAULT_NAV = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/dashboard/clients", label: "Clients" },
-  { href: "/dashboard/repositories", label: "Repositories" },
-  { href: "/dashboard/chat", label: "Chat" },
-  { href: "/dashboard/skills", label: "Skills" },
-  { href: "/dashboard/sessions", label: "Sessions" },
-  { href: "/dashboard/memories", label: "Memories" },
-  { href: "/dashboard/prompts", label: "Prompts" },
-  { href: "/dashboard/workflows", label: "Workflows" },
-  { href: "/dashboard/agents", label: "Agents" },
-  { href: "/dashboard/instruction", label: "Instruction" },
-  { href: "/dashboard/users", label: "Users" },
-  { href: "/dashboard/observability", label: "Observability" },
+type NavLink = NonNullable<Props["navLinks"]>[number];
+
+const DEFAULT_NAV: NavLink[] = [
+  { href: "/dashboard", label: "Home", category: "Overview" },
+  {
+    href: "/dashboard/observability",
+    label: "Observability",
+    category: "Overview",
+  },
+  { href: "/dashboard/repositories", label: "Repositories", category: "Workspace" },
+  { href: "/dashboard/chat", label: "Chat", category: "Workspace" },
+  { href: "/dashboard/sessions", label: "Sessions", category: "Workspace" },
+  { href: "/dashboard/skills", label: "Skills", category: "Workspace" },
+  { href: "/dashboard/memories", label: "Memories", category: "Workspace" },
+  { href: "/dashboard/prompts", label: "Prompts", category: "Workspace" },
+  { href: "/dashboard/workflows", label: "Workflows", category: "Workspace" },
+  { href: "/dashboard/agents", label: "Agents", category: "Workspace" },
+  { href: "/dashboard/clients", label: "Clients", category: "Administration" },
+  { href: "/dashboard/users", label: "Users", category: "Administration" },
+  {
+    href: "/dashboard/instruction",
+    label: "Instruction",
+    category: "Administration",
+  },
 ];
 
-const effectiveNav = navLinks.length > 0 ? navLinks : DEFAULT_NAV;
+const effectiveNav =
+  navLinks.length > 0 ? navLinks : sessionControls ? DEFAULT_NAV : [];
 const currentPath = Astro.url.pathname;
+const pageLabel = title.replace(/\s*·\s*Minder(?: Dashboard)?$/, "");
 
 const isLinkActive = (href: string, currentDetail?: boolean) => {
   if (currentDetail) return true;
 
-  // Normalize path by stripping backend-injected prefixes (e.g. /v1/admin)
-  // to ensure active state detection works both in dev and prod/backend mounts.
   const normalizedPath = currentPath.replace(/^\/v[0-9]+\/admin/, "") || "/";
   const path = normalizedPath.replace(/\/$/, "") || "/";
   const target = href.replace(/\/$/, "") || "/";
@@ -61,6 +74,68 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
   }
   return path.startsWith(target);
 };
+
+const activeNavItem = effectiveNav.find((link: any) =>
+  isLinkActive(link.href, link.currentDetail),
+);
+const activeSectionLabel = activeNavItem?.label ?? pageLabel;
+const navGroups = effectiveNav.reduce(
+  (groups, link) => {
+    const category = link.category ?? "Pages";
+    const existingGroup = groups.find((group) => group.label === category);
+    if (existingGroup) {
+      existingGroup.items.push(link);
+      return groups;
+    }
+    groups.push({ label: category, items: [link] });
+    return groups;
+  },
+  [] as Array<{ label: string; items: NavLink[] }>,
+);
+
+function getIconSvg(label: string) {
+  const l = label.toLowerCase();
+  if (l.includes("home")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>`;
+  }
+  if (l.includes("observability") || l.includes("metric") || l.includes("monitor")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2" /></svg>`;
+  }
+  if (l.includes("repository") || l.includes("repos")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-2m-4-1v8m0 0l3-3m-3 3L9 8m-5 5h2.586a1 1 0 01.707.293l2.414 2.414a1 1 0 00.707.293h3.172a1 1 0 00.707-.293l2.414-2.414a1 1 0 01.707-.293H20" /></svg>`;
+  }
+  if (l.includes("chat")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>`;
+  }
+  if (l.includes("session")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>`;
+  }
+  if (l.includes("skill")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>`;
+  }
+  if (l.includes("memories") || l.includes("memory")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" /></svg>`;
+  }
+  if (l.includes("prompt")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>`;
+  }
+  if (l.includes("workflow")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89M9 11l3 3L22 4" /></svg>`;
+  }
+  if (l.includes("agent")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z" /></svg>`;
+  }
+  if (l.includes("client")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>`;
+  }
+  if (l.includes("user")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>`;
+  }
+  if (l.includes("instruction") || l.includes("guide") || l.includes("doc")) {
+    return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.832.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" /></svg>`;
+  }
+  return `<svg class="sidebar-icon-svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>`;
+}
 ---
 
 <!doctype html>
@@ -81,106 +156,140 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
     />
   </head>
   <body>
-    <div class="flex min-h-screen flex-col">
-      <header class="pt-4 pb-2">
-        <div class="u-page-container">
-          <div
-            class="shell-card flex flex-wrap items-center justify-between gap-4 px-5 py-3 md:px-6"
-          >
-            <a href="/dashboard" class="group flex min-w-0 items-center gap-3">
-              <div
-                class="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-800 text-white shadow-md transition-transform group-hover:scale-105"
+    <div class="dashboard-root">
+      <!-- Mobile Backdrop Overlay -->
+      <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+
+      <!-- Sidebar Area -->
+      <aside id="dashboard-sidebar" class="dashboard-sidebar">
+        <div class="sidebar-brand-wrapper">
+          <a href="/dashboard" class="sidebar-brand-link group">
+            <div class="sidebar-brand-mark">
+              <span>M</span>
+            </div>
+            <div class="sidebar-brand-text">
+              <span class="sidebar-brand-title">{navTitle}</span>
+              <span class="sidebar-brand-subtitle">Control Plane</span>
+            </div>
+          </a>
+        </div>
+
+        <nav class="sidebar-nav no-scrollbar">
+          {
+            navGroups.length > 0 ? (
+              <div class="sidebar-nav-groups-container">
+                {navGroups.map((group) => (
+                  <div class="sidebar-group">
+                    <h3 class="sidebar-group-label">{group.label}</h3>
+                    <ul class="sidebar-group-list">
+                      {group.items.map((link) => {
+                        const active = isLinkActive(link.href, link.currentDetail);
+                        return (
+                          <li>
+                            <a
+                              href={link.href}
+                              class="sidebar-nav-link"
+                              data-active={active ? "true" : "false"}
+                            >
+                              <span class="sidebar-link-icon" aria-hidden="true">
+                                <Fragment set:html={getIconSvg(link.label)} />
+                              </span>
+                              <span class="sidebar-link-label">{link.label}</span>
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div class="sidebar-nav-empty">
+                <p class="text-xs text-stone-500 italic">No navigation links</p>
+              </div>
+            )
+          }
+        </nav>
+
+        {
+          sessionControls && (
+            <div class="sidebar-footer">
+              <div class="sidebar-session-info">
+                <span class="sidebar-session-label">Session Status</span>
+                <span id="dashboard-session-badge" class="session-badge">
+                  Checking...
+                </span>
+              </div>
+              <button
+                id="dashboard-logout-button"
+                type="button"
+                class="sidebar-logout-btn"
               >
-                <span class="font-display text-lg font-bold">M</span>
-              </div>
-              <div class="flex min-w-0 flex-col">
-                <span
-                  class="font-display truncate text-base font-semibold tracking-tight text-stone-900"
-                >
-                  {navTitle}
-                </span>
-                <span
-                  class="text-[10px] font-bold tracking-[0.2em] text-stone-500 uppercase"
-                >
-                  Control Plane
-                </span>
-              </div>
-            </a>
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                </svg>
+                <span>Logout</span>
+              </button>
+            </div>
+          )
+        }
+      </aside>
 
+      <!-- Main Panel Area -->
+      <div class="dashboard-main-panel">
+        <header class="dashboard-top-bar">
+          <div class="top-bar-left">
             {
-              effectiveNav.length > 0 && (
-                <nav class="hidden flex-wrap items-center gap-1 md:flex">
-                  {effectiveNav.map((link: any) => (
-                    <a
-                      href={link.href}
-                      class="nav-link"
-                      data-active={
-                        isLinkActive(link.href, link.currentDetail)
-                          ? "true"
-                          : "false"
-                      }
-                    >
-                      {link.label}
-                    </a>
-                  ))}
-                </nav>
+              navGroups.length > 0 && (
+                <button
+                  id="sidebar-toggle-btn"
+                  class="sidebar-toggle-btn"
+                  aria-label="Toggle navigation menu"
+                  aria-expanded="false"
+                >
+                  <svg class="w-5.5 h-5.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </button>
               )
             }
-
-            {
-              sessionControls && (
-                <div class="flex items-center gap-3">
-                  <span id="dashboard-session-badge" class="session-badge">
-                    Checking...
-                  </span>
-                  <button
-                    id="dashboard-logout-button"
-                    type="button"
-                    class="action-pill u-btn-sm"
-                  >
-                    Logout
-                  </button>
-                </div>
-              )
-            }
+            <div class="top-bar-breadcrumbs">
+              <span class="breadcrumbs-category">{activeSectionLabel}</span>
+              <span class="breadcrumbs-separator">/</span>
+              <span class="breadcrumbs-current">{pageLabel}</span>
+            </div>
           </div>
 
-          {
-            effectiveNav.length > 0 && (
-              <nav class="mt-3 flex flex-wrap items-center gap-2 md:hidden">
-                {effectiveNav.map((link: any) => (
-                  <a
-                    href={link.href}
-                    class={
-                      isLinkActive(link.href, link.currentDetail)
-                        ? "primary-pill u-btn-sm"
-                        : "action-pill u-btn-sm"
-                    }
-                  >
-                    {link.label}
-                  </a>
-                ))}
-              </nav>
-            )
-          }
-        </div>
-      </header>
+          <div class="top-bar-right">
+            <div class="top-bar-badge-pill">
+              <span class="pulse-dot"></span>
+              <span class="badge-text">Connected</span>
+            </div>
+          </div>
+        </header>
 
-      <main class="flex-1">
-        <div class="u-page-container u-page-stack">
-          {
-            showPageIntro && (
-              <div class="mb-8 flex flex-col gap-2">
-                <h1 class="u-page-hero-title">{title}</h1>
-                <p class="u-page-hero-sub">{navDescription}</p>
-              </div>
-            )
-          }
-          <slot />
-        </div>
-      </main>
+        <main class="dashboard-content-wrapper" data-content-mode={contentMode}>
+          <div class="dashboard-content-scroll" data-content-mode={contentMode}>
+            <div
+              class="u-page-container u-page-stack dashboard-content-body"
+              data-content-mode={contentMode}
+            >
+              {
+                showPageIntro && (
+                  <DashboardPageHeader
+                    eyebrow={activeSectionLabel}
+                    title={pageLabel}
+                    class="mb-5"
+                  />
+                )
+              }
+              <slot />
+            </div>
+          </div>
 
-      <Footer showHealth={sessionControls} />
+          <Footer showHealth={sessionControls} />
+        </main>
+      </div>
 
       <div
         id="dashboard-toast-region"
@@ -189,6 +298,531 @@ const isLinkActive = (href: string, currentDetail?: boolean) => {
       </div>
       <CommonModal />
     </div>
+
+    <!-- Collapsible Sidebar Mobile Handler -->
+    <script>
+      const sidebar = document.getElementById("dashboard-sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
+      const toggleBtn = document.getElementById("sidebar-toggle-btn");
+
+      const toggleSidebar = () => {
+        if (sidebar && overlay && toggleBtn) {
+          const isOpen = sidebar.classList.toggle("is-open");
+          overlay.classList.toggle("is-visible", isOpen);
+          toggleBtn.setAttribute("aria-expanded", isOpen.toString());
+          if (isOpen) {
+            document.body.classList.add("overflow-hidden");
+          } else {
+            document.body.classList.remove("overflow-hidden");
+          }
+        }
+      };
+
+      if (toggleBtn) {
+        toggleBtn.addEventListener("click", toggleSidebar);
+      }
+      if (overlay) {
+        overlay.addEventListener("click", toggleSidebar);
+      }
+    </script>
+
     {sessionControls && <script src="../scripts/session-header.ts" />}
   </body>
 </html>
+
+<style>
+  /* ── Structural Layout ── */
+  .dashboard-root {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
+    max-height: 100dvh;
+    width: 100vw;
+    overflow: hidden;
+    background-color: #f5ede3;
+    background-image: linear-gradient(160deg, #fbf8f3 0%, #f0e8db 100%);
+  }
+
+  /* ── Sidebar Layout ── */
+  .dashboard-sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 290px;
+    height: 100%;
+    flex-shrink: 0;
+    z-index: 50;
+    border-right: 1px solid rgba(231, 229, 228, 0.95);
+    background: linear-gradient(180deg, rgba(255, 252, 247, 0.98), rgba(247, 244, 239, 0.96));
+    box-shadow: 4px 0 24px rgba(120, 113, 108, 0.03);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── Sidebar Brand Header ── */
+  .sidebar-brand-wrapper {
+    padding: 1.6rem 1.4rem;
+    border-bottom: 1px solid rgba(231, 229, 228, 0.85);
+  }
+
+  .sidebar-brand-link {
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+    text-decoration: none;
+    min-width: 0;
+  }
+
+  .sidebar-brand-mark {
+    display: flex;
+    height: 2.35rem;
+    width: 2.35rem;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    border-radius: 0.9rem;
+    background: linear-gradient(135deg, rgb(146, 64, 14), rgb(180, 83, 9));
+    color: white;
+    box-shadow: 0 8px 20px rgba(146, 64, 14, 0.22);
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .sidebar-brand-mark span {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 800;
+  }
+
+  .sidebar-brand-link:hover .sidebar-brand-mark {
+    transform: scale(1.05) rotate(-3deg);
+  }
+
+  .sidebar-brand-text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .sidebar-brand-title {
+    font-family: var(--font-display);
+    font-size: 1.05rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: rgb(28, 25, 23);
+    line-height: 1.25;
+  }
+
+  .sidebar-brand-subtitle {
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    line-height: 1;
+    margin-top: 0.1rem;
+    color: rgb(168, 162, 158);
+  }
+
+  /* ── Sidebar Navigation List ── */
+  .sidebar-nav {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 1.5rem 0.85rem;
+    overscroll-behavior: contain;
+  }
+
+  .sidebar-nav-groups-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+
+  .sidebar-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+  }
+
+  .sidebar-group-label {
+    padding-left: 0.8rem;
+    font-size: 0.64rem;
+    font-weight: 800;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: rgb(150, 140, 130);
+    line-height: 1;
+  }
+
+  .sidebar-group-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.22rem;
+  }
+
+  .sidebar-nav-link {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    border-radius: 0.8rem;
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: rgb(87, 83, 78);
+    text-decoration: none;
+    border: 1px solid transparent;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-nav-link:hover {
+    background-color: rgba(255, 255, 255, 0.85);
+    color: rgb(28, 25, 23);
+    transform: translateX(3px);
+  }
+
+  .sidebar-nav-link[data-active="true"] {
+    background-color: rgb(254, 243, 199);
+    border-color: rgba(146, 64, 14, 0.15);
+    color: rgb(146, 64, 14);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(146, 64, 14, 0.04);
+  }
+
+  .sidebar-nav-link[data-active="true"]::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    height: 16px;
+    width: 3px;
+    border-radius: 99px;
+    background: rgb(146, 64, 14);
+  }
+
+  .sidebar-link-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    opacity: 0.85;
+    transition: opacity 0.18s ease;
+  }
+
+  .sidebar-nav-link:hover .sidebar-link-icon {
+    opacity: 1;
+  }
+
+  :global(.sidebar-icon-svg) {
+    width: 1.15rem;
+    height: 1.15rem;
+  }
+
+  .sidebar-nav-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+  }
+
+  /* ── Sidebar Footer (Session Controls) ── */
+  .sidebar-footer {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding: 1.25rem 1.1rem;
+    border-top: 1px solid rgba(231, 229, 228, 0.85);
+    background: linear-gradient(180deg, transparent, rgba(247, 244, 239, 0.99) 15%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    z-index: 10;
+  }
+
+  .sidebar-session-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.25rem;
+  }
+
+  .sidebar-session-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgb(120, 113, 108);
+  }
+
+  .sidebar-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 100%;
+    border-radius: 0.8rem;
+    border: 1px solid rgb(214, 211, 209);
+    background: white;
+    color: rgb(41, 37, 36);
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 0.55rem 0.85rem;
+    transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(28, 25, 23, 0.02);
+  }
+
+  .sidebar-logout-btn:hover {
+    border-color: rgb(190, 18, 60);
+    color: rgb(190, 18, 60);
+    background-color: rgb(254, 242, 242);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(190, 18, 60, 0.06);
+  }
+
+  .sidebar-logout-btn:active {
+    transform: translateY(0);
+  }
+
+  /* ── Right Panel Layout ── */
+  .dashboard-main-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  /* ── Top Utility Header Bar ── */
+  .dashboard-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 3.5rem;
+    padding: 0 1.5rem;
+    background: rgba(255, 252, 247, 0.9);
+    backdrop-filter: blur(16px);
+    border-bottom: 1px solid rgba(231, 229, 228, 0.85);
+    z-index: 30;
+    flex-shrink: 0;
+  }
+
+  .top-bar-left {
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    min-width: 0;
+  }
+
+  .sidebar-toggle-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.6rem;
+    border: 1px solid rgba(214, 211, 209, 0.85);
+    background: white;
+    color: rgb(87, 83, 78);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    flex-shrink: 0;
+  }
+
+  .sidebar-toggle-btn:hover {
+    border-color: rgb(180, 83, 9);
+    color: rgb(146, 64, 14);
+    background-color: rgba(254, 243, 199, 0.25);
+  }
+
+  .top-bar-breadcrumbs {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    font-size: 0.8rem;
+    min-width: 0;
+  }
+
+  .breadcrumbs-category {
+    font-weight: 500;
+    color: rgb(120, 113, 108);
+    white-space: nowrap;
+  }
+
+  .breadcrumbs-separator {
+    color: rgb(214, 211, 209);
+    user-select: none;
+  }
+
+  .breadcrumbs-current {
+    font-family: var(--font-display);
+    font-size: 0.86rem;
+    font-weight: 600;
+    color: rgb(28, 25, 23);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .top-bar-right {
+    display: flex;
+    align-items: center;
+  }
+
+  .top-bar-badge-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(214, 211, 209, 0.8);
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 0.35rem 0.75rem;
+    box-shadow: 0 2px 8px rgba(120, 113, 108, 0.02);
+  }
+
+  .pulse-dot {
+    position: relative;
+    display: inline-block;
+    height: 0.45rem;
+    width: 0.45rem;
+    border-radius: 9999px;
+    background-color: var(--color-success);
+  }
+
+  .pulse-dot::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: inline-block;
+    height: 100%;
+    width: 100%;
+    border-radius: 9999px;
+    background-color: var(--color-success);
+    opacity: 0.65;
+    animation: badge-pulse 1.8s ease-in-out infinite;
+  }
+
+  .badge-text {
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: rgb(87, 83, 78);
+  }
+
+  @keyframes badge-pulse {
+    0% {
+      transform: scale(1);
+      opacity: 0.65;
+    }
+    100% {
+      transform: scale(2.8);
+      opacity: 0;
+    }
+  }
+
+  /* ── Content Scroll Workspace ── */
+  .dashboard-content-wrapper {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .dashboard-content-scroll {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable both-edges;
+  }
+
+  .dashboard-content-scroll::-webkit-scrollbar {
+    width: 0.65rem;
+  }
+
+  .dashboard-content-scroll::-webkit-scrollbar-thumb {
+    border-radius: 9999px;
+    background: rgba(120, 113, 108, 0.28);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
+  .dashboard-content-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(120, 113, 108, 0.45);
+  }
+
+  .dashboard-content-body {
+    display: flex;
+    min-height: 100%;
+    flex-direction: column;
+    padding-top: 1rem;
+    padding-bottom: 1.8rem;
+  }
+
+  /* ── Drawer Overlay ── */
+  .sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(41, 37, 36, 0.4);
+    backdrop-filter: blur(8px);
+    z-index: 45;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .sidebar-overlay.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  /* ── Frame View mode ── */
+  @media (min-width: 1024px) {
+    .dashboard-content-scroll[data-content-mode="frame"] {
+      overflow: hidden;
+    }
+
+    .dashboard-content-body[data-content-mode="frame"] {
+      height: 100%;
+      min-height: 0;
+      overflow: hidden;
+    }
+  }
+
+  /* ── Responsive breakpoints ── */
+  @media (max-width: 1023px) {
+    .dashboard-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      transform: translateX(-100%);
+    }
+
+    .dashboard-sidebar.is-open {
+      transform: translateX(0);
+      box-shadow: 12px 0 40px rgba(41, 37, 36, 0.15);
+    }
+
+    .sidebar-overlay {
+      display: block;
+    }
+
+    .sidebar-toggle-btn {
+      display: flex;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .dashboard-top-bar {
+      padding: 0 1rem;
+    }
+
+    .top-bar-right {
+      display: none;
+    }
+  }
+</style>

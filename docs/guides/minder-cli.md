@@ -193,7 +193,7 @@ Or target a specific deployment directory:
 minder update --component server --install-dir ~/.minder/current
 ```
 
-The server update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR`, `MINDER_PORT`, and `MILVUS_PORT`, then prints rollback guidance for the previous release.
+The server update flow preserves the current deployment directory plus key runtime env values such as `MINDER_MODELS_DIR` and `MINDER_PORT`, then prints rollback guidance for the previous release.
 
 On Windows, `update --component server` downloads and runs the PowerShell release installer (`install-minder-<tag>.ps1`) through `powershell.exe -ExecutionPolicy Bypass`. On macOS and Linux it downloads and runs the bash installer (`install-minder-<tag>.sh`). Both installers publish `docker-compose.yml`, `Caddyfile`, and a refreshed `.env` into the deployment directory, then refresh the `~/.minder/current` pointer used by `check-update`.
 

@@ -4,5 +4,18 @@
     "paths": {
       "@/*": ["./src/dashboard/src/*"]
     }
-  }
+  },
+  "include": [
+    ".astro/types.d.ts",
+    "src/dashboard/src/**/*.astro",
+    "src/dashboard/src/**/*.ts",
+    "src/dashboard/src/**/*.tsx",
+    "src/dashboard/src/**/*.d.ts",
+    "astro.config.mjs"
+  ],
+  "exclude": [
+    "ref",
+    "src/dashboard/dist",
+    "node_modules"
+  ]
 }

@@ -14,6 +14,7 @@ import {
   type HealthStatus,
   type MetricsSummaryPayload,
 } from "../lib/api/admin";
+import { escapeHtml } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // DOM helpers
@@ -58,14 +59,7 @@ function formatRelativeTime(iso: string | null): string {
   return d.toLocaleDateString();
 }
 
-function escapeHtml(s: unknown): string {
-  return String(s ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+
 
 // ---------------------------------------------------------------------------
 // Bootstrap — verify admin session or redirect

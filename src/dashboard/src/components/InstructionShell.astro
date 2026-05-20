@@ -1,8 +1,6 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import PageHero from "./ui/PageHero.astro";
-import Card from "./ui/Card.astro";
-import Button from "./ui/Button.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
 
 // Source of truth for the Minder agent prompt — identical to what was distributed
 // via `minder install agent`. Editing here updates all IDEs simultaneously.
@@ -249,7 +247,7 @@ const ideTargets: IdeTarget[] = [
 // Serialize for client-side copy — embed as JSON in a script tag to avoid
 // HTML attribute encoding issues with large multi-line content.
 const ideTargetsJson = JSON.stringify(
-  ideTargets.map(({ id, content }) => ({ id, content }))
+  ideTargets.map(({ id, content }) => ({ id, content })),
 );
 ---
 
@@ -268,90 +266,110 @@ const ideTargetsJson = JSON.stringify(
   />
 
   <!-- Quick copy top bar -->
-  <section class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-4 mb-6">
+  <section
+    class="shell-card flex flex-wrap items-center justify-between gap-4 px-6 py-4 mb-6"
+  >
     <div>
       <p class="text-sm font-medium text-stone-900">Full prompt</p>
       <p class="mt-0.5 text-sm text-stone-600">
         Copy the raw prompt without any IDE-specific front matter.
       </p>
     </div>
-    <button
-      id="copy-raw-prompt"
-      type="button"
-      class="action-pill"
-    >
+    <button id="copy-raw-prompt" type="button" class="action-pill">
       Copy raw prompt
     </button>
   </section>
 
   <!-- Per-IDE cards -->
   <div class="grid gap-4">
-    {ideTargets.map((target) => (
-      <details
-        class="snippet-card rounded-3xl border border-stone-300 bg-stone-50/80 p-5 open:border-amber-300 open:bg-amber-50/40"
-        id={`ide-card-${target.id}`}
-      >
-        <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
-          <div class="flex flex-wrap items-center gap-4">
-            <div>
-              <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
-                {target.title}
-              </h3>
-              <div class="mt-2 flex flex-wrap items-center gap-3">
-                <code class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-mono text-stone-700">
-                  {target.path}
-                </code>
-                <span class="inline-flex items-center rounded-full bg-white border border-stone-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">
-                  {target.scope}
-                </span>
+    {
+      ideTargets.map((target) => (
+        <details
+          class="snippet-card rounded-3xl border border-stone-300 bg-stone-50/80 p-5 open:border-amber-300 open:bg-amber-50/40"
+          id={`ide-card-${target.id}`}
+        >
+          <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-4">
+              <div>
+                <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">
+                  {target.title}
+                </h3>
+                <div class="mt-2 flex flex-wrap items-center gap-3">
+                  <code class="rounded-lg bg-stone-100 px-2 py-1 text-xs font-mono text-stone-700">
+                    {target.path}
+                  </code>
+                  <span class="inline-flex items-center rounded-full bg-white border border-stone-200 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-stone-600">
+                    {target.scope}
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-          <div class="flex items-center gap-3">
-            <button
-              type="button"
-              class="action-pill ide-copy-btn"
-              data-ide-id={target.id}
-              onclick="event.stopPropagation()"
-            >
-              Copy for {target.title}
-            </button>
-            <span class="action-pill" data-toggle-label={target.id}>Expand</span>
-          </div>
-        </summary>
-
-        <div class="mt-4 border-t border-stone-200 pt-4 grid gap-4">
-          <p class="text-sm leading-6 text-stone-600">{target.note}</p>
-
-          {target.frontMatter && (
-            <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-              <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-900 mb-2">
-                Front matter required
-              </p>
-              <pre class="overflow-x-auto whitespace-pre-wrap rounded-xl bg-white px-4 py-3 text-xs leading-6 text-stone-700 font-mono">{target.frontMatter}</pre>
+            <div class="flex items-center gap-3">
+              <button
+                type="button"
+                class="action-pill ide-copy-btn"
+                data-ide-id={target.id}
+                onclick="event.stopPropagation()"
+              >
+                Copy for {target.title}
+              </button>
+              <span class="action-pill" data-toggle-label={target.id}>
+                Expand
+              </span>
             </div>
-          )}
+          </summary>
 
-          <pre class="snippet-pre overflow-x-auto whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-stone-700 max-h-96">{target.content}</pre>
-        </div>
-      </details>
-    ))}
+          <div class="mt-4 border-t border-stone-200 pt-4 grid gap-4">
+            <p class="text-sm leading-6 text-stone-600">{target.note}</p>
+
+            {target.frontMatter && (
+              <div class="rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
+                <p class="text-xs font-semibold uppercase tracking-[0.18em] text-amber-900 mb-2">
+                  Front matter required
+                </p>
+                <pre class="overflow-x-auto whitespace-pre-wrap rounded-xl bg-white px-4 py-3 text-xs leading-6 text-stone-700 font-mono">
+                  {target.frontMatter}
+                </pre>
+              </div>
+            )}
+
+            <pre class="snippet-pre overflow-x-auto whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-stone-700 max-h-96">
+              {target.content}
+            </pre>
+          </div>
+        </details>
+      ))
+    }
   </div>
 
   <!-- Prompt content embedded as JSON for safe client-side access -->
-  <script id="ide-targets-data" type="application/json" set:html={ideTargetsJson} />
-  <script id="raw-prompt-data" type="application/json" set:html={JSON.stringify(MINDER_AGENT_PROMPT)} />
+  <script
+    id="ide-targets-data"
+    type="application/json"
+    set:html={ideTargetsJson}
+  />
+  <script
+    id="raw-prompt-data"
+    type="application/json"
+    set:html={JSON.stringify(MINDER_AGENT_PROMPT)}
+  />
 
   <script>
     // Toggle labels
-    document.querySelectorAll<HTMLDetailsElement>("details[id^='ide-card-']").forEach((card) => {
-      const id = card.id.replace("ide-card-", "");
-      const label = card.querySelector<HTMLElement>(`[data-toggle-label="${id}"]`);
-      if (!label) return;
-      const update = () => { label.textContent = card.open ? "Collapse" : "Expand"; };
-      update();
-      card.addEventListener("toggle", update);
-    });
+    document
+      .querySelectorAll<HTMLDetailsElement>("details[id^='ide-card-']")
+      .forEach((card) => {
+        const id = card.id.replace("ide-card-", "");
+        const label = card.querySelector<HTMLElement>(
+          `[data-toggle-label="${id}"]`,
+        );
+        if (!label) return;
+        const update = () => {
+          label.textContent = card.open ? "Collapse" : "Expand";
+        };
+        update();
+        card.addEventListener("toggle", update);
+      });
 
     // Load content map
     const targetsEl = document.getElementById("ide-targets-data");
@@ -360,41 +378,62 @@ const ideTargetsJson = JSON.stringify(
 
     if (targetsEl) {
       try {
-        const targets = JSON.parse(targetsEl.textContent ?? "[]") as Array<{ id: string; content: string }>;
+        const targets = JSON.parse(targetsEl.textContent ?? "[]") as Array<{
+          id: string;
+          content: string;
+        }>;
         for (const t of targets) contentMap[t.id] = t.content;
-      } catch { /* ignore */ }
+      } catch {
+        /* ignore */
+      }
     }
 
     let rawPrompt = "";
     if (rawPromptEl) {
-      try { rawPrompt = JSON.parse(rawPromptEl.textContent ?? '""') as string; } catch { /* ignore */ }
+      try {
+        rawPrompt = JSON.parse(rawPromptEl.textContent ?? '""') as string;
+      } catch {
+        /* ignore */
+      }
     }
 
-    const copyText = async (text: string, btn: HTMLButtonElement, successLabel: string) => {
+    const copyText = async (
+      text: string,
+      btn: HTMLButtonElement,
+      successLabel: string,
+    ) => {
       const original = btn.textContent ?? "";
       try {
         await navigator.clipboard.writeText(text);
         btn.textContent = "Copied!";
-        window.setTimeout(() => { btn.textContent = original; }, 1500);
+        window.setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
       } catch {
         btn.textContent = "Copy failed";
-        window.setTimeout(() => { btn.textContent = original; }, 1500);
+        window.setTimeout(() => {
+          btn.textContent = original;
+        }, 1500);
       }
     };
 
     // IDE copy buttons
-    document.querySelectorAll<HTMLButtonElement>(".ide-copy-btn").forEach((btn) => {
-      btn.addEventListener("click", async () => {
-        const id = btn.dataset.ideId ?? "";
-        const content = contentMap[id] ?? "";
-        if (content) await copyText(content, btn, "Copied!");
+    document
+      .querySelectorAll<HTMLButtonElement>(".ide-copy-btn")
+      .forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const id = btn.dataset.ideId ?? "";
+          const content = contentMap[id] ?? "";
+          if (content) await copyText(content, btn, "Copied!");
+        });
       });
-    });
 
     // Raw prompt copy
-    document.getElementById("copy-raw-prompt")?.addEventListener("click", async (e) => {
-      const btn = e.currentTarget as HTMLButtonElement;
-      await copyText(rawPrompt, btn, "Copied!");
-    });
+    document
+      .getElementById("copy-raw-prompt")
+      ?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        await copyText(rawPrompt, btn, "Copied!");
+      });
   </script>
 </DashboardLayout>

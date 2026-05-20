@@ -1,0 +1,22 @@
+---
+interface Props {
+  as?: "section" | "article" | "aside" | "div";
+  padding?: "none" | "sm" | "md" | "lg";
+  class?: string;
+  id?: string;
+}
+
+const {
+  as: Tag = "section",
+  padding = "md",
+  class: className = "",
+  id,
+} = Astro.props;
+
+const padClass =
+  padding === "none" ? "" : padding === "sm" ? "p-3" : padding === "lg" ? "p-5" : "p-4";
+---
+
+<Tag id={id} class={`shell-card ${padClass} ${className}`}>
+  <slot />
+</Tag>

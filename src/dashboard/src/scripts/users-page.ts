@@ -8,6 +8,7 @@ import {
   type UserDetailPayload,
   type UserPayload,
 } from "../lib/api/admin";
+import { escapeHtml, showToast } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // Element refs
@@ -52,7 +53,6 @@ const cancelEditButton = document.querySelector("#cancel-edit-user");
 const showInactiveToggle = document.querySelector(
   "#show-inactive-toggle",
 ) as HTMLInputElement | null;
-const toastRegion = document.querySelector("#dashboard-toast-region");
 
 // Create User panel toggle
 const toggleCreateUserBtn = document.querySelector("#toggle-create-user");
@@ -64,48 +64,11 @@ let cachedUsers: UserPayload[] = [];
 // Cache fetched user details (incl. clients) keyed by user ID
 const cachedDetails: Record<string, UserDetailPayload> = {};
 
-// ---------------------------------------------------------------------------
-// Toast
-// ---------------------------------------------------------------------------
-
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 
 const setCreateUserStatus = (
   message: string,

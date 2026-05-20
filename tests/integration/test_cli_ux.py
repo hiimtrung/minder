@@ -197,8 +197,8 @@ async def test_cli_routes_dashboard_flow_by_setup_and_session_state(
     assert login_page.status_code == 200
     assert "dashboard login" in login_page.text
 
-    assert authed_root.status_code == 303
-    assert authed_root.headers["location"] == "/dashboard/clients"
+    assert authed_root.status_code == 200
+    assert "dashboard root" in authed_root.text
     assert authed_clients.status_code == 200
     assert "dashboard clients" in authed_clients.text
 

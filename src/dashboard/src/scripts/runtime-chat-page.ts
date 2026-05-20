@@ -16,6 +16,9 @@ import {
   type WorkflowPayload,
 } from "../lib/api/admin";
 
+import "./components/tip-element";
+import { escapeHtml } from "./ui-utils";
+
 const formEl = document.querySelector(
   "#runtime-chat-form",
 ) as HTMLFormElement | null;
@@ -123,13 +126,7 @@ const syncQueryHeight = () => {
     queryEl.scrollHeight > maxHeight ? "auto" : "hidden";
 };
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+
 
 const jsonPreview = (value: unknown): string => {
   try {
@@ -363,9 +360,9 @@ const renderTools = (tools: ToolInfo[]) => {
   toolsEl.innerHTML = tools
     .map(
       (tool) => `
-        <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-          <p class="text-sm font-medium text-stone-900">${escapeHtml(tool.name)}</p>
-          <p class="mt-1 text-sm leading-6 text-stone-600">${escapeHtml(tool.description)}</p>
+        <article class="shell-card u-runtime-tool-card">
+          <p class="u-runtime-tool-name">${escapeHtml(tool.name)}</p>
+          <minder-tip>${escapeHtml(String(tool.description || ""))}</minder-tip>
         </article>
       `,
     )
@@ -445,9 +442,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
           const score =
             typeof source.score === "number" ? source.score.toFixed(2) : null;
           return `
-            <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-              <p class="text-sm font-medium text-stone-900 break-words">${escapeHtml(path)}</p>
-              ${score ? `<p class="mt-1 text-xs text-stone-500">score ${escapeHtml(score)}</p>` : ""}
+            <article class="shell-card u-runtime-panel u-runtime-panel-soft">
+              <p class="u-runtime-panel-title">${escapeHtml(path)}</p>
+              ${score ? `<p class="u-runtime-panel-meta">score ${escapeHtml(score)}</p>` : ""}
               <pre class="snippet-pre mt-3 text-xs">${escapeHtml(jsonPreview(source))}</pre>
             </article>
           `;
@@ -464,7 +461,7 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       transitionsEl.innerHTML = payload.transition_log
         .map(
           (item) => `
-            <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
+            <article class="shell-card u-runtime-panel">
               <pre class="snippet-pre text-xs">${escapeHtml(jsonPreview(item))}</pre>
             </article>
           `,
@@ -481,9 +478,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       actionsEl.innerHTML = payload.agent_actions
         .map(
           (action) => `
-            <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-              <p class="text-sm font-medium text-stone-900">${escapeHtml(String(action.tool ?? "unknown_tool"))}</p>
-              <p class="mt-1 text-xs text-stone-500">${escapeHtml(String(action.mode ?? "unknown"))} · ${escapeHtml(String(action.status ?? "unknown"))}</p>
+            <article class="shell-card u-runtime-panel">
+              <p class="u-runtime-panel-title">${escapeHtml(String(action.tool ?? "unknown_tool"))}</p>
+              <p class="u-runtime-panel-meta">${escapeHtml(String(action.mode ?? "unknown"))} · ${escapeHtml(String(action.status ?? "unknown"))}</p>
               <pre class="snippet-pre mt-3 text-xs">${escapeHtml(jsonPreview(action))}</pre>
             </article>
           `,
@@ -512,9 +509,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
     ]
       .map(
         ([label, value]) => `
-          <div class="rounded-2xl border border-stone-200 bg-white px-3 py-2">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">${escapeHtml(String(label))}</p>
-            <p class="mt-1 break-words text-sm text-stone-800">${escapeHtml(String(value))}</p>
+          <div class="shell-card u-runtime-summary-card">
+            <p class="u-runtime-summary-label">${escapeHtml(String(label))}</p>
+            <p class="u-runtime-summary-value">${escapeHtml(String(value))}</p>
           </div>
         `,
       )

@@ -3,7 +3,7 @@ from __future__ import annotations
 import base64
 from collections.abc import AsyncGenerator, Sequence
 import zlib
-from typing import Any
+from typing import Any, cast
 
 from langgraph.checkpoint.base import (
     BaseCheckpointSaver,
@@ -46,7 +46,6 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
         data = await self._store.get_checkpoint(thread_id)
         if data is None:
             return None
-
         metadata = dict(data.get("metadata", {}))
         type_name = metadata.pop("_checkpoint_type", "msgpack")
         payload = self._load_payload(data)
@@ -57,7 +56,7 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
         return CheckpointTuple(
             config=config,
             checkpoint=checkpoint,
-            metadata=metadata,
+            metadata=cast(CheckpointMetadata, metadata),
             parent_config=None,  # We don't track full history trees in simple setup
         )
 
@@ -133,7 +132,7 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
                     }
                 },
                 checkpoint=checkpoint,
-                metadata=metadata,
+                metadata=cast(CheckpointMetadata, metadata),
                 parent_config=None,
             )
 

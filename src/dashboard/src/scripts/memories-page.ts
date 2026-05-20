@@ -13,8 +13,10 @@ import {
   updatePagerButtons,
 } from "./catalog-controls";
 import { showDangerConfirm } from "./modal-controller";
+import { escapeHtml, showToast } from "./ui-utils";
 
 const registryEl = document.querySelector("#memory-registry");
+const formDialogEl = document.querySelector("#memory-form-dialog") as HTMLDialogElement | null;
 const formEl = document.querySelector("#memory-form") as HTMLFormElement | null;
 const memoryIdEl = document.querySelector(
   "#memory-id",
@@ -41,7 +43,6 @@ const pageNextButton = document.querySelector("#memory-page-next");
 const quickSearchLoadingEl = document.querySelector(
   "#memory-quick-search-loading",
 );
-const toastRegion = document.querySelector("#dashboard-toast-region");
 
 const PAGE_SIZE = 20;
 
@@ -51,13 +52,6 @@ let selectedMemoryId: string | null = null;
 let currentQuery = "";
 let currentPage = 1;
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 
 const splitCsv = (value: string): string[] =>
   value
@@ -77,32 +71,6 @@ const setStatus = (
   else statusEl.classList.add("text-stone-600");
 };
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
 
 const currentDraft = () => ({
   title: titleEl?.value.trim() ?? "",
@@ -110,6 +78,14 @@ const currentDraft = () => ({
   language: languageEl?.value.trim() ?? "markdown",
   tags: splitCsv(tagsEl?.value ?? ""),
 });
+
+const openFormDialog = (memory?: MemoryPayload) => {
+  const eyebrow = document.querySelector("#memory-dialog-eyebrow");
+  const titleHeading = document.querySelector("#memory-dialog-title");
+  if (eyebrow) eyebrow.textContent = memory ? "Edit memory" : "New memory";
+  if (titleHeading) titleHeading.textContent = memory ? (memory.title || "Memory draft") : "Memory draft";
+  formDialogEl?.showModal();
+};
 
 const fillForm = (memory?: MemoryPayload) => {
   selectedMemoryId = memory?.id ?? null;
@@ -198,6 +174,7 @@ const renderRegistry = () => {
         );
         if (!memory) return;
         fillForm(memory);
+        openFormDialog(memory);
         renderRegistry();
       });
     });
@@ -253,11 +230,27 @@ document
   });
 
 document
+  .querySelector("#memory-new-button")
+  ?.addEventListener("click", () => {
+    fillForm();
+    openFormDialog();
+  });
+
+document
   .querySelector("#memory-reset-button")
   ?.addEventListener("click", () => {
     fillForm();
-    renderRegistry();
   });
+
+document
+  .querySelector("#memory-close-dialog")
+  ?.addEventListener("click", () => {
+    formDialogEl?.close();
+  });
+
+formDialogEl?.addEventListener("click", (event) => {
+  if (event.target === formDialogEl) formDialogEl.close();
+});
 
 pagePrevButton?.addEventListener("click", () => {
   currentPage = Math.max(1, currentPage - 1);
@@ -300,6 +293,7 @@ formEl?.addEventListener("submit", async (event) => {
       ? await updateMemory(currentMemoryId, draft)
       : await createMemory(draft);
     fillForm(saved);
+    formDialogEl?.close();
     await syncVisibleMemories();
     showToast(
       `${isUpdate ? "Saved" : "Created"} memory ${saved.title}.`,
@@ -314,5 +308,4 @@ formEl?.addEventListener("submit", async (event) => {
   }
 });
 
-fillForm();
 void syncVisibleMemories();

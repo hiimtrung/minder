@@ -9,11 +9,11 @@ It combines an LLM inference stack, a persistent memory and workflow engine, a b
 
 ## What's in this repo
 
-| Component | Description |
-|-----------|-------------|
-| **Minder Server** | MCP gateway — SSE + streamable HTTP + stdio, RAG pipeline, workflow engine, memory, admin HTTP |
-| **Minder Dashboard** | Astro admin console — client management, onboarding snippets, agent instructions, skill catalog, chat |
-| **Minder CLI** (`minder-cli` on PyPI) | Edge CLI — repo sync, MCP config install, login, self-update |
+| Component                             | Description                                                                                           |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| **Minder Server**                     | MCP gateway — SSE + streamable HTTP + stdio, RAG pipeline, workflow engine, memory, admin HTTP        |
+| **Minder Dashboard**                  | Astro admin console — client management, onboarding snippets, agent instructions, skill catalog, chat |
+| **Minder CLI** (`minder-cli` on PyPI) | Edge CLI — repo sync, MCP config install, login, self-update                                          |
 
 ## Architecture
 
@@ -22,17 +22,17 @@ Developer workstation
   ├── minder-cli          repo sync, MCP config
   └── AI agent (IDE)  ──► Minder Server :8800
                               │
-                    ┌─────────┼──────────┐
-                    │         │          │
-                Qdrant     SQLite     llama-cpp-python
-              (vectors)   (graph/    (LLM + embedding,
-                           memory)    GGUF on host)
+                    ┌──────────────┼──────────────────────┐
+                    │              │                      │
+                 Qdrant   SQLite / PostgreSQL    llama-cpp-python
+          (default vector +   (optional relational/   (LLM + embedding,
+           operational data)    graph adapters)        GGUF on host)
 ```
 
 - **Transport**: SSE (`/sse`), streamable HTTP (`/mcp`), stdio
 - **LLM inference**: llama-cpp-python with GGUF models auto-downloaded from HuggingFace (Metal on Mac, CPU elsewhere)
 - **Vector search**: Qdrant for semantic retrieval
-- **Operational storage**: SQLite for graph, memory, sessions, and audit
+- **Operational storage**: Qdrant by default, with optional SQLite/PostgreSQL adapters for relational and graph workloads
 
 ## Quick Start
 
@@ -86,33 +86,33 @@ minder sync
 
 When connected, Minder exposes these tools to your AI agents:
 
-| Tool | Description |
-|------|-------------|
-| `minder_query` | Full RAG pipeline: retrieve → reason → verify → respond |
-| `minder_search_code` | Semantic code search across indexed repos |
-| `minder_search_errors` | Look up past error patterns |
-| `minder_find_impact` | Find what a change might affect |
-| `minder_memory_store` / `minder_memory_recall` | Persistent engineering memory |
-| `minder_session_create` / `minder_session_save` / `minder_session_restore` | Cross-machine session continuity |
-| `minder_workflow_get` / `minder_workflow_step` / `minder_workflow_guard` | Workflow governance |
-| `minder_skill_store` / `minder_skill_recall` | Reusable pattern catalog |
-| `minder_agent_list` / `minder_agent_get` | SubAgent registry |
+| Tool                                                                       | Description                                             |
+| -------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `minder_query`                                                             | Full RAG pipeline: retrieve → reason → verify → respond |
+| `minder_search_code`                                                       | Semantic code search across indexed repos               |
+| `minder_search_errors`                                                     | Look up past error patterns                             |
+| `minder_find_impact`                                                       | Find what a change might affect                         |
+| `minder_memory_store` / `minder_memory_recall`                             | Persistent engineering memory                           |
+| `minder_session_create` / `minder_session_save` / `minder_session_restore` | Cross-machine session continuity                        |
+| `minder_workflow_get` / `minder_workflow_step` / `minder_workflow_guard`   | Workflow governance                                     |
+| `minder_skill_store` / `minder_skill_recall`                               | Reusable pattern catalog                                |
+| `minder_agent_list` / `minder_agent_get`                                   | SubAgent registry                                       |
 
 ## Dashboard Pages
 
-| Route | Description |
-|-------|-------------|
-| `/dashboard` | Home — stats and quick nav |
-| `/dashboard/clients` | Create clients, copy MCP snippets |
-| `/dashboard/instruction` | Agent orchestration rules — copy for Claude Code, Cursor, VS Code, Gemini, Codex |
-| `/dashboard/sessions` | LLM session management |
-| `/dashboard/memories` | Persistent memory browser |
-| `/dashboard/skills` | Skill / pattern catalog |
-| `/dashboard/agents` | SubAgent registry |
-| `/dashboard/chat` | Browser-based runtime chat |
-| `/dashboard/repositories` | Repo graph explorer |
-| `/dashboard/workflows` | Workflow definitions |
-| `/dashboard/observability` | Audit and trace |
+| Route                      | Description                                                                      |
+| -------------------------- | -------------------------------------------------------------------------------- |
+| `/dashboard`               | Home — stats and quick nav                                                       |
+| `/dashboard/clients`       | Create clients, copy MCP snippets                                                |
+| `/dashboard/instruction`   | Agent orchestration rules — copy for Claude Code, Cursor, VS Code, Gemini, Codex |
+| `/dashboard/sessions`      | LLM session management                                                           |
+| `/dashboard/memories`      | Persistent memory browser                                                        |
+| `/dashboard/skills`        | Skill / pattern catalog                                                          |
+| `/dashboard/agents`        | SubAgent registry                                                                |
+| `/dashboard/chat`          | Browser-based runtime chat                                                       |
+| `/dashboard/repositories`  | Repo graph explorer                                                              |
+| `/dashboard/workflows`     | Workflow definitions                                                             |
+| `/dashboard/observability` | Audit and trace                                                                  |
 
 ## Documentation
 

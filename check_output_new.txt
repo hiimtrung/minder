@@ -1,0 +1,170 @@
+$ astro check
+09:53:05 [@astrojs/node] Enabling sessions with filesystem storage
+09:53:05 [types] Generated 30ms
+09:53:05 [check] Getting diagnostics for Astro files in /Users/trungtran/ai-agents/minder...
+[96msrc/dashboard/src/components/AgentRegistryShell.astro[0m:[93m142[0m:[93m31[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m142[0m         <Button type="submit" form="create-agent-form" variant="primary" class="flex-1 min-w-[180px]">
+[7m   [0m [91m                              ~~~~[0m
+
+[96msrc/dashboard/src/components/ClientRegistryShell.astro[0m:[93m131[0m:[93m11[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m131[0m           form="create-client-form"
+[7m   [0m [91m          ~~~~[0m
+
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m5[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'Button' is declared but its value is never read.
+
+[7m5[0m import Button from "./ui/Button.astro";
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m4[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'Card' is declared but its value is never read.
+
+[7m4[0m import Card from "./ui/Card.astro";
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m315[0m:[93m24[0m - [93mwarning[0m[90m ts(6385): [0m'event' is deprecated.
+
+[7m315[0m               onclick="event.stopPropagation()"
+[7m   [0m [93m                       ~~~~~[0m
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m373[0m:[93m67[0m - [93mwarning[0m[90m ts(6133): [0m'successLabel' is declared but its value is never read.
+
+[7m373[0m     const copyText = async (text: string, btn: HTMLButtonElement, successLabel: string) => {
+[7m   [0m [93m                                                                  ~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m343[0m:[93m11[0m - [93mwarning[0m[90m astro(4000): [0mThis script will be treated as if it has the `is:inline` directive because it contains an attribute. Therefore, features that require processing (e.g. using TypeScript or npm packages in the script) are unavailable.
+
+See docs for more details: https://docs.astro.build/en/guides/client-side-scripts/#script-processing.
+
+Add the `is:inline` directive explicitly to silence this hint.
+
+[7m343[0m   <script id="raw-prompt-data" type="application/json" set:html={JSON.stringify(MINDER_AGENT_PROMPT)} />
+[7m   [0m [93m          ~~[0m
+[96msrc/dashboard/src/components/InstructionShell.astro[0m:[93m342[0m:[93m11[0m - [93mwarning[0m[90m astro(4000): [0mThis script will be treated as if it has the `is:inline` directive because it contains an attribute. Therefore, features that require processing (e.g. using TypeScript or npm packages in the script) are unavailable.
+
+See docs for more details: https://docs.astro.build/en/guides/client-side-scripts/#script-processing.
+
+Add the `is:inline` directive explicitly to silence this hint.
+
+[7m342[0m   <script id="ide-targets-data" type="application/json" set:html={ideTargetsJson} />
+[7m   [0m [93m          ~~[0m
+
+[96msrc/dashboard/src/components/MemoryRegistryShell.astro[0m:[93m117[0m:[93m31[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m117[0m         <Button type="submit" form="memory-form" variant="primary" class="flex-1 min-w-[180px]">
+[7m   [0m [91m                              ~~~~[0m
+
+[96msrc/dashboard/src/components/ObservabilityShell.astro[0m:[93m7[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'Input' is declared but its value is never read.
+
+[7m7[0m import Input from "./ui/Input.astro";
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/components/PromptRegistryShell.astro[0m:[93m145[0m:[93m31[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m145[0m         <Button type="submit" form="prompt-form" variant="primary" class="flex-1 min-w-[180px]">
+[7m   [0m [91m                              ~~~~[0m
+
+[96msrc/dashboard/src/components/SessionDetailShell.astro[0m:[93m11[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'sessionId' is declared but its value is never read.
+
+[7m11[0m const { sessionId = "" } = Astro.props;
+[7m  [0m [93m      ~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/components/SkillRegistryShell.astro[0m:[93m170[0m:[93m11[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m170[0m           form="skill-form"
+[7m   [0m [91m          ~~~~[0m
+
+[96msrc/dashboard/src/components/StepModal.astro[0m:[93m10[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'idPrefix' is declared but its value is never read.
+
+[7m10[0m const { idPrefix = "" } = Astro.props;
+[7m  [0m [93m      ~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/components/WorkflowRegistryShell.astro[0m:[93m106[0m:[93m31[0m - [91merror[0m[90m ts(2322): [0mType '{ children: string; type: "submit"; form: string; variant: "primary"; class: string; }' is not assignable to type 'IntrinsicAttributes & Props'.
+  Property 'form' does not exist on type 'IntrinsicAttributes & Props'.
+
+[7m106[0m         <Button type="submit" form="create-workflow-form" variant="primary" class="flex-1 min-w-[180px]">
+[7m   [0m [91m                              ~~~~[0m
+
+[96msrc/dashboard/src/components/ui/Card.astro[0m:[93m6[0m:[93m11[0m - [93mwarning[0m[90m ts(6196): [0m'Props' is declared but never used.
+
+[7m6[0m interface Props {
+[7m [0m [93m          ~~~~~[0m
+
+[96msrc/dashboard/src/scripts/memories-page.ts[0m:[93m11[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'paginateItems' is declared but its value is never read.
+
+[7m11[0m   paginateItems,
+[7m  [0m [93m  ~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/memories-page.ts[0m:[93m4[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'listMemories' is declared but its value is never read.
+
+[7m4[0m   listMemories,
+[7m [0m [93m  ~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/observability-page.ts[0m:[93m102[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'panels' is declared but its value is never read.
+
+[7m102[0m const panels = {
+[7m   [0m [93m      ~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/prompts-page.ts[0m:[93m12[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'paginateItems' is declared but its value is never read.
+
+[7m12[0m   paginateItems,
+[7m  [0m [93m  ~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/prompts-page.ts[0m:[93m4[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'listPrompts' is declared but its value is never read.
+
+[7m4[0m   listPrompts,
+[7m [0m [93m  ~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/repositories-page.ts[0m:[93m47[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'radiusForType' is declared but its value is never read.
+
+[7m47[0m   radiusForType,
+[7m  [0m [93m  ~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/repositories-page.ts[0m:[93m40[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'setGraphFullWidth' is declared but its value is never read.
+
+[7m40[0m   setGraphFullWidth,
+[7m  [0m [93m  ~~~~~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/repositories-page.ts[0m:[93m1[0m:[93m1[0m - [93mwarning[0m[90m ts(6133): [0m'd3' is declared but its value is never read.
+
+[7m1[0m import * as d3 from "d3";
+[7m [0m [93m~~~~~~~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/runtime-chat-page.ts[0m:[93m71[0m:[93m5[0m - [93mwarning[0m[90m ts(6133): [0m'conversationSession' is declared but its value is never read.
+
+[7m71[0m let conversationSession: RuntimeConversationPayload["session"] | null = null;
+[7m  [0m [93m    ~~~~~~~~~~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/skills-page.ts[0m:[93m19[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'paginateItems' is declared but its value is never read.
+
+[7m19[0m   paginateItems,
+[7m  [0m [93m  ~~~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/skills-page.ts[0m:[93m7[0m:[93m3[0m - [93mwarning[0m[90m ts(6133): [0m'listSkills' is declared but its value is never read.
+
+[7m7[0m   listSkills,
+[7m [0m [93m  ~~~~~~~~~~[0m
+
+[96msrc/dashboard/src/scripts/workflows-page.ts[0m:[93m24[0m:[93m7[0m - [93mwarning[0m[90m ts(6133): [0m'toastRegion' is declared but its value is never read.
+
+[7m24[0m const toastRegion = document.querySelector("#dashboard-toast-region");
+[7m  [0m [93m      ~~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/workflows-page.ts[0m:[93m18[0m:[93m17[0m - [93mwarning[0m[90m ts(6133): [0m'setText' is declared but its value is never read.
+
+[7m18[0m import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
+[7m  [0m [93m                ~~~~~~~[0m
+[96msrc/dashboard/src/scripts/workflows-page.ts[0m:[93m18[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'getEl' is declared but its value is never read.
+
+[7m18[0m import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
+[7m  [0m [93m         ~~~~~[0m
+[96msrc/dashboard/src/scripts/workflows-page.ts[0m:[93m17[0m:[93m23[0m - [93mwarning[0m[90m ts(6133): [0m'showPrompt' is declared but its value is never read.
+
+[7m17[0m import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
+[7m  [0m [93m                      ~~~~~~~~~~[0m
+[96msrc/dashboard/src/scripts/workflows-page.ts[0m:[93m17[0m:[93m10[0m - [93mwarning[0m[90m ts(6133): [0m'showConfirm' is declared but its value is never read.
+
+[7m17[0m import { showConfirm, showPrompt, showDangerConfirm } from "./modal-controller";
+[7m  [0m [93m         ~~~~~~~~~~~[0m
+
+Result (85 files): 
+- 6 errors
+- 0 warnings
+- 26 hints
+
+error: script "check" exited with code 1

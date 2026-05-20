@@ -53,7 +53,7 @@ class QueryTools:
     def _history_sort_key(doc: Any) -> tuple[str, str]:
         created_at = getattr(doc, "created_at", None)
         created_at_key = (
-            created_at.isoformat() if hasattr(created_at, "isoformat") else ""
+            created_at.isoformat() if (created_at is not None and hasattr(created_at, "isoformat")) else ""
         )
         return created_at_key, str(getattr(doc, "id", ""))
 
@@ -118,7 +118,7 @@ class QueryTools:
             "query_reasoning",
             self._store,
         )
-        chat_history = []
+        chat_history: list[dict[str, str]] = []
         history_source = "none"
         if session_id:
             chat_history, history_source = await self._load_chat_history(session_id)
@@ -217,7 +217,7 @@ class QueryTools:
             "query_reasoning",
             self._store,
         )
-        chat_history = []
+        chat_history: list[dict[str, str]] = []
         if session_id:
             chat_history, _ = await self._load_chat_history(session_id)
 
@@ -257,28 +257,70 @@ class QueryTools:
                 "query_prompt_source": "builtin" if is_builtin_prompt else "custom",
             },
         )
-        async for event in self._graph.stream(state):
-            if str(event.get("type")) == "final":
-                final_state = event.get("state")
-                if isinstance(final_state, GraphState):
-                    result = self._result_from_state(final_state)
-                    record_continuity_packet("query")
-                    record_query_prompt_render(
-                        str(
-                            final_state.metadata.get(
-                                "query_prompt_source",
-                                state.metadata.get("query_prompt_source", "unknown"),
-                            )
-                        ),
-                        correction_retries=sum(
-                            1
-                            for item in final_state.transition_log
-                            if str(item.get("edge")) == "guard_failed"
-                        ),
-                    )
-                    yield {"type": "final", "payload": result}
-                continue
-            yield event
+        if self._config.graph.runtime == "langgraph":
+            config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
+            async for event in self._graph.astream_events(state, config, version="v2"):
+                event_name = event.get("event")
+                name = event.get("name", "")
+                
+                if event_name == "on_chain_start" and name == "reasoning":
+                    yield {"type": "attempt", "attempt": 1}
+                
+                elif event_name == "on_chat_model_stream":
+                    chunk = event.get("data", {}).get("chunk")
+                    if chunk and hasattr(chunk, "content"):
+                        yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
+                
+                elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
+                    output = event.get("data", {}).get("output", {})
+                    docs = output.get("reranked_docs", []) or output.get("retrieved_docs", [])
+                    if docs:
+                        yield {"type": "sources", "sources": [{"path": d["path"], "score": d.get("score", 0.0)} for d in docs[:5]]}
+                
+                elif event_name == "on_chain_end" and name == "LangGraph":
+                    final_data = event.get("data", {}).get("output", {})
+                    if final_data:
+                        final_state = GraphState.model_validate(final_data) if hasattr(GraphState, "model_validate") else GraphState(**final_data)
+                        result = self._result_from_state(final_state)
+                        
+                        record_continuity_packet("query")
+                        record_query_prompt_render(
+                            str(
+                                final_state.metadata.get(
+                                    "query_prompt_source",
+                                    state.metadata.get("query_prompt_source", "unknown"),
+                                )
+                            ),
+                            correction_retries=sum(
+                                1
+                                for item in final_state.transition_log
+                                if str(item.get("edge")) == "guard_failed"
+                            ),
+                        )
+                        yield {"type": "final", "payload": result}
+        else:
+            async for event in self._graph.stream(state):
+                if str(event.get("type")) == "final":
+                    final_state = event.get("state")
+                    if isinstance(final_state, GraphState):
+                        result = self._result_from_state(final_state)
+                        record_continuity_packet("query")
+                        record_query_prompt_render(
+                            str(
+                                final_state.metadata.get(
+                                    "query_prompt_source",
+                                    state.metadata.get("query_prompt_source", "unknown"),
+                                )
+                            ),
+                            correction_retries=sum(
+                                1
+                                for item in final_state.transition_log
+                                if str(item.get("edge")) == "guard_failed"
+                            ),
+                        )
+                        yield {"type": "final", "payload": result}
+                    continue
+                yield event
 
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
         approval_request = None

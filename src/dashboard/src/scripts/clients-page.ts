@@ -19,7 +19,7 @@ import {
 } from "./catalog-controls";
 import { getEl, setText, escapeHtml, escapeAttr, showToast } from "./ui-utils";
 import { showApiKeyModal } from "./modal-controller";
-import { snippetTitles, buildSnippetVariants, renderSnippetGuide, ideInstructions } from "./clients-snippets";
+import { snippetTitles, buildSnippetVariants, renderSnippetGuide } from "./clients-snippets";
 
 
 // (registry, status, etc. now accessed via getEl)
@@ -611,6 +611,8 @@ document
         repo_scopes,
       });
       if (status) status.textContent = `Created ${created.client.slug}.`;
+      const clientFormDialog = document.querySelector("#client-form-dialog") as HTMLDialogElement | null;
+      clientFormDialog?.close();
       showApiKeyModal(created.client_api_key);
       showToast(`Created client ${created.client.slug}.`, "success");
       await syncVisibleClients();
@@ -799,71 +801,20 @@ getEl("edit-client-form")?.addEventListener("submit", async (event) => {
 });
 
 
-const renderAgentInstructions = () => {
-  const container = getEl("agent-instruction-snippets");
-  if (!container) return;
+const clientFormDialogEl = document.querySelector("#client-form-dialog") as HTMLDialogElement | null;
 
-  container.innerHTML = ideInstructions
-    .map(
-      ({ id, title, filename, content }) => `
-      <details class="snippet-card rounded-3xl border border-stone-300 bg-stone-50/80 p-5 open:border-amber-300 open:bg-amber-50/40">
-        <summary class="flex cursor-pointer list-none flex-wrap items-center justify-between gap-3">
-          <div>
-            <h3 class="text-sm font-semibold uppercase tracking-[0.16em] text-amber-800">${escapeHtml(title)}</h3>
-            <p class="mt-2 text-sm text-stone-600">Paste into <code class="text-xs font-mono">${escapeHtml(filename)}</code> in your project root.</p>
-          </div>
-          <span class="action-pill" data-instruction-toggle-label="${escapeAttr(id)}">Expand</span>
-        </summary>
-        <div class="mt-4 border-t border-stone-200 pt-4">
-          <div class="flex flex-wrap items-center justify-end gap-3">
-            <button
-              type="button"
-              class="action-pill instruction-copy-button"
-              data-instruction-content="${escapeAttr(content)}"
-              data-instruction-label="${escapeAttr(title)}"
-            >
-              Copy instruction
-            </button>
-          </div>
-          <pre class="snippet-pre mt-4 overflow-x-auto whitespace-pre-wrap rounded-2xl bg-white px-4 py-4 text-sm leading-7 text-stone-700">${escapeHtml(content)}</pre>
-        </div>
-      </details>
-    `,
-    )
-    .join("");
+document.querySelector("#client-new-button")?.addEventListener("click", () => {
+  clientFormDialogEl?.showModal();
+  if (getEl("client-tool-scopes")) void loadCreateTools();
+});
 
-  container
-    .querySelectorAll<HTMLDetailsElement>("details.snippet-card")
-    .forEach((card) => {
-      const id = card.querySelector<HTMLElement>("[data-instruction-toggle-label]")
-        ?.dataset.instructionToggleLabel ?? "";
-      const updateLabel = () => {
-        const label = card.querySelector<HTMLElement>(
-          `[data-instruction-toggle-label="${id}"]`,
-        );
-        if (label) label.textContent = card.open ? "Collapse" : "Expand";
-      };
-      updateLabel();
-      card.addEventListener("toggle", updateLabel);
-    });
-};
+document.querySelector("#client-close-dialog")?.addEventListener("click", () => {
+  clientFormDialogEl?.close();
+});
 
-getEl("agent-instruction-snippets")?.addEventListener("click", async (event) => {
-  const button = (event.target as HTMLElement | null)?.closest(
-    ".instruction-copy-button",
-  );
-  if (!(button instanceof HTMLButtonElement)) return;
-  const content = button.dataset.instructionContent ?? "";
-  const label = button.dataset.instructionLabel ?? "instruction";
-  try {
-    await navigator.clipboard.writeText(content);
-    showToast(`Copied ${label} instruction.`, "success");
-  } catch {
-    showToast(`Unable to copy ${label} instruction.`, "danger");
-  }
+clientFormDialogEl?.addEventListener("click", (event) => {
+  if (event.target === clientFormDialogEl) clientFormDialogEl.close();
 });
 
 void syncVisibleClients();
 void renderDetail();
-if (getEl("agent-instruction-snippets")) renderAgentInstructions();
-if (getEl("client-tool-scopes")) void loadCreateTools();

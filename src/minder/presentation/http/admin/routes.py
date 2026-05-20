@@ -71,7 +71,11 @@ def build_http_routes(
     async def favicon_ico(_request) -> RedirectResponse:
         return RedirectResponse(url="/favicon.png", status_code=308)
 
+    async def root_redirect(_request) -> RedirectResponse:
+        return RedirectResponse(url=config.dashboard.base_path or "/dashboard", status_code=307)
+
     return [
+        Route("/", root_redirect, methods=["GET"]),
         Route("/health", health, methods=["GET"]),
         Route("/favicon.ico", favicon_ico, methods=["GET"]),
         Route("/favicon.png", favicon_png, methods=["GET"]),

@@ -2,7 +2,7 @@
 
 **Scope**: Tích hợp LangGraph sâu vào bên trong các tools `memory_recall` và `session_restore`, đồng thời nâng cấp toàn bộ graph execution engine theo 6 giai đoạn.
 
-**Nguyên tắc**: Pipeline chạy *bên trong* tool — MCP surface không thay đổi. Caller (Claude) vẫn gọi cùng tool name, nhận cùng output schema, nhưng bên trong đã có agentic loop + LLM judge.
+**Nguyên tắc**: Pipeline chạy _bên trong_ tool — MCP surface không thay đổi. Caller (Claude) vẫn gọi cùng tool name, nhận cùng output schema, nhưng bên trong đã có agentic loop + LLM judge.
 
 **Ưu tiên**: Độ chính xác > latency. Judge node dùng LLM local (`llama_cpp`).
 
@@ -63,6 +63,7 @@ Foundation Layer
 **Mục tiêu**: Biến `minder_memory_recall` thành agentic loop với LLM judge, chạy bên trong tool.
 
 **Files cần tạo/sửa**:
+
 - `src/minder/graph/memory_graph.py` — **TẠO MỚI**
 - `src/minder/graph/session_graph.py` — **TẠO MỚI**
 - `src/minder/tools/memory.py` — sửa `minder_memory_recall` và `minder_session_restore`
@@ -70,6 +71,7 @@ Foundation Layer
 ### 0A. AgenticMemoryGraph
 
 **State**:
+
 ```python
 # src/minder/graph/memory_graph.py
 from __future__ import annotations
@@ -125,6 +127,7 @@ class MemoryRecallState(TypedDict):
 **recall_node**: Thực hiện vector search + BM25 + compatibility scoring với `current_query`. Kết quả append vào `all_memories` nhờ reducer `operator.add`.
 
 **judge_node**: Gọi LLM local với prompt:
+
 ```
 Bạn là judge đánh giá chất lượng retrieved memories.
 Query gốc: {original_query}
@@ -147,6 +150,7 @@ Output JSON: {"sufficient": bool, "reason": str, "missing_aspects": str, "next_q
 **merge_node**: Dedup `all_memories` theo ID, sort by score, take `target_count` tốt nhất, gọi `ContinuitySynthesizer` lần cuối.
 
 **Tích hợp vào `minder_memory_recall`**:
+
 ```python
 # memory.py — minder_memory_recall
 async def minder_memory_recall(self, query, *, limit=5, current_step=None, ...):
@@ -174,6 +178,7 @@ async def _agentic_recall(self, query, limit, current_step):
 ```
 
 **Config mới**:
+
 ```toml
 # minder.toml
 [memory]
@@ -189,6 +194,7 @@ recall_max_iterations = 3
 **Mục tiêu**: `minder_session_restore` không chỉ load session mà còn tự động kéo memories đúng phase và validate coherence.
 
 **State**:
+
 ```python
 class SessionRestoreState(TypedDict):
     session_id: str
@@ -216,6 +222,7 @@ class SessionRestoreState(TypedDict):
 ```
 
 **Graph pipeline**:
+
 ```
 [load_session] → [targeted_recall] → [coherence_check] → [build_context] → END
                                            │
@@ -227,6 +234,7 @@ class SessionRestoreState(TypedDict):
 ```
 
 **targeted_recall**: Không dùng query tổng quát. Tự động tạo query từ session state:
+
 ```python
 def build_targeted_queries(session_state, workflow_step) -> list[str]:
     queries = []
@@ -242,11 +250,13 @@ def build_targeted_queries(session_state, workflow_step) -> list[str]:
 Gọi `AgenticMemoryGraph` với mỗi query này, merge kết quả.
 
 **coherence_check**: LLM judge kiểm tra:
+
 - Session nói `task = "fix JWT expiry bug"` — memory có mention JWT không? → OK
 - Session nói `step = "implement"` — memory nào là về "design phase" có thể stale?
 - Contradictions: session `branch=fix/auth-v2` nhưng memory về `auth-v1`
 
 **build_context**: Tạo unified context thay thế 3 calls rời:
+
 ```python
 {
     "session_id": "...",
@@ -260,6 +270,7 @@ Gọi `AgenticMemoryGraph` với mỗi query này, merge kết quả.
 ```
 
 **Tích hợp vào `minder_session_restore`**:
+
 ```python
 async def minder_session_restore(self, session_id):
     if self._config.session.agentic_restore:
@@ -276,11 +287,13 @@ async def minder_session_restore(self, session_id):
 **Mục tiêu**: Chuyển `GraphState` sang TypedDict với reducers — prerequisite cho parallel execution.
 
 **Files sửa**:
+
 - `src/minder/graph/state.py` — **REFACTOR**
 - `src/minder/graph/executor.py` — cập nhật type hints
 - `tests/graph/test_state.py` — cập nhật tests
 
 **Thay đổi**:
+
 ```python
 # TRƯỚC (Pydantic BaseModel)
 class GraphState(BaseModel):
@@ -325,15 +338,18 @@ class GraphState(TypedDict):
 **Mục tiêu**: LangGraph checkpoint backed by Minder's `IOperationalStore` — workflow resume sau crash, human-in-the-loop trong Phase 5.
 
 **Files tạo**:
+
 - `src/minder/graph/checkpoint.py` — **TẠO MỚI**
 
 **Files sửa**:
+
 - `src/minder/store/interfaces.py` — thêm `get_checkpoint`, `save_checkpoint`
 - `src/minder/store/mongodb/operational.py` — implement checkpoint methods
 - `src/minder/store/relational.py` — implement checkpoint methods (SQLite fallback)
 - `src/minder/graph/graph.py` — inject checkpointer vào compiled graph
 
 **Schema checkpoint trong DB**:
+
 ```
 Collection: minder_checkpoints
 {
@@ -346,6 +362,7 @@ Collection: minder_checkpoints
 ```
 
 **Implementation**:
+
 ```python
 # src/minder/graph/checkpoint.py
 from langgraph.checkpoint.base import BaseCheckpointSaver, Checkpoint, CheckpointTuple
@@ -389,6 +406,7 @@ class MinderCheckpointSaver(BaseCheckpointSaver):
 ```
 
 **Inject vào MinderGraph**:
+
 ```python
 # graph/graph.py
 class MinderGraph:
@@ -410,13 +428,16 @@ class MinderGraph:
 **Mục tiêu**: Fan out 3 chiến lược retrieval (vector, BM25, knowledge graph) chạy đồng thời, merge lại.
 
 **Files tạo**:
+
 - `src/minder/graph/nodes/parallel_retriever.py` — **TẠO MỚI**
 
 **Files sửa**:
+
 - `src/minder/graph/executor.py` — thay `retriever` node bằng parallel fan-out
 - `src/minder/graph/nodes/__init__.py` — export `ParallelRetrieverNode`
 
 **Graph thay đổi** (trong `LangGraphExecutorAdapter._build_compiled_graph`):
+
 ```python
 from langgraph.types import Send
 
@@ -443,6 +464,7 @@ workflow.add_edge("merge_retrieved", "reranker" if nodes.reranker else "reasonin
 ```
 
 **retrieve_strategy_node**:
+
 ```python
 async def retrieve_strategy_node(state: GraphState) -> GraphState:
     strategy = state["metadata"].get("strategy", "vector")
@@ -468,6 +490,7 @@ async def retrieve_strategy_node(state: GraphState) -> GraphState:
 ```
 
 **merge_results_node**:
+
 ```python
 async def merge_results_node(state: GraphState) -> GraphState:
     # retrieved_docs đã có docs từ cả 3 strategies nhờ reducer
@@ -490,10 +513,12 @@ async def merge_results_node(state: GraphState) -> GraphState:
 **Mục tiêu**: Thay custom event loop trong `minder_query_stream` bằng LangGraph's `astream_events` — UX improvement cho SSE clients.
 
 **Files sửa**:
+
 - `src/minder/tools/query.py` — `minder_query_stream`
 - `src/minder/graph/graph.py` — expose `astream_events`
 
 **Thay đổi**:
+
 ```python
 # query.py — minder_query_stream
 async def minder_query_stream(self, query, *, session_id=None, ...):
@@ -525,6 +550,7 @@ async def minder_query_stream(self, query, *, session_id=None, ...):
 ```
 
 **Event sequence cho SSE client**:
+
 ```
 → {type: "node_start", node: "plan_retrieval"}
 → {type: "node_start", node: "retrieve_strategy"}  (3 lần, parallel)
@@ -545,11 +571,13 @@ async def minder_query_stream(self, query, *, session_id=None, ...):
 **Điều kiện**: Phase 2 (Checkpointer) phải done trước.
 
 **Files sửa**:
+
 - `src/minder/graph/nodes/guard.py` — thêm `interrupt()`
 - `src/minder/tools/workflow.py` — `minder_workflow_step` resume
 - `src/minder/graph/graph.py` — compile với `interrupt_before`
 
 **Guard node**:
+
 ```python
 # graph/nodes/guard.py
 from langgraph.types import interrupt
@@ -580,6 +608,7 @@ async def run(self, state: GraphState) -> GraphState:
 ```
 
 **Compile**:
+
 ```python
 compiled = workflow.compile(
     checkpointer=self._checkpointer,
@@ -588,6 +617,7 @@ compiled = workflow.compile(
 ```
 
 **Resume trong minder_workflow_step**:
+
 ```python
 # tools/workflow.py
 from langgraph.types import Command
@@ -603,6 +633,7 @@ async def minder_workflow_step(self, session_id, *, decision: dict) -> dict:
 ```
 
 **Flow thực tế**:
+
 ```
 minder_query("deploy service X to prod")
   → guard node: interrupt()
@@ -623,13 +654,16 @@ minder_workflow_step(session_id="abc123", decision={"approved": True, "comment":
 **Điều kiện**: Phase 1-3 phải done.
 
 **Files tạo**:
+
 - `src/minder/graph/supervisor.py` — **TẠO MỚI**
 
 **Files sửa**:
+
 - `src/minder/tools/agents.py` — thêm subgraph compilation
 - `src/minder/bootstrap/transport.py` — init AgentSupervisor
 
 **AgentSupervisor**:
+
 ```python
 # graph/supervisor.py
 class AgentSupervisor:
@@ -688,6 +722,7 @@ class AgentSupervisor:
 ```
 
 **Multi-agent graph**:
+
 ```python
 # graph/graph.py — khi có supervisor
 multi_agent = StateGraph(GraphState)
@@ -704,28 +739,28 @@ multi_agent.add_node("aggregator", merge_agent_outputs)  # merge parallel output
 
 ---
 
-## Thứ tự triển khai
+## Implementation Order
 
 ```
-Phase 0A  AgenticMemoryGraph         Độc lập, chạy ngay
-Phase 0B  SessionContextGraph         Độc lập, chạy ngay
+Phase 0A  AgenticMemoryGraph         Independent, can start immediately
+Phase 0B  SessionContextGraph        Independent, can start immediately
     ↓
-Phase 1   GraphState TypedDict        Foundation, không break gì
+Phase 1   GraphState TypedDict       Foundation, no breaking changes
     ↓
-Phase 2   MongoDB Checkpointer        Cần trước Phase 5
+Phase 2   MongoDB Checkpointer       Required before Phase 5
     ↓
-Phase 3   Parallel Retrieval          Cần Phase 1 done
+Phase 3   Parallel Retrieval         Requires Phase 1
     ↓
-Phase 4   astream_events              Cần Phase 2 (config) done
+Phase 4   astream_events             Requires Phase 2 config
     ↓
-Phase 5   Human-in-the-loop           Cần Phase 2 (checkpointer) done
+Phase 5   Human-in-the-loop          Requires Phase 2 checkpointer
     ↓
-Phase 6   Multi-agent SubGraph        Cần Phase 1, 2, 3 done
+Phase 6   Multi-agent SubGraph       Requires Phases 1, 2, and 3
 ```
 
 ---
 
-## Config mới cần thêm
+## Additional Config
 
 ```toml
 # minder.toml
@@ -750,16 +785,16 @@ checkpoint_ttl_days = 7           # TTL cho checkpoint records
 
 ## Test coverage cho mỗi Phase
 
-| Phase | Test file | Test cases |
-|---|---|---|
-| 0A | `tests/graph/test_memory_graph.py` | loop terminates, judge fires, dedup hoạt động |
-| 0B | `tests/graph/test_session_graph.py` | coherence detection, targeted queries |
-| 1 | `tests/graph/test_state.py` | reducers merge đúng, parallel write không conflict |
-| 2 | `tests/graph/test_checkpoint.py` | save/restore checkpoint, thread isolation |
-| 3 | `tests/graph/test_parallel_retriever.py` | 3 strategies chạy song song, merge đúng |
-| 4 | `tests/tools/test_query_stream.py` | events đúng order, sources event trước final |
-| 5 | `tests/graph/test_interrupt.py` | interrupt dừng đúng, resume với decision |
-| 6 | `tests/graph/test_supervisor.py` | routing đúng agent, parallel subgraphs |
+| Phase | Test file                                | Test cases                                         |
+| ----- | ---------------------------------------- | -------------------------------------------------- |
+| 0A    | `tests/graph/test_memory_graph.py`       | loop terminates, judge fires, dedup hoạt động      |
+| 0B    | `tests/graph/test_session_graph.py`      | coherence detection, targeted queries              |
+| 1     | `tests/graph/test_state.py`              | reducers merge đúng, parallel write không conflict |
+| 2     | `tests/graph/test_checkpoint.py`         | save/restore checkpoint, thread isolation          |
+| 3     | `tests/graph/test_parallel_retriever.py` | 3 strategies chạy song song, merge đúng            |
+| 4     | `tests/tools/test_query_stream.py`       | events đúng order, sources event trước final       |
+| 5     | `tests/graph/test_interrupt.py`          | interrupt dừng đúng, resume với decision           |
+| 6     | `tests/graph/test_supervisor.py`         | routing đúng agent, parallel subgraphs             |
 
 ---
 

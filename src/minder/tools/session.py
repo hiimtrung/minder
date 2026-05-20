@@ -72,9 +72,16 @@ class SessionTools:
             )
         return self._agentic_graph
 
-    def _normalize_datetime(self, value: datetime | None) -> datetime | None:
+    def _normalize_datetime(self, value: datetime | str | None) -> datetime | None:
         if value is None:
             return None
+        if isinstance(value, str):
+            candidate = value.strip()
+            if not candidate:
+                return None
+            if candidate.endswith("Z"):
+                candidate = f"{candidate[:-1]}+00:00"
+            value = datetime.fromisoformat(candidate)
         if value.tzinfo is None:
             return value.replace(tzinfo=UTC)
         return value.astimezone(UTC)
@@ -380,7 +387,9 @@ class SessionTools:
         workflow_state = None
         workflow = None
         if session.repo_id is not None:
-            workflow_state = await self._store.get_workflow_state_by_repo(session.repo_id)
+            workflow_state = await self._store.get_workflow_state_by_repo(
+                session.repo_id
+            )
             if workflow_state is not None:
                 repo = await self._store.get_repository_by_id(session.repo_id)
                 if repo is not None and repo.workflow_id is not None:

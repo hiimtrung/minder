@@ -1,0 +1,37 @@
+---
+/**
+ * Tip — small info button with accessible tooltip. Server-rendered fallback
+ * markup is provided so the icon and content show even without client JS.
+ */
+interface Props {
+  description?: string;
+  id?: string;
+  class?: string;
+}
+
+const {
+  description = "",
+  id = `u-tip-${Math.random().toString(36).slice(2, 9)}`,
+  class: className = "",
+} = Astro.props as Props;
+---
+
+<minder-tip description={description} class={className} id={id}>
+  <div class="u-page-hero-sub">
+    <span class="u-tip">
+      <button
+        type="button"
+        class="u-tip-btn"
+        tabindex="0"
+        aria-label="More info"
+        aria-describedby={id}
+      >
+        i
+      </button>
+      <span role="tooltip" id={id} class="u-tip-panel">
+        {description}
+        <slot />
+      </span>
+    </span>
+  </div>
+</minder-tip>

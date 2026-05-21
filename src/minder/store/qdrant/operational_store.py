@@ -131,7 +131,7 @@ class QdrantOperationalStore:
         return await self._col("skills").find_many()
 
     async def list_skills_by_kind(
-        self, *, is_memory: bool, exclude_deprecated: bool = True
+        self, *, is_memory: bool, exclude_deprecated: bool = True, owner_id: uuid.UUID | None = None
     ) -> list[Any]:
         all_skills = await self.list_skills()
         _mem_langs = {"markdown", "text", "en", "vi", "", None}
@@ -140,6 +140,14 @@ class QdrantOperationalStore:
             sm = s._data.get("source_metadata")
             lang = s._data.get("language")
             is_mem = sm is None and lang in _mem_langs
+            
+            # Apply owner filtering
+            if owner_id is not None:
+                s_owner = s._data.get("owner_id")
+                s_scope = s._data.get("scope", "team")
+                if s_owner is not None and s_owner != str(owner_id) and s_scope != "team":
+                    continue
+
             if is_memory and is_mem:
                 result.append(s)
             elif not is_memory and not is_mem:
@@ -326,6 +334,7 @@ class QdrantOperationalStore:
         for uf in ("repo_id", "session_id"):
             if uf in kw and isinstance(kw[uf], uuid.UUID):
                 kw[uf] = _uid(kw[uf])
+        kw.setdefault("branch", "main")
         kw.setdefault("completed_steps", [])
         kw.setdefault("blocked_by", [])
         kw.setdefault("artifacts", {})
@@ -335,8 +344,12 @@ class QdrantOperationalStore:
     async def get_workflow_state_by_id(self, state_id: uuid.UUID) -> Any:
         return await self._col("workflow_states").get(_uid(state_id))
 
-    async def get_workflow_state_by_repo(self, repo_id: uuid.UUID) -> Any:
-        return await self._col("workflow_states").find_one("repo_id", _uid(repo_id))
+    async def get_workflow_state_by_repo(self, repo_id: uuid.UUID, *, branch: str = "main") -> Any:
+        states = await self._col("workflow_states").find_many({"repo_id": _uid(repo_id)})
+        for state in states:
+            if state._data.get("branch", "main") == branch:
+                return state
+        return None
 
     async def update_workflow_state(self, state_id: uuid.UUID, **kw: Any) -> Any:
         if not kw:

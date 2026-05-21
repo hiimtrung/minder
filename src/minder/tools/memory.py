@@ -65,6 +65,7 @@ class MemoryTools:
         limit: int,
         current_step: str | None,
         artifact_type: str | None,
+        owner_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         graph = self._get_agentic_graph()
         result = await graph.run(
@@ -72,6 +73,7 @@ class MemoryTools:
                 "original_query": query,
                 "current_step": current_step,
                 "artifact_type": artifact_type,
+                "owner_id": owner_id,
                 "target_count": limit,
                 "min_score": float(self._config.memory.recall_min_score),
                 "all_memories": [],
@@ -95,9 +97,10 @@ class MemoryTools:
         current_step: str | None,
         artifact_type: str | None,
         include_raw_scores: bool = False,
+        owner_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         query_embedding = self._embedder.embed(query)
-        skills = await self._store.list_skills_by_kind(is_memory=True)
+        skills = await self._store.list_skills_by_kind(is_memory=True, owner_id=owner_id)
         vector_results: list[dict[str, Any]] = []
         corpus: list[dict[str, Any]] = []
         for skill in skills:
@@ -162,6 +165,8 @@ class MemoryTools:
         content: str,
         tags: list[str],
         language: str,
+        owner_id: uuid.UUID | None = None,
+        scope: str = "private",
     ) -> dict[str, Any]:
         # Normalize the language to a memory-eligible value so that
         # is_memory_record() always identifies this entry as a memory.
@@ -183,6 +188,8 @@ class MemoryTools:
             embedding=self._embedder.embed(f"{title}\n{content}"),
             usage_count=0,
             quality_score=0.0,
+            owner_id=owner_id,
+            scope=scope,
         )
 
         # Record persistent audit event
@@ -209,6 +216,7 @@ class MemoryTools:
         current_step: str | None = None,
         artifact_type: str | None = None,
         skip_synthesis: bool = False,
+        owner_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
         if skip_synthesis:
             limited = await self._recall_candidates(
@@ -216,6 +224,7 @@ class MemoryTools:
                 limit=limit,
                 current_step=current_step,
                 artifact_type=artifact_type,
+                owner_id=owner_id,
             )
             for item in limited:
                 item.pop("_step_compat", None)
@@ -229,6 +238,7 @@ class MemoryTools:
                     limit=limit,
                     current_step=current_step,
                     artifact_type=artifact_type,
+                    owner_id=owner_id,
                 )
             except Exception:
                 pass
@@ -238,6 +248,7 @@ class MemoryTools:
             limit=limit,
             current_step=current_step,
             artifact_type=artifact_type,
+            owner_id=owner_id,
         )
 
         try:
@@ -283,8 +294,12 @@ class MemoryTools:
             item.pop("continuity_reasons", None)
         return limited
 
-    async def minder_memory_list(self) -> list[dict[str, Any]]:
-        skills = await self._store.list_skills_by_kind(is_memory=True)
+    async def minder_memory_list(
+        self,
+        *,
+        owner_id: uuid.UUID | None = None,
+    ) -> list[dict[str, Any]]:
+        skills = await self._store.list_skills_by_kind(is_memory=True, owner_id=owner_id)
         return [
             {
                 "id": str(skill.id),
@@ -302,10 +317,16 @@ class MemoryTools:
         title: str | None = None,
         content: str | None = None,
         tags: list[str] | None = None,
+        owner_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         existing = await self._store.get_skill_by_id(uuid.UUID(memory_id))
         if existing is None or not is_memory_record(existing):
             raise ValueError(f"Memory not found: {memory_id}")
+            
+        if owner_id is not None:
+            existing_owner = getattr(existing, "owner_id", None)
+            if existing_owner is not None and str(existing_owner) != str(owner_id):
+                raise ValueError(f"Access denied: you do not own memory {memory_id}")
 
         update_data: dict[str, Any] = {}
         next_title = title if title is not None else str(existing.title)
@@ -343,7 +364,15 @@ class MemoryTools:
             "updated": True,
         }
 
-    async def minder_memory_delete(self, skill_id: str) -> dict[str, bool]:
+    async def minder_memory_delete(self, skill_id: str, *, owner_id: uuid.UUID | None = None) -> dict[str, bool]:
+        if owner_id is not None:
+            existing = await self._store.get_skill_by_id(uuid.UUID(skill_id))
+            if existing is None or not is_memory_record(existing):
+                raise ValueError(f"Memory not found: {skill_id}")
+            existing_owner = getattr(existing, "owner_id", None)
+            if existing_owner is not None and str(existing_owner) != str(owner_id):
+                raise ValueError(f"Access denied: you do not own memory {skill_id}")
+                
         await self._store.delete_skill(uuid.UUID(skill_id))
 
         # Record persistent audit event
@@ -367,6 +396,7 @@ class MemoryTools:
         memory_ids: list[str],
         similarity_threshold: float = 0.92,
         dry_run: bool = True,
+        owner_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         normalized_ids = self._normalize_memory_ids(memory_ids)
         if len(normalized_ids) < 2:
@@ -377,6 +407,11 @@ class MemoryTools:
             skill = await self._store.get_skill_by_id(uuid.UUID(memory_id))
             if skill is None:
                 raise ValueError(f"Memory not found: {memory_id}")
+            
+            if owner_id is not None:
+                existing_owner = getattr(skill, "owner_id", None)
+                if existing_owner is not None and str(existing_owner) != str(owner_id):
+                    raise ValueError(f"Access denied: you do not own memory {memory_id}")
             embedding = self._embedder.embed(
                 self._compaction_text(
                     title=str(skill.title),

@@ -368,7 +368,7 @@ class AdminConsoleUseCases:
                 'http_headers = { "X-Minder-Client-Key" = "<mkc_...>" }'
             ),
             "vscode": (
-                f'{{"servers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}},"inputs":[]}}'
+                f'{{"servers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"tools":["*"]}}}},"inputs":[]}}'
             ),
             "copilot_cli": (
                 f'{{"mcpServers":{{"minder":{{"type":"sse","url":"{base_url}/sse","headers":{{"X-Minder-Client-Key":"<mkc_...>"}},"tools":["*"]}}}}}}'

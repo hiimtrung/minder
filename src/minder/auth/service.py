@@ -25,6 +25,7 @@ from minder.auth.principal import AdminUserPrincipal, ClientPrincipal, Principal
 from minder.config import MinderConfig
 from minder.models.user import User
 from minder.store.interfaces import ICacheProvider, IOperationalStore
+from minder.tools.registry import DEFAULT_AGENT_TOOL_SCOPES
 
 # ---------------------------------------------------------------------------
 # Role hierarchy
@@ -256,7 +257,7 @@ class AuthService:
             created_by_user_id=created_by_user_id,
             owner_team=owner_team,
             transport_modes=transport_modes or ["sse", "stdio"],
-            tool_scopes=tool_scopes or [],
+            tool_scopes=tool_scopes if tool_scopes is not None else list(DEFAULT_AGENT_TOOL_SCOPES),
             repo_scopes=repo_scopes or [],
             workflow_scopes=workflow_scopes or [],
             rate_limit_policy=rate_limit_policy or {},

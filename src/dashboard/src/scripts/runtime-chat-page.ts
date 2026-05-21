@@ -71,7 +71,6 @@ let workflows: WorkflowPayload[] = [];
 let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
 let sessionId: string | null = null;
-let conversationSession: RuntimeConversationPayload["session"] | null = null;
 let conversationList: RuntimeConversationSessionPayload[] = [];
 
 const SESSION_STORAGE_KEY = "minder:runtime-chat:session-id";
@@ -234,7 +233,6 @@ const resetConversation = () => {
   messages = [];
   activeAssistantMessageIndex = null;
   sessionId = null;
-  conversationSession = null;
   writeStoredSessionId(null);
   renderThread();
   renderSessionState();
@@ -242,7 +240,6 @@ const resetConversation = () => {
 };
 
 const applyConversation = (payload: RuntimeConversationPayload) => {
-  conversationSession = payload.session;
   sessionId = payload.session.id;
   writeStoredSessionId(sessionId);
   messages = payload.history.map((message) => ({

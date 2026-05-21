@@ -300,7 +300,6 @@ const ideTargetsJson = JSON.stringify(
                 type="button"
                 class="action-pill ide-copy-btn"
                 data-ide-id={target.id}
-                onclick="event.stopPropagation()"
               >
                 Copy for {target.title}
               </button>
@@ -335,11 +334,13 @@ const ideTargetsJson = JSON.stringify(
 
   <!-- Prompt content embedded as JSON for safe client-side access -->
   <script
+    is:inline
     id="ide-targets-data"
     type="application/json"
     set:html={ideTargetsJson}
   />
   <script
+    is:inline
     id="raw-prompt-data"
     type="application/json"
     set:html={JSON.stringify(MINDER_AGENT_PROMPT)}
@@ -396,7 +397,7 @@ const ideTargetsJson = JSON.stringify(
       const original = btn.textContent ?? "";
       try {
         await navigator.clipboard.writeText(text);
-        btn.textContent = "Copied!";
+        btn.textContent = successLabel;
         window.setTimeout(() => {
           btn.textContent = original;
         }, 1500);
@@ -412,7 +413,8 @@ const ideTargetsJson = JSON.stringify(
     document
       .querySelectorAll<HTMLButtonElement>(".ide-copy-btn")
       .forEach((btn) => {
-        btn.addEventListener("click", async () => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
           const id = btn.dataset.ideId ?? "";
           const content = contentMap[id] ?? "";
           if (content) await copyText(content, btn, "Copied!");

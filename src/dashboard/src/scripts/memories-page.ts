@@ -1,14 +1,12 @@
 import {
   createMemory,
   deleteMemory,
-  listMemories,
   searchAdminCatalog,
   updateMemory,
   type MemoryPayload,
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
-  paginateItems,
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";

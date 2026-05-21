@@ -100,13 +100,6 @@ const tabs = {
   continuity: document.querySelector("#tab-continuity"),
 };
 
-const panels = {
-  overview: document.querySelector("#panel-overview"),
-  audit: document.querySelector("#panel-audit"),
-  jobs: document.querySelector("#panel-jobs"),
-  continuity: document.querySelector("#panel-continuity"),
-};
-
 // ---------------------------------------------------------------------------
 // Pagination / filter state
 // ---------------------------------------------------------------------------

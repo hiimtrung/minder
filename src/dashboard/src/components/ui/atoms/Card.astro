@@ -11,7 +11,7 @@ const {
   padding = "md",
   class: className = "",
   id,
-} = Astro.props;
+}: Props = Astro.props;
 
 const padClass =
   padding === "none" ? "" : padding === "sm" ? "p-3" : padding === "lg" ? "p-5" : "p-4";

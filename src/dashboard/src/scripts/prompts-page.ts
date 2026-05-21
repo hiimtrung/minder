@@ -1,7 +1,6 @@
 import {
   createPrompt,
   deletePrompt,
-  listPrompts,
   polishPromptDraft,
   searchAdminCatalog,
   updatePrompt,
@@ -9,7 +8,6 @@ import {
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
-  paginateItems,
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";

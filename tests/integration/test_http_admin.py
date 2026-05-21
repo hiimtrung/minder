@@ -219,7 +219,7 @@ async def test_onboarding_templates_follow_request_origin(
     assert 'url = "https://minder.example.com/sse"' in onboarding["templates"]["codex"]
     assert "https://minder.example.com/sse" in onboarding["templates"]["vscode"]
     assert '"servers"' in onboarding["templates"]["vscode"]
-    assert '"tools"' not in onboarding["templates"]["vscode"]
+    assert '"tools":["*"]' in onboarding["templates"]["vscode"]
     assert '"mcpServers"' not in onboarding["templates"]["vscode"]
     assert "https://minder.example.com/sse" in onboarding["templates"]["copilot_cli"]
     assert '"mcpServers"' in onboarding["templates"]["copilot_cli"]

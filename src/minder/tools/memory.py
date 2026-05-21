@@ -219,6 +219,7 @@ class MemoryTools:
             )
             for item in limited:
                 item.pop("_step_compat", None)
+                item.pop("continuity_reasons", None)
             return limited
 
         if self._use_agentic_loop():
@@ -273,13 +274,13 @@ class MemoryTools:
                 "runtime": "fallback",
             }
         for item in limited:
-            item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
             record_continuity_recall(
                 provider=str(synthesis_meta.get("provider", "unknown")),
                 step_compatibility=float(item.get("_step_compat", 0.0)),
             )
             item["step_compatibility"] = item.pop("_step_compat", 0.0)
+            item.pop("continuity_reasons", None)
         return limited
 
     async def minder_memory_list(self) -> list[dict[str, Any]]:

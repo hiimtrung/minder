@@ -153,7 +153,6 @@ class IngestTools:
         return {
             "project": target_project,
             "ingested_count": ingested_count,
-            "paths": sorted(ingested_paths),
         }
 
     # ------------------------------------------------------------------

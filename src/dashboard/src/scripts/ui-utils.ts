@@ -68,6 +68,27 @@ export function switchTab(
   }
 }
 
+/** Set a field-level validation error (targets `{fieldId}-error` span) */
+export function setFieldError(fieldId: string, message: string): void {
+  const errorEl = document.getElementById(`${fieldId}-error`);
+  if (errorEl) errorEl.textContent = message;
+  const field = document.getElementById(fieldId);
+  if (field) {
+    if (message) {
+      field.setAttribute("aria-invalid", "true");
+    } else {
+      field.removeAttribute("aria-invalid");
+    }
+  }
+}
+
+/** Clear validation errors for the given field IDs */
+export function clearFieldErrors(...fieldIds: string[]): void {
+  for (const id of fieldIds) {
+    setFieldError(id, "");
+  }
+}
+
 /** Show a temporary toast message */
 export function showToast(
   message: string,

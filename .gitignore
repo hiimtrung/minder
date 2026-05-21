@@ -1,4 +1,6 @@
 __pycache__
+*.pyc
+*.pyo
 .env
 .venv
 .pytest_cache
@@ -8,7 +10,22 @@ __pycache__
 .uv-cache
 ref
 
-default.profraw
+# Profiling artifacts
+*.profraw
+*.profdata
+
+# Temp / scratch
+tmp/
+scratch/
+scratch*.py
+smoke_check*.py
+check_output*.txt
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
 node_modules
 .astro
 
@@ -16,5 +33,5 @@ node_modules
 .codex
 .claude
 .minder
-.mcp.json 
-.vscode 
+.mcp.json
+.vscode

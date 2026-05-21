@@ -239,12 +239,39 @@ class MemoryTools:
             artifact_type=artifact_type,
         )
 
-        synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
-            query=query,
-            hits=limited,
-            current_step=current_step,
-            artifact_type=artifact_type,
-        )
+        try:
+            synthesis, synthesis_meta = self._get_synthesizer().synthesize_memory_hits(
+                query=query,
+                hits=limited,
+                current_step=current_step,
+                artifact_type=artifact_type,
+            )
+        except Exception:
+            synthesis = {
+                "summary": (
+                    f"Top recalled memories for '{query}' focus on "
+                    f"{current_step or artifact_type or 'general retrieval'}."
+                ),
+                "focus": current_step or artifact_type or "general retrieval",
+                "recommended_hit_ids": [
+                    str(item.get("id", "")) for item in limited[:2] if item.get("id")
+                ],
+                "hit_summaries": {
+                    str(item.get("id", "")): (
+                        f"Use {item.get('title', 'this memory')} for "
+                        f"{current_step or artifact_type or 'general retrieval'}; "
+                        "reasons: "
+                        f"{', '.join(item.get('continuity_reasons', [])) or 'semantic match'}"
+                    )
+                    for item in limited
+                    if item.get("id")
+                },
+            }
+            synthesis_meta = {
+                "provider": "heuristic",
+                "model": self._config.llm.provider,
+                "runtime": "fallback",
+            }
         for item in limited:
             item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")

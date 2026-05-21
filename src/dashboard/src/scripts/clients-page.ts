@@ -534,14 +534,16 @@ const renderCreateToolCheckboxes = (tools: ToolInfo[], selected: string[]) => {
     .join("");
 };
 
-const loadCreateTools = async (selectedScopes: string[] = []) => {
+const loadCreateTools = async (selectedScopes: string[] | null = null) => {
   const createToolScopes = getEl("client-tool-scopes");
   try {
     if (!cachedTools.length) {
       const payload = await listTools();
       cachedTools = payload.tools;
     }
-    renderCreateToolCheckboxes(cachedTools, selectedScopes);
+    // Default to all tools selected so new clients have full agent access out of the box.
+    const toSelect = selectedScopes ?? cachedTools.map((t) => t.name);
+    renderCreateToolCheckboxes(cachedTools, toSelect);
   } catch {
     if (createToolScopes) {
       createToolScopes.innerHTML = `<p class="text-sm text-red-600 px-1">Failed to load tools.</p>`;

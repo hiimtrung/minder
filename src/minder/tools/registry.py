@@ -324,6 +324,12 @@ ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
     tool.name for tool in ALL_TOOLS if tool.always_available
 )
 
+# Default tool_scopes for new agent clients — all scopeable tools.
+# Admin-only non-scopeable tools (auth_login, auth_manage, skill_import_git) are excluded by design.
+DEFAULT_AGENT_TOOL_SCOPES: frozenset[str] = frozenset(
+    tool.name for tool in SCOPEABLE_TOOLS
+)
+
 
 TOOL_USAGE_PATTERNS: dict[str, str] = {
     # ── Session lifecycle ──────────────────────────────────────────────────────

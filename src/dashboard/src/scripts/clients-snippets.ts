@@ -92,6 +92,7 @@ const localSnippetTemplates: Record<string, string> = {
             MINDER_SERVER__TRANSPORT: "stdio",
             MINDER_CLIENT_API_KEY: "<mkc_...>",
           },
+          tools: ["*"],
         },
       },
       inputs: [],

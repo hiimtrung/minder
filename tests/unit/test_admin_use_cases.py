@@ -129,7 +129,7 @@ async def test_admin_use_cases_detail_onboarding_activity_and_connection_contrac
     assert onboarding["client"]["slug"] == "detail-client"
     assert "codex" in onboarding["templates"]
     assert '"servers"' in onboarding["templates"]["vscode"]
-    assert '"tools"' not in onboarding["templates"]["vscode"]
+    assert '"tools":["*"]' in onboarding["templates"]["vscode"]
     assert '"mcpServers"' not in onboarding["templates"]["vscode"]
     assert '"mcpServers"' in onboarding["templates"]["copilot_cli"]
     assert '"tools"' in onboarding["templates"]["copilot_cli"]

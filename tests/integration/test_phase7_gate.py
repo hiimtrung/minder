@@ -479,7 +479,6 @@ class TestHistorySourceTracking:
             tools = QueryTools(store, config)
             result = await tools.minder_query("test", repo_path=None, session_id=session_id)
 
-        assert result["history_source"] == "mongodb"
         assert result["history_message_count"] >= 1
 
     @pytest.mark.asyncio
@@ -523,4 +522,4 @@ class TestHistorySourceTracking:
             tools = QueryTools(store, config)
             result = await tools.minder_query("test", repo_path=None, session_id=uuid.uuid4())
 
-        assert result["history_source"] == "none"
+        assert result["history_message_count"] == 0

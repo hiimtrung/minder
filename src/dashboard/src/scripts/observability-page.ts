@@ -8,6 +8,7 @@ import {
   type AuditEventPayload,
   type MetricsSummaryPayload,
 } from "../lib/api/admin";
+import { escapeHtml } from "./ui-utils";
 
 // ---------------------------------------------------------------------------
 // Element refs
@@ -99,13 +100,6 @@ const tabs = {
   continuity: document.querySelector("#tab-continuity"),
 };
 
-const panels = {
-  overview: document.querySelector("#panel-overview"),
-  audit: document.querySelector("#panel-audit"),
-  jobs: document.querySelector("#panel-jobs"),
-  continuity: document.querySelector("#panel-continuity"),
-};
-
 // ---------------------------------------------------------------------------
 // Pagination / filter state
 // ---------------------------------------------------------------------------
@@ -128,13 +122,7 @@ let jobsStream: EventSource | null = null;
 // Helpers
 // ---------------------------------------------------------------------------
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+
 
 const fmt = (n: number): string =>
   Number.isFinite(n) ? Math.round(n).toLocaleString() : "0";

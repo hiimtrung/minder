@@ -1,14 +1,23 @@
 import {
+  createRuntimeConversation,
+  deleteRuntimeConversation,
+  getRuntimeConversation,
   listRepositories,
+  listRuntimeConversations,
   listTools,
   listWorkflows,
   queryRuntimeStream,
+  type RuntimeConversationPayload,
+  type RuntimeConversationSessionPayload,
   type RepositoryPayload,
   type RuntimeQueryPayload,
   type RuntimeQueryStreamEvent,
   type ToolInfo,
   type WorkflowPayload,
 } from "../lib/api/admin";
+
+import "./components/tip-element";
+import { escapeHtml } from "./ui-utils";
 
 const formEl = document.querySelector(
   "#runtime-chat-form",
@@ -35,6 +44,13 @@ const actionsEl = document.querySelector("#runtime-chat-actions");
 const summaryEl = document.querySelector("#runtime-chat-summary");
 const engineEl = document.querySelector("#runtime-chat-engine");
 const warningEl = document.querySelector("#runtime-chat-warning");
+const sessionBadgeEl = document.querySelector("#runtime-chat-session-badge");
+const conversationListEl = document.querySelector(
+  "#runtime-chat-conversation-list",
+) as HTMLElement | null;
+const newConversationEl = document.querySelector(
+  "#runtime-chat-new",
+) as HTMLButtonElement | null;
 const submitEl = document.querySelector(
   "#runtime-chat-submit",
 ) as HTMLButtonElement | null;
@@ -55,9 +71,35 @@ let workflows: WorkflowPayload[] = [];
 let messages: ChatMessage[] = [];
 let activeAssistantMessageIndex: number | null = null;
 let sessionId: string | null = null;
+let conversationList: RuntimeConversationSessionPayload[] = [];
+
+const SESSION_STORAGE_KEY = "minder:runtime-chat:session-id";
 
 const QUERY_MIN_ROWS = 2;
 const QUERY_MAX_ROWS = 4;
+const EMPTY_THREAD_MARKUP =
+  emptyEl instanceof HTMLElement ? emptyEl.outerHTML : "";
+
+const readStoredSessionId = (): string | null => {
+  try {
+    const stored = window.localStorage.getItem(SESSION_STORAGE_KEY);
+    return stored?.trim() || null;
+  } catch {
+    return null;
+  }
+};
+
+const writeStoredSessionId = (nextSessionId: string | null) => {
+  try {
+    if (nextSessionId) {
+      window.localStorage.setItem(SESSION_STORAGE_KEY, nextSessionId);
+      return;
+    }
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+  } catch {
+    // Ignore storage failures in private browsing or locked-down environments.
+  }
+};
 
 const syncQueryHeight = () => {
   if (!(queryEl instanceof HTMLTextAreaElement)) return;
@@ -83,13 +125,7 @@ const syncQueryHeight = () => {
     queryEl.scrollHeight > maxHeight ? "auto" : "hidden";
 };
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+
 
 const jsonPreview = (value: unknown): string => {
   try {
@@ -110,14 +146,172 @@ const setStatus = (
   if (tone === "danger") statusEl.classList.add("u-status-danger");
 };
 
+const formatShortDate = (iso: string | null): string => {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toLocaleDateString(undefined, {
+      month: "short",
+      day: "numeric",
+    });
+  } catch {
+    return "";
+  }
+};
+
+const convLabel = (conv: RuntimeConversationSessionPayload): string => {
+  if (conv.name?.trim()) return conv.name.trim();
+  const date = formatShortDate(conv.created_at);
+  return date ? `Chat · ${date}` : "New conversation";
+};
+
+const renderConversationList = () => {
+  if (!(conversationListEl instanceof HTMLElement)) return;
+  if (!conversationList.length) {
+    conversationListEl.innerHTML =
+      '<div class="text-sm text-stone-500">No conversations yet.</div>';
+    return;
+  }
+  conversationListEl.innerHTML = conversationList
+    .map((conv) => {
+      const isActive = conv.id === sessionId;
+      const label = convLabel(conv);
+      const repoName = String(
+        conv.project_context?.repository_name ?? "",
+      ).trim();
+      return `
+        <div class="runtime-conv-item${isActive ? " active" : ""}" data-conv-id="${escapeHtml(conv.id)}">
+          <div class="runtime-conv-body" data-switch-conv-id="${escapeHtml(conv.id)}">
+            <span class="runtime-conv-name">${escapeHtml(label)}</span>
+            ${repoName ? `<span class="runtime-conv-meta">${escapeHtml(repoName)}</span>` : ""}
+          </div>
+          <button
+            type="button"
+            class="runtime-conv-delete"
+            data-delete-conv-id="${escapeHtml(conv.id)}"
+            aria-label="Delete conversation"
+          >×</button>
+        </div>
+      `;
+    })
+    .join("");
+};
+
+const renderSessionState = () => {
+  const shortId = sessionId ? sessionId.slice(0, 8) : null;
+  if (sessionBadgeEl instanceof HTMLElement) {
+    sessionBadgeEl.textContent = shortId
+      ? `Saved conversation · ${shortId}`
+      : "No saved conversation";
+  }
+  renderConversationList();
+};
+
+const resetInsights = () => {
+  setWarning(null);
+  if (engineEl instanceof HTMLElement) {
+    engineEl.textContent = "";
+  }
+  if (sourcesEl instanceof HTMLElement) {
+    sourcesEl.innerHTML =
+      '<div class="text-sm text-stone-500">No sources yet.</div>';
+  }
+  if (transitionsEl instanceof HTMLElement) {
+    transitionsEl.innerHTML =
+      '<div class="text-sm text-stone-500">No transition log yet.</div>';
+  }
+  if (actionsEl instanceof HTMLElement) {
+    actionsEl.innerHTML =
+      '<div class="text-sm text-stone-500">No tool actions yet.</div>';
+  }
+  if (summaryEl instanceof HTMLElement) {
+    summaryEl.innerHTML =
+      '<div class="text-sm text-stone-500">No answer context yet.</div>';
+  }
+};
+
+const resetConversation = () => {
+  messages = [];
+  activeAssistantMessageIndex = null;
+  sessionId = null;
+  writeStoredSessionId(null);
+  renderThread();
+  renderSessionState();
+  resetInsights();
+};
+
+const applyConversation = (payload: RuntimeConversationPayload) => {
+  sessionId = payload.session.id;
+  writeStoredSessionId(sessionId);
+  messages = payload.history.map((message) => ({
+    role: message.role === "user" ? "user" : "assistant",
+    content: message.content,
+    meta: {
+      repositoryName:
+        String(payload.session.project_context?.repository_name ?? "").trim() ||
+        null,
+    },
+  }));
+  activeAssistantMessageIndex = null;
+  renderThread();
+  renderSessionState();
+
+  if (
+    repositoryEl instanceof HTMLSelectElement &&
+    payload.session.repo_id &&
+    repositories.some((item) => item.id === payload.session.repo_id)
+  ) {
+    repositoryEl.value = payload.session.repo_id;
+    repositoryEl.dispatchEvent(new Event("change"));
+  }
+};
+
+const ensureConversation = async (): Promise<string> => {
+  if (sessionId) {
+    return sessionId;
+  }
+  const created = await createRuntimeConversation({
+    repo_id: repositoryEl?.value?.trim() || undefined,
+  });
+  conversationList = [created.session, ...conversationList];
+  applyConversation(created);
+  return created.session.id;
+};
+
+const restoreConversation = async (): Promise<boolean> => {
+  const storedSessionId = readStoredSessionId();
+  if (!storedSessionId) {
+    renderSessionState();
+    return false;
+  }
+  try {
+    const conversation = await getRuntimeConversation(storedSessionId);
+    applyConversation(conversation);
+    setStatus(
+      conversation.history.length
+        ? "Restored saved conversation."
+        : "Restored empty saved conversation.",
+      "success",
+    );
+    return true;
+  } catch (error) {
+    resetConversation();
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to restore the saved conversation.";
+    setStatus(message, "danger");
+    setWarning(message);
+    return false;
+  }
+};
+
 const renderThread = () => {
   if (!(threadEl instanceof HTMLElement)) return;
   if (!messages.length) {
-    emptyEl?.classList.remove("hidden");
+    threadEl.innerHTML = EMPTY_THREAD_MARKUP;
     return;
   }
 
-  emptyEl?.classList.add("hidden");
   threadEl.innerHTML = messages
     .map((message) => {
       const isAssistant = message.role === "assistant";
@@ -163,9 +357,9 @@ const renderTools = (tools: ToolInfo[]) => {
   toolsEl.innerHTML = tools
     .map(
       (tool) => `
-        <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-          <p class="text-sm font-medium text-stone-900">${escapeHtml(tool.name)}</p>
-          <p class="mt-1 text-sm leading-6 text-stone-600">${escapeHtml(tool.description)}</p>
+        <article class="shell-card u-runtime-tool-card">
+          <p class="u-runtime-tool-name">${escapeHtml(tool.name)}</p>
+          <minder-tip>${escapeHtml(String(tool.description || ""))}</minder-tip>
         </article>
       `,
     )
@@ -195,6 +389,11 @@ const renderWorkflowOptions = (items: WorkflowPayload[]) => {
 };
 
 const renderResult = (payload: RuntimeQueryPayload) => {
+  if (payload.session_id) {
+    sessionId = payload.session_id;
+    writeStoredSessionId(sessionId);
+    renderSessionState();
+  }
   if (typeof activeAssistantMessageIndex === "number") {
     messages[activeAssistantMessageIndex] = {
       role: "assistant",
@@ -240,9 +439,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
           const score =
             typeof source.score === "number" ? source.score.toFixed(2) : null;
           return `
-            <article class="rounded-2xl border border-stone-200 bg-stone-50 px-4 py-3">
-              <p class="text-sm font-medium text-stone-900 break-words">${escapeHtml(path)}</p>
-              ${score ? `<p class="mt-1 text-xs text-stone-500">score ${escapeHtml(score)}</p>` : ""}
+            <article class="shell-card u-runtime-panel u-runtime-panel-soft">
+              <p class="u-runtime-panel-title">${escapeHtml(path)}</p>
+              ${score ? `<p class="u-runtime-panel-meta">score ${escapeHtml(score)}</p>` : ""}
               <pre class="snippet-pre mt-3 text-xs">${escapeHtml(jsonPreview(source))}</pre>
             </article>
           `;
@@ -259,7 +458,7 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       transitionsEl.innerHTML = payload.transition_log
         .map(
           (item) => `
-            <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
+            <article class="shell-card u-runtime-panel">
               <pre class="snippet-pre text-xs">${escapeHtml(jsonPreview(item))}</pre>
             </article>
           `,
@@ -276,9 +475,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       actionsEl.innerHTML = payload.agent_actions
         .map(
           (action) => `
-            <article class="rounded-2xl border border-stone-200 bg-white px-4 py-3">
-              <p class="text-sm font-medium text-stone-900">${escapeHtml(String(action.tool ?? "unknown_tool"))}</p>
-              <p class="mt-1 text-xs text-stone-500">${escapeHtml(String(action.mode ?? "unknown"))} · ${escapeHtml(String(action.status ?? "unknown"))}</p>
+            <article class="shell-card u-runtime-panel">
+              <p class="u-runtime-panel-title">${escapeHtml(String(action.tool ?? "unknown_tool"))}</p>
+              <p class="u-runtime-panel-meta">${escapeHtml(String(action.mode ?? "unknown"))} · ${escapeHtml(String(action.status ?? "unknown"))}</p>
               <pre class="snippet-pre mt-3 text-xs">${escapeHtml(jsonPreview(action))}</pre>
             </article>
           `,
@@ -294,6 +493,11 @@ const renderResult = (payload: RuntimeQueryPayload) => {
       ["Path", payload.repository.path || "-"],
       ["Orchestration", payload.orchestration_runtime || "-"],
       ["Edge", payload.edge || "-"],
+      [
+        "Conversation",
+        payload.session_id ? payload.session_id.slice(0, 8) : "-",
+      ],
+      ["History messages", payload.history_message_count ?? 0],
       ["Agent actions", payload.agent_actions?.length ?? 0],
       ["Answer sanitized", payload.answer_sanitized ? "yes" : "no"],
       ["Guard", payload.guard_result ? "returned" : "-"],
@@ -302,9 +506,9 @@ const renderResult = (payload: RuntimeQueryPayload) => {
     ]
       .map(
         ([label, value]) => `
-          <div class="rounded-2xl border border-stone-200 bg-white px-3 py-2">
-            <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">${escapeHtml(String(label))}</p>
-            <p class="mt-1 break-words text-sm text-stone-800">${escapeHtml(String(value))}</p>
+          <div class="shell-card u-runtime-summary-card">
+            <p class="u-runtime-summary-label">${escapeHtml(String(label))}</p>
+            <p class="u-runtime-summary-value">${escapeHtml(String(value))}</p>
           </div>
         `,
       )
@@ -385,16 +589,20 @@ const handleStreamEvent = (event: RuntimeQueryStreamEvent) => {
 };
 
 const loadBootstrap = async () => {
-  const [repositoryPayload, toolPayload, workflowPayload] = await Promise.all([
-    listRepositories(),
-    listTools(),
-    listWorkflows(),
-  ]);
+  const [repositoryPayload, toolPayload, workflowPayload, conversationPayload] =
+    await Promise.all([
+      listRepositories(),
+      listTools(),
+      listWorkflows(),
+      listRuntimeConversations().catch(() => ({ sessions: [] })),
+    ]);
   repositories = repositoryPayload.repositories;
   workflows = workflowPayload.workflows;
+  conversationList = conversationPayload.sessions;
   renderRepositoryOptions(repositories);
   renderWorkflowOptions(workflows);
   renderTools(toolPayload.tools);
+  renderConversationList();
 };
 
 repositoryEl?.addEventListener("change", () => {
@@ -421,6 +629,18 @@ formEl?.addEventListener("submit", async (event) => {
     repositories.find((item) => item.id === repoId) ?? null;
   if (!query) {
     setStatus("Question is required.", "danger");
+    return;
+  }
+
+  try {
+    await ensureConversation();
+  } catch (error) {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "Unable to create a conversation.";
+    setStatus(message, "danger");
+    setWarning(message);
     return;
   }
 
@@ -496,11 +716,75 @@ document
     });
   });
 
+newConversationEl?.addEventListener("click", () => {
+  resetConversation();
+  setStatus("Started a new empty conversation.", "success");
+  setWarning(null);
+  queryEl?.focus();
+});
+
+conversationListEl?.addEventListener("click", async (event) => {
+  const target = event.target as HTMLElement | null;
+  if (!target) return;
+
+  const switchId = target.closest<HTMLElement>("[data-switch-conv-id]")?.dataset
+    .switchConvId;
+  if (switchId && switchId !== sessionId) {
+    try {
+      const conversation = await getRuntimeConversation(switchId);
+      applyConversation(conversation);
+      setStatus("Loaded conversation.", "success");
+      setWarning(null);
+      queryEl?.focus();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to load the conversation.";
+      setStatus(message, "danger");
+      setWarning(message);
+    }
+    return;
+  }
+
+  const deleteId = target.closest<HTMLElement>("[data-delete-conv-id]")?.dataset
+    .deleteConvId;
+  if (deleteId) {
+    const confirmed = window.confirm(
+      "Delete this conversation and its history?",
+    );
+    if (!confirmed) return;
+    try {
+      await deleteRuntimeConversation(deleteId);
+      conversationList = conversationList.filter((c) => c.id !== deleteId);
+      if (sessionId === deleteId) {
+        resetConversation();
+      } else {
+        renderConversationList();
+      }
+      setStatus("Deleted the conversation.", "success");
+      queryEl?.focus();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : "Unable to delete the conversation.";
+      setStatus(message, "danger");
+      setWarning(message);
+    }
+    return;
+  }
+});
+
 void loadBootstrap()
-  .then(() => {
-    sessionId = crypto.randomUUID();
+  .then(async () => {
     renderThread();
-    setStatus("Ask a question. Repository scope is optional.");
+    renderSessionState();
+    resetInsights();
+    const restored = await restoreConversation();
+    if (!restored) {
+      setStatus("Ask a question. Repository scope is optional.");
+    }
     syncQueryHeight();
   })
   .catch((error) => {

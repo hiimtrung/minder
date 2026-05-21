@@ -1,0 +1,95 @@
+---
+import Tooltip from "./Tooltip.astro";
+
+interface Props {
+  label?: string;
+  htmlFor?: string;
+  hint?: string;
+  tooltip?: string;
+  class?: string;
+}
+
+const { label, htmlFor, hint, tooltip, class: className = "" } = Astro.props;
+---
+
+<label class:list={["field-root", className]} for={htmlFor}>
+  {label && (
+    <span class="field-label-row">
+      <span class="field-label">{label}</span>
+      {tooltip && <Tooltip content={tooltip} />}
+    </span>
+  )}
+  <slot />
+  {(hint || Astro.slots.has("hint")) && (
+    <span class="field-hint">{hint}<slot name="hint" /></span>
+  )}
+  {Astro.slots.has("error") && (
+    <span class="field-error"><slot name="error" /></span>
+  )}
+</label>
+
+<style>
+  .field-root {
+    display: block;
+  }
+
+  .field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.375rem;
+  }
+
+  .field-label {
+    display: block;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(68 64 60);
+  }
+
+  .field-hint {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: rgb(120 113 108);
+  }
+
+  .field-error {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: rgb(225 29 72);
+  }
+</style>
+
+<style is:global>
+  /* Keep legacy class names for backward compat with JS-injected markup */
+  .u-field-label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: rgb(68 64 60);
+  }
+  .u-field-hint {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: rgb(120 113 108);
+  }
+  .u-field-error {
+    display: block;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: rgb(225 29 72);
+  }
+  .u-field-label-row {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.375rem;
+  }
+  .u-field-label-row .u-field-label {
+    margin-bottom: 0;
+  }
+</style>

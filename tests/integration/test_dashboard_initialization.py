@@ -82,6 +82,11 @@ async def test_dashboard_setup_and_auth(
         base_url="http://testserver",
         follow_redirects=False,
     ) as client:
+        # 0. Root / redirects to base_path
+        root_page = await client.get("/")
+        assert root_page.status_code == 307
+        assert root_page.headers["location"] == "/dashboard"
+
         # 1. Fresh deployment serves Astro setup and login shells.
         login_page = await client.get("/dashboard/login")
         assert login_page.status_code == 303
@@ -109,8 +114,8 @@ async def test_dashboard_setup_and_auth(
         assert browser_login.status_code == 200
 
         dashboard = await client.get("/dashboard")
-        assert dashboard.status_code == 303
-        assert dashboard.headers["location"] == "/dashboard/clients"
+        assert dashboard.status_code == 200
+        assert "dashboard root" in dashboard.text
 
     # 4. Recovery script rotates the admin API key and invalidates the old one.
     recovery_module = _load_module(Path("scripts/reset_admin_api_key.py"), "phase41_reset_admin_api_key")

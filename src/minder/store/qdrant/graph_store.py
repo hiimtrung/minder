@@ -4,8 +4,11 @@ from __future__ import annotations
 import uuid
 from collections import deque
 from typing import Any
+
 from minder.store.qdrant.client import QdrantClientWrapper
 from minder.store.qdrant.crud import CollectionCRUD, _Doc, _uid
+
+_BULK_SCOPE_LIMIT = 9_000
 
 
 class QdrantGraphStore:
@@ -89,7 +92,7 @@ class QdrantGraphStore:
         return await self._find_node(repo_id, branch, node_type, name)
 
     async def list_nodes(self) -> list[Any]:
-        return await self._nodes.find_many()
+        return await self._nodes.find_many(limit=None)
 
     async def list_nodes_by_scope(
         self,
@@ -101,22 +104,22 @@ class QdrantGraphStore:
         f: dict[str, Any] = {"repo_id": repo_id}
         if branch is not None:
             f["branch"] = branch
-        nodes = await self._nodes.find_many(f)
+        nodes = await self._nodes.find_many(f, limit=None)
         if node_types:
             nodes = [n for n in nodes if n._data.get("node_type") in node_types]
         return nodes
 
     async def list_edges(self) -> list[Any]:
-        return await self._edges.find_many()
+        return await self._edges.find_many(limit=None)
 
     async def list_edges_by_scope(self, *, repo_id: str) -> list[Any]:
-        return await self._edges.find_many({"repo_id": repo_id})
+        return await self._edges.find_many({"repo_id": repo_id}, limit=None)
 
     async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[Any]:
         f: dict[str, Any] = {"node_type": node_type}
         if repo_id:
             f["repo_id"] = repo_id
-        return await self._nodes.find_many(f)
+        return await self._nodes.find_many(f, limit=None)
 
     async def _cascade_delete_edges(self, nid: str) -> None:
         """Delete all edges connected to a node using a targeted OR-filter."""
@@ -135,7 +138,7 @@ class QdrantGraphStore:
         f: dict[str, Any] = {"repo_id": repo_id}
         if branch is not None:
             f["branch"] = branch
-        nodes = await self._nodes.find_many(f)
+        nodes = await self._nodes.find_many(f, limit=None)
         to_delete = []
         for n in nodes:
             if paths is not None:
@@ -150,7 +153,7 @@ class QdrantGraphStore:
         return len(to_delete)
 
     async def list_repo_branches(self, repo_id: str) -> list[str]:
-        nodes = await self._nodes.find_many({"repo_id": repo_id})
+        nodes = await self._nodes.find_many({"repo_id": repo_id}, limit=None)
         return list({n._data.get("branch", "") for n in nodes if n._data.get("branch")})
 
     # -- Edges --
@@ -207,32 +210,98 @@ class QdrantGraphStore:
     async def bulk_upsert_nodes(
         self, nodes: list[dict[str, Any]], *, repo_id: str, branch: str = ""
     ) -> dict[tuple[str, str], uuid.UUID]:
+        if not nodes:
+            return {}
+
+        existing_nodes = await self._nodes.find_many(
+            {"repo_id": repo_id, "branch": branch},
+            limit=_BULK_SCOPE_LIMIT,
+        )
+        existing_map = {
+            (
+                str(node._data.get("node_type", "")),
+                str(node._data.get("name", "")),
+            ): node
+            for node in existing_nodes
+        }
+
         id_map: dict[tuple[str, str], uuid.UUID] = {}
-        for nd in nodes:
-            node = await self.upsert_node(
-                nd["node_type"],
-                nd["name"],
-                nd.get("metadata") or {},
-                repo_id=repo_id,
-                branch=branch,
+        records: list[tuple[str, dict[str, Any]]] = []
+        for node_data in nodes:
+            key = (node_data["node_type"], node_data["name"])
+            metadata = node_data.get("metadata") or {}
+            existing = existing_map.get(key)
+            if existing is not None:
+                node_id = str(existing.id)
+                merged_metadata = {
+                    **dict(existing._data.get("extra_metadata") or {}),
+                    **metadata,
+                }
+            else:
+                node_id = _uid(uuid.uuid4())
+                merged_metadata = metadata
+
+            payload = {
+                "node_type": node_data["node_type"],
+                "name": node_data["name"],
+                "extra_metadata": merged_metadata,
+                "repo_id": repo_id,
+                "branch": branch,
+            }
+            created_at = (
+                existing._data.get("created_at") if existing is not None else None
             )
-            id_map[(nd["node_type"], nd["name"])] = node.id
+            if created_at is not None:
+                payload["created_at"] = created_at
+            records.append((node_id, payload))
+            id_map[key] = uuid.UUID(node_id)
+
+        await self._nodes.upsert_many(records)
         return id_map
 
     async def bulk_upsert_edges(
         self, edges: list[dict[str, Any]], *, repo_id: str
     ) -> int:
-        count = 0
-        for ed in edges:
-            await self.upsert_edge(
-                ed["source_id"],
-                ed["target_id"],
-                ed["relation"],
-                ed.get("weight", 1.0),
-                repo_id=repo_id,
+        if not edges:
+            return 0
+
+        existing_edges = await self._edges.find_many(
+            {"repo_id": repo_id},
+            limit=_BULK_SCOPE_LIMIT,
+        )
+        existing_map = {
+            (
+                str(edge._data.get("source_id", "")),
+                str(edge._data.get("target_id", "")),
+                str(edge._data.get("relation", "")),
+            ): edge
+            for edge in existing_edges
+        }
+
+        records: list[tuple[str, dict[str, Any]]] = []
+        for edge_data in edges:
+            source_id = _uid(edge_data["source_id"])
+            target_id = _uid(edge_data["target_id"])
+            relation = edge_data["relation"]
+            edge_key = (source_id, target_id, relation)
+            existing = existing_map.get(edge_key)
+            edge_id = str(existing.id) if existing is not None else _uid(uuid.uuid4())
+            payload = {
+                "source_id": source_id,
+                "target_id": target_id,
+                "relation": relation,
+                "weight": edge_data.get("weight", 1.0),
+                "repo_id": repo_id,
+            }
+            created_at = (
+                existing._data.get("created_at") if existing is not None else None
             )
-            count += 1
-        return count
+            if created_at is not None:
+                payload["created_at"] = created_at
+            records.append((edge_id, payload))
+
+        await self._edges.upsert_many(records)
+        return len(records)
 
     # -- Traversal --
     async def get_neighbors(

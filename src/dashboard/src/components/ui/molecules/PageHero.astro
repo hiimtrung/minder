@@ -1,0 +1,53 @@
+---
+import DashboardPageHeader from "./DashboardPageHeader.astro";
+
+interface Props {
+  eyebrow?: string;
+  title: string;
+  description?: string;
+  class?: string;
+}
+
+const { eyebrow, title, description, class: className = "" } = Astro.props;
+const hasActions = Astro.slots.has("actions");
+---
+
+<DashboardPageHeader
+  eyebrow={eyebrow}
+  title={title}
+  description={description}
+  class={className}
+>
+  {hasActions && (
+    <Fragment slot="actions">
+      <slot name="actions" />
+    </Fragment>
+  )}
+</DashboardPageHeader>
+
+<style is:global>
+  /* Legacy classes used from JS-injected HTML and other components */
+  .u-page-hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.875rem;
+  }
+  .u-page-hero-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.55rem, 1.15rem + 1vw, 2.35rem);
+    line-height: 1.08;
+    letter-spacing: -0.035em;
+    font-weight: 700;
+    color: rgb(28 25 23);
+  }
+  .u-page-hero-sub {
+    margin-top: 0.55rem;
+    max-width: 66ch;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: rgb(87 83 78);
+  }
+</style>

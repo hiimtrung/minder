@@ -114,6 +114,7 @@ const parseList = (raw: string): string[] =>
 // ---------------------------------------------------------------------------
 
 const agentRegistryEl = document.querySelector("#agent-registry");
+const agentFormDialogEl = document.querySelector("#agent-form-dialog") as HTMLDialogElement | null;
 const createAgentForm = getEl<HTMLFormElement>("create-agent-form");
 const createStatusEl = getEl("create-agent-status");
 
@@ -219,6 +220,19 @@ const loadCreateTools = async () => {
   }
 };
 
+getEl("agent-new-button")?.addEventListener("click", () => {
+  agentFormDialogEl?.showModal();
+  void loadCreateTools();
+});
+
+getEl("agent-close-dialog")?.addEventListener("click", () => {
+  agentFormDialogEl?.close();
+});
+
+agentFormDialogEl?.addEventListener("click", (event) => {
+  if (event.target === agentFormDialogEl) agentFormDialogEl.close();
+});
+
 getEl("create-agent-tools-all")?.addEventListener("click", () =>
   toggleAllTools("create-agent-tools", "create_agent_tool", true),
 );
@@ -254,6 +268,7 @@ createAgentForm?.addEventListener("submit", async (event) => {
     });
     setCreateStatus(`Created ${result.agent.title || result.agent.name}.`, "success");
     showToast(`Created agent ${result.agent.title || result.agent.name}.`, "success");
+    agentFormDialogEl?.close();
     createAgentForm.reset();
     await loadCreateTools();
     await refreshAgents();
@@ -393,6 +408,5 @@ deleteAgentButton?.addEventListener("click", async () => {
 // Boot
 // ---------------------------------------------------------------------------
 
-if (getEl("create-agent-tools")) void loadCreateTools();
 void refreshAgents();
 void renderDetail();

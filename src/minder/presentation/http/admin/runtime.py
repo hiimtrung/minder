@@ -16,6 +16,8 @@ from minder.tools.query import QueryTools
 from minder.tools.session import SessionTools
 from minder.tools.skills import SkillTools
 
+from minder.utils import _iso
+
 from .context import AdminRouteContext
 
 logger = logging.getLogger(__name__)
@@ -48,6 +50,11 @@ class RuntimeQueryRequest(BaseModel):
     workflow_name: str | None = None
     session_id: str | None = None
     max_attempts: int = Field(default=2, ge=1, le=4)
+
+
+class RuntimeConversationCreateRequest(BaseModel):
+    repo_id: str | None = None
+    name: str | None = None
 
 
 _READ_LIST_VERBS = (
@@ -143,6 +150,41 @@ def _agentic_payload(
         "cross_repo_graph": None,
         "agent_actions": agent_actions,
     }
+
+
+def _history_sort_key(doc: Any) -> tuple[str, str]:
+    created_at = getattr(doc, "created_at", None)
+    created_at_key = created_at.isoformat() if (created_at is not None and hasattr(created_at, "isoformat")) else ""
+    return created_at_key, str(getattr(doc, "id", ""))
+
+
+def _serialize_runtime_session(session: Any) -> dict[str, Any]:
+    return {
+        "id": str(getattr(session, "id", "")),
+        "name": getattr(session, "name", None),
+        "repo_id": (
+            str(getattr(session, "repo_id", ""))
+            if getattr(session, "repo_id", None)
+            else None
+        ),
+        "project_context": dict(getattr(session, "project_context", {}) or {}),
+        "created_at": _iso(getattr(session, "created_at", None)),
+        "last_active": _iso(getattr(session, "last_active", None)),
+    }
+
+
+def _serialize_runtime_history(history_docs: list[Any]) -> list[dict[str, Any]]:
+    ordered_docs = sorted(history_docs, key=_history_sort_key)
+    return [
+        {
+            "id": str(getattr(doc, "id", "")),
+            "role": str(getattr(doc, "role", "")),
+            "content": str(getattr(doc, "content", "")),
+            "created_at": _iso(getattr(doc, "created_at", None)),
+        }
+        for doc in ordered_docs
+        if getattr(doc, "role", "") and getattr(doc, "content", "")
+    ]
 
 
 class RuntimeAgentExecutor:
@@ -264,7 +306,9 @@ class RuntimeAgentExecutor:
         repository: dict[str, Any],
     ) -> dict[str, Any] | None:
         normalized = query.lower()
-        if _contains_any(normalized, _RECALL_VERBS) and not _contains_any(normalized, _READ_LIST_VERBS):
+        if _contains_any(normalized, _RECALL_VERBS) and not _contains_any(
+            normalized, _READ_LIST_VERBS
+        ):
             results = await self._skill_tools.minder_skill_recall(query)
             preview = (
                 "\n".join(
@@ -512,9 +556,11 @@ def _sanitize_answer(
         )
 
     marker_hits = sum(text.count(marker) for marker in _PROMPT_LEAK_MARKERS)
-    looks_like_prompt_echo = marker_hits >= 2 or text.startswith(
-        "Workflow instruction:"
-    ) or text.startswith("<workflow>")
+    looks_like_prompt_echo = (
+        marker_hits >= 2
+        or text.startswith("Workflow instruction:")
+        or text.startswith("<workflow>")
+    )
 
     if not looks_like_prompt_echo:
         return text, False, None
@@ -538,6 +584,9 @@ def _sanitize_answer(
 
 
 def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
+    _query_tools = QueryTools(context.store, context.config)
+    _session_tools = SessionTools(context.store, context.config)
+
     async def _resolve_request(
         request,
     ) -> tuple[RuntimeQueryRequest, Mapping[str, object], str | None] | JSONResponse:
@@ -591,9 +640,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         admin_user = await context.admin_user_from_request(request)
         query = str(payload.query).strip()
         repo_id = uuid.UUID(str(payload.repo_id)) if payload.repo_id else None
-        session_id = (
-            uuid.UUID(str(payload.session_id)) if payload.session_id else None
-        )
+        session_id = uuid.UUID(str(payload.session_id)) if payload.session_id else None
         repository_payload = {
             "id": (
                 str(repository.get("id") or payload.repo_id)
@@ -613,7 +660,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse(agentic_result)
 
         try:
-            result = await QueryTools(context.store, context.config).minder_query(
+            result = await _query_tools.minder_query(
                 query=query,
                 repo_path=repo_path,
                 repo_id=repo_id,
@@ -644,6 +691,134 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
             }
         )
 
+    async def runtime_conversation_list(request) -> JSONResponse:
+        try:
+            admin_user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        all_sessions = await context.store.get_sessions_by_user(admin_user.id)
+        dashboard_sessions = [
+            s for s in all_sessions
+            if isinstance(getattr(s, "project_context", None), dict)
+            and s.project_context.get("source") == "dashboard_runtime_chat"
+        ]
+
+        def _sort_key(s: Any) -> str:
+            ts = getattr(s, "last_active", None) or getattr(s, "created_at", None)
+            if ts is None:
+                return ""
+            return ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
+
+        dashboard_sessions.sort(key=_sort_key, reverse=True)
+        return JSONResponse({"sessions": [_serialize_runtime_session(s) for s in dashboard_sessions]})
+
+    async def runtime_conversation_create(request) -> JSONResponse:
+        try:
+            admin_user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        try:
+            payload = RuntimeConversationCreateRequest(**(await request.json()))
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
+        repo_id: uuid.UUID | None = None
+        project_context: dict[str, Any] = {"source": "dashboard_runtime_chat"}
+        if payload.repo_id:
+            try:
+                repo_id = uuid.UUID(str(payload.repo_id))
+            except ValueError:
+                return JSONResponse({"error": "Invalid repo_id"}, status_code=400)
+            try:
+                repository_payload = await context.use_cases.get_repository_detail(
+                    repo_id
+                )
+            except LookupError:
+                return JSONResponse({"error": "Repository not found"}, status_code=404)
+            repository = (
+                repository_payload.get("repository", {})
+                if isinstance(repository_payload, dict)
+                else {}
+            )
+            if repository.get("name"):
+                project_context["repository_name"] = repository.get("name")
+            if repository.get("path"):
+                project_context["repository_path"] = repository.get("path")
+
+        created = await _session_tools.minder_session_create(
+            user_id=admin_user.id,
+            name=(payload.name or "").strip() or None,
+            repo_id=repo_id,
+            project_context=project_context,
+        )
+        created_session = await context.store.get_session_by_id(
+            uuid.UUID(str(created["session_id"]))
+        )
+        if created_session is None:
+            return JSONResponse(
+                {"error": "Conversation session could not be restored after creation"},
+                status_code=500,
+            )
+        return JSONResponse(
+            {
+                "session": _serialize_runtime_session(created_session),
+                "history": [],
+            },
+            status_code=201,
+        )
+
+    async def runtime_conversation_detail(request) -> JSONResponse:
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        try:
+            session_id = uuid.UUID(str(request.path_params["session_id"]))
+        except ValueError:
+            return JSONResponse({"error": "Invalid session_id"}, status_code=400)
+
+        session = await context.store.get_session_by_id(session_id)
+        if session is None:
+            return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        history_docs = await context.store.list_history_for_session(session_id)
+        return JSONResponse(
+            {
+                "session": _serialize_runtime_session(session),
+                "history": _serialize_runtime_history(history_docs),
+            }
+        )
+
+    async def runtime_conversation_delete(request) -> JSONResponse:
+        try:
+            await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        try:
+            session_id = uuid.UUID(str(request.path_params["session_id"]))
+        except ValueError:
+            return JSONResponse({"error": "Invalid session_id"}, status_code=400)
+
+        existing = await context.store.get_session_by_id(session_id)
+        if existing is None:
+            return JSONResponse({"error": "Session not found"}, status_code=404)
+
+        deleted_history = await context.store.delete_history_for_session(session_id)
+        await context.store.delete_session(session_id)
+        return JSONResponse({"deleted": True, "deleted_history": deleted_history})
+
     async def runtime_query_stream(request) -> StreamingResponse | JSONResponse:
         resolved = await _resolve_request(request)
         if isinstance(resolved, JSONResponse):
@@ -652,9 +827,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         admin_user = await context.admin_user_from_request(request)
         query = str(payload.query).strip()
         repo_id = uuid.UUID(str(payload.repo_id)) if payload.repo_id else None
-        session_id = (
-            uuid.UUID(str(payload.session_id)) if payload.session_id else None
-        )
+        session_id = uuid.UUID(str(payload.session_id)) if payload.session_id else None
 
         async def event_stream():
             repository_payload = {
@@ -676,9 +849,8 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 yield json.dumps({"type": "final", "payload": agentic_result}) + "\n"
                 return
 
-            query_tools = QueryTools(context.store, context.config)
             try:
-                async for event in query_tools.minder_query_stream(
+                async for event in _query_tools.minder_query_stream(
                     query=query,
                     repo_path=repo_path,
                     repo_id=repo_id,
@@ -723,6 +895,26 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         )
 
     return [
+        Route(
+            "/api/v1/runtime/conversations",
+            runtime_conversation_list,
+            methods=["GET"],
+        ),
+        Route(
+            "/api/v1/runtime/conversations",
+            runtime_conversation_create,
+            methods=["POST"],
+        ),
+        Route(
+            "/api/v1/runtime/conversations/{session_id:uuid}",
+            runtime_conversation_detail,
+            methods=["GET"],
+        ),
+        Route(
+            "/api/v1/runtime/conversations/{session_id:uuid}",
+            runtime_conversation_delete,
+            methods=["DELETE"],
+        ),
         Route("/api/v1/runtime/query", runtime_query, methods=["POST"]),
         Route("/api/v1/runtime/query/stream", runtime_query_stream, methods=["POST"]),
     ]

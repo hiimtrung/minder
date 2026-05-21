@@ -30,7 +30,15 @@ DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
 
 
 def _favicon_path() -> Path:
-    return Path(__file__).resolve().parents[5] / "favicon.png"
+    candidates = [
+        Path(__file__).resolve().parents[5] / "favicon.png",
+        Path(__file__).resolve().parents[5] / "src" / "dashboard" / "public" / "favicon.png",
+        Path(__file__).resolve().parents[5] / "src" / "dashboard" / "dist" / "client" / "favicon.png",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path
+    return candidates[0]
 
 
 def dashboard_dev_origin(config: MinderConfig) -> str | None:
@@ -71,7 +79,11 @@ def build_http_routes(
     async def favicon_ico(_request) -> RedirectResponse:
         return RedirectResponse(url="/favicon.png", status_code=308)
 
+    async def root_redirect(_request) -> RedirectResponse:
+        return RedirectResponse(url=config.dashboard.base_path or "/dashboard", status_code=307)
+
     return [
+        Route("/", root_redirect, methods=["GET"]),
         Route("/health", health, methods=["GET"]),
         Route("/favicon.ico", favicon_ico, methods=["GET"]),
         Route("/favicon.png", favicon_png, methods=["GET"]),

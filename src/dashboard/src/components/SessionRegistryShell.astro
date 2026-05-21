@@ -1,8 +1,8 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import PageHero from "./ui/PageHero.astro";
-import Toolbar from "./ui/Toolbar.astro";
-import Button from "./ui/Button.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
+import Toolbar from "./ui/molecules/Toolbar.astro";
+import Button from "./ui/atoms/Button.astro";
 ---
 
 <DashboardLayout
@@ -34,7 +34,7 @@ import Button from "./ui/Button.astro";
       </Button>
     </Toolbar>
 
-    <div id="session-list-registry" class="grid gap-4 xl:grid-cols-2">
+    <div id="session-list-registry" class="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
       <article class="u-placeholder-card">Loading sessions...</article>
     </div>
   </section>

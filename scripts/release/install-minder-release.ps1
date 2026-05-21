@@ -42,7 +42,6 @@ $InstallDir    = Get-EnvOrDefault -Name 'MINDER_INSTALL_DIR'      -Default (Join
 $CurrentLink   = Get-EnvOrDefault -Name 'MINDER_CURRENT_LINK'     -Default (Join-Path $HOME '.minder\current')
 $ModelsDir     = Get-EnvOrDefault -Name 'MINDER_MODELS_DIR'       -Default (Join-Path $HOME '.minder\models')
 $PublicPort    = Get-EnvOrDefault -Name 'MINDER_PORT'             -Default '8800'
-$MilvusPort    = Get-EnvOrDefault -Name 'MILVUS_PORT'             -Default '19530'
 $OpenAiKey     = Get-EnvOrDefault -Name 'OPENAI_API_KEY'          -Default ''
 $LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'   -Default 'ggml-org/gemma-4-E2B-it-GGUF'
 $EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'ggml-org/embeddinggemma-300M-GGUF'
@@ -98,7 +97,6 @@ Invoke-WebRequest -Uri "$ReleaseBaseUrl/Caddyfile"          -OutFile (Join-Path 
 
 $envContent = @"
 MINDER_PORT=$PublicPort
-MILVUS_PORT=$MilvusPort
 MINDER_API_IMAGE=$ApiImage
 MINDER_DASHBOARD_IMAGE=$DashboardImage
 MINDER_MODELS_DIR=$ModelsDir

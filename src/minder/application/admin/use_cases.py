@@ -70,7 +70,11 @@ _UNSET: Any = object()  # sentinel for optional update fields
 DASHBOARD_TOOL_SCOPE_OPTIONS = [tool.name for tool in SCOPEABLE_TOOLS]
 
 DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
-    "Query Only": ["minder_search_code", "minder_search_errors", "minder_memory_recall"],
+    "Query Only": [
+        "minder_search_code",
+        "minder_search_errors",
+        "minder_memory_recall",
+    ],
     "Read Only": [
         "minder_search_code",
         "minder_search_errors",
@@ -372,9 +376,6 @@ class AdminConsoleUseCases:
             "antigravity": (
                 f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
             ),
-            "gemini": (
-                f'{{"mcpServers":{{"minder":{{"serverUrl":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
-            ),
             "cursor": (
                 f'{{"mcpServers":{{"minder":{{"url":"{base_url}/mcp","headers":{{"X-Minder-Client-Key":"<mkc_...>"}}}}}}}}'
             ),
@@ -495,7 +496,9 @@ class AdminConsoleUseCases:
         )
         await self._audit.emit(
             actor_type="admin",
-            actor_id=str(user.id),  # in this context, the new user IS the actor if it's initial setup?
+            actor_id=str(
+                user.id
+            ),  # in this context, the new user IS the actor if it's initial setup?
             # actually, if an admin creates a user, we should know WHO did it.
             # but create_user use case doesn't take actor_id yet.
             event_type="user.created",
@@ -785,6 +788,7 @@ class AdminConsoleUseCases:
         if not updates:
             return self.serialize_session(existing)
         from datetime import UTC, datetime
+
         updates["last_active"] = datetime.now(UTC)
         updated = await self._store.update_session(session_id, **updates)
         if updated is None:
@@ -795,6 +799,7 @@ class AdminConsoleUseCases:
         existing = await self._store.get_session_by_id(session_id)
         if existing is None:
             raise LookupError(f"Session {session_id} not found")
+        await self._store.delete_history_for_session(session_id)
         await self._store.delete_session(session_id)
         return {"deleted": True}
 
@@ -901,7 +906,11 @@ class AdminConsoleUseCases:
             existing_state = await self._store.get_workflow_state_by_repo(repo_id)
             if existing_state is None:
                 workflow_obj = await self._store.get_workflow_by_id(new_workflow_id)
-                steps = list(getattr(workflow_obj, "steps", []) or []) if workflow_obj else []
+                steps = (
+                    list(getattr(workflow_obj, "steps", []) or [])
+                    if workflow_obj
+                    else []
+                )
                 step_names = [
                     s["name"] for s in steps if isinstance(s, dict) and "name" in s
                 ]
@@ -971,7 +980,10 @@ class AdminConsoleUseCases:
             )
             if existing_remote != normalized_url:
                 updates["repo_url"] = normalized_url
-            if not str(getattr(repository, "state_path", "") or "").strip() and state_path:
+            if (
+                not str(getattr(repository, "state_path", "") or "").strip()
+                and state_path
+            ):
                 updates["state_path"] = state_path
             if (
                 normalized_branch
@@ -1037,16 +1049,16 @@ class AdminConsoleUseCases:
         deleted_nodes = 0
         nodes_upserted = 0
         edges_upserted = 0
-        
+
         # --- Check for redundant sync using commit_hash ---
         relationships = dict(getattr(repository, "relationships", {}) or {})
         graph_sync = dict(relationships.get("graph_sync", {}) or {})
         last_sync = dict(graph_sync.get("last_sync", {}) or {})
-        
+
         if (
-            payload.commit_hash 
+            payload.commit_hash
             and payload.commit_hash == last_sync.get("commit_hash")
-            and not payload.nodes 
+            and not payload.nodes
             and not payload.edges
             and not payload.deleted_files
         ):
@@ -1061,7 +1073,7 @@ class AdminConsoleUseCases:
                 "edges_upserted": 0,
                 "accepted_at": accepted_at,
             }
- 
+
         # --- Scoped deletion: prune stale nodes for changed/deleted files ---
         changed_files = payload.changed_files
         paths_to_prune: set[str] = set(payload.deleted_files)
@@ -1102,10 +1114,11 @@ class AdminConsoleUseCases:
         # --- Upsert nodes with proper repo/branch scope (v2) ---
         _branch = branch or ""
         _repo_id_str = str(repo_id)
-        
+
         # We strip large collections from sync_metadata before broadcasting to nodes
         _filtered_sync_meta = {
-            k: v for k, v in payload.sync_metadata.items()
+            k: v
+            for k, v in payload.sync_metadata.items()
             if k not in {"changed_files", "deleted_files"}
         }
 
@@ -1133,7 +1146,7 @@ class AdminConsoleUseCases:
         # --- Bulk upsert nodes ---
         # Use a dict to deduplicate nodes by (type, name)
         deduped_nodes: dict[tuple[str, str], dict[str, Any]] = {}
-        
+
         for node in payload.nodes:
             key = (node.node_type, node.name)
             deduped_nodes[key] = {
@@ -1141,7 +1154,7 @@ class AdminConsoleUseCases:
                 "name": node.name,
                 "metadata": {**_common_meta, **node.metadata},
             }
-        
+
         # Also need to collect nodes mentioned in edges that might not be in payload.nodes
         for edge in payload.edges:
             for side in [edge.source, edge.target]:
@@ -1152,7 +1165,7 @@ class AdminConsoleUseCases:
                         "name": side.name,
                         "metadata": _edge_common_meta,
                     }
-        
+
         node_ids = await self._graph_store.bulk_upsert_nodes(
             list(deduped_nodes.values()),
             repo_id=_repo_id_str,
@@ -1173,7 +1186,7 @@ class AdminConsoleUseCases:
                     "relation": edge.relation,
                     "weight": edge.weight,
                 }
-        
+
         edges_upserted = await self._graph_store.bulk_upsert_edges(
             list(deduped_edges.values()),
             repo_id=_repo_id_str,
@@ -1296,34 +1309,39 @@ class AdminConsoleUseCases:
         counts = Counter(str(getattr(node, "node_type", "")) for node in repo_nodes)
         # 1. Fetch all edges for the repo
         repo_edges = await self._graph_store.list_edges_by_scope(repo_id=str(repo_id))
-        
+
         # 2. Build map of nodes and containment map (parent map)
         node_id_to_node = {str(getattr(node, "id")): node for node in repo_nodes}
-        parent_map: dict[str, str] = {} # child_id -> parent_id
+        parent_map: dict[str, str] = {}  # child_id -> parent_id
         for edge in repo_edges:
             if edge.relation == "contains":
                 parent_map[str(edge.target_id)] = str(edge.source_id)
-        
+
         # 3. Identify dependency relations
-        dependency_relations = {"depends_on", "uses_external_service", "calls", "imports"}
-        
+        dependency_relations = {
+            "depends_on",
+            "uses_external_service",
+            "calls",
+            "imports",
+        }
+
         # 4. Find all dependency edges and group by high-level owner
         # owner_id -> set of target info
-        owner_to_deps: dict[str, set[tuple[str, str, str]]] = {} 
-        
+        owner_to_deps: dict[str, set[tuple[str, str, str]]] = {}
+
         high_level_types = {"service", "repository", "module", "controller"}
-        
+
         for edge in repo_edges:
             if edge.relation not in dependency_relations:
                 continue
-            
+
             source_id = str(edge.source_id)
             target_id = str(edge.target_id)
-            
+
             # Find high-level owner for the source node
             curr_id = source_id
             owner_node = None
-            
+
             # Search upwards for a high-level owner
             visited = {curr_id}
             while curr_id in node_id_to_node:
@@ -1331,30 +1349,32 @@ class AdminConsoleUseCases:
                 if str(getattr(node, "node_type", "")) in high_level_types:
                     owner_node = node
                     break
-                
+
                 parent_id = parent_map.get(curr_id)
                 if not parent_id or parent_id in visited:
                     break
                 curr_id = parent_id
                 visited.add(curr_id)
-            
+
             if not owner_node:
                 continue
-                
+
             # Get target info
             target_node = node_id_to_node.get(target_id)
             if not target_node:
                 continue
-            
+
             owner_id = str(owner_node.id)
             if owner_id not in owner_to_deps:
                 owner_to_deps[owner_id] = set()
-            
-            owner_to_deps[owner_id].add((
-                target_id,
-                str(getattr(target_node, "name", "")),
-                str(getattr(target_node, "node_type", "")),
-            ))
+
+            owner_to_deps[owner_id].add(
+                (
+                    target_id,
+                    str(getattr(target_node, "name", "")),
+                    str(getattr(target_node, "node_type", "")),
+                )
+            )
 
         # 5. Format the results
         dependencies: list[dict[str, Any]] = []
@@ -1364,11 +1384,15 @@ class AdminConsoleUseCases:
                 {"id": tid, "name": tname, "node_type": ttype}
                 for tid, tname, ttype in targets
             ]
-            dependencies.append({
-                "service": str(getattr(owner_node, "name", "")),
-                "source_type": str(getattr(owner_node, "node_type", "")),
-                "depends_on": sorted(depends_on_items, key=lambda item: item["name"]),
-            })
+            dependencies.append(
+                {
+                    "service": str(getattr(owner_node, "name", "")),
+                    "source_type": str(getattr(owner_node, "node_type", "")),
+                    "depends_on": sorted(
+                        depends_on_items, key=lambda item: item["name"]
+                    ),
+                }
+            )
         dependencies.sort(key=lambda item: str(item["service"]))
 
         return {
@@ -1381,19 +1405,17 @@ class AdminConsoleUseCases:
             "node_count": len(repo_nodes),
             "counts_by_type": dict(counts),
             "routes": self._serialize_repo_graph_nodes(
-                repo_nodes, 
-                allowed_types={"route", "api_endpoint", "websocket_endpoint"}, 
-                limit=50
+                repo_nodes,
+                allowed_types={"route", "api_endpoint", "websocket_endpoint"},
+                limit=50,
             ),
             "todos": self._serialize_repo_graph_nodes(
-                repo_nodes, 
-                allowed_types={"todo"}, 
-                limit=50
+                repo_nodes, allowed_types={"todo"}, limit=50
             ),
             "external_services": self._serialize_repo_graph_nodes(
-                repo_nodes, 
-                allowed_types={"external_service_api", "external_service"}, 
-                limit=50
+                repo_nodes,
+                allowed_types={"external_service_api", "external_service"},
+                limit=50,
             ),
             "dependencies": dependencies,
         }
@@ -1471,12 +1493,18 @@ class AdminConsoleUseCases:
                 "abstract_class": 22,
                 "function": 23,
             }
-            repo_nodes.sort(key=lambda n: type_priority.get(getattr(n, "node_type", ""), 15))
+            repo_nodes.sort(
+                key=lambda n: type_priority.get(getattr(n, "node_type", ""), 15)
+            )
             repo_nodes = repo_nodes[:limit]
-            
+
             # Filter edges to only those connecting remaining nodes
             node_ids = {n.id for n in repo_nodes}
-            repo_edges = [e for e in repo_edges if e.source_id in node_ids and e.target_id in node_ids]
+            repo_edges = [
+                e
+                for e in repo_edges
+                if e.source_id in node_ids and e.target_id in node_ids
+            ]
         node_counts = Counter(
             str(getattr(node, "node_type", "")) for node in repo_nodes
         )
@@ -1524,7 +1552,7 @@ class AdminConsoleUseCases:
         )
 
         repository_payload = self.serialize_repository(repository)
-        
+
         # Calculate summary
         node_counts = Counter(
             str(getattr(node, "node_type", "")) for node in repo_nodes
@@ -1555,7 +1583,7 @@ class AdminConsoleUseCases:
         """Delete graph data for branches that are no longer tracked."""
         if self._graph_store is None:
             return {"deleted": 0}
-        
+
         repository = await self._store.get_repository_by_id(repo_id)
         if not repository:
             return {"deleted": 0}
@@ -1566,7 +1594,7 @@ class AdminConsoleUseCases:
 
         repo_id_str = str(repo_id)
         branches_in_graph = await self._graph_store.list_repo_branches(repo_id_str)
-        
+
         deleted_total = 0
         for branch in branches_in_graph:
             if branch not in tracked:
@@ -1574,7 +1602,7 @@ class AdminConsoleUseCases:
                 deleted_total += await self._graph_store.delete_nodes_by_scope(
                     repo_id=repo_id_str, branch=branch
                 )
-        
+
         return {"deleted": deleted_total}
 
     async def search_repository_graph(

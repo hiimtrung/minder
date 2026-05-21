@@ -62,7 +62,6 @@ def test_login_with_stdio_protocol_installs_stdio_mcp_entry(
     install_exit = main(
         [
             "install",
-            "mcp",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -104,7 +103,6 @@ def test_install_and_uninstall_local_mcp_configs(
     exit_code = main(
         [
             "install",
-            "mcp",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -138,7 +136,6 @@ def test_install_and_uninstall_local_mcp_configs(
     uninstall_exit = main(
         [
             "uninstall",
-            "mcp",
             "--cwd",
             str(tmp_path),
         ]
@@ -173,7 +170,6 @@ def test_install_mcp_antigravity_writes_gemini_config(
     exit_code = main(
         [
             "install",
-            "mcp",
             "--config-path",
             str(config_path),
             "--cwd",
@@ -200,402 +196,6 @@ def test_install_mcp_antigravity_writes_gemini_config(
         == "mkc_test_client_key_123"
     )
 
-
-def test_install_mcp_gemini_writes_settings_json(
-    tmp_path, monkeypatch
-) -> None:  # noqa: ANN001
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    config_path = tmp_path / "client.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "client_api_key": "mkc_test_client_key_123",
-                "protocol": "sse",
-                "server_url": "http://localhost:8801/sse",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    exit_code = main(
-        [
-            "install",
-            "mcp",
-            "--config-path",
-            str(config_path),
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "gemini",
-        ]
-    )
-
-    assert exit_code == 0
-    # Checks local config by default (not --global)
-    gemini_payload = json.loads(
-        (tmp_path / ".gemini" / "settings.json").read_text(encoding="utf-8")
-    )
-    assert (
-        gemini_payload["mcpServers"]["minder"]["serverUrl"]
-        == "http://localhost:8801/sse"
-    )
-    assert (
-        gemini_payload["mcpServers"]["minder"]["headers"]["X-Minder-Client-Key"]
-        == "mkc_test_client_key_123"
-    )
-    assert ".gemini/settings.json" in (tmp_path / ".gitignore").read_text()
-
-
-def test_install_ide_creates_repo_local_assets_and_gitignore(
-    tmp_path, capsys
-) -> None:  # noqa: ANN001
-    config_path = tmp_path / "client.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "client_api_key": "mkc_test_client_key_123",
-                "server_url": "http://localhost:8801/sse",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    exit_code = main(
-        [
-            "install",
-            "ide",
-            "--config-path",
-            str(config_path),
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "vscode",
-            "--target",
-            "claude-code",
-        ]
-    )
-
-    assert exit_code == 0
-    vscode_payload = json.loads(
-        (tmp_path / ".vscode" / "mcp.json").read_text(encoding="utf-8")
-    )
-    assert (
-        vscode_payload["servers"]["minder"]["headers"]["X-Minder-Client-Key"]
-        == "mkc_test_client_key_123"
-    )
-    assert "Minder repo-local instructions" in (
-        tmp_path / ".github" / "copilot-instructions.md"
-    ).read_text(encoding="utf-8")
-    assert "minder-repo-guide" in (
-        tmp_path / ".claude" / "agents" / "minder-repo-guide.md"
-    ).read_text(encoding="utf-8")
-    assert "Minder repo-local instructions" in (tmp_path / "CLAUDE.md").read_text(
-        encoding="utf-8"
-    )
-    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
-    assert ".vscode/mcp.json" in gitignore
-    assert ".mcp.json" in gitignore
-    assert ".minder/" in gitignore
-
-    metadata = json.loads(
-        (tmp_path / ".minder" / "ide-bootstrap.json").read_text(encoding="utf-8")
-    )
-    assert metadata["targets"] == ["vscode", "claude-code"]
-
-    output = capsys.readouterr().out
-    assert "Installed Minder IDE asset" in output
-
-
-def test_install_and_uninstall_ide_antigravity_assets(
-    tmp_path, monkeypatch
-) -> None:  # noqa: ANN001
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    config_path = tmp_path / "client.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "client_api_key": "mkc_test_client_key_123",
-                "protocol": "sse",
-                "server_url": "http://localhost:8801/sse",
-            }
-        ),
-        encoding="utf-8",
-    )
-
-    install_exit = main(
-        [
-            "install",
-            "ide",
-            "--config-path",
-            str(config_path),
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "antigravity",
-        ]
-    )
-    assert install_exit == 0
-    assert (
-        tmp_path / ".gemini" / "antigravity" / "mcp_config.json"
-    ).is_file()
-    assert "minder-ide-instructions:antigravity" in (
-        tmp_path / ".agents" / "workflows" / "minder.md"
-    ).read_text(encoding="utf-8")
-    assert (tmp_path / ".minder" / "agent.json").is_file()
-
-    uninstall_exit = main(
-        [
-            "uninstall",
-            "ide",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "antigravity",
-        ]
-    )
-    assert uninstall_exit == 0
-    assert not (tmp_path / ".gemini" / "antigravity" / "mcp_config.json").exists()
-    assert not (tmp_path / ".minder" / "agent.json").exists()
-
-
-def test_install_ide_updates_managed_blocks_without_removing_custom_text(
-    tmp_path,
-) -> None:  # noqa: ANN001
-    config_path = tmp_path / "client.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "client_api_key": "mkc_test_client_key_123",
-                "server_url": "http://localhost:8801/sse",
-            }
-        ),
-        encoding="utf-8",
-    )
-    claude_file = tmp_path / "CLAUDE.md"
-    claude_file.write_text(
-        "Custom project notes\n\n<!-- minder:begin minder-ide-instructions:claude-code -->\noutdated\n<!-- minder:end minder-ide-instructions:claude-code -->\n",
-        encoding="utf-8",
-    )
-
-    exit_code = main(
-        [
-            "install",
-            "ide",
-            "--config-path",
-            str(config_path),
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "claude-code",
-        ]
-    )
-
-    assert exit_code == 0
-    content = claude_file.read_text(encoding="utf-8")
-    assert "Custom project notes" in content
-    assert content.count("minder:begin minder-ide-instructions:claude-code") == 1
-    assert "outdated" not in content
-
-
-def test_install_agent_writes_session_and_workflow_binding_guide(
-    tmp_path, monkeypatch, capsys
-) -> None:  # noqa: ANN001
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    exit_code = main(
-        [
-            "install",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "vscode",
-        ]
-    )
-
-    assert exit_code == 0
-    instructions = (
-        tmp_path / ".copilot" / "agents" / "minder.agent.md"
-    ).read_text(encoding="utf-8")
-    assert "minder_session_find(name=...)" in instructions
-    assert "Maintain `.minder/agent.json` with exactly this schema at all times:" in instructions
-    assert '"workflow": {' in instructions
-    assert "ALWAYS keep `(repo_path, session_id, workflow.id)` consistent" in instructions
-    assert "minder_workflow_list" not in instructions
-    assert "minder_node_neighborhood" not in instructions
-
-    output = capsys.readouterr().out
-    assert "Minder Agent rules installed/updated" in output
-
-
-def test_uninstall_agent_removes_managed_block_and_keeps_custom_content(
-    tmp_path, monkeypatch
-) -> None:  # noqa: ANN001
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    target_file = tmp_path / ".copilot" / "agents" / "minder.agent.md"
-    target_file.parent.mkdir(parents=True, exist_ok=True)
-    target_file.write_text("Custom notes\n", encoding="utf-8")
-
-    install_exit = main(
-        [
-            "install",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "vscode",
-        ]
-    )
-    assert install_exit == 0
-    assert "minder-agent-instructions" in target_file.read_text(encoding="utf-8")
-
-    uninstall_exit = main(
-        [
-            "uninstall",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "vscode",
-        ]
-    )
-    assert uninstall_exit == 0
-
-    content = target_file.read_text(encoding="utf-8")
-    assert content == "Custom notes\n"
-    assert "minder-agent-instructions" not in content
-
-
-def test_install_and_uninstall_agent_antigravity_writes_global_gemini_md(
-    tmp_path, monkeypatch
-) -> None:  # noqa: ANN001
-    monkeypatch.setattr("pathlib.Path.home", lambda: tmp_path)
-    target_file = tmp_path / ".gemini" / "GEMINI.md"
-    target_file.parent.mkdir(parents=True, exist_ok=True)
-    target_file.write_text("# Existing project notes\n", encoding="utf-8")
-
-    install_exit = main(
-        [
-            "install",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "antigravity",
-        ]
-    )
-    assert install_exit == 0
-    installed = target_file.read_text(encoding="utf-8")
-    assert "minder:begin minder-agent-instructions" in installed
-    assert "Minder Agent Orchestration Rules" in installed
-    assert "# Existing project notes" in installed
-    assert not installed.startswith("---\n"), "GEMINI.md must not have YAML front matter"
-
-    uninstall_exit = main(
-        [
-            "uninstall",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "antigravity",
-        ]
-    )
-    assert uninstall_exit == 0
-    assert target_file.read_text(encoding="utf-8") == "# Existing project notes\n"
-
-
-def test_install_and_uninstall_agent_cursor_writes_cursor_rules(
-    tmp_path,
-) -> None:  # noqa: ANN001
-    target_file = tmp_path / ".cursor" / "rules" / "minder.mdc"
-
-    install_exit = main(
-        [
-            "install",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "cursor",
-        ]
-    )
-    assert install_exit == 0
-    assert target_file.is_file()
-    installed = target_file.read_text(encoding="utf-8")
-    assert "minder:begin minder-agent-instructions" in installed
-    assert "Minder Agent Orchestration Rules" in installed
-
-    uninstall_exit = main(
-        [
-            "uninstall",
-            "agent",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "cursor",
-        ]
-    )
-    assert uninstall_exit == 0
-    # File is removed entirely when the managed block was its only content.
-    if target_file.is_file():
-        assert "minder-agent-instructions" not in target_file.read_text(encoding="utf-8")
-    else:
-        assert not target_file.exists()
-
-
-def test_uninstall_ide_removes_managed_assets(tmp_path, capsys) -> None:  # noqa: ANN001
-    config_path = tmp_path / "client.json"
-    config_path.write_text(
-        json.dumps(
-            {
-                "client_api_key": "mkc_test_client_key_123",
-                "server_url": "http://localhost:8801/sse",
-            }
-        ),
-        encoding="utf-8",
-    )
-    (tmp_path / ".gitignore").write_text("dist/\n", encoding="utf-8")
-
-    install_exit = main(
-        [
-            "install",
-            "ide",
-            "--config-path",
-            str(config_path),
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "cursor",
-            "--target",
-            "claude-code",
-        ]
-    )
-    assert install_exit == 0
-
-    uninstall_exit = main(
-        [
-            "uninstall",
-            "ide",
-            "--cwd",
-            str(tmp_path),
-            "--target",
-            "cursor",
-            "--target",
-            "claude-code",
-        ]
-    )
-
-    assert uninstall_exit == 0
-    assert not (tmp_path / ".cursor" / "mcp.json").exists()
-    assert not (tmp_path / ".mcp.json").exists()
-    assert not (tmp_path / ".cursor" / "rules" / "minder.mdc").exists()
-    assert not (tmp_path / ".claude" / "agents" / "minder-repo-guide.md").exists()
-    assert not (tmp_path / ".minder" / "ide-bootstrap.json").exists()
-    gitignore = (tmp_path / ".gitignore").read_text(encoding="utf-8")
-    assert gitignore == "dist/\n"
-
-    output = capsys.readouterr().out
-    assert "Removed Minder IDE asset" in output
 
 
 def test_check_update_reports_cli_and_server_versions(
@@ -810,10 +410,10 @@ def test_global_target_paths_resolve_across_platforms(
 
     monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Darwin")
     assert cli_mcp._global_target_path("vscode") == Path(
-        "/home/tester/Library/Application Support/Code/User/globalStorage/mcp-servers.json"
+        "/home/tester/Library/Application Support/Code/User/mcp.json"
     )
     assert cli_mcp._global_target_path("cursor") == Path(
-        "/home/tester/Library/Application Support/Cursor/User/globalStorage/mcp-servers.json"
+        "/home/tester/.cursor/mcp.json"
     )
     assert cli_mcp._global_target_path("claude-code") == Path(
         "/home/tester/.claude.json"
@@ -821,10 +421,10 @@ def test_global_target_paths_resolve_across_platforms(
 
     monkeypatch.setattr(cli_mcp.platform, "system", lambda: "Linux")
     assert cli_mcp._global_target_path("vscode") == Path(
-        "/home/tester/.config/Code/User/globalStorage/mcp-servers.json"
+        "/home/tester/.config/Code/User/mcp.json"
     )
     assert cli_mcp._global_target_path("cursor") == Path(
-        "/home/tester/.config/Cursor/User/globalStorage/mcp-servers.json"
+        "/home/tester/.cursor/mcp.json"
     )
     assert cli_mcp._global_target_path("claude-code") == Path(
         "/home/tester/.claude.json"
@@ -835,10 +435,10 @@ def test_global_target_paths_resolve_across_platforms(
         cli_mcp, "appdata_dir", lambda: Path("C:/Users/tester/AppData/Roaming")
     )
     assert cli_mcp._global_target_path("vscode") == Path(
-        "C:/Users/tester/AppData/Roaming/Code/User/globalStorage/mcp-servers.json"
+        "C:/Users/tester/AppData/Roaming/Code/User/mcp.json"
     )
     assert cli_mcp._global_target_path("cursor") == Path(
-        "C:/Users/tester/AppData/Roaming/Cursor/User/globalStorage/mcp-servers.json"
+        "/home/tester/.cursor/mcp.json"
     )
     assert cli_mcp._global_target_path("claude-code") == Path(
         "/home/tester/.claude.json"

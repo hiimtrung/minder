@@ -1,7 +1,6 @@
 import {
   createPrompt,
   deletePrompt,
-  listPrompts,
   polishPromptDraft,
   searchAdminCatalog,
   updatePrompt,
@@ -9,11 +8,11 @@ import {
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
-  paginateItems,
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
 import { showDangerConfirm } from "./modal-controller";
+import { escapeHtml, showToast } from "./ui-utils";
 
 const registryEl = document.querySelector("#prompt-registry");
 const formEl = document.querySelector("#prompt-form") as HTMLFormElement | null;
@@ -50,7 +49,7 @@ const paginationStatusEl = document.querySelector("#prompt-pagination-status");
 const pagePrevButton = document.querySelector("#prompt-page-prev");
 const pageNextButton = document.querySelector("#prompt-page-next");
 const quickSearchLoadingEl = document.querySelector("#prompt-quick-search-loading");
-const toastRegion = document.querySelector("#dashboard-toast-region");
+
 
 const PAGE_SIZE = 20;
 
@@ -67,40 +66,7 @@ const isBuiltinId = (value: string | null): boolean =>
 
 const promptKey = (prompt: PromptPayload): string => prompt.id;
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
 
 const setStatus = (
   element: Element | null,

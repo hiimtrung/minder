@@ -4,7 +4,6 @@ import {
   deleteSkill,
   eventStreamUrl,
   getAdminJob,
-  listSkills,
   listAdminJobs,
   searchAdminCatalog,
   updateSkill,
@@ -16,13 +15,16 @@ import {
 } from "../lib/api/admin";
 import {
   createDebouncedHandler,
-  paginateItems,
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
 import { showDangerConfirm } from "./modal-controller";
+import { escapeHtml, showToast } from "./ui-utils";
 
 const registryEl = document.querySelector("#skill-registry");
+const formDialogEl = document.querySelector(
+  "#skill-form-dialog",
+) as HTMLDialogElement | null;
 const formEl = document.querySelector("#skill-form") as HTMLFormElement | null;
 const skillIdEl = document.querySelector(
   "#skill-id",
@@ -97,7 +99,6 @@ const importProgressLogEl = document.querySelector(
 );
 const importJobListEl = document.querySelector("#skill-import-job-list");
 const importJobSummaryEl = document.querySelector("#skill-import-job-summary");
-const toastRegion = document.querySelector("#dashboard-toast-region");
 
 const PAGE_SIZE = 20;
 
@@ -114,13 +115,6 @@ let activeImportJobId: string | null = null;
 let importJobStream: EventSource | null = null;
 const completedImportRefreshes = new Set<string>();
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
 
 const splitCsv = (value: string): string[] =>
   value
@@ -150,32 +144,6 @@ const setImportStatus = (
   tone: "default" | "success" | "danger" = "default",
 ) => setStatusLine(importStatusEl, message, tone);
 
-const showToast = (
-  message: string,
-  tone: "success" | "danger" | "default" = "default",
-) => {
-  if (!(toastRegion instanceof HTMLElement)) return;
-  const toast = document.createElement("div");
-  toast.className =
-    "pointer-events-auto rounded-2xl border px-4 py-3 text-sm shadow-[0_18px_40px_rgba(28,25,23,0.12)] backdrop-blur transition";
-  if (tone === "success") {
-    toast.classList.add(
-      "border-emerald-200",
-      "bg-emerald-50/95",
-      "text-emerald-900",
-    );
-  } else if (tone === "danger") {
-    toast.classList.add("border-red-200", "bg-red-50/95", "text-red-900");
-  } else {
-    toast.classList.add("border-stone-300", "bg-white/95", "text-stone-900");
-  }
-  toast.textContent = message;
-  toastRegion.appendChild(toast);
-  window.setTimeout(() => {
-    toast.classList.add("opacity-0", "translate-y-2");
-    window.setTimeout(() => toast.remove(), 220);
-  }, 2600);
-};
 
 const currentDraft = () => ({
   title: titleEl?.value.trim() ?? "",
@@ -228,6 +196,17 @@ const updateSourceSummary = (skill?: SkillPayload) => {
     <p class="mt-1 text-sm text-stone-600">${escapeHtml(summarizeSource(skill.source))}</p>
   `;
   sourceSummaryEl.classList.remove("hidden");
+};
+
+const openFormDialog = (skill?: SkillPayload) => {
+  const eyebrow = document.querySelector("#skill-dialog-eyebrow");
+  const titleHeading = document.querySelector("#skill-dialog-title");
+  if (eyebrow) eyebrow.textContent = skill ? "Edit skill" : "New skill";
+  if (titleHeading)
+    titleHeading.textContent = skill
+      ? skill.title || "Skill draft"
+      : "Skill draft";
+  formDialogEl?.showModal();
 };
 
 const fillForm = (skill?: SkillPayload) => {
@@ -592,6 +571,7 @@ const renderRegistry = () => {
         );
         if (!skill) return;
         fillForm(skill);
+        openFormDialog(skill);
         renderRegistry();
       });
     });
@@ -646,9 +626,21 @@ document
     void syncVisibleSkills();
   });
 
+document.querySelector("#skill-new-button")?.addEventListener("click", () => {
+  fillForm();
+  openFormDialog();
+});
+
 document.querySelector("#skill-reset-button")?.addEventListener("click", () => {
   fillForm();
-  renderRegistry();
+});
+
+document.querySelector("#skill-close-dialog")?.addEventListener("click", () => {
+  formDialogEl?.close();
+});
+
+formDialogEl?.addEventListener("click", (event) => {
+  if (event.target === formDialogEl) formDialogEl.close();
 });
 
 pagePrevButton?.addEventListener("click", () => {
@@ -691,6 +683,7 @@ formEl?.addEventListener("submit", async (event) => {
     const saved = isUpdate
       ? await updateSkill(currentSkillId, draft)
       : await createSkill(draft);
+    formDialogEl?.close();
     await syncVisibleSkills();
     selectSkillById(saved.id);
     showToast(
@@ -744,7 +737,6 @@ importModalEl?.addEventListener("close", () => {
   stopImportJobStream();
 });
 
-fillForm();
 setImportStatus("");
 void syncVisibleSkills();
 void refreshImportJobs();

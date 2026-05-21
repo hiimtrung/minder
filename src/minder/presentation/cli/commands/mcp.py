@@ -15,7 +15,7 @@ from ..utils.common import (
 )
 from ..utils.config import require_client_settings
 
-_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity", "gemini")
+_LOCAL_MCP_TARGETS = ("vscode", "cursor", "claude-code", "antigravity")
 _ALL_MCP_TARGETS = (*_LOCAL_MCP_TARGETS, "codex")
 
 # Matches [mcp_servers.minder] and all its key/value lines up to the next
@@ -23,27 +23,79 @@ _ALL_MCP_TARGETS = (*_LOCAL_MCP_TARGETS, "codex")
 _CODEX_SECTION_RE = re.compile(r"^\[mcp_servers\.minder\][^\[]*", re.MULTILINE)
 
 
+def _legacy_global_target_path(target: str) -> Path | None:
+    system = platform.system()
+    if target == "vscode":
+        if system == "Darwin":
+            return (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "Code"
+                / "User"
+                / "globalStorage"
+                / "mcp-servers.json"
+            )
+        if system == "Windows":
+            return (
+                appdata_dir() / "Code" / "User" / "globalStorage" / "mcp-servers.json"
+            )
+        return (
+            Path.home()
+            / ".config"
+            / "Code"
+            / "User"
+            / "globalStorage"
+            / "mcp-servers.json"
+        )
+    if target == "cursor":
+        if system == "Darwin":
+            return (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "Cursor"
+                / "User"
+                / "globalStorage"
+                / "mcp-servers.json"
+            )
+        if system == "Windows":
+            return (
+                appdata_dir() / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
+            )
+        return (
+            Path.home()
+            / ".config"
+            / "Cursor"
+            / "User"
+            / "globalStorage"
+            / "mcp-servers.json"
+        )
+    return None
+
+
 def _global_target_path(target: str) -> Path:
     system = platform.system()
     if target == "vscode":
         if system == "Darwin":
-            return Path.home() / "Library" / "Application Support" / "Code" / "User" / "globalStorage" / "mcp-servers.json"
+            return (
+                Path.home()
+                / "Library"
+                / "Application Support"
+                / "Code"
+                / "User"
+                / "mcp.json"
+            )
         if system == "Windows":
-            return appdata_dir() / "Code" / "User" / "globalStorage" / "mcp-servers.json"
-        return Path.home() / ".config" / "Code" / "User" / "globalStorage" / "mcp-servers.json"
+            return appdata_dir() / "Code" / "User" / "mcp.json"
+        return Path.home() / ".config" / "Code" / "User" / "mcp.json"
     if target == "cursor":
-        if system == "Darwin":
-            return Path.home() / "Library" / "Application Support" / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
-        if system == "Windows":
-            return appdata_dir() / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
-        return Path.home() / ".config" / "Cursor" / "User" / "globalStorage" / "mcp-servers.json"
+        return Path.home() / ".cursor" / "mcp.json"
     if target == "claude-code":
         # User scope: ~/.claude.json stores cross-project MCP servers under top-level mcpServers key
         return Path.home() / ".claude.json"
     if target == "antigravity":
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
-    if target == "gemini":
-        return Path.home() / ".gemini" / "settings.json"
     if target == "codex":
         return Path.home() / ".codex" / "config.toml"
     raise ValueError(f"Unknown global target: {target}")
@@ -98,8 +150,6 @@ def local_target_path(target: str, cwd: Path) -> Path:
     if target == "antigravity":
         del cwd
         return Path.home() / ".gemini" / "antigravity" / "mcp_config.json"
-    if target == "gemini":
-        return cwd / ".gemini" / "settings.json"
     raise ValueError(f"Unknown local target: {target}")
 
 
@@ -125,9 +175,29 @@ def _remove_gitignored(cwd: Path, filename: str) -> None:
     if not gitignore.is_file():
         return
     lines = gitignore.read_text(encoding="utf-8").splitlines(keepends=True)
-    filtered = [line for line in lines if line.strip() not in (filename, f"/{filename}")]
+    filtered = [
+        line for line in lines if line.strip() not in (filename, f"/{filename}")
+    ]
     if len(filtered) < len(lines):
         gitignore.write_text("".join(filtered), encoding="utf-8")
+
+
+def _remove_server_entry(
+    path: Path, root_key: str, server_name: str = "minder"
+) -> bool:
+    if not path.is_file():
+        return False
+    payload = load_json(path)
+    if root_key not in payload or server_name not in payload[root_key]:
+        return False
+    del payload[root_key][server_name]
+    if not payload[root_key]:
+        del payload[root_key]
+    if not payload:
+        path.unlink(missing_ok=True)
+    else:
+        write_json(path, payload)
+    return True
 
 
 def _remote_url(protocol: str, server_url: str) -> str:
@@ -158,8 +228,8 @@ def _target_entry(
     url = _remote_url(protocol, server_url or "")
     headers = {"X-Minder-Client-Key": client_key}
 
-    if target in ("antigravity", "gemini"):
-        # Gemini CLI expects "serverUrl" instead of "url"
+    if target == "antigravity":
+        # Google Antigravity expects "serverUrl" instead of "url"
         return {"serverUrl": url, "headers": headers}
     if target in ("vscode", "claude-code"):
         # VSCode and Claude Code require an explicit "type" field
@@ -186,13 +256,19 @@ def install_mcp_command(args: argparse.Namespace) -> int:
                     sse_url(settings.get("server_url") or ""),
                     settings["client_api_key"],
                 )
-                print(f"Installed Minder MCP config for codex at {_global_target_path('codex')}")
+                print(
+                    f"Installed Minder MCP config for codex at {_global_target_path('codex')}"
+                )
             except Exception as e:
                 print(f"Failed to install MCP for codex: {e}")
             continue
 
         try:
-            path = _global_target_path(target) if args.global_install else local_target_path(target, cwd)
+            path = (
+                _global_target_path(target)
+                if args.global_install
+                else local_target_path(target, cwd)
+            )
             payload = load_json(path)
             root_key = _target_root_key(target)
             if root_key not in payload:
@@ -208,14 +284,22 @@ def install_mcp_command(args: argparse.Namespace) -> int:
             write_json(path, payload)
             print(f"Installed Minder MCP config for {target} at {path}")
 
+            if args.global_install:
+                legacy_path = _legacy_global_target_path(target)
+                if legacy_path and legacy_path != path:
+                    removed_legacy = _remove_server_entry(
+                        legacy_path,
+                        _target_root_key(target),
+                    )
+                    if removed_legacy:
+                        print(f"  Removed legacy Minder MCP entry from {legacy_path}")
+
             if not args.global_install:
                 if target == "claude-code":
                     _ensure_gitignored(cwd, ".mcp.json")
-                elif target == "gemini":
-                    _ensure_gitignored(cwd, ".gemini/settings.json")
         except Exception as e:
             print(f"Failed to install MCP for {target}: {e}")
-            
+
     return 0
 
 
@@ -231,7 +315,9 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
             try:
                 removed = _uninstall_codex_mcp()
                 if removed:
-                    print(f"Removed Minder MCP config for codex from {_global_target_path('codex')}")
+                    print(
+                        f"Removed Minder MCP config for codex from {_global_target_path('codex')}"
+                    )
             except Exception as e:
                 print(f"Failed to uninstall MCP for codex: {e}")
             continue
@@ -241,10 +327,10 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                 path = _global_target_path(target)
             else:
                 path = local_target_path(target, cwd)
-                
+
             if not path.is_file():
                 continue
-                
+
             payload = load_json(path)
             root_key = _target_root_key(target)
             if root_key in payload and "minder" in payload[root_key]:
@@ -257,11 +343,21 @@ def uninstall_mcp_command(args: argparse.Namespace) -> int:
                     write_json(path, payload)
                 print(f"Removed Minder MCP config for {target} from {path}")
 
+            if args.global_install:
+                legacy_path = _legacy_global_target_path(target)
+                if legacy_path and legacy_path != path:
+                    removed_legacy = _remove_server_entry(
+                        legacy_path,
+                        _target_root_key(target),
+                    )
+                    if removed_legacy:
+                        print(
+                            f"Removed legacy Minder MCP config for {target} from {legacy_path}"
+                        )
+
             if not args.global_install:
                 if target == "claude-code":
                     _remove_gitignored(cwd, ".mcp.json")
-                elif target == "gemini":
-                    _remove_gitignored(cwd, ".gemini/settings.json")
         except Exception as e:
             print(f"Failed to uninstall MCP for {target}: {e}")
 

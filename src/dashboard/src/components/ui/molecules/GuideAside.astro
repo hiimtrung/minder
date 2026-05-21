@@ -1,0 +1,53 @@
+---
+interface Props {
+  eyebrow?: string;
+  title: string;
+  class?: string;
+}
+
+const { eyebrow, title, class: className = "" } = Astro.props;
+---
+
+<aside class:list={["guide-aside", className]}>
+  {eyebrow && <p class="eyebrow">{eyebrow}</p>}
+  <h2 class="guide-aside-title">{title}</h2>
+  <div class="guide-aside-body">
+    <slot />
+  </div>
+</aside>
+
+<style>
+  .guide-aside {
+    border-radius: 1rem;
+    border: 1px solid rgb(231 229 228 / 0.8);
+    background: rgb(255 255 255 / 0.8);
+    padding: 1.25rem;
+  }
+
+  .guide-aside-title {
+    margin-top: 0.5rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    color: rgb(9 9 11);
+  }
+
+  .guide-aside-body {
+    margin-top: 1rem;
+    display: grid;
+    gap: 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.625;
+    color: rgb(87 83 78);
+  }
+</style>
+
+<style is:global>
+  /* Legacy class used by JS-injected HTML */
+  .u-guide-aside {
+    border-radius: 1rem;
+    border: 1px solid rgb(231 229 228 / 0.8);
+    background: rgb(255 255 255 / 0.8);
+    padding: 1.25rem;
+  }
+</style>

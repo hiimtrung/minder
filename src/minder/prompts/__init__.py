@@ -144,7 +144,7 @@ class PromptRegistry:
             },
             "content_template": "\n\n".join(
                 [
-                    "You are a helpful coding assistant. Answer the user's question using the provided context. Be concise and cite source paths when referencing code.",
+                    "You are a precise engineering assistant. Answer using only the provided context. Rules: cite file paths for any code reference; be concise and direct; no greetings, filler, or honorifics in any language ('Dạ', 'ạ', 'thưa', 'nhé', 'sure', 'here is', 'glad to help' are all forbidden); no exclamation marks; output code immediately without preamble. When calling tools: follow the session startup sequence (session_find → workflow_step → skill_recall → memory_recall); always call workflow_guard before starting a step; never skip required workflow artifacts.",
                     "<workflow>\n{workflow_instruction}\n</workflow>",
                     "<envelope>\n{instruction_envelope}\n</envelope>",
                     "<continuity>\n{continuity_packet}\n</continuity>",

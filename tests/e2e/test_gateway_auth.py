@@ -78,8 +78,7 @@ async def test_phase4_gateway_auth_e2e(
             headers={"Authorization": f"Bearer {admin_token}"},
             follow_redirects=False,
         )
-        assert dashboard_response.status_code == 303
-        assert dashboard_response.headers["location"] == "/dashboard/clients"
+        assert dashboard_response.status_code == 200
 
         onboarding_response = await client.get(
             f"/v1/admin/onboarding/{client_id}",

@@ -20,6 +20,11 @@ export function escapeHtml(v: string): string {
   return div.innerHTML;
 }
 
+/** Escape a string for use inside a double-quoted HTML attribute value */
+export function escapeAttr(v: string): string {
+  return escapeHtml(v).replace(/"/g, "&quot;");
+}
+
 /** Toggle full-width layout for graph-heavy tabs */
 export function setGraphFullWidth(enabled: boolean): void {
   const shell = document.querySelector(".shell-main-grid");

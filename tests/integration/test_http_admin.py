@@ -495,8 +495,8 @@ async def test_dashboard_and_onboarding_routes_render_client_setup(
             headers={"Authorization": f"Bearer {admin_token}"},
         )
 
-    assert dashboard_response.status_code == 303
-    assert dashboard_response.headers["location"] == "/dashboard/clients"
+    assert dashboard_response.status_code == 200
+    assert "dashboard root" in dashboard_response.text
 
     assert onboarding_response.status_code == 200
     onboarding = onboarding_response.json()
@@ -633,8 +633,8 @@ async def test_dashboard_supports_cookie_login_and_logout(
         assert login_response.status_code == 200
 
         dashboard_response = await client.get("/dashboard")
-        assert dashboard_response.status_code == 303
-        assert dashboard_response.headers["location"] == "/dashboard/clients"
+        assert dashboard_response.status_code == 200
+        assert "dashboard root" in dashboard_response.text
 
         logout_response = await client.post("/v1/admin/logout", json={})
         assert logout_response.status_code == 200
@@ -677,8 +677,8 @@ async def test_dashboard_renders_client_registry_and_create_form(
         assert login_response.status_code == 200
         dashboard_response = await client.get("/dashboard")
 
-    assert dashboard_response.status_code == 303
-    assert dashboard_response.headers["location"] == "/dashboard/clients"
+    assert dashboard_response.status_code == 200
+    assert "dashboard root" in dashboard_response.text
 
 
 @pytest.mark.asyncio
@@ -720,8 +720,8 @@ async def test_dashboard_can_create_client_from_browser_session(
     assert create_response.json()["client"]["name"] == "Browser Created Client"
     assert create_response.json()["client_api_key"].startswith("mkc_")
 
-    assert dashboard_response.status_code == 303
-    assert dashboard_response.headers["location"] == "/dashboard/clients"
+    assert dashboard_response.status_code == 200
+    assert "dashboard root" in dashboard_response.text
 
 
 @pytest.mark.asyncio

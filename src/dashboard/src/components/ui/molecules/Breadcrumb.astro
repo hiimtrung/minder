@@ -1,0 +1,48 @@
+---
+interface Item {
+  href?: string;
+  label: string;
+}
+
+interface Props {
+  items: Item[];
+  class?: string;
+}
+
+const { items, class: className = "" } = Astro.props;
+---
+
+<nav aria-label="Breadcrumb" class:list={["breadcrumb", className]}>
+  {items.map((item, idx) => {
+    const isLast = idx === items.length - 1;
+    return (
+      <>
+        {idx > 0 && <span class="breadcrumb-sep" aria-hidden="true">/</span>}
+        {isLast || !item.href ? (
+          <span class="breadcrumb-current">{item.label}</span>
+        ) : (
+          <a href={item.href} class="breadcrumb-link">{item.label}</a>
+        )}
+      </>
+    );
+  })}
+</nav>
+
+<style>
+  .breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.8125rem;
+    color: rgb(87 83 78);
+  }
+  .breadcrumb-link {
+    transition: color 150ms;
+    text-decoration: none;
+    color: inherit;
+  }
+  .breadcrumb-link:hover { color: rgb(28 25 23); }
+  .breadcrumb-current { font-weight: 500; color: rgb(28 25 23); }
+  .breadcrumb-sep { color: rgb(168 162 158); }
+</style>

@@ -10,6 +10,7 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
+import { escapeHtml } from "./ui-utils";
 
 const registryEl = document.querySelector("#session-list-registry");
 const quickSearchEl = document.querySelector(
@@ -31,13 +32,7 @@ let visibleSessions: SessionPayload[] = [];
 let currentQuery = "";
 let currentPage = 1;
 
-const escapeHtml = (value: string): string =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+
 
 function renderRegistry(): void {
   if (!(registryEl instanceof HTMLElement)) return;

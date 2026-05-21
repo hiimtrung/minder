@@ -49,19 +49,46 @@ class QueryTools:
         self._graph_tools = graph_tools
         self._history_compactor = HistoryCompactor()
 
-    async def minder_query(
+    @staticmethod
+    def _history_sort_key(doc: Any) -> tuple[str, str]:
+        created_at = getattr(doc, "created_at", None)
+        created_at_key = (
+            created_at.isoformat() if (created_at is not None and hasattr(created_at, "isoformat")) else ""
+        )
+        return created_at_key, str(getattr(doc, "id", ""))
+
+    async def _load_chat_history(
+        self,
+        session_id: uuid.UUID,
+    ) -> list[dict[str, str]]:
+        try:
+            history_docs = await self._store.list_history_for_session(session_id)
+        except Exception:
+            return []
+
+        ordered_docs = sorted(history_docs, key=self._history_sort_key)
+        return [
+            {
+                "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
+                "content": str(getattr(doc, "content", "")),
+            }
+            for doc in ordered_docs
+            if getattr(doc, "role", "") and getattr(doc, "content", "")
+        ]
+
+    async def _build_query_state(
         self,
         query: str,
         *,
         repo_path: str | None,
-        session_id: uuid.UUID | None = None,
-        user_id: uuid.UUID | None = None,
-        repo_id: uuid.UUID | None = None,
-        workflow_name: str | None = None,
-        verification_payload: dict[str, Any] | None = None,
-        max_attempts: int = 2,
-        allowed_repo_scopes: list[str] | None = None,
-    ) -> dict[str, Any]:
+        session_id: uuid.UUID | None,
+        user_id: uuid.UUID | None,
+        repo_id: uuid.UUID | None,
+        workflow_name: str | None,
+        verification_payload: dict[str, Any] | None,
+        max_attempts: int,
+        allowed_repo_scopes: list[str] | None,
+    ) -> GraphState:
         project_name = Path(repo_path).name if repo_path else None
         if repo_path:
             await self._ingest_tools.minder_ingest_directory(
@@ -88,37 +115,23 @@ class QueryTools:
             "query_reasoning",
             self._store,
         )
-        chat_history = []
-        history_source = "none"
+        chat_history: list[dict[str, str]] = []
+        history_message_count = 0
         if session_id:
-            try:
-                history_docs = await self._store.list_history_for_session(session_id)
-                raw_history = [
-                    {
-                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
-                        "content": str(getattr(doc, "content", "")),
-                    }
-                    for doc in history_docs
-                    if getattr(doc, "role", "") and getattr(doc, "content", "")
-                ]
-                if raw_history:
-                    history_source = "mongodb"
-                    chat_history = raw_history
-            except Exception:
-                pass
-
+            chat_history = await self._load_chat_history(session_id)
             chat_history = self._history_compactor.compact(
                 chat_history,
                 context_length=self._config.llm.context_length,
             )
-
+            history_message_count = len(chat_history)
             await self._store.create_history(
                 session_id=session_id,
                 role="user",
                 content=query,
             )
 
-        state = GraphState(
+        is_builtin_prompt = bool(getattr(query_prompt, "is_builtin", False))
+        return GraphState(
             query=query,
             session_id=session_id,
             user_id=user_id,
@@ -131,18 +144,42 @@ class QueryTools:
                 "max_attempts": max_attempts,
                 "project_name": project_name,
                 "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
-                "query_prompt_template": getattr(query_prompt, "content_template", ""),
+                "query_prompt_template": (
+                    ""
+                    if is_builtin_prompt
+                    else getattr(query_prompt, "content_template", "")
+                ),
                 "query_prompt_defaults": dict(
                     getattr(query_prompt, "defaults", {}) or {}
                 ),
-                "query_prompt_source": (
-                    "builtin"
-                    if bool(getattr(query_prompt, "is_builtin", False))
-                    else "custom"
-                ),
-                "history_source": history_source,
-                "history_message_count": len(chat_history),
+                "query_prompt_source": "builtin" if is_builtin_prompt else "custom",
+                "history_message_count": history_message_count,
             },
+        )
+
+    async def minder_query(
+        self,
+        query: str,
+        *,
+        repo_path: str | None,
+        session_id: uuid.UUID | None = None,
+        user_id: uuid.UUID | None = None,
+        repo_id: uuid.UUID | None = None,
+        workflow_name: str | None = None,
+        verification_payload: dict[str, Any] | None = None,
+        max_attempts: int = 2,
+        allowed_repo_scopes: list[str] | None = None,
+    ) -> dict[str, Any]:
+        state = await self._build_query_state(
+            query,
+            repo_path=repo_path,
+            session_id=session_id,
+            user_id=user_id,
+            repo_id=repo_id,
+            workflow_name=workflow_name,
+            verification_payload=verification_payload,
+            max_attempts=max_attempts,
+            allowed_repo_scopes=allowed_repo_scopes,
         )
         result = await self._graph.run(state)
         record_continuity_packet("query")
@@ -174,81 +211,16 @@ class QueryTools:
         max_attempts: int = 2,
         allowed_repo_scopes: list[str] | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
-        project_name = Path(repo_path).name if repo_path else None
-        if repo_path:
-            await self._ingest_tools.minder_ingest_directory(
-                repo_path, project=project_name
-            )
-        workflow_context: dict[str, Any] = (
-            {"workflow_name": workflow_name} if workflow_name else {}
-        )
-        if self._graph_tools is not None and repo_path:
-            cross_repo_context, cross_repo_graph = (
-                await self._graph_tools.build_cross_repo_context(
-                    query,
-                    repo_path=repo_path,
-                    repo_id=str(repo_id) if repo_id is not None else None,
-                    repo_name=Path(repo_path).name,
-                    allowed_repo_scopes=allowed_repo_scopes,
-                )
-            )
-            if cross_repo_context:
-                workflow_context["cross_repo_context"] = cross_repo_context
-            if cross_repo_graph is not None:
-                workflow_context["cross_repo_graph"] = cross_repo_graph
-        query_prompt = await PromptRegistry.resolve_prompt_model(
-            "query_reasoning",
-            self._store,
-        )
-        chat_history = []
-        if session_id:
-            try:
-                history_docs = await self._store.list_history_for_session(session_id)
-                chat_history = [
-                    {
-                        "role": str(getattr(doc, "role", "")).replace("assistant", "model"),
-                        "content": str(getattr(doc, "content", "")),
-                    }
-                    for doc in history_docs
-                    if getattr(doc, "role", "") and getattr(doc, "content", "")
-                ]
-            except Exception:
-                pass
-
-            chat_history = self._history_compactor.compact(
-                chat_history,
-                context_length=self._config.llm.context_length,
-            )
-
-            await self._store.create_history(
-                session_id=session_id,
-                role="user",
-                content=query,
-            )
-
-        state = GraphState(
-            query=query,
+        state = await self._build_query_state(
+            query,
+            repo_path=repo_path,
             session_id=session_id,
             user_id=user_id,
             repo_id=repo_id,
-            repo_path=repo_path,
-            workflow_context=workflow_context,
-            chat_history=chat_history,
-            metadata={
-                "verification_payload": verification_payload,
-                "max_attempts": max_attempts,
-                "project_name": project_name,
-                "query_prompt_name": getattr(query_prompt, "name", "query_reasoning"),
-                "query_prompt_template": getattr(query_prompt, "content_template", ""),
-                "query_prompt_defaults": dict(
-                    getattr(query_prompt, "defaults", {}) or {}
-                ),
-                "query_prompt_source": (
-                    "builtin"
-                    if bool(getattr(query_prompt, "is_builtin", False))
-                    else "custom"
-                ),
-            },
+            workflow_name=workflow_name,
+            verification_payload=verification_payload,
+            max_attempts=max_attempts,
+            allowed_repo_scopes=allowed_repo_scopes,
         )
         if self._config.graph.runtime == "langgraph":
             config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
@@ -273,7 +245,7 @@ class QueryTools:
                 elif event_name == "on_chain_end" and name == "LangGraph":
                     final_data = event.get("data", {}).get("output", {})
                     if final_data:
-                        final_state = GraphState.model_validate(final_data)
+                        final_state = GraphState.model_validate(final_data) if hasattr(GraphState, "model_validate") else GraphState(**final_data)
                         result = self._result_from_state(final_state)
                         
                         record_continuity_packet("query")
@@ -318,9 +290,17 @@ class QueryTools:
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
         approval_request = None
         if result.metadata.get("waiting_for_approval"):
-            approval_request = list(result.metadata.get("interrupts", []) or [{}])[0].get(
-                "value"
-            )
+            approval_request = list(result.metadata.get("interrupts", []) or [{}])[
+                0
+            ].get("value")
+        cross_repo_graph_raw = result.workflow_context.get("cross_repo_graph")
+        cross_repo_graph_summary: dict[str, int] | None = None
+        if isinstance(cross_repo_graph_raw, dict):
+            results = cross_repo_graph_raw.get("results") or []
+            cross_repo_graph_summary = {
+                "result_count": len(results),
+                "scope_count": cross_repo_graph_raw.get("scope_count", 0),
+            }
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),
@@ -333,9 +313,8 @@ class QueryTools:
             "guard_result": result.guard_result,
             "verification_result": result.verification_result,
             "transition_log": result.transition_log,
-            "history_source": result.metadata.get("history_source"),
             "history_message_count": result.metadata.get("history_message_count"),
-            "cross_repo_graph": result.workflow_context.get("cross_repo_graph"),
+            "cross_repo_graph": cross_repo_graph_summary,
             "status": (
                 "waiting_approval"
                 if result.metadata.get("waiting_for_approval")
@@ -374,7 +353,7 @@ class QueryTools:
                 }
                 for doc in semantic_code_hits[:limit]
             ]
-        
+
         project_name = Path(repo_path).name
         state = GraphState(
             query=query,
@@ -410,11 +389,24 @@ class QueryTools:
     @staticmethod
     def discover_repo_files(repo_path: str) -> list[str]:
         import os
-        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
+
+        ignore_dirs = {
+            ".git",
+            ".svn",
+            ".hg",
+            "node_modules",
+            "venv",
+            ".venv",
+            "__pycache__",
+            ".minder_cache",
+            ".gemini",
+        }
         discovered: list[str] = []
         root_path = os.path.abspath(repo_path)
         for dirpath, dirnames, filenames in os.walk(root_path):
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+            dirnames[:] = [
+                d for d in dirnames if d not in ignore_dirs and not d.startswith(".")
+            ]
             for filename in filenames:
                 if filename.startswith("."):
                     continue

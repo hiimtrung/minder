@@ -1,10 +1,10 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import PageHero from "../components/ui/PageHero.astro";
-import StatCard from "../components/ui/StatCard.astro";
-import Button from "../components/ui/Button.astro";
-import Card from "../components/ui/Card.astro";
-import SectionHeader from "../components/ui/SectionHeader.astro";
+import PageHero from "../components/ui/molecules/PageHero.astro";
+import StatCard from "../components/ui/molecules/StatCard.astro";
+import Button from "../components/ui/atoms/Button.astro";
+import Card from "../components/ui/atoms/Card.astro";
+import SectionHeader from "../components/ui/molecules/SectionHeader.astro";
 ---
 
 <DashboardLayout
@@ -35,7 +35,7 @@ import SectionHeader from "../components/ui/SectionHeader.astro";
   <!-- ══════════════════════════════════════════
        HOME DASHBOARD — hidden until session confirmed
   ══════════════════════════════════════════ -->
-  <div id="home-content" class="hidden space-y-6">
+  <div id="home-content" class="hidden space-y-5">
     <PageHero
       eyebrow="Home"
       title="System overview"
@@ -57,7 +57,7 @@ import SectionHeader from "../components/ui/SectionHeader.astro";
 
     <!-- ── Health strip ── -->
     <section
-      class="shell-card flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4"
+      class="shell-card flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-3"
     >
       <div class="flex items-center gap-3">
         <span
@@ -216,7 +216,7 @@ import SectionHeader from "../components/ui/SectionHeader.astro";
             <tr>
               <td
                 colspan="5"
-                class="px-5 py-8 text-center text-sm text-stone-400"
+                class="px-5 py-5 text-center text-sm text-stone-400"
                 >Loading recent activity…</td
               >
             </tr>

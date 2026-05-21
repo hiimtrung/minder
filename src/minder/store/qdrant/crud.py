@@ -89,6 +89,32 @@ class CollectionCRUD:
         )
         return _Doc(payload)
 
+    async def upsert_many(
+        self, records: list[tuple[str, dict[str, Any]]]
+    ) -> list[_Doc]:
+        await self.ensure()
+        if not records:
+            return []
+
+        docs: list[dict[str, Any]] = []
+        points: list[models.PointStruct] = []
+        for point_id, payload in records:
+            doc = dict(payload)
+            doc["id"] = point_id
+            doc.setdefault("created_at", _now().isoformat())
+            doc["updated_at"] = _now().isoformat()
+            docs.append(doc)
+            points.append(
+                models.PointStruct(
+                    id=point_id,
+                    vector=[0.0] * self._vector_size,
+                    payload=doc,
+                )
+            )
+
+        await self._client.upsert(self._collection, points=points)
+        return [_Doc(doc) for doc in docs]
+
     async def get(self, point_id: str) -> _Doc | None:
         await self.ensure()
         results = await self._client.retrieve(
@@ -127,7 +153,7 @@ class CollectionCRUD:
         self,
         filters: dict[str, Any] | None = None,
         *,
-        limit: int = 1000,
+        limit: int | None = 1000,
         offset: int = 0,
         order_field: str | None = None,
         order_desc: bool = True,
@@ -157,7 +183,8 @@ class CollectionCRUD:
 
         # Qdrant scroll uses a cursor (point-ID), not a numeric offset.
         # We page through using the cursor and stop once we have enough records.
-        need = min(limit + offset, _SCROLL_CAP)
+        requested = _SCROLL_CAP if limit is None else limit + offset
+        need = min(requested, _SCROLL_CAP)
         all_docs: list[_Doc] = []
         cursor: Any = None
         while len(all_docs) < need:
@@ -183,6 +210,8 @@ class CollectionCRUD:
             all_docs.sort(
                 key=lambda d: d._data.get(order_field, ""), reverse=order_desc
             )
+        if limit is None:
+            return all_docs[offset:]
         return all_docs[offset : offset + limit]
 
     async def find_or(
@@ -217,11 +246,16 @@ class CollectionCRUD:
         existing = await self.get(point_id)
         if existing is None:
             return None
-        updates["updated_at"] = _now().isoformat()
-        await self._client.set_payload(
-            self._collection, payload=updates, points=[point_id]
-        )
+        await self.set_payload(point_id, updates)
         return await self.get(point_id)
+
+    async def set_payload(self, point_id: str, updates: dict[str, Any]) -> None:
+        await self.ensure()
+        payload = dict(updates)
+        payload["updated_at"] = _now().isoformat()
+        await self._client.set_payload(
+            self._collection, payload=payload, points=[point_id]
+        )
 
     async def delete(self, point_id: str) -> None:
         await self.ensure()

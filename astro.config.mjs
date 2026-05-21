@@ -23,7 +23,22 @@ export default defineConfig({
   },
   vite: {
     envDir: dashboardEnvDir,
-    plugins: [tailwindcss()],
+    plugins: [
+      tailwindcss(),
+      {
+        name: "redirect-root",
+        configureServer(server) {
+          server.middlewares.use((req, res, next) => {
+            if (req.url === "/" || req.url === "") {
+              res.writeHead(307, { Location: "/dashboard" });
+              res.end();
+            } else {
+              next();
+            }
+          });
+        },
+      },
+    ],
     define: {
       "import.meta.env.PUBLIC_API_URL": JSON.stringify(apiUrl),
     },

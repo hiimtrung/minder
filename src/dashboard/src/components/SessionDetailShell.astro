@@ -1,14 +1,13 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import DetailHeader from "./ui/DetailHeader.astro";
-import Card from "./ui/Card.astro";
-import Button from "./ui/Button.astro";
+import DetailHeader from "./ui/molecules/DetailHeader.astro";
+import Card from "./ui/atoms/Card.astro";
+import Button from "./ui/atoms/Button.astro";
 
 interface Props {
   sessionId?: string;
 }
 
-const { sessionId = "" } = Astro.props;
 ---
 
 <DashboardLayout

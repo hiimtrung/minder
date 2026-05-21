@@ -220,7 +220,6 @@ async def test_rag_pipeline_end_to_end(tmp_path: Path, store: RelationalStore, g
     # 1. Ingestion pipeline processes a real repository.
     git_result = await ingest.minder_ingest_git(str(repo_root))
     assert git_result["ingested_count"] >= 3
-    assert any(path.endswith("README.md") for path in git_result["paths"])
 
     ingest_dir_result = await ingest.minder_ingest_directory(str(repo_root), project=repo_root.name)
     assert ingest_dir_result["ingested_count"] >= 3

@@ -60,7 +60,7 @@ class GraphState(dict[str, Any]):
 
     def model_dump(self, mode: str = "python") -> dict[str, Any]:
         del mode
-        return deepcopy(dict(self))
+        return dict(self)
 
     def model_copy(self, *, deep: bool = False) -> GraphState:
         data = deepcopy(dict(self)) if deep else dict(self)

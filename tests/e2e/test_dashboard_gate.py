@@ -97,8 +97,8 @@ async def test_phase4_2_dashboard_gate(
         first_client_key = create_response.json()["client_api_key"]
 
         dashboard_response = await client.get("/dashboard")
-        assert dashboard_response.status_code == 303
-        assert dashboard_response.headers["location"] == "/dashboard/clients"
+        assert dashboard_response.status_code == 200
+        assert "dashboard root" in dashboard_response.text
 
         clients_api_response = await client.get("/v1/admin/clients")
         assert clients_api_response.status_code == 200

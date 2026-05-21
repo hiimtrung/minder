@@ -147,9 +147,9 @@ class ClarificationNode:
     @staticmethod
     def _format_options(query: str, options: list[dict[str, str]]) -> str:
         lines = [
-            f'Tôi hiểu bạn muốn thực hiện một thao tác sửa đổi liên quan đến: "{query}".',
+            f'Yêu cầu sửa đổi: "{query}"',
             "",
-            "Bạn muốn làm gì?",
+            "Chọn một phương án xử lý:",
             "",
         ]
         for i, opt in enumerate(options, 1):
@@ -158,7 +158,6 @@ class ClarificationNode:
             lines.append(f"   ↳ Tool gợi ý: `{opt['tool_hint']}`")
             lines.append("")
         lines.append(
-            "Hãy cho tôi biết bạn chọn phương án nào (hoặc mô tả cụ thể hơn), "
-            "và tôi sẽ thực hiện ngay."
+            "Phản hồi số thứ tự phương án chọn hoặc mô tả yêu cầu cụ thể."
         )
         return "\n".join(lines)

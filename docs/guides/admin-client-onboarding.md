@@ -245,6 +245,8 @@ Open this from either:
 - workspace: `.vscode/mcp.json`
 - user profile: `MCP: Open User Configuration`
 
+For current VS Code builds, the user-level MCP file is `~/Library/Application Support/Code/User/mcp.json` on macOS. If you previously installed MCP servers into a legacy `globalStorage/mcp-servers.json` file, move or reinstall the `minder` entry into `mcp.json` so Copilot Chat reads the active config.
+
 Recommended flow based on the GitHub Copilot Chat MCP guide:
 
 1. Save the `mcp.json` file and start or restart the server from the inline action or `MCP: List Servers`.
@@ -395,17 +397,30 @@ The dashboard is at:
 
 If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
 
-From the dashboard today you can:
+From the dashboard you can:
 
-- create a client
+- create a client (API key shown once in a modal)
 - open a client detail page
-- issue a new client key
+- issue a new client key (shown in a modal with a copy button)
 - revoke all client keys for that client
 - run a connection test
-- inspect onboarding snippets and recent client activity
-- read onboarding snippets for Codex, GitHub Copilot CLI, Google Antigravity, and Claude Code
-- run a browser-based connection test by pasting a client API key
-- inspect recent activity for that client from audit events
+- copy MCP config snippets for any IDE from the **Copy-ready MCP snippets** card
+- copy IDE instruction files from **Agent Instructions** or from `/dashboard/instruction`
+- inspect recent audit activity for that client
+
+### Agent Instructions
+
+Open `/dashboard/instruction` to get the full Minder Agent Orchestration Rules prompt for your IDE:
+
+| IDE                  | Target file                           |
+| -------------------- | ------------------------------------- |
+| Claude Code          | `~/.claude/agents/minder.md`          |
+| Cursor               | `.cursor/rules/minder.mdc` (per-repo) |
+| VS Code / Copilot    | `~/.copilot/agents/minder.agent.md`   |
+| Google Antigravity | `~/.gemini/GEMINI.md`                 |
+| Codex                | `~/.codex/AGENTS.md`                  |
+
+Each card shows the exact content to paste (including any required front matter) and a one-click copy button.
 
 ## 10. Revoke a client key
 
@@ -419,8 +434,8 @@ After revocation:
 
 ## 11. LLM Session Management — Cross-Environment Context Continuity
 
-Minder sessions are the server-side checkpoint for an LLM work context.  Because
-sessions are stored in MongoDB (not in the client process), the same LLM can
+Minder sessions are the server-side checkpoint for an LLM work context. Because
+sessions are stored in the shared server-side operational store (not in the client process), the same LLM can
 resume exactly where it left off from **any machine** using the same client API key.
 
 ### Why this matters
@@ -438,14 +453,14 @@ rehydrates it on demand.
 
 ### Session tool reference
 
-| Tool                     | Always available | Description                                    |
-| ------------------------ | ---------------- | ---------------------------------------------- |
-| `minder_session_create`  | ✅               | Create a named session                         |
-| `minder_session_find`    | ✅               | Find session by name — primary recovery tool   |
-| `minder_session_list`    | ✅               | List all sessions for the current client       |
-| `minder_session_save`    | ✅               | Checkpoint state after each wave               |
-| `minder_session_restore` | ✅               | Load session by UUID                           |
-| `minder_session_context` | ✅               | Update branch and open-file context            |
+| Tool                     | Always available | Description                                  |
+| ------------------------ | ---------------- | -------------------------------------------- |
+| `minder_session_create`  | ✅               | Create a named session                       |
+| `minder_session_find`    | ✅               | Find session by name — primary recovery tool |
+| `minder_session_list`    | ✅               | List all sessions for the current client     |
+| `minder_session_save`    | ✅               | Checkpoint state after each wave             |
+| `minder_session_restore` | ✅               | Load session by UUID                         |
+| `minder_session_context` | ✅               | Update branch and open-file context          |
 
 All session tools are **always available** to any authenticated principal — no
 `tool_scopes` grant is needed.
@@ -466,7 +481,7 @@ minder_session_create(
 → { session_id: "a1b2c3d4-...", name: "my-project-phase3" }
 ```
 
-Save the `session_id` in your active context.  The `name` is the durable key
+Save the `session_id` in your active context. The `name` is the durable key
 across environments.
 
 #### 2. After each wave of work (before `/compact`)
@@ -477,13 +492,13 @@ minder_session_save(
   state = {
     "current_task":    "Implement data model migration",
     "completed":       ["schema design", "interface update"],
-    "in_progress":     ["MongoDB store implementation"],
+    "in_progress":     ["Qdrant operational store implementation"],
     "next_steps":      ["update relational store", "write tests"],
     "key_decisions":   ["user_id nullable", "name field for cross-env"],
-    "open_questions":  ["how to handle TTL expiry in MongoDB?"],
+    "open_questions":  ["how to handle TTL expiry in the operational store?"],
   },
   active_skills = {
-    "pattern": "MongoDB async upsert with _id remapping",
+    "pattern": "Qdrant payload upsert with stable UUID remapping",
   }
 )
 ```
@@ -501,8 +516,9 @@ minder_session_find(name="my-project-phase3")
 ```
 
 The LLM immediately knows:
+
 - what was done
-- what is in progress  
+- what is in progress
 - what to do next
 - key architectural decisions already taken
 
@@ -516,7 +532,7 @@ minder_session_context(
   branch     = "feat/phase3-data-model",
   open_files = [
     "src/minder/models/session.py",
-    "src/minder/store/mongodb/operational_store.py",
+    "src/minder/store/qdrant/operational_store.py",
     "src/minder/tools/session.py",
   ]
 )
@@ -525,7 +541,7 @@ minder_session_context(
 ### Cross-machine guarantee
 
 The `mkc_...` client API key resolves to the same `client_id` UUID on any
-machine.  Sessions owned by that `client_id` are stored in shared MongoDB.
+machine. Sessions owned by that `client_id` are stored in the shared server-side operational store.
 `minder_session_find(name=...)` filters by `client_id` automatically, so only
 sessions belonging to the calling client are returned.
 

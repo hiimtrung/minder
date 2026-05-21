@@ -6,6 +6,8 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+from urllib.error import URLError
+from urllib.request import urlopen
 
 DEFAULT_WATCH_INTERVAL_SECONDS = 0.75
 WATCHED_CONFIG_FILES = (".env", "minder.toml")
@@ -39,11 +41,49 @@ def build_dev_env(
     return env
 
 
+def warn_if_local_qdrant_unavailable(root: Path) -> None:
+    try:
+        from minder.config import Settings
+
+        config = Settings(_env_file=root / ".env")  # type: ignore[call-arg]
+    except Exception:
+        return
+
+    uses_qdrant = config.relational_store.provider == "qdrant"
+    uses_qdrant = uses_qdrant or config.vector_store.provider == "qdrant"
+    graph_provider = config.graph_store.provider
+    if graph_provider == "auto":
+        graph_provider = config.relational_store.provider
+    uses_qdrant = uses_qdrant or (
+        config.graph_store.enabled and graph_provider == "qdrant"
+    )
+    if not uses_qdrant:
+        return
+
+    health_url = f"{config.qdrant.url.rstrip('/')}/healthz"
+    try:
+        with urlopen(health_url, timeout=1.5) as response:
+            if response.status == 200:
+                return
+    except OSError, URLError:
+        pass
+
+    print(
+        "Qdrant is not reachable at "
+        f"{config.qdrant.url}. Start it with "
+        "`docker compose -f docker/docker-compose.local.yml up -d` "
+        "or switch the store providers in .env/minder.toml before retrying.",
+        flush=True,
+    )
+
+
 def collect_watch_files(root: Path) -> list[Path]:
     watched_files: list[Path] = []
     src_root = root / "src"
     if src_root.exists():
-        watched_files.extend(sorted(path for path in src_root.rglob("*.py") if path.is_file()))
+        watched_files.extend(
+            sorted(path for path in src_root.rglob("*.py") if path.is_file())
+        )
     for config_name in WATCHED_CONFIG_FILES:
         config_path = root / config_name
         if config_path.is_file():
@@ -87,8 +127,12 @@ def run_dev_server(
         f"(transport={transport}, port={env.get('MINDER_SERVER__PORT', 'default')}).",
         flush=True,
     )
-    print(f"Watching {root / 'src'} plus {', '.join(WATCHED_CONFIG_FILES)} for changes.", flush=True)
+    print(
+        f"Watching {root / 'src'} plus {', '.join(WATCHED_CONFIG_FILES)} for changes.",
+        flush=True,
+    )
     print("Run with uv run python scripts/dev_server.py", flush=True)
+    warn_if_local_qdrant_unavailable(root)
 
     process = start_server_process(root, env)
     previous_snapshot = snapshot_mtimes(collect_watch_files(root))
@@ -125,7 +169,9 @@ def run_dev_server(
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run Minder in dev mode with hot reload.")
+    parser = argparse.ArgumentParser(
+        description="Run Minder in dev mode with hot reload."
+    )
     parser.add_argument(
         "--transport",
         default="sse",

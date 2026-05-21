@@ -450,7 +450,7 @@ class LangGraphExecutorAdapter:
             if inspect.isawaitable(result):
                 result = await result
             if isinstance(result, GraphState):
-                return result.model_dump(mode="python")
+                return dict(result)
             return result
 
         return wrapped

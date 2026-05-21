@@ -1,0 +1,72 @@
+---
+interface Props {
+  id?: string;
+  name?: string;
+  type?: "text" | "email" | "number" | "password" | "search" | "url" | "tel" | "hidden";
+  value?: string | number;
+  placeholder?: string;
+  min?: string | number;
+  max?: string | number;
+  step?: string | number;
+  required?: boolean;
+  disabled?: boolean;
+  autocomplete?: string;
+  class?: string;
+  extraAttrs?: Record<string, string | number | boolean | undefined>;
+}
+
+const {
+  id,
+  name,
+  type = "text",
+  value,
+  placeholder,
+  min,
+  max,
+  step,
+  required = false,
+  disabled = false,
+  autocomplete,
+  class: className = "",
+  extraAttrs = {},
+} = Astro.props;
+---
+
+<input
+  id={id}
+  name={name}
+  type={type}
+  value={value}
+  placeholder={placeholder}
+  min={min}
+  max={max}
+  step={step}
+  required={required}
+  disabled={disabled}
+  autocomplete={autocomplete}
+  class={`u-input ${className}`}
+  {...extraAttrs}
+/>
+
+<style is:global>
+  .u-input {
+    display: block;
+    width: 100%;
+    border-radius: 0.625rem;
+    border: 1px solid rgb(214 211 209);
+    background: white;
+    padding: 0.5rem 0.875rem;
+    font-size: 0.875rem;
+    color: rgb(28 25 23);
+    outline: none;
+    transition: border-color 150ms, box-shadow 150ms;
+    font-family: var(--font-sans);
+  }
+  .u-input::placeholder { color: rgb(168 162 158); }
+  .u-input:hover { border-color: rgb(168 162 158); }
+  .u-input:focus {
+    border-color: rgb(180 83 9);
+    box-shadow: 0 0 0 3px var(--color-brand-ring);
+  }
+  .u-input:disabled { cursor: not-allowed; background: rgb(250 250 249); color: rgb(168 162 158); }
+</style>

@@ -170,6 +170,25 @@ class TestClientSessionList:
         # list returns a list (sorted key exists — order is last_active desc, verified in integration)
         assert isinstance(result["sessions"], list)
 
+    async def test_find_accepts_iso_string_last_active(
+        self, session_tools: SessionTools, client_principal: ClientPrincipal
+    ) -> None:
+        create = await session_tools.minder_session_create(
+            client_id=client_principal.client_id,
+            name="string-last-active",
+        )
+        session_id = uuid.UUID(create["session_id"])
+
+        session = await session_tools._store.get_session_by_id(session_id)
+        session.last_active = datetime.now(UTC).isoformat()
+
+        result = await session_tools.minder_session_find(
+            name="string-last-active",
+            client_id=client_principal.client_id,
+        )
+
+        assert result["session_id"] == create["session_id"]
+
 
 class TestClientSessionSaveRestore:
     async def test_save_and_restore_state(

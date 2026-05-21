@@ -17,7 +17,10 @@ import {
   setPagerStatus,
   updatePagerButtons,
 } from "./catalog-controls";
-import { getEl, setText, escapeHtml, showToast } from "./ui-utils";
+import { getEl, setText, escapeHtml, escapeAttr, showToast } from "./ui-utils";
+import { showApiKeyModal } from "./modal-controller";
+import { snippetTitles, buildSnippetVariants, renderSnippetGuide } from "./clients-snippets";
+
 
 // (registry, status, etc. now accessed via getEl)
 // (toastRegion moved to ui-utils.ts)
@@ -31,605 +34,6 @@ let currentQuery = "";
 let currentPage = 1;
 
 // (editClientForm, etc. now accessed via getEl)
-
-const snippetTitles: Record<string, string> = {
-  codex: "OpenAI Codex",
-  vscode: "VS Code / GitHub Copilot",
-  copilot_cli: "GitHub Copilot CLI",
-  antigravity: "Google Antigravity",
-  gemini: "Gemini CLI",
-  cursor: "Cursor",
-  claude_code: "Claude Code",
-};
-
-type SnippetDoc = {
-  label: string;
-  href: string;
-};
-
-type SnippetVariant = {
-  id: string;
-  label: string;
-  summary: string;
-  transport: string;
-  steps: string[];
-  docs: SnippetDoc[];
-  template: string;
-  preferred?: boolean;
-  copyTargets: Array<{
-    label: string;
-    content: string;
-  }>;
-};
-
-const docsByTarget: Record<string, SnippetDoc[]> = {
-  codex: [
-    {
-      label: "OpenAI Codex MCP docs",
-      href: "https://developers.openai.com/codex/mcp",
-    },
-  ],
-  vscode: [
-    {
-      label: "GitHub Copilot Chat MCP guide",
-      href: "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp",
-    },
-    {
-      label: "VS Code MCP configuration reference",
-      href: "https://code.visualstudio.com/docs/copilot/reference/mcp-configuration",
-    },
-  ],
-  copilot_cli: [
-    {
-      label: "GitHub Copilot CLI MCP docs",
-      href: "https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers",
-    },
-  ],
-  antigravity: [
-    {
-      label: "Google Antigravity MCP docs",
-      href: "https://antigravity.google/docs/mcp",
-    },
-  ],
-  gemini: [
-    {
-      label: "Gemini CLI MCP docs",
-      href: "https://geminicli.com/docs/tools/mcp-server/",
-    },
-  ],
-  cursor: [
-    {
-      label: "Cursor MCP docs",
-      href: "https://cursor.com/docs/mcp",
-    },
-  ],
-  claude_code: [
-    {
-      label: "Claude Code MCP docs",
-      href: "https://code.claude.com/docs/en/mcp",
-    },
-  ],
-};
-
-const localSnippetTemplates: Record<string, string> = {
-  codex: [
-    "[mcp_servers.minder]",
-    'command = "uv"',
-    'args = ["run", "python", "-m", "minder.server"]',
-    'cwd = "/absolute/path/to/minder"',
-    'env = { MINDER_SERVER__TRANSPORT = "stdio", MINDER_CLIENT_API_KEY = "<mkc_...>" }',
-  ].join("\n"),
-  vscode: JSON.stringify(
-    {
-      servers: {
-        minder: {
-          type: "stdio",
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-        },
-      },
-      inputs: [],
-    },
-    null,
-    2,
-  ),
-  copilot_cli: JSON.stringify(
-    {
-      mcpServers: {
-        minder: {
-          type: "stdio",
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-          tools: ["*"],
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  antigravity: JSON.stringify(
-    {
-      mcpServers: {
-        minder: {
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  gemini: JSON.stringify(
-    {
-      mcpServers: {
-        minder: {
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  cursor: JSON.stringify(
-    {
-      mcpServers: {
-        minder: {
-          type: "stdio",
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-  claude_code: JSON.stringify(
-    {
-      mcpServers: {
-        minder: {
-          command: "uv",
-          args: ["run", "python", "-m", "minder.server"],
-          cwd: "/absolute/path/to/minder",
-          env: {
-            MINDER_SERVER__TRANSPORT: "stdio",
-            MINDER_CLIENT_API_KEY: "<mkc_...>",
-          },
-        },
-      },
-    },
-    null,
-    2,
-  ),
-};
-
-// (escapeHtml moved to ui-utils.ts)
-
-const formatSnippet = (template: string): string => {
-  try {
-    return JSON.stringify(JSON.parse(template), null, 2);
-  } catch {
-    return template;
-  }
-};
-
-const extractJsonServerEntry = (template: string): string | null => {
-  try {
-    const payload = JSON.parse(template) as {
-      servers?: Record<string, unknown>;
-      mcpServers?: Record<string, unknown>;
-    };
-    const entry = payload.servers?.minder ?? payload.mcpServers?.minder;
-    if (!entry) {
-      return null;
-    }
-    return JSON.stringify(entry, null, 2);
-  } catch {
-    return null;
-  }
-};
-
-const buildSnippetVariants = (
-  target: string,
-  remoteTemplate: string,
-): SnippetVariant[] => {
-  const docs = docsByTarget[target] ?? [];
-  const formattedRemote = formatSnippet(remoteTemplate);
-  const formattedLocal = localSnippetTemplates[target]
-    ? formatSnippet(localSnippetTemplates[target])
-    : "";
-  const remoteEntry = extractJsonServerEntry(formattedRemote);
-  const localEntry = extractJsonServerEntry(formattedLocal);
-
-  const buildCopyTargets = (
-    fullContent: string,
-    entryContent: string | null,
-    fullLabel = "Copy Snippet",
-  ): SnippetVariant["copyTargets"] => {
-    const targets = [{ label: fullLabel, content: fullContent }];
-    if (entryContent) {
-      targets.push({ label: "Copy Server Entry", content: entryContent });
-    }
-    return targets;
-  };
-
-  switch (target) {
-    case "codex":
-      return [
-        {
-          id: "remote",
-          label: "Preferred Remote",
-          transport: "Remote endpoint",
-          summary:
-            "Start with the remote Minder endpoint so Codex connects without launching a local process. If your Codex build only works reliably with local MCP, switch to the Local stdio tab.",
-          steps: [
-            "Open ~/.codex/config.toml or the trusted project .codex/config.toml file.",
-            "Paste this remote minder block under mcp_servers.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Run codex mcp or reopen the MCP panel and confirm the minder server is connected.",
-          ],
-          docs,
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(formattedRemote, null),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Codex to start Minder directly on your machine or if the remote endpoint is not suitable for your setup.",
-          steps: [
-            "Keep the config in ~/.codex/config.toml or a trusted project .codex/config.toml.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
-            "Restart Codex or reopen the MCP panel.",
-          ],
-          docs,
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(formattedLocal, null),
-        },
-      ];
-    case "vscode":
-      return [
-        {
-          id: "remote",
-          label: "Preferred SSE",
-          transport: "Remote SSE",
-          summary:
-            "Use this for the cleanest VS Code / Copilot Chat setup against Minder's remote endpoint.",
-          steps: [
-            "Open .vscode/mcp.json in the repository or run MCP: Open User Configuration.",
-            "Replace the minder server under servers with this remote configuration.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Save the file, start or restart the server, then open Copilot Chat in Agent mode and verify Minder tools are available.",
-          ],
-          docs,
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want VS Code to start Minder locally instead of connecting to the remote SSE endpoint.",
-          steps: [
-            "Keep this in .vscode/mcp.json or your user-profile mcp.json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your local repo path and client API key.",
-            "Save, restart the server from MCP: List Servers, and verify the tools reload.",
-          ],
-          docs,
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    case "copilot_cli":
-      return [
-        {
-          id: "remote",
-          label: "Preferred SSE",
-          transport: "Remote SSE",
-          summary:
-            "Use this for the simplest Copilot CLI setup against Minder's remote endpoint.",
-          steps: [
-            "Open ~/.copilot/mcp-config.json or use /mcp add.",
-            "If you use /mcp add, choose HTTP or SSE, paste the Minder URL, and add the X-Minder-Client-Key header.",
-            "Replace <mkc_...> with the client API key shown in this dashboard if you edit JSON directly.",
-            "Run /mcp show and confirm the minder server is enabled.",
-          ],
-          docs,
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Copilot CLI to launch Minder locally instead of calling the remote endpoint.",
-          steps: [
-            "Edit ~/.copilot/mcp-config.json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your local repo path and client API key.",
-            "Run /mcp show and confirm the server reconnects.",
-          ],
-          docs,
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    case "antigravity":
-      return [
-        {
-          id: "remote",
-          label: "Preferred Remote",
-          transport: "Remote URL",
-          summary:
-            "Start with the remote Minder endpoint in Antigravity. If your setup works better with a local process, switch to the Local stdio tab.",
-          steps: [
-            "Open the MCP Store, choose Manage MCP Servers, then View raw config.",
-            "Replace the minder entry in ~/.gemini/antigravity/mcp_config.json with this remote configuration.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Save the config and verify the server reconnects.",
-          ],
-          docs: docsByTarget["antigravity"] ?? [],
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Antigravity to launch Minder directly on your machine.",
-          steps: [
-            "Open the same raw config file in ~/.gemini/antigravity/mcp_config.json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
-            "Save the config and confirm the server reconnects.",
-          ],
-          docs: docsByTarget["antigravity"] ?? [],
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    case "gemini":
-      return [
-        {
-          id: "remote",
-          label: "Preferred Remote",
-          transport: "Remote SSE",
-          summary:
-            "Use this for the cleanest Gemini CLI setup against Minder's remote endpoint.",
-          steps: [
-            "Open ~/.gemini/settings.json or the project-local .gemini/settings.json.",
-            "Add or replace the minder entry under mcpServers with this remote configuration.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Save the file and verify tools with 'gemini mcp list' inside a session.",
-          ],
-          docs: docsByTarget["gemini"] ?? [],
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Gemini CLI to start Minder locally instead of connecting to the remote endpoint.",
-          steps: [
-            "Keep the configuration in ~/.gemini/settings.json or .gemini/settings.json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
-            "Verify the server is registered with 'gemini mcp list'.",
-          ],
-          docs: docsByTarget["gemini"] ?? [],
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    case "cursor":
-      return [
-        {
-          id: "remote",
-          label: "Preferred HTTP",
-          transport: "Remote HTTP",
-          summary:
-            "Use Cursor's remote MCP support with Minder's streamable HTTP endpoint first. Switch to Local stdio only if you want Cursor to launch Minder directly from your machine.",
-          steps: [
-            "Create or edit .cursor/mcp.json in the project, or ~/.cursor/mcp.json for a global setup.",
-            "Replace the minder server entry with this remote configuration.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Save the file, reopen MCP settings if needed, and confirm the minder server appears in Cursor.",
-          ],
-          docs,
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Cursor to start Minder locally instead of calling the remote MCP endpoint.",
-          steps: [
-            "Keep the config in .cursor/mcp.json or ~/.cursor/mcp.json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
-            "Save the file and verify Cursor reconnects to the local server.",
-          ],
-          docs,
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    case "claude_code":
-      return [
-        {
-          id: "remote",
-          label: "Preferred SSE",
-          transport: "Remote SSE",
-          summary:
-            "Use this to connect Claude Code to Minder's remote SSE endpoint first. Switch to Local stdio if you prefer a machine-local process.",
-          steps: [
-            "Open or create a project .mcp.json file, or use claude mcp add-json.",
-            "Paste this remote minder entry into mcpServers.",
-            "Replace <mkc_...> with the client API key shown in this dashboard.",
-            "Run /mcp or claude mcp list and confirm the server is available.",
-          ],
-          docs,
-          template: formattedRemote,
-          preferred: true,
-          copyTargets: buildCopyTargets(
-            formattedRemote,
-            remoteEntry,
-            "Copy Full File",
-          ),
-        },
-        {
-          id: "local",
-          label: "Local stdio",
-          transport: "Optional fallback",
-          summary:
-            "Use this when you want Claude Code to start Minder locally instead of connecting to the remote endpoint.",
-          steps: [
-            "Keep the config in a project .mcp.json file or add it with claude mcp add-json.",
-            "Replace /absolute/path/to/minder and <mkc_...> with your repo path and client API key.",
-            "Run /mcp or claude mcp list to verify the local process is registered.",
-          ],
-          docs,
-          template: formattedLocal,
-          copyTargets: buildCopyTargets(
-            formattedLocal,
-            localEntry,
-            "Copy Full File",
-          ),
-        },
-      ];
-    default:
-      return [
-        {
-          id: "default",
-          label: "Snippet",
-          transport: "Default",
-          summary: "Use this configuration as shown.",
-          steps: [],
-          docs,
-          template: formattedRemote,
-          copyTargets: buildCopyTargets(formattedRemote, remoteEntry),
-        },
-      ];
-  }
-};
-
-const renderSnippetGuide = (variant: SnippetVariant): string => {
-  const docsMarkup = variant.docs
-    .map(
-      (doc) => `
-        <a
-          href="${doc.href}"
-          target="_blank"
-          rel="noreferrer"
-          class="action-pill"
-        >
-          ${escapeHtml(doc.label)}
-        </a>
-      `,
-    )
-    .join("");
-
-  const stepsMarkup = variant.steps
-    .map(
-      (step, index) => `
-        <li class="flex gap-3 text-sm leading-6 text-stone-700">
-          <span class="mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-semibold text-amber-900">${index + 1}</span>
-          <span>${escapeHtml(step)}</span>
-        </li>
-      `,
-    )
-    .join("");
-
-  return `
-    <div class="mt-4 rounded-2xl border border-amber-200 bg-amber-50/60 p-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <span class="inline-flex items-center rounded-full bg-white px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-900">${escapeHtml(variant.transport)}</span>
-        <p class="text-sm leading-6 text-stone-700">${escapeHtml(variant.summary)}</p>
-      </div>
-      <div class="mt-4 flex flex-wrap gap-2">
-        ${docsMarkup}
-      </div>
-      <ol class="mt-4 grid gap-3">
-        ${stepsMarkup}
-      </ol>
-    </div>
-  `;
-};
 
 const setDetailStatus = (
   message: string,
@@ -866,11 +270,13 @@ const renderClients = () => {
   registry.innerHTML = visibleClients
     .map(
       (client) => `
-          <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
-            <p class="eyebrow">${client.slug}</p>
-            <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${client.name}</h2>
-            <p class="mt-3 text-sm leading-6 text-stone-700">${client.description || "No description yet."}</p>
-            <p class="mt-5 text-sm text-stone-500">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
+          <a href="/dashboard/clients/${encodeURIComponent(client.id)}" class="shell-card flex flex-col justify-between p-6 h-[220px] transition hover:-translate-y-0.5">
+            <div class="min-w-0">
+              <p class="eyebrow truncate">${client.slug}</p>
+              <h2 class="mt-2.5 text-xl font-semibold tracking-tight text-stone-950 truncate">${client.name}</h2>
+              <p class="mt-2 text-sm leading-6 text-stone-700 line-clamp-2">${client.description || "No description yet."}</p>
+            </div>
+            <p class="mt-4 text-sm text-stone-500 truncate" title="${escapeAttr(client.tool_scopes.join(" · "))}">${client.tool_scopes.join(" · ") || "No scopes assigned"}</p>
           </a>
         `,
     )
@@ -999,8 +405,8 @@ const renderDetail = async () => {
                   <button
                     type="button"
                     class="action-pill snippet-copy-button"
-                    data-snippet-label="${escapeHtml(title)} ${escapeHtml(variant.label)} ${escapeHtml(copyTarget.label)}"
-                    data-snippet-content="${escapeHtml(copyTarget.content)}"
+                    data-snippet-label="${escapeAttr(`${title} ${variant.label} ${copyTarget.label}`)}"
+                    data-snippet-content="${escapeAttr(copyTarget.content)}"
                   >
                     ${escapeHtml(copyTarget.label)}
                   </button>
@@ -1206,11 +612,10 @@ document
         tool_scopes: selectedTools,
         repo_scopes,
       });
-      const createdKey = getEl("client-created-key");
-      const createdResult = getEl("client-created-result");
-      if (createdKey) createdKey.textContent = created.client_api_key;
-      createdResult?.classList.remove("hidden");
       if (status) status.textContent = `Created ${created.client.slug}.`;
+      const clientFormDialog = document.querySelector("#client-form-dialog") as HTMLDialogElement | null;
+      clientFormDialog?.close();
+      showApiKeyModal(created.client_api_key);
       showToast(`Created client ${created.client.slug}.`, "success");
       await syncVisibleClients();
     } catch (error) {
@@ -1229,11 +634,8 @@ document
     setDetailStatus("Issuing new client key...");
     try {
       const rotated = await rotateClientKey(selectedClientId);
-      const rotatedKeyValue = getEl("rotated-key-value");
-      const rotatedKeyResult = getEl("rotated-key-result");
-      if (rotatedKeyValue) rotatedKeyValue.textContent = rotated.client_api_key;
-      rotatedKeyResult?.classList.remove("hidden");
       setDetailStatus("Issued new client key.", "success");
+      showApiKeyModal(rotated.client_api_key);
       showToast("Issued new client key.", "success");
       await renderDetail();
     } catch (error) {
@@ -1400,6 +802,21 @@ getEl("edit-client-form")?.addEventListener("submit", async (event) => {
   }
 });
 
+
+const clientFormDialogEl = document.querySelector("#client-form-dialog") as HTMLDialogElement | null;
+
+document.querySelector("#client-new-button")?.addEventListener("click", () => {
+  clientFormDialogEl?.showModal();
+  if (getEl("client-tool-scopes")) void loadCreateTools();
+});
+
+document.querySelector("#client-close-dialog")?.addEventListener("click", () => {
+  clientFormDialogEl?.close();
+});
+
+clientFormDialogEl?.addEventListener("click", (event) => {
+  if (event.target === clientFormDialogEl) clientFormDialogEl.close();
+});
+
 void syncVisibleClients();
 void renderDetail();
-if (getEl("client-tool-scopes")) void loadCreateTools();

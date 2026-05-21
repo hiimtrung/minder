@@ -1,13 +1,12 @@
 ---
 import DashboardLayout from "../layouts/DashboardLayout.astro";
-import DetailHeader from "./ui/DetailHeader.astro";
-import Card from "./ui/Card.astro";
-import Field from "./ui/Field.astro";
-import Input from "./ui/Input.astro";
-import Textarea from "./ui/Textarea.astro";
-import Button from "./ui/Button.astro";
-import FormStatus from "./ui/FormStatus.astro";
-import ResultCallout from "./ui/ResultCallout.astro";
+import DetailHeader from "./ui/molecules/DetailHeader.astro";
+import Card from "./ui/atoms/Card.astro";
+import Field from "./ui/atoms/Field.astro";
+import Input from "./ui/atoms/Input.astro";
+import Textarea from "./ui/atoms/Textarea.astro";
+import Button from "./ui/atoms/Button.astro";
+import FormStatus from "./ui/atoms/FormStatus.astro";
 
 interface Props {
   clientId?: string;
@@ -92,17 +91,6 @@ const detailHref = clientId
           Run connection test
         </Button>
         <FormStatus id="detail-status" class="mt-4" />
-        <ResultCallout
-          id="rotated-key-result"
-          tone="amber"
-          eyebrow="New Client API Key"
-          class="mt-4"
-        >
-          <code
-            id="rotated-key-value"
-            class="font-mono-ui mt-3 block overflow-x-auto rounded-xl bg-white px-4 py-3 text-sm text-stone-800"
-          ></code>
-        </ResultCallout>
       </Card>
 
       <!-- Edit client -->

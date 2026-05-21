@@ -1,10 +1,65 @@
 from __future__ import annotations
 
 import json
+from typing import Any
 
 from minder.graph.state import GraphState
 from minder.prompts import PromptRegistry
 from minder.tools.registry import tool_capability_manifest, tool_data_access_policy
+
+
+def _build_chat_messages(
+    *,
+    state: GraphState,
+    snippets: list[str],
+    guidance: str,
+    retry_reason: str,
+) -> list[dict[str, Any]]:
+    """Build a lean chat messages list for create_chat_completion.
+
+    Excludes the full tool-capability manifest and data-access policy — those
+    are only meaningful for MCP tool-call routing, not for dashboard chat answers.
+    """
+    system_parts: list[str] = [
+        "You are Minder, a repository-aware engineering assistant.",
+        "Answer the user's question with absolute completeness yet extreme conciseness.",
+        "Cite specific file paths when referencing code.",
+        "To maximize response speed and ensure a purely professional engineering tone:",
+        "1. Answer directly and immediately. Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help').",
+        "2. NEVER use exclamation marks (!) or any exclamatory sentences/words. Keep everything strictly declarative and professional.",
+    ]
+    if guidance and guidance.strip():
+        system_parts.append(f"Workflow guidance: {guidance.strip()}")
+    system_parts.append(
+        "A repository is available for code inspection."
+        if state.repo_path
+        else "No repository is currently selected. Answer from the conversation context and general knowledge."
+    )
+    if retry_reason:
+        system_parts.append(
+            f"Your previous answer was rejected. Reason: {retry_reason}. Please correct it."
+        )
+
+    messages: list[dict[str, Any]] = [
+        {"role": "system", "content": "\n\n".join(system_parts)}
+    ]
+
+    for h in state.chat_history or []:
+        raw_role = str(h.get("role", "user"))
+        role = "assistant" if raw_role in ("assistant", "model") else "user"
+        content = str(h.get("content", "")).strip()
+        if content:
+            messages.append({"role": role, "content": content})
+
+    user_parts: list[str] = []
+    if snippets:
+        user_parts.append(
+            "Relevant code from the repository:\n" + "\n\n".join(snippets)
+        )
+    user_parts.append(f"Question: {state.query}")
+    messages.append({"role": "user", "content": "\n\n".join(user_parts)})
+
+    return messages
 
 
 class ReasoningNode:
@@ -18,7 +73,7 @@ class ReasoningNode:
         ]
         snippets = []
         for doc in docs[:3]:
-            content = str(doc["content"]).strip()
+            content = str(doc.get("content", "")).strip()
             snippets.append(f"Source: {doc['path']}\n{content[:240]}")
 
         guidance = state.workflow_context.get("guidance", "")
@@ -92,8 +147,29 @@ class ReasoningNode:
         agent_system_prompt = str(state.metadata.get("agent_system_prompt", "") or "").strip()
         if agent_system_prompt:
             prompt = f"{agent_system_prompt}\n\n{prompt}"
+
+        # Strip large content field from docs now that snippets are extracted
+        if state.retrieved_docs:
+            state.retrieved_docs = [
+                {k: v for k, v in doc.items() if k != "content"}
+                for doc in state.retrieved_docs
+            ]
+        if state.reranked_docs:
+            state.reranked_docs = [
+                {k: v for k, v in doc.items() if k != "content"}
+                for doc in state.reranked_docs
+            ]
+
+        chat_messages = _build_chat_messages(
+            state=state,
+            snippets=snippets,
+            guidance=guidance,
+            retry_reason=retry_reason,
+        )
+
         state.reasoning_output = {
             "prompt": prompt,
+            "messages": chat_messages,
             "sources": sources,
             "workflow_instruction": guidance,
             "prompt_name": state.metadata.get("query_prompt_name", "query_reasoning"),

@@ -93,6 +93,7 @@ class MinderGraph:
         self._history_store = history_store or store
         self._error_store = error_store or store
         self._graph_tools = graph_tools
+        self._cached_executor: InternalGraphExecutor | LangGraphExecutorAdapter | None = None
         self._nodes = GraphNodes(
             workflow_planner=self._workflow_planner,
             planning=self._planning,
@@ -203,14 +204,18 @@ class MinderGraph:
         yield {"type": "final", "state": state}
 
     def _select_executor(self) -> InternalGraphExecutor | LangGraphExecutorAdapter:
+        if self._cached_executor is not None:
+            return self._cached_executor
         if self._config.workflow.orchestration_runtime == "langgraph":
-            return LangGraphExecutorAdapter(
+            self._cached_executor = LangGraphExecutorAdapter(
                 self._nodes,
                 self._store,
                 self._config,
                 graph_tools=self._graph_tools,
             )
-        return InternalGraphExecutor(self._nodes)
+        else:
+            self._cached_executor = InternalGraphExecutor(self._nodes)
+        return self._cached_executor
 
     async def _persist_history(self, state: GraphState) -> None:
         if state.session_id is None:

@@ -30,7 +30,15 @@ DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
 
 
 def _favicon_path() -> Path:
-    return Path(__file__).resolve().parents[5] / "favicon.png"
+    candidates = [
+        Path(__file__).resolve().parents[5] / "favicon.png",
+        Path(__file__).resolve().parents[5] / "src" / "dashboard" / "public" / "favicon.png",
+        Path(__file__).resolve().parents[5] / "src" / "dashboard" / "dist" / "client" / "favicon.png",
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path
+    return candidates[0]
 
 
 def dashboard_dev_origin(config: MinderConfig) -> str | None:

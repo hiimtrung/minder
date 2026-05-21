@@ -297,7 +297,10 @@ class QueryTools:
         cross_repo_graph_summary: dict[str, int] | None = None
         if isinstance(cross_repo_graph_raw, dict):
             results = cross_repo_graph_raw.get("results") or []
-            cross_repo_graph_summary = {"result_count": len(results)}
+            cross_repo_graph_summary = {
+                "result_count": len(results),
+                "scope_count": cross_repo_graph_raw.get("scope_count", 0),
+            }
         return {
             "answer": result.llm_output.get("text", ""),
             "sources": result.reasoning_output.get("sources", []),

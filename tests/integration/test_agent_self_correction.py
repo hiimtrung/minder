@@ -237,7 +237,7 @@ def test_tool_usage_patterns_non_empty() -> None:
 
 def test_tool_capability_manifest_includes_patterns() -> None:
     manifest = tool_capability_manifest()
-    assert "Usage guidance:" in manifest
+    assert "Key sequencing rules:" in manifest
     assert "minder_memory_update" in manifest
     assert "minder_session_summarize" in manifest
     assert "deprecated" in manifest

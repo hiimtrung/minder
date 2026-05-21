@@ -1,40 +1,21 @@
 # Minder Documentation
 
-Welcome to the Minder documentation. This repository contains all architectural, design, and operational information for the Minder agentic development infrastructure.
+## Architecture
 
-## Navigation
+- [System Design](architecture/system-design.md) — canonical runtime architecture, storage, auth flows, context continuity
+- [Minder Server](architecture/minder-server.md) — quick start, configuration reference, deployment
 
-### 🏗️ [Architecture](architecture/)
-High-level system design, server specs, and architectural vision.
-- [System Design](architecture/system-design.md)
-- [Minder Server](architecture/minder-server.md)
-- [Architecture Vision](architecture/architecture-vision.md)
+## Roadmap
 
-### 🚀 [Roadmap & Management](roadmap/)
-Product scope, phase sequencing, and current project progress overview.
-- [Project Progress Overview](roadmap/PROJECT_PROGRESS.md)
-- [Product Scope](roadmap/01-product-scope.md)
-- [Implementation Phases](roadmap/05-implementation-phases.md)
+- [Product Scope](roadmap/01-product-scope.md) — vision, target users, deployment model
+- [Data Model & MCP Tools](roadmap/03-data-model-and-tools.md) — stores, tool surface, schema
+- [Workflow Governance](roadmap/04-workflow-governance.md) — workflow state machine, step definitions
+- [Operations & Delivery](roadmap/06-operations-and-delivery.md) — CI/CD, infra, release process
 
-### ✨ [Features](features/)
-Design and requirements for active and upcoming features.
-- [Skill Catalog & Metadata Graph](features/skill-management.md)
+## Guides
 
-### 📈 [Progress Tracking](progress/)
-Detailed task trackers for active development phases.
-- [Phase 5: Learning & Skill Catalog](progress/phase-5-learning-and-skill-catalog.md)
-- [Phase 7: Advanced Runtime](progress/phase-7-learning-and-advanced-runtime.md)
-
-### 📖 [Guides](guides/)
-User and developer guides for setup, onboarding, and deployment.
-- [Local Setup](guides/local-setup.md)
-- [Development Guide](guides/development.md)
-- [Production Deployment](guides/production-deployment.md)
-- [Minder CLI](guides/minder-cli.md)
-
----
-
-### 📦 [Archive](archive/)
-Historical documentation and completed phase trackers.
-- [Progress Archive](archive/progress/)
-- [Feature Archive](archive/features/)
+- [Local Setup](guides/local-setup.md) — infra, backend, dashboard, setup wizard
+- [Development](guides/development.md) — make targets, release workflow
+- [Production Deployment](guides/production-deployment.md) — Docker Compose, reverse proxy, bootstrap
+- [Admin & Client Onboarding](guides/admin-client-onboarding.md) — admin creation, client setup, MCP config
+- [Minder CLI](guides/minder-cli.md) — install, login, sync, MCP config, branch topology

@@ -94,6 +94,17 @@ def build_transport(
             )
         )
 
+    async def _resolve_repo_uuid(repo_id: str) -> uuid.UUID:
+        """Accept a UUID string or a repo name/slug; return the UUID."""
+        try:
+            return uuid.UUID(repo_id)
+        except ValueError:
+            pass
+        repo = await store.get_repository_by_name(repo_id)
+        if repo is None:
+            raise ValueError(f"Repository not found: {repo_id!r}")
+        return repo.id
+
     def ensure_client_repo_access(
         principal: Principal | None,
         *,
@@ -204,18 +215,19 @@ def build_transport(
         repo_id: str | None = None,
         project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
+        resolved_repo_id = await _resolve_repo_uuid(repo_id) if repo_id else None
         if isinstance(principal, ClientPrincipal):
             return await session_tools.minder_session_create(
                 client_id=principal.client_id,
                 name=name,
-                repo_id=uuid.UUID(repo_id) if repo_id else None,
+                repo_id=resolved_repo_id,
                 project_context=project_context,
             )
         authenticated_user = require_authenticated_user(user)
         return await session_tools.minder_session_create(
             user_id=authenticated_user.id,
             name=name,
-            repo_id=uuid.UUID(repo_id) if repo_id else None,
+            repo_id=resolved_repo_id,
             project_context=project_context,
         )
 
@@ -254,12 +266,14 @@ def build_transport(
         session_id: str,
         state: dict[str, Any] | None = None,
         active_skills: dict[str, Any] | None = None,  # noqa: ANN001
+        repo_id: str | None = None,
     ) -> dict[str, Any]:
         del user
         return await session_tools.minder_session_save(
             uuid.UUID(session_id),
             state=state,
             active_skills=active_skills,
+            repo_id=await _resolve_repo_uuid(repo_id) if repo_id else None,
         )
 
     async def minder_session_restore(
@@ -305,7 +319,7 @@ def build_transport(
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_get(
-            repo_id=uuid.UUID(repo_id),
+            repo_id=await _resolve_repo_uuid(repo_id),
             repo_path=repo_path,
         )
 
@@ -319,7 +333,7 @@ def build_transport(
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_step(
-            repo_id=uuid.UUID(repo_id) if repo_id else None,
+            repo_id=await _resolve_repo_uuid(repo_id) if repo_id else None,
             repo_path=repo_path,
             session_id=uuid.UUID(session_id) if session_id else None,
             decision=decision,
@@ -336,7 +350,7 @@ def build_transport(
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_update(
-            repo_id=uuid.UUID(repo_id),
+            repo_id=await _resolve_repo_uuid(repo_id),
             repo_path=repo_path,
             completed_step=completed_step,
             artifact_name=artifact_name,
@@ -348,7 +362,7 @@ def build_transport(
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_guard(
-            repo_id=uuid.UUID(repo_id),
+            repo_id=await _resolve_repo_uuid(repo_id),
             requested_step=requested_step,
             action=action,
         )

@@ -177,9 +177,11 @@ class SessionContextGraph:
             for memory_id in coherence.get("stale_memories", [])
             if memory_id
         )
+        repo_id = state.get("workflow_context", {}).get("repo_id") or None
         payload: dict[str, Any] = {
             "session_id": state["session_id"],
             "name": state.get("session_name"),
+            "repo_id": repo_id,
             "state": state.get("session_state", {}),
             "active_skills": state.get("active_skills", {}),
             "project_context": state.get("project_context", {}),

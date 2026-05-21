@@ -1034,41 +1034,38 @@ const { repoId = "" } = Astro.props;
             Update the repository name, remote URL, default branch, or local
             path.
           </p>
-          <form id="repo-settings-form" class="mt-3 grid w-full gap-2.5">
-            <div class="grid xl:grid-cols-4 grid-cols-2 w-full gap-2">
-              <label class="grid gap-1 text-sm text-stone-700">
-                Name
-                <input id="repo-settings-name" class="u-input" />
-              </label>
-              <label class="grid gap-1 text-sm text-stone-700">
-                Remote URL
-                <input id="repo-settings-remote" class="u-input" />
-              </label>
-              <label class="grid gap-1 text-sm text-stone-700">
-                Default Branch
-                <input id="repo-settings-branch" class="u-input" />
-              </label>
-              <label class="grid gap-1 text-sm text-stone-700">
-                State Path
-                <input id="repo-settings-path" class="u-input" />
-              </label>
-              <label class="grid gap-1 text-sm text-stone-700">
-                Workflow
-                <select id="repo-settings-workflow" class="u-select">
+          <form id="repo-settings-form" class="mt-3 grid w-full gap-3" novalidate>
+            <div class="grid xl:grid-cols-4 grid-cols-2 w-full gap-3">
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-settings-name">
+                  Name <span class="text-rose-500" aria-hidden="true">*</span>
+                </label>
+                <input id="repo-settings-name" name="name" class="u-input" required />
+                <span class="u-field-error" id="repo-settings-name-error" aria-live="polite"></span>
+              </div>
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-settings-remote">Remote URL</label>
+                <input id="repo-settings-remote" name="remote_url" class="u-input" />
+              </div>
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-settings-branch">Default Branch</label>
+                <input id="repo-settings-branch" name="default_branch" class="u-input" />
+              </div>
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-settings-path">State Path</label>
+                <input id="repo-settings-path" name="path" class="u-input" />
+              </div>
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-settings-workflow">Workflow</label>
+                <select id="repo-settings-workflow" name="workflow_id" class="u-select">
                   <option value="">No workflow assigned</option>
                 </select>
-              </label>
+              </div>
             </div>
             <p id="repo-settings-status" class="u-status"></p>
             <div class="flex flex-wrap gap-2">
-              <button type="submit" class="primary-pill u-btn-sm"
-                >Save Changes</button
-              >
-              <button
-                id="repo-settings-delete"
-                type="button"
-                class="u-btn-danger u-btn-sm"
-              >
+              <button type="submit" class="primary-pill u-btn-sm">Save Changes</button>
+              <button id="repo-settings-delete" type="button" class="u-btn-danger u-btn-sm">
                 Delete Repository
               </button>
             </div>
@@ -1100,22 +1097,26 @@ const { repoId = "" } = Astro.props;
             </div>
 
             <!-- Add branch row -->
-            <div class="mt-2.5 flex w-full items-center gap-2">
-              <input
-                id="repo-branch-add-input"
-                type="text"
-                placeholder="Branch name (e.g. feat/my-feature)"
-                class="u-input min-w-0 flex-1"
-              />
+            <div class="mt-2.5 flex w-full items-start gap-2">
+              <div class="grid min-w-0 flex-1 gap-1">
+                <input
+                  id="repo-branch-add-input"
+                  name="branch"
+                  type="text"
+                  placeholder="Branch name (e.g. feat/my-feature)"
+                  class="u-input"
+                />
+                <span class="u-field-error" id="repo-branch-add-input-error" aria-live="polite"></span>
+              </div>
               <button
                 id="repo-branch-add-btn"
                 type="button"
-                class="shrink-0 inline-flex items-center justify-center rounded-full border border-stone-300 bg-white px-3 py-2 text-xs font-medium text-stone-700 transition hover:bg-stone-50 disabled:opacity-40"
+                class="action-pill u-btn-sm shrink-0"
               >
                 Add branch
               </button>
             </div>
-            <p id="repo-branches-status" class="u-status mt-1.5"></p>
+            <p id="repo-branches-status" class="u-status mt-0.5"></p>
           </div>
 
           <div class="mt-5 border-t border-stone-100 pt-4">
@@ -1131,67 +1132,79 @@ const { repoId = "" } = Astro.props;
               impact analysis.
             </p>
 
-            <form id="repo-branch-link-form" class="mt-3 grid w-full gap-2.5">
-              <div class="grid gap-2 md:grid-cols-2">
-                <label class="grid gap-1 text-sm text-stone-700">
-                  Source Branch
+            <form id="repo-branch-link-form" class="mt-3 grid w-full gap-3" novalidate>
+              <div class="grid gap-3 md:grid-cols-2">
+                <div class="grid gap-1">
+                  <label class="u-field-label" for="repo-branch-link-source">
+                    Source Branch <span class="text-rose-500" aria-hidden="true">*</span>
+                  </label>
                   <input
                     id="repo-branch-link-source"
+                    name="source_branch"
                     class="u-input"
                     placeholder="feature/a1"
+                    required
                   />
-                </label>
-                <label class="grid gap-1 text-sm text-stone-700">
-                  Target Repository
-                  <select id="repo-branch-link-target-repo" class="u-select">
+                  <span class="u-field-error" id="repo-branch-link-source-error" aria-live="polite"></span>
+                </div>
+                <div class="grid gap-1">
+                  <label class="u-field-label" for="repo-branch-link-target-repo">
+                    Target Repository <span class="text-rose-500" aria-hidden="true">*</span>
+                  </label>
+                  <select id="repo-branch-link-target-repo" name="target_repo_id" class="u-select" required>
                     <option value="">Select a repository</option>
                   </select>
-                </label>
+                  <span class="u-field-error" id="repo-branch-link-target-repo-error" aria-live="polite"></span>
+                </div>
               </div>
 
-              <div class="grid gap-2 md:grid-cols-4">
-                <label class="grid gap-1 text-sm text-stone-700 md:col-span-2">
-                  Target Branch
+              <div class="grid gap-3 md:grid-cols-4">
+                <div class="grid gap-1 md:col-span-2">
+                  <label class="u-field-label" for="repo-branch-link-target-branch">
+                    Target Branch <span class="text-rose-500" aria-hidden="true">*</span>
+                  </label>
                   <input
                     id="repo-branch-link-target-branch"
+                    name="target_branch"
                     class="u-input"
                     placeholder="feature/b1"
+                    required
                   />
-                </label>
-                <label class="grid gap-1 text-sm text-stone-700">
-                  Relation
-                  <select id="repo-branch-link-relation" class="u-select">
+                  <span class="u-field-error" id="repo-branch-link-target-branch-error" aria-live="polite"></span>
+                </div>
+                <div class="grid gap-1">
+                  <label class="u-field-label" for="repo-branch-link-relation">Relation</label>
+                  <select id="repo-branch-link-relation" name="relation" class="u-select">
                     <option value="depends_on">depends_on</option>
                     <option value="calls">calls</option>
                     <option value="imports">imports</option>
                     <option value="shares_contracts">shares_contracts</option>
                   </select>
-                </label>
-                <label class="grid gap-1 text-sm text-stone-700">
-                  Direction
-                  <select id="repo-branch-link-direction" class="u-select">
+                </div>
+                <div class="grid gap-1">
+                  <label class="u-field-label" for="repo-branch-link-direction">Direction</label>
+                  <select id="repo-branch-link-direction" name="direction" class="u-select">
                     <option value="outbound">outbound</option>
                     <option value="bidirectional">bidirectional</option>
                     <option value="inbound">inbound</option>
                   </select>
-                </label>
+                </div>
               </div>
 
-              <label class="grid gap-1 text-sm text-stone-700">
-                Notes
+              <div class="grid gap-1">
+                <label class="u-field-label" for="repo-branch-link-notes">Notes</label>
                 <input
                   id="repo-branch-link-notes"
+                  name="notes"
                   class="u-input"
                   placeholder="Optional context for why these branches are linked"
                 />
-              </label>
+              </div>
 
               <div class="flex flex-wrap items-center gap-2">
-                <button
-                  id="repo-branch-link-submit"
-                  type="submit"
-                  class="primary-pill u-btn-sm">Save Link</button
-                >
+                <button id="repo-branch-link-submit" type="submit" class="primary-pill u-btn-sm">
+                  Save Link
+                </button>
                 <p id="repo-branch-link-status" class="u-status"></p>
               </div>
             </form>

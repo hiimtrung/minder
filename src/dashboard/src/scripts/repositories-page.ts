@@ -35,6 +35,8 @@ import {
   getEl,
   setText,
   escapeHtml,
+  setFieldError,
+  clearFieldErrors,
   switchTab as uiSwitchTab,
 } from "./ui-utils";
 import {
@@ -1471,10 +1473,19 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
     setText(getEl("repo-settings-status"), "Select a repository first.");
     return;
   }
+
+  const name = getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "";
+  clearFieldErrors("repo-settings-name");
+
+  if (!name) {
+    setFieldError("repo-settings-name", "Name is required.");
+    return;
+  }
+
   setText(getEl("repo-settings-status"), "Saving…");
   try {
     const res = await updateRepository(activeRepositoryId, {
-      name: getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "",
+      name,
       remote_url:
         getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() ?? "",
       default_branch:
@@ -1625,8 +1636,9 @@ async function handleAddBranch(): Promise<void> {
   if (!input) return;
 
   const branch = input.value.trim();
+  clearFieldErrors("repo-branch-add-input");
   if (!branch) {
-    setText(statusEl, "Please enter a branch name.");
+    setFieldError("repo-branch-add-input", "Please enter a branch name.");
     return;
   }
 
@@ -1713,21 +1725,36 @@ async function handleBranchLinkSubmit(e: SubmitEvent): Promise<void> {
   const targetRepo =
     repositories.find((repo) => repo.id === targetRepoId) ?? null;
 
-  if (!sourceBranch || !targetRepo || !targetBranch) {
-    setText(
-      statusEl,
-      "Source branch, target repository, and target branch are required.",
-    );
-    return;
+  clearFieldErrors(
+    "repo-branch-link-source",
+    "repo-branch-link-target-repo",
+    "repo-branch-link-target-branch",
+  );
+
+  let hasError = false;
+  if (!sourceBranch) {
+    setFieldError("repo-branch-link-source", "Source branch is required.");
+    hasError = true;
   }
+  if (!targetRepo) {
+    setFieldError("repo-branch-link-target-repo", "Target repository is required.");
+    hasError = true;
+  }
+  if (!targetBranch) {
+    setFieldError("repo-branch-link-target-branch", "Target branch is required.");
+    hasError = true;
+  }
+  if (hasError) return;
 
   setText(statusEl, "Saving link…");
   try {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    const repo = targetRepo!;
     await upsertRepositoryBranchLink(activeRepositoryId, {
       source_branch: sourceBranch,
-      target_repo_id: targetRepo.id,
-      target_repo_name: targetRepo.name,
-      target_repo_url: targetRepo.remote_url,
+      target_repo_id: repo.id,
+      target_repo_name: repo.name,
+      target_repo_url: repo.remote_url,
       target_branch: targetBranch,
       relation,
       direction,

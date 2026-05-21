@@ -246,6 +246,7 @@ ALL_TOOLS: list[ToolMeta] = [
             "Only call to verify authentication is working — not during normal workflows."
         ),
         scopeable=False,
+        always_available=True,
     ),
     ToolMeta(
         name="minder_auth_login",

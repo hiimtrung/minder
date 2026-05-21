@@ -186,6 +186,7 @@ class SessionTools:
             return {
                 "session_id": str(session.id),
                 "name": session.name,
+                "repo_id": str(session.repo_id) if session.repo_id else None,
                 "state": session.state,
                 "active_skills": session.active_skills,
                 "project_context": session.project_context,
@@ -242,6 +243,7 @@ class SessionTools:
         *,
         state: dict[str, Any] | None = None,
         active_skills: dict[str, Any] | None = None,
+        repo_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         """Persist the LLM's current task state and active skill set.
 
@@ -254,19 +256,25 @@ class SessionTools:
         - Files modified / in progress
         - Next planned steps
         - Open questions / blockers
+
+        Pass ``repo_id`` to permanently link this session to a repository when
+        the session was created without one (e.g. during Branch B init).
         """
         await self._require_active_session(session_id)
-        session = await self._store.update_session(
-            session_id,
-            state=state or {},
-            active_skills=active_skills or {},
-            last_active=datetime.now(UTC),
-        )
+        updates: dict[str, Any] = {
+            "state": state or {},
+            "active_skills": active_skills or {},
+            "last_active": datetime.now(UTC),
+        }
+        if repo_id is not None:
+            updates["repo_id"] = repo_id
+        session = await self._store.update_session(session_id, **updates)
         if session is None:
             raise ValueError(f"Session not found: {session_id}")
         return {
             "session_id": str(session.id),
             "name": session.name,
+            "repo_id": str(session.repo_id) if session.repo_id else None,
             "state": session.state,
             "active_skills": session.active_skills,
         }
@@ -312,6 +320,7 @@ class SessionTools:
         payload = {
             "session_id": str(session.id),
             "name": session.name,
+            "repo_id": str(session.repo_id) if session.repo_id else None,
             "state": session.state,
             "active_skills": session.active_skills,
             "project_context": session.project_context,

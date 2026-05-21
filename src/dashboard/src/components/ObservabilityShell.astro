@@ -39,14 +39,28 @@ import SectionHeader from "./ui/molecules/SectionHeader.astro";
 
   <!-- Tab Navigation -->
   <nav class="sticky top-3 z-20 mb-4">
-    <div class="shell-card flex items-center justify-between gap-4 px-1.5 py-1.5">
+    <div
+      class="shell-card flex items-center justify-between gap-4 px-1.5 py-1.5"
+    >
       <div class="flex gap-0.5 overflow-x-auto no-scrollbar">
-        <button data-tab-btn="overview"   id="tab-overview"   class="tab-btn tab-btn-active">Overview</button>
-        <button data-tab-btn="audit"      id="tab-audit"      class="tab-btn">Audit Log</button>
-        <button data-tab-btn="jobs"       id="tab-jobs"       class="tab-btn">Admin Jobs</button>
-        <button data-tab-btn="continuity" id="tab-continuity" class="tab-btn">Continuity & Health</button>
+        <button
+          data-tab-btn="overview"
+          id="tab-overview"
+          class="tab-btn tab-btn-active">Overview</button
+        >
+        <button data-tab-btn="audit" id="tab-audit" class="tab-btn"
+          >Audit Log</button
+        >
+        <button data-tab-btn="jobs" id="tab-jobs" class="tab-btn"
+          >Admin Jobs</button
+        >
+        <button data-tab-btn="continuity" id="tab-continuity" class="tab-btn"
+          >Continuity & Health</button
+        >
       </div>
-      <div class="hidden md:flex items-center gap-1 shrink-0 pr-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400">
+      <div
+        class="hidden md:flex items-center gap-1 shrink-0 pr-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400"
+      >
         Updated <span id="last-updated-time" class="text-stone-600">—</span>
       </div>
     </div>

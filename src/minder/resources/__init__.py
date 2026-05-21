@@ -194,6 +194,8 @@ class ResourceRegistry:
             mime_type="application/json",
         )
         async def repos_resource() -> str:
+            from pathlib import Path as _Path
+
             repos = await store.list_repositories()
             result: list[dict[str, Any]] = []
             for repo in repos:
@@ -205,10 +207,18 @@ class ResourceRegistry:
                         "completed_steps": list(state.completed_steps),
                         "blocked_by": list(state.blocked_by),
                     }
+                # Derive repo_path from state_path (e.g. /repo/.minder → /repo)
+                state_path = str(getattr(repo, "state_path", "") or "")
+                if state_path:
+                    sp = _Path(state_path)
+                    repo_path = str(sp.parent) if sp.name == ".minder" else state_path
+                else:
+                    repo_path = None
                 result.append(
                     {
                         "id": str(repo.id),
                         "name": repo.repo_name,
+                        "path": repo_path,
                         "url": getattr(repo, "repo_url", ""),
                         "workflow_state": workflow_info,
                     }

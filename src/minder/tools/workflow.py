@@ -35,15 +35,15 @@ class WorkflowTools:
         return self._graph
 
     async def minder_workflow_get(
-        self, *, repo_id: uuid.UUID, repo_path: str
+        self, *, repo_id: uuid.UUID, repo_path: str, branch: str = "main"
     ) -> dict[str, Any]:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
-        state = await self._store.get_workflow_state_by_repo(repo_id)
+        state = await self._require_workflow_state(repo_id, branch=branch)
         relationships = (
             dict(repo.relationships) if isinstance(repo.relationships, dict) else {}
         )
-        await self._repo_state.write_relationships(repo_path, relationships)
+        await self._repo_state.write_relationships(repo_path, relationships, branch=branch)
         if state is not None:
             await self._repo_state.write_workflow_state(
                 repo_path,
@@ -53,6 +53,7 @@ class WorkflowTools:
                     "blocked_by": list(state.blocked_by),
                     "next_step": state.next_step,
                 },
+                branch=branch,
             )
         return {
             "workflow": {
@@ -70,6 +71,7 @@ class WorkflowTools:
         repo_path: str | None = None,
         session_id: uuid.UUID | None = None,
         decision: dict[str, Any] | None = None,
+        branch: str = "main",
     ) -> dict[str, Any]:
         if session_id is not None or decision is not None:
             if session_id is None or decision is None:
@@ -100,7 +102,7 @@ class WorkflowTools:
             raise ValueError("repo_id and repo_path are required when not resuming")
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
-        state = await self._require_workflow_state(repo_id)
+        state = await self._require_workflow_state(repo_id, branch=branch)
         envelope = build_instruction_envelope(workflow=workflow, workflow_state=state)
         await self._repo_state.write_workflow_state(
             repo_path,
@@ -110,6 +112,7 @@ class WorkflowTools:
                 "blocked_by": list(state.blocked_by),
                 "next_step": state.next_step,
             },
+            branch=branch,
         )
         for _k in ("workflow_id", "workflow_version", "policies"):
             envelope.pop(_k, None)
@@ -127,10 +130,11 @@ class WorkflowTools:
         completed_step: str,
         artifact_name: str | None = None,
         artifact_content: str | None = None,
+        branch: str = "main",
     ) -> dict[str, Any]:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
-        state = await self._require_workflow_state(repo_id)
+        state = await self._require_workflow_state(repo_id, branch=branch)
         step_names = [
             step["name"]
             for step in workflow.steps
@@ -144,7 +148,7 @@ class WorkflowTools:
         if artifact_name and artifact_content is not None:
             artifacts[artifact_name] = artifact_content
             await self._repo_state.write_artifact(
-                repo_path, artifact_name, artifact_content
+                repo_path, artifact_name, artifact_content, branch=branch
             )
         updated = await self._store.update_workflow_state(
             state.id,
@@ -163,10 +167,12 @@ class WorkflowTools:
                 "blocked_by": list(updated.blocked_by),
                 "next_step": updated.next_step,
             },
+            branch=branch,
         )
         await self._repo_state.write_relationships(
             repo_path,
             dict(repo.relationships) if isinstance(repo.relationships, dict) else {},
+            branch=branch,
         )
         return {
             "current_step": updated.current_step,
@@ -180,10 +186,11 @@ class WorkflowTools:
         repo_id: uuid.UUID,
         requested_step: str,
         action: str | None = None,
+        branch: str = "main",
     ) -> dict[str, Any]:
         repo = await self._require_repo(repo_id)
         workflow = await self._require_workflow(repo.workflow_id)
-        state = await self._require_workflow_state(repo_id)
+        state = await self._require_workflow_state(repo_id, branch=branch)
         step_names = [
             step["name"]
             for step in workflow.steps
@@ -234,8 +241,8 @@ class WorkflowTools:
             raise ValueError(f"Workflow not found: {workflow_id}")
         return workflow
 
-    async def _require_workflow_state(self, repo_id: uuid.UUID):  # noqa: ANN202
-        state = await self._store.get_workflow_state_by_repo(repo_id)
+    async def _require_workflow_state(self, repo_id: uuid.UUID, *, branch: str = "main"):  # noqa: ANN202
+        state = await self._store.get_workflow_state_by_repo(repo_id, branch=branch)
         if state is None:
             raise ValueError(f"Workflow state not found for repo: {repo_id}")
         return state

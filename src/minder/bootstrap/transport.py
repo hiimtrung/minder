@@ -315,12 +315,13 @@ def build_transport(
         return await session_tools.minder_session_cleanup(user_id=authenticated_user.id)
 
     async def minder_workflow_get(
-        *, user=None, repo_id: str, repo_path: str
+        *, user=None, repo_id: str, repo_path: str, branch: str = "main"
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_get(
             repo_id=await _resolve_repo_uuid(repo_id),
             repo_path=repo_path,
+            branch=branch,
         )
 
     async def minder_workflow_step(
@@ -330,6 +331,7 @@ def build_transport(
         repo_path: str | None = None,
         session_id: str | None = None,
         decision: dict[str, Any] | None = None,
+        branch: str = "main",
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_step(
@@ -337,6 +339,7 @@ def build_transport(
             repo_path=repo_path,
             session_id=uuid.UUID(session_id) if session_id else None,
             decision=decision,
+            branch=branch,
         )
 
     async def minder_workflow_update(
@@ -347,6 +350,7 @@ def build_transport(
         completed_step: str,
         artifact_name: str | None = None,
         artifact_content: str | None = None,
+        branch: str = "main",
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_update(
@@ -355,88 +359,104 @@ def build_transport(
             completed_step=completed_step,
             artifact_name=artifact_name,
             artifact_content=artifact_content,
+            branch=branch,
         )
 
     async def minder_workflow_guard(
-        *, user=None, repo_id: str, requested_step: str, action: str | None = None
+        *, user=None, repo_id: str, requested_step: str, action: str | None = None, branch: str = "main"
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_guard(
             repo_id=await _resolve_repo_uuid(repo_id),
             requested_step=requested_step,
             action=action,
+            branch=branch,
         )
 
     async def minder_memory_store(
         *,
         user=None,
+        principal: Principal | None = None,
         title: str,
         content: str,
         tags: list[str],
         language: str,  # noqa: ANN001
+        scope: str = "private",
     ) -> dict[str, Any]:
-        del user
+        owner_id = principal.principal_id if principal else (user.id if user else None)
         return await memory_tools.minder_memory_store(
             title=title,
             content=content,
             tags=tags,
             language=language,
+            owner_id=owner_id,
+            scope=scope,
         )
 
     async def minder_memory_recall(
         *,
         user=None,
+        principal: Principal | None = None,
         query: str,
         limit: int = 5,
         current_step: str | None = None,
         artifact_type: str | None = None,
     ) -> list[dict[str, Any]]:  # noqa: ANN001
-        del user
+        owner_id = principal.principal_id if principal else (user.id if user else None)
         return await memory_tools.minder_memory_recall(
             query,
             limit=limit,
             current_step=current_step,
             artifact_type=artifact_type,
+            owner_id=owner_id,
         )
 
-    async def minder_memory_list(*, user=None) -> list[dict[str, Any]]:  # noqa: ANN001
-        del user
-        return await memory_tools.minder_memory_list()
+    async def minder_memory_list(
+        *,
+        user=None,
+        principal: Principal | None = None,
+    ) -> list[dict[str, Any]]:  # noqa: ANN001
+        owner_id = principal.principal_id if principal else (user.id if user else None)
+        return await memory_tools.minder_memory_list(owner_id=owner_id)
 
     async def minder_memory_update(
         *,
         user=None,
+        principal: Principal | None = None,
         memory_id: str,
         title: str | None = None,
         content: str | None = None,
         tags: list[str] | None = None,
     ) -> dict[str, Any]:  # noqa: ANN001
-        del user
+        owner_id = principal.principal_id if principal else (user.id if user else None)
         return await memory_tools.minder_memory_update(
             memory_id,
             title=title,
             content=content,
             tags=tags,
+            owner_id=owner_id,
         )
 
     async def minder_memory_delete(
-        *, user=None, skill_id: str
+        *, user=None, principal: Principal | None = None, skill_id: str
     ) -> dict[str, bool]:  # noqa: ANN001
-        del user
-        return await memory_tools.minder_memory_delete(skill_id)
+        owner_id = principal.principal_id if principal else (user.id if user else None)
+        return await memory_tools.minder_memory_delete(skill_id, owner_id=owner_id)
 
     async def minder_memory_compact(
         *,
         user=None,
+        principal: Principal | None = None,
         memory_ids: list[str],
         similarity_threshold: float = 0.92,
         dry_run: bool = True,
     ) -> dict[str, Any]:  # noqa: ANN001
-        del user
+        owner_id = principal.principal_id if principal else (user.id if user else None)
         return await memory_tools.minder_memory_compact(
             memory_ids=memory_ids,
             similarity_threshold=similarity_threshold,
             dry_run=dry_run,
+            owner_id=owner_id,
         )
 
     async def minder_skill_store(

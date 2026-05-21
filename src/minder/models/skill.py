@@ -21,6 +21,8 @@ class SkillSchema(BaseModelMeta):
     deprecated: bool = False
     source_metadata: Optional[Dict[str, Any]] = None
     excerpt_kind: str = "none"
+    owner_id: Optional[uuid.UUID] = None  # principal who created this entry (None = team/legacy)
+    scope: str = "private"  # 'private' = owner-only, 'team' = visible to all principals
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
@@ -46,6 +48,13 @@ class Skill(Base):
         JSON, nullable=True
     )
     excerpt_kind: Mapped[str] = mapped_column(String, default="none")
+    # Multi-developer isolation: owner_id is the principal who created this entry.
+    # None means team/legacy (visible to all). Indexed for efficient filtering.
+    owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), nullable=True, index=True
+    )
+    # 'private' = only visible to owner, 'team' = visible to all principals
+    scope: Mapped[str] = mapped_column(String, default="private", server_default="private")
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

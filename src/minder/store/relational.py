@@ -125,6 +125,22 @@ class RelationalStore:
                 sync_conn.execute(
                     text("ALTER TABLE skills ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT 0")
                 )
+            # skills.owner_id + skills.scope (multi-developer isolation)
+            if "owner_id" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN owner_id VARCHAR(36) DEFAULT NULL")
+                )
+            if "scope" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN scope VARCHAR(10) NOT NULL DEFAULT 'team'")
+                )
+
+        if "repository_workflow_states" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("repository_workflow_states")}
+            if "branch" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE repository_workflow_states ADD COLUMN branch VARCHAR(255) NOT NULL DEFAULT 'main'")
+                )
 
     async def dispose(self) -> None:
         """Dispose the engine connection pool."""
@@ -266,6 +282,7 @@ class RelationalStore:
         *,
         is_memory: bool,
         exclude_deprecated: bool = True,
+        owner_id: uuid.UUID | None = None,
     ) -> List[Skill]:
         _memory_langs = ["markdown", "text", "en", "vi", ""]
         _is_memory_cond = Skill.source_metadata.is_(None) & (
@@ -278,6 +295,16 @@ class RelationalStore:
                 stmt = select(Skill).where(~_is_memory_cond)
                 if exclude_deprecated:
                     stmt = stmt.where(Skill.deprecated.isnot(True))
+            
+            if owner_id is not None:
+                # Can see their own private memories + team scope memories + legacy memories
+                stmt = stmt.where(
+                    or_(
+                        Skill.owner_id == owner_id,
+                        Skill.scope == "team",
+                        Skill.owner_id.is_(None)
+                    )
+                )
             result = await sess.execute(stmt)
             return list(result.scalars().all())
 
@@ -775,12 +802,13 @@ class RelationalStore:
             return result.scalar_one_or_none()
 
     async def get_workflow_state_by_repo(
-        self, repo_id: uuid.UUID
+        self, repo_id: uuid.UUID, *, branch: str = "main"
     ) -> Optional[RepositoryWorkflowState]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(RepositoryWorkflowState).where(
-                    RepositoryWorkflowState.repo_id == repo_id
+                    RepositoryWorkflowState.repo_id == repo_id,
+                    RepositoryWorkflowState.branch == branch
                 )
             )
             return result.scalar_one_or_none()

@@ -373,6 +373,7 @@ def test_sync_dry_run_prints_delta_payload(
         "git_file_delta",
         lambda repo, diff_base=None: (["notes.md", "config.json"], ["removed.py"]),
     )
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
     exit_code = main(
         [
@@ -975,6 +976,7 @@ def test_sync_dry_run_includes_branch_relationships(tmp_path, monkeypatch, capsy
         "git_file_delta",
         lambda repo, diff_base=None: (["notes.md"], []),
     )
+    monkeypatch.setattr(cli_sync, "maybe_print_upgrade_notice", lambda: None)
 
     exit_code = main(
         [

@@ -9,8 +9,8 @@ class RepoStateStore:
     def __init__(self, state_dir_name: str = ".minder") -> None:
         self._state_dir_name = state_dir_name
 
-    async def read_all(self, repo_path: str) -> dict[str, Any]:
-        state_dir = self._ensure_state_dir(repo_path)
+    async def read_all(self, repo_path: str, branch: str = "main") -> dict[str, Any]:
+        state_dir = self._ensure_state_dir(repo_path, branch)
         return {
             "workflow": self._read_json(state_dir / "workflow.json", default={}),
             "context": self._read_json(state_dir / "context.json", default={}),
@@ -18,22 +18,33 @@ class RepoStateStore:
             "artifacts": self._read_artifacts(state_dir / "artifacts"),
         }
 
-    async def write_workflow_state(self, repo_path: str, payload: dict[str, Any]) -> None:
-        self._write_json(self._ensure_state_dir(repo_path) / "workflow.json", payload)
+    async def write_workflow_state(self, repo_path: str, payload: dict[str, Any], branch: str = "main") -> None:
+        self._write_json(self._ensure_state_dir(repo_path, branch) / "workflow.json", payload)
 
-    async def write_context(self, repo_path: str, payload: dict[str, Any]) -> None:
-        self._write_json(self._ensure_state_dir(repo_path) / "context.json", payload)
+    async def write_context(self, repo_path: str, payload: dict[str, Any], branch: str = "main") -> None:
+        self._write_json(self._ensure_state_dir(repo_path, branch) / "context.json", payload)
 
-    async def write_relationships(self, repo_path: str, payload: dict[str, Any]) -> None:
-        self._write_json(self._ensure_state_dir(repo_path) / "relationships.json", payload)
+    async def write_relationships(self, repo_path: str, payload: dict[str, Any], branch: str = "main") -> None:
+        self._write_json(self._ensure_state_dir(repo_path, branch) / "relationships.json", payload)
 
-    async def write_artifact(self, repo_path: str, name: str, content: str) -> None:
-        artifacts_dir = self._ensure_state_dir(repo_path) / "artifacts"
+    async def write_artifact(self, repo_path: str, name: str, content: str, branch: str = "main") -> None:
+        artifacts_dir = self._ensure_state_dir(repo_path, branch) / "artifacts"
         artifacts_dir.mkdir(parents=True, exist_ok=True)
         (artifacts_dir / name).write_text(content, encoding="utf-8")
 
-    def _ensure_state_dir(self, repo_path: str) -> Path:
-        state_dir = Path(repo_path) / self._state_dir_name
+    def _ensure_state_dir(self, repo_path: str, branch: str = "main") -> Path:
+        base_dir = Path(repo_path) / self._state_dir_name
+        
+        # Phase 3: Auto-generate .gitignore in the base directory to prevent merge conflicts
+        if not base_dir.exists():
+            base_dir.mkdir(parents=True, exist_ok=True)
+            gitignore = base_dir / ".gitignore"
+            if not gitignore.exists():
+                gitignore.write_text("*\n", encoding="utf-8")
+                
+        # Branch isolation: normalize branch name to be safe for file system
+        safe_branch = "".join(c if c.isalnum() or c in "-_" else "_" for c in branch)
+        state_dir = base_dir / safe_branch
         state_dir.mkdir(parents=True, exist_ok=True)
         return state_dir
 

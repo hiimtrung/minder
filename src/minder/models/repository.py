@@ -40,6 +40,7 @@ class Repository(Base):
 class RepositoryWorkflowStateSchema(BaseModelMeta):
     id: uuid.UUID = Field(default_factory=uuid.uuid4)
     repo_id: uuid.UUID
+    branch: str = "main"
     session_id: Optional[uuid.UUID] = None
     current_step: str
     completed_steps: List[str] = Field(default_factory=list)
@@ -53,6 +54,7 @@ class RepositoryWorkflowState(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     repo_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), index=True)
+    branch: Mapped[str] = mapped_column(String, index=True, default="main", server_default="main")
     session_id: Mapped[Optional[uuid.UUID]] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
     current_step: Mapped[str] = mapped_column(String)
     completed_steps: Mapped[Dict[str, Any]] = mapped_column(JSON, default=list)  # stored as JSON list

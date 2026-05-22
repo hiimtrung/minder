@@ -45,7 +45,7 @@ def runtime_summary(config: Settings) -> dict[str, object]:
         "llm_provider": config.llm.provider,
         "llm_runtime_effective": config.llm.provider,
         "llm_context_length": config.llm.context_length,
-        "embedding_provider": config.embedding.provider,
+        "embedding_provider": "llama_cpp",
         "embedding_llama_cpp_model_repo": config.embedding.llama_cpp_model_repo,
         "embedding_runtime_effective": embedding_runtime,
         "openai_fallback_configured": openai_key_set,
@@ -54,14 +54,15 @@ def runtime_summary(config: Settings) -> dict[str, object]:
 
 
 def _detect_llama_cpp_runtime(config: Settings) -> str:
-    if config.embedding.provider == "llama_cpp":
-        try:
-            import llama_cpp  # type: ignore[import-not-found]  # noqa: F401
-            return "llama_cpp"
-        except (ImportError, RuntimeError, OSError):
-            # RuntimeError/OSError when the .so loads but a system lib (e.g. libgomp.so.1) is absent
-            return "mock"
-    return config.embedding.runtime
+    if config.embedding.runtime == "mock":
+        return "mock"
+    try:
+        import llama_cpp  # type: ignore[import-not-found]  # noqa: F401
+        return "llama_cpp"
+    except (ImportError, RuntimeError, OSError):
+        # RuntimeError/OSError when the .so loads but a system lib (e.g. libgomp.so.1) is absent
+        return "mock"
+
 
 
 async def _async_run() -> None:
@@ -140,6 +141,12 @@ async def _async_run() -> None:
         if graph_store is not None and hasattr(graph_store, "dispose"):
             await graph_store.dispose()
         await cache.close()
+        from minder.llm.llama_cpp_llm import clear_caches as _clear_llm
+        from minder.embedding.local import clear_caches as _clear_embedding
+        from minder.graph.concurrency import shutdown_pool as _shutdown_pool
+        _clear_llm()
+        _clear_embedding()
+        _shutdown_pool()
 
 
 def _run() -> None:

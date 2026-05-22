@@ -94,11 +94,12 @@ class LocalEmbeddingProvider:
 
         # 1. Truncate to avoid over-context errors
         safe_text = text[:MAX_TEXT_LENGTH]
-        
+        cache_key = hashlib.sha256(safe_text.encode()).hexdigest()
+
         # 2. Check cache
-        if safe_text in _EMBEDDING_CACHE:
-            _EMBEDDING_CACHE.move_to_end(safe_text)
-            return _EMBEDDING_CACHE[safe_text]
+        if cache_key in _EMBEDDING_CACHE:
+            _EMBEDDING_CACHE.move_to_end(cache_key)
+            return _EMBEDDING_CACHE[cache_key]
 
         # 3. Perform embedding
         embedding: list[float]
@@ -115,7 +116,7 @@ class LocalEmbeddingProvider:
             embedding = self._hash_embed(safe_text)
 
         # 4. Update cache (LRU)
-        _EMBEDDING_CACHE[safe_text] = embedding
+        _EMBEDDING_CACHE[cache_key] = embedding
         if len(_EMBEDDING_CACHE) > MAX_CACHE_SIZE:
             _EMBEDDING_CACHE.popitem(last=False)
 
@@ -131,16 +132,21 @@ class LocalEmbeddingProvider:
         to_embed_texts: list[str] = []
 
         # 1. Try cache first
+        cache_keys: list[str] = []
         for i, text in enumerate(texts):
             safe_text = text[:MAX_TEXT_LENGTH] if text else ""
             if not safe_text:
                 results[i] = [0.0] * self._dimensions
-            elif safe_text in _EMBEDDING_CACHE:
-                _EMBEDDING_CACHE.move_to_end(safe_text)
-                results[i] = _EMBEDDING_CACHE[safe_text]
+                cache_keys.append("")
             else:
-                to_embed_indices.append(i)
-                to_embed_texts.append(safe_text)
+                key = hashlib.sha256(safe_text.encode()).hexdigest()
+                cache_keys.append(key)
+                if key in _EMBEDDING_CACHE:
+                    _EMBEDDING_CACHE.move_to_end(key)
+                    results[i] = _EMBEDDING_CACHE[key]
+                else:
+                    to_embed_indices.append(i)
+                    to_embed_texts.append(safe_text)
 
         if not to_embed_texts:
             return results
@@ -155,19 +161,21 @@ class LocalEmbeddingProvider:
                     idx = to_embed_indices[i]
                     vector = emb[: self._dimensions]
                     results[idx] = vector
-                    # Update cache
-                    _EMBEDDING_CACHE[to_embed_texts[i]] = vector
+                    key = hashlib.sha256(to_embed_texts[i].encode()).hexdigest()
+                    _EMBEDDING_CACHE[key] = vector
             except Exception as e:
                 logger.warning(f"Llama.cpp batch embedding failed: {e}")
                 for i, idx in enumerate(to_embed_indices):
                     vector = self._hash_embed(to_embed_texts[i])
                     results[idx] = vector
-                    _EMBEDDING_CACHE[to_embed_texts[i]] = vector
+                    key = hashlib.sha256(to_embed_texts[i].encode()).hexdigest()
+                    _EMBEDDING_CACHE[key] = vector
         else:
             for i, idx in enumerate(to_embed_indices):
                 vector = self._hash_embed(to_embed_texts[i])
                 results[idx] = vector
-                _EMBEDDING_CACHE[to_embed_texts[i]] = vector
+                key = hashlib.sha256(to_embed_texts[i].encode()).hexdigest()
+                _EMBEDDING_CACHE[key] = vector
 
         # 3. Cache maintenance
         while len(_EMBEDDING_CACHE) > MAX_CACHE_SIZE:

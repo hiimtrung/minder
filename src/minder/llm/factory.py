@@ -21,6 +21,7 @@ def create_llm(config: LLMConfig):  # type: ignore[no-untyped-def]
             model_file=config.llama_cpp_model_file,
             context_length=config.context_length,
             temperature=config.temperature,
+            runtime=config.runtime,
         )
 
     if config.provider == "openai":

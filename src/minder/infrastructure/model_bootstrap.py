@@ -145,22 +145,19 @@ def ensure_models_available(config: MinderConfig) -> None:
 
     Providers skipped
     -----------------
-    - ``embedding.provider != "llama_cpp"`` — no GGUF embedding model needed.
     - ``embedding.runtime == "mock"``        — mock mode, no model needed.
     - ``llm.provider != "llama_cpp"``        — OpenAI or other remote provider.
     """
     # Determine which models to check
     models: list[tuple[str, str, str]] = []
 
-    if (
-        config.embedding.provider == "llama_cpp"
-        and config.embedding.runtime != "mock"
-    ):
+    if config.embedding.runtime != "mock":
         models.append((
             config.embedding.llama_cpp_model_repo,
             config.embedding.llama_cpp_model_file,
             "embedding",
         ))
+
 
     if config.llm.provider == "llama_cpp":
         models.append((

@@ -35,6 +35,11 @@ T = TypeVar("T")
 _SENTINEL = object()
 
 
+def shutdown_pool() -> None:
+    """Shut down the inference thread pool. Call once at server shutdown."""
+    _INFERENCE_POOL.shutdown(wait=False, cancel_futures=True)
+
+
 def configure(*, max_concurrent: int = 1, timeout_seconds: float = 120.0) -> None:
     """Call once at startup to set inference concurrency and timeout budgets."""
     global _max_concurrent, _timeout_seconds, _semaphore

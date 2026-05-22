@@ -124,8 +124,8 @@ curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/relea
 | `MINDER_LLM__CONTEXT_LENGTH`             | `32768`                             | LLM context window size                                            |
 | `MINDER_LLM__TEMPERATURE`                | `0.1`                               | Sampling temperature                                               |
 | `MINDER_LLM__OPENAI_API_KEY`             | _(empty)_                           | OpenAI API key for cloud fallback                                  |
-| `MINDER_EMBEDDING__PROVIDER`             | `llama_cpp`                         | Embedding provider (`llama_cpp` / `openai`)                        |
 | `MINDER_EMBEDDING__LLAMA_CPP_MODEL_REPO` | `ggml-org/embeddinggemma-300M-GGUF` | HuggingFace repo for embedding GGUF model                          |
+
 | `MINDER_EMBEDDING__LLAMA_CPP_MODEL_FILE` | `*.gguf`                            | GGUF filename pattern                                              |
 | `MINDER_EMBEDDING__DIMENSIONS`           | `768`                               | Embedding vector dimensions                                        |
 | `MINDER_RELATIONAL_STORE__PROVIDER`      | `qdrant`                            | Operational store provider (`qdrant` / `sqlite` / `postgresql`)    |

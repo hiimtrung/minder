@@ -77,13 +77,11 @@ async def _async_run() -> None:
         service_version=config.server.version,
     )
 
-    # Start model download in background so the HTTP server is immediately
-    # reachable for auth/admin while large GGUF files are fetched.
-    # Models are only required at first LLM/embedding request, not at startup.
-    asyncio.create_task(
-        asyncio.to_thread(ensure_models_available, config),
-        name="model-bootstrap",
-    )
+    # Pre-download GGUF files so they are present in the HF cache when the
+    # providers initialise below.  Runs in a thread to avoid blocking the
+    # event loop; build_transport() is called only after this completes so
+    # the LLM and embedding models load from the local cache on first use.
+    await asyncio.to_thread(ensure_models_available, config)
 
     store = build_store(config)
     await store.init_db()

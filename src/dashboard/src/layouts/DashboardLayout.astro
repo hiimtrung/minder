@@ -146,6 +146,8 @@ function getIconSvg(label: string) {
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="icon" type="image/png" href="/dashboard/favicon.png" />
+    <!-- View Transitions for smooth SPA-like navigation -->
+    <meta name="view-transition" content="same-origin" />
 
     <!-- Design system fonts: Fraunces (display) + Inter (body) + JetBrains Mono (code) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -261,9 +263,10 @@ function getIconSvg(label: string) {
           </div>
 
           <div class="top-bar-right">
-            <div class="top-bar-badge-pill">
-              <span class="pulse-dot"></span>
-              <span class="badge-text">Connected</span>
+            <!-- Runtime status pill — updated by JS -->
+            <div id="runtime-status-pill" class="top-bar-badge-pill" title="Server runtime status">
+              <span id="runtime-status-dot" class="pulse-dot"></span>
+              <span id="runtime-status-text" class="badge-text">Checking…</span>
             </div>
           </div>
         </header>
@@ -299,8 +302,12 @@ function getIconSvg(label: string) {
       <CommonModal />
     </div>
 
-    <!-- Collapsible Sidebar Mobile Handler -->
+    <!-- Nav progress bar (shown during page navigation) -->
+    <div id="nav-progress" aria-hidden="true"></div>
+
+    <!-- Collapsible Sidebar Mobile Handler + Runtime Status + Navigation Progress -->
     <script>
+      // ── Sidebar toggle ──────────────────────────────────────────────
       const sidebar = document.getElementById("dashboard-sidebar");
       const overlay = document.getElementById("sidebar-overlay");
       const toggleBtn = document.getElementById("sidebar-toggle-btn");
@@ -310,20 +317,85 @@ function getIconSvg(label: string) {
           const isOpen = sidebar.classList.toggle("is-open");
           overlay.classList.toggle("is-visible", isOpen);
           toggleBtn.setAttribute("aria-expanded", isOpen.toString());
-          if (isOpen) {
-            document.body.classList.add("overflow-hidden");
-          } else {
-            document.body.classList.remove("overflow-hidden");
-          }
+          document.body.classList.toggle("overflow-hidden", isOpen);
         }
       };
 
-      if (toggleBtn) {
-        toggleBtn.addEventListener("click", toggleSidebar);
+      toggleBtn?.addEventListener("click", toggleSidebar);
+      overlay?.addEventListener("click", toggleSidebar);
+
+      // ── Navigation progress bar ─────────────────────────────────────
+      const navProgress = document.getElementById("nav-progress");
+      document.addEventListener("click", (e) => {
+        const anchor = (e.target as Element).closest("a");
+        if (!anchor) return;
+        const href = anchor.getAttribute("href");
+        if (!href || href.startsWith("#") || href.startsWith("javascript") || anchor.target === "_blank") return;
+        if (anchor.origin !== location.origin) return;
+        navProgress?.classList.add("nav-progress-active");
+      });
+      // Clear after View Transition completes (or after a hard navigation)
+      document.addEventListener("astro:page-load", () => {
+        navProgress?.classList.remove("nav-progress-active");
+      });
+      window.addEventListener("pageshow", () => {
+        navProgress?.classList.remove("nav-progress-active");
+      });
+
+      // ── Runtime status badge ────────────────────────────────────────
+      const statusDot  = document.getElementById("runtime-status-dot");
+      const statusText = document.getElementById("runtime-status-text");
+      const statusPill = document.getElementById("runtime-status-pill");
+
+      function applyStatus(dot: HTMLElement | null, text: HTMLElement | null, pill: HTMLElement | null, label: string, state: "ready" | "initializing" | "mock" | "error") {
+        if (!dot || !text || !pill) return;
+        dot.className = "pulse-dot";
+        pill.className = "top-bar-badge-pill";
+        if (state === "ready") {
+          dot.classList.add("status-dot-ready");
+          pill.classList.add("status-pill-ready");
+        } else if (state === "initializing") {
+          dot.classList.add("status-dot-loading");
+          pill.classList.add("status-pill-loading");
+        } else if (state === "mock") {
+          dot.classList.add("status-dot-mock");
+          pill.classList.add("status-pill-mock");
+        } else {
+          dot.classList.add("status-dot-error");
+          pill.classList.add("status-pill-error");
+        }
+        text.textContent = label;
       }
-      if (overlay) {
-        overlay.addEventListener("click", toggleSidebar);
+
+      async function pollRuntimeStatus() {
+        try {
+          const res = await fetch("/v1/admin/runtime-status", { credentials: "include" });
+          if (!res.ok) throw new Error("status " + res.status);
+          const data = await res.json() as {
+            llm: { model: string; status: string };
+            embedding: { model: string; status: string };
+          };
+          const llm = data.llm;
+          const emb = data.embedding;
+          const bothReady = llm.status === "ready" && emb.status === "ready";
+          const anyInit  = llm.status === "initializing" || emb.status === "initializing";
+          if (bothReady) {
+            applyStatus(statusDot, statusText, statusPill, `${llm.model}`, "ready");
+          } else if (anyInit) {
+            const label = llm.status === "initializing" ? `Loading ${llm.model}…` : `Loading ${emb.model}…`;
+            applyStatus(statusDot, statusText, statusPill, label, "initializing");
+            // Re-poll until ready
+            setTimeout(() => void pollRuntimeStatus(), 3000);
+            return;
+          } else {
+            applyStatus(statusDot, statusText, statusPill, `${llm.model} (mock)`, "mock");
+          }
+        } catch {
+          applyStatus(statusDot, statusText, statusPill, "Server unreachable", "error");
+        }
       }
+
+      void pollRuntimeStatus();
     </script>
 
     {sessionControls && <script src="../scripts/session-header.ts" />}
@@ -824,5 +896,113 @@ function getIconSvg(label: string) {
     .top-bar-right {
       display: none;
     }
+  }
+
+  /* ── Navigation Progress Bar ── */
+  #nav-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 0%;
+    height: 2px;
+    background: linear-gradient(90deg, rgb(146, 64, 14), rgb(217, 119, 6));
+    z-index: 9999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+    border-radius: 0 2px 2px 0;
+  }
+
+  #nav-progress.nav-progress-active {
+    opacity: 1;
+    animation: nav-progress-run 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  @keyframes nav-progress-run {
+    0%   { width: 0%; }
+    30%  { width: 45%; }
+    60%  { width: 72%; }
+    85%  { width: 88%; }
+    100% { width: 100%; }
+  }
+
+  /* ── Status badge variants ── */
+  .status-dot-ready { background-color: var(--color-success); }
+  .status-dot-loading {
+    background-color: rgb(217, 119, 6);
+    animation: badge-pulse 1s ease-in-out infinite;
+  }
+  .status-dot-mock   { background-color: rgb(120, 113, 108); }
+  .status-dot-error  { background-color: var(--color-danger); }
+
+  .status-pill-ready  {}
+  .status-pill-loading {
+    border-color: rgba(217, 119, 6, 0.4);
+    background: rgba(254, 243, 199, 0.6);
+  }
+  .status-pill-mock {
+    border-color: rgba(120, 113, 108, 0.3);
+    background: rgba(245, 245, 244, 0.8);
+  }
+  .status-pill-error {
+    border-color: rgba(190, 18, 60, 0.3);
+    background: rgba(254, 242, 242, 0.7);
+  }
+</style>
+
+<!-- View Transition animations -->
+<style is:global>
+  @view-transition { navigation: auto; }
+
+  ::view-transition-old(root) {
+    animation: vt-fade-out 0.14s ease-out both;
+  }
+  ::view-transition-new(root) {
+    animation: vt-fade-in 0.18s ease-out both;
+  }
+
+  @keyframes vt-fade-out {
+    from { opacity: 1; transform: translateY(0); }
+    to   { opacity: 0; transform: translateY(-4px); }
+  }
+  @keyframes vt-fade-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Skeleton shimmer — use class="skeleton" on placeholder elements ── */
+  .skeleton {
+    position: relative;
+    overflow: hidden;
+    background: rgb(231, 229, 228);
+    border-radius: 6px;
+    color: transparent !important;
+    pointer-events: none;
+    user-select: none;
+  }
+  .skeleton::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255,255,255,0.55) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes skeleton-shimmer {
+    to { transform: translateX(100%); }
+  }
+
+  /* ── Page content fade-in on load ── */
+  .u-page-container {
+    animation: page-content-in 0.22s ease-out both;
+  }
+  @keyframes page-content-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
 </style>

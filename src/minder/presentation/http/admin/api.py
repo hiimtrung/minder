@@ -1387,6 +1387,52 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
         return JSONResponse(result, status_code=201 if result["created"] else 200)
 
+    async def admin_runtime_status(_request) -> JSONResponse:
+        from minder.llm.llama_cpp_llm import _ENGINE_CACHE
+
+        llm_cfg = context.config.llm
+        emb_cfg = context.config.embedding
+
+        llm_key = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}"
+        llm_loaded = llm_key in _ENGINE_CACHE
+
+        emb_initialized = context.embedder._initialized  # noqa: SLF001
+        emb_model_loaded = context.embedder._model is not None  # noqa: SLF001
+        emb_runtime = context.embedder.runtime
+
+        if llm_cfg.provider == "llama_cpp":
+            llm_status = "ready" if llm_loaded else "initializing"
+            llm_model = llm_cfg.llama_cpp_model_repo.split("/")[-1]
+        else:
+            llm_status = "ready"
+            llm_model = getattr(llm_cfg, "openai_model", "openai")
+
+        if emb_cfg.provider == "llama_cpp":
+            if emb_runtime == "mock":
+                emb_status = "mock"
+            elif emb_initialized and emb_model_loaded:
+                emb_status = "ready"
+            else:
+                emb_status = "initializing"
+            emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
+        else:
+            emb_status = "ready"
+            emb_model = emb_cfg.provider
+
+        return JSONResponse({
+            "llm": {
+                "provider": llm_cfg.provider,
+                "model": llm_model,
+                "status": llm_status,
+            },
+            "embedding": {
+                "provider": emb_cfg.provider,
+                "model": emb_model,
+                "runtime": emb_runtime,
+                "status": emb_status,
+            },
+        })
+
     return [
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
@@ -1516,4 +1562,6 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         ),
         # Observability
         Route("/v1/admin/metrics-summary", admin_metrics_summary, methods=["GET"]),
+        # Runtime status (no auth — dashboard polls this before session is established)
+        Route("/v1/admin/runtime-status", admin_runtime_status, methods=["GET"]),
     ]

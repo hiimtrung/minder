@@ -185,7 +185,9 @@ import FormStatus from "./ui/atoms/FormStatus.astro";
           id="edit-agent-tools"
           class="mt-4 max-h-96 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2 grid gap-0.5"
         >
-          <p class="px-1 text-sm text-stone-400">Loading tools...</p>
+          <div class="skeleton h-3.5 w-full rounded mb-1.5" aria-hidden="true"></div>
+          <div class="skeleton h-3.5 w-4/5 rounded mb-1.5" aria-hidden="true"></div>
+          <div class="skeleton h-3.5 w-2/3 rounded" aria-hidden="true"></div>
         </div>
       </Card>
     </div>

@@ -1,4 +1,5 @@
 from .clarification import ClarificationNode
+from .context_enricher import ContextEnricherNode
 from .evaluator import EvaluatorNode
 from .guard import GuardNode
 from .llm import LLMNode
@@ -17,6 +18,7 @@ from .workflow_planner import WorkflowPlannerNode
 
 __all__ = [
     "ClarificationNode",
+    "ContextEnricherNode",
     "DockerSandboxRunner",
     "EvaluatorNode",
     "GuardNode",

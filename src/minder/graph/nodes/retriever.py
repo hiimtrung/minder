@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from typing import Any
 from typing import cast
@@ -32,7 +33,10 @@ class RetrieverNode:
             return state
 
         if self._embedding_provider is not None and self._vector_store is not None:
-            embedded = self._embedding_provider.embed(state.query)
+            # embed() is CPU-bound (llama.cpp) — run in thread to keep event loop free
+            embedded = await asyncio.to_thread(
+                self._embedding_provider.embed, state.query
+            )
             semantic_hits = await self._vector_store.search_documents(
                 embedded,
                 project=str(project) if isinstance(project, str) else None,

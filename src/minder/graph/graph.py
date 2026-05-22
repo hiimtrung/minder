@@ -6,6 +6,8 @@ from time import perf_counter
 
 from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
+from minder.graph import concurrency as _concurrency
+from minder.graph.concurrency import run_in_thread, stream_sync_generator
 from minder.graph.edges import determine_next_edge
 from minder.graph.executor import (
     GraphNodes,
@@ -14,6 +16,7 @@ from minder.graph.executor import (
 )
 from minder.graph.nodes import (
     ClarificationNode,
+    ContextEnricherNode,
     EvaluatorNode,
     GuardNode,
     LLMNode,
@@ -45,6 +48,7 @@ class MinderGraph:
         clarification: ClarificationNode | None = None,
         retriever: RetrieverNode | None = None,
         reranker: RerankerNode | None = None,
+        context_enricher: ContextEnricherNode | None = None,
         reasoning: ReasoningNode | None = None,
         llm: LLMNode | None = None,
         guard: GuardNode | None = None,
@@ -75,6 +79,7 @@ class MinderGraph:
             score_threshold=config.retrieval.similarity_threshold,
         )
         self._reranker = reranker  # None by default; pass RerankerNode(...) to activate
+        self._context_enricher = context_enricher or ContextEnricherNode(store)
         self._reasoning = reasoning or ReasoningNode()
         self._llm = llm or LLMNode(
             primary=create_llm(config.llm),
@@ -94,12 +99,18 @@ class MinderGraph:
         self._error_store = error_store or store
         self._graph_tools = graph_tools
         self._cached_executor: InternalGraphExecutor | LangGraphExecutorAdapter | None = None
+        # Apply LLM concurrency and timeout settings from config
+        _concurrency.configure(
+            max_concurrent=config.llm.max_concurrent,
+            timeout_seconds=config.llm.timeout_seconds,
+        )
         self._nodes = GraphNodes(
             workflow_planner=self._workflow_planner,
             planning=self._planning,
             clarification=self._clarification,
             retriever=self._retriever,
             reranker=self._reranker,
+            context_enricher=self._context_enricher,
             reasoning=self._reasoning,
             llm=self._llm,
             guard=self._guard,
@@ -144,19 +155,32 @@ class MinderGraph:
         state = await self._nodes.retriever.run(state)
         if self._nodes.reranker is not None:
             state = await self._nodes.reranker.run(state)
+        if self._nodes.context_enricher is not None:
+            state = await self._nodes.context_enricher.run(state)
 
         attempt = 0
         while True:
             attempt += 1
             state.retry_count = attempt - 1
-            state = self._nodes.reasoning.run(state)
+            state = await run_in_thread(self._nodes.reasoning.run, state)
             yield {"type": "attempt", "attempt": attempt}
-            for event in self._nodes.llm.stream(state):
+            # Stream LLM tokens without blocking the event loop.
+            # stream_sync_generator runs the sync generator in the inference
+            # thread pool and forwards items through an asyncio.Queue.
+            async for event in stream_sync_generator(
+                self._nodes.llm.stream,
+                state,
+                use_llm_semaphore=True,
+            ):
                 if str(event.get("type")) == "result":
+                    # Capture the final LLM output written back to state
+                    result_data = dict(event.get("result", {}) or {})
+                    if result_data:
+                        state.llm_output = result_data
                     continue
                 yield {**event, "attempt": attempt}
-            state = self._nodes.guard.run(state)
-            state = self._nodes.verification.run(state)
+            state = await run_in_thread(self._nodes.guard.run, state)
+            state = await run_in_thread(self._nodes.verification.run, state)
             edge = determine_next_edge(state)
             state.transition_log.append(
                 {
@@ -196,7 +220,7 @@ class MinderGraph:
                 "edge": edge,
             }
 
-        state = self._nodes.evaluator.run(state)
+        state = await run_in_thread(self._nodes.evaluator.run, state)
         state.metadata["edge"] = determine_next_edge(state)
         await self._persist_history(state)
         await self._persist_error_if_needed(state)

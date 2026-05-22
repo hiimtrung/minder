@@ -11,6 +11,7 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8800
     log_level: str = "info"
+    http_timeout_keep_alive: int = 10  # uvicorn keep-alive timeout (seconds)
 
 
 class DashboardConfig(BaseModel):
@@ -48,6 +49,8 @@ class LLMConfig(BaseModel):
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
+    timeout_seconds: float = 120.0  # wall-clock budget per LLM call
+    max_concurrent: int = 1  # max simultaneous LLM inferences
 
 
 class VectorStoreConfig(BaseModel):

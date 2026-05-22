@@ -10,6 +10,7 @@ from minder.context_compactor import HistoryCompactor
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode
+from minder.graph.runtime import graph_runtime_name
 from minder.observability.metrics import (
     record_continuity_packet,
     record_query_prompt_render,
@@ -222,7 +223,11 @@ class QueryTools:
             max_attempts=max_attempts,
             allowed_repo_scopes=allowed_repo_scopes,
         )
-        if self._config.graph.runtime == "langgraph":
+        use_langgraph = (
+            graph_runtime_name() == "langgraph"
+            and self._config.workflow.orchestration_runtime == "langgraph"
+        )
+        if use_langgraph:
             config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
             async for event in self._graph.astream_events(state, config, version="v2"):
                 event_name = event.get("event")
@@ -263,7 +268,7 @@ class QueryTools:
                             ),
                         )
                         yield {"type": "final", "payload": result}
-        else:
+        else:  # internal runtime
             async for event in self._graph.stream(state):
                 if str(event.get("type")) == "final":
                     final_state = event.get("state")

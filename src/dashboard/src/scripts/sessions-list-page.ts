@@ -63,7 +63,7 @@ function renderRegistry(): void {
     .map(
       (session) => `
         <div class="relative">
-          <a href="/dashboard/sessions/${encodeURIComponent(session.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+          <a href="/dashboard/sessions/${encodeURIComponent(session.id)}" class="shell-card u-registry-card p-6 transition hover:-translate-y-0.5">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <p class="eyebrow">${escapeHtml(session.client_id ? "Client Session" : "Direct Session")}</p>

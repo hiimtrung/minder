@@ -13,6 +13,8 @@ def _build_chat_messages(
     state: GraphState,
     snippets: list[str],
     guidance: str,
+    instruction_envelope: dict[str, Any],
+    continuity_brief: dict[str, Any],
     retry_reason: str,
 ) -> list[dict[str, Any]]:
     """Build a lean chat messages list for create_chat_completion.
@@ -20,6 +22,9 @@ def _build_chat_messages(
     Excludes the full tool-capability manifest and data-access policy — those
     are only meaningful for MCP tool-call routing, not for dashboard chat answers.
     """
+    # Extract only the base step instruction (before the embedded envelope/brief sections).
+    step_guidance = guidance.split("\n\nInstruction envelope:")[0].strip() if guidance else ""
+
     system_parts: list[str] = [
         "You are Minder, a repository-aware engineering assistant.",
         "Answer the user's question with absolute completeness yet extreme conciseness.",
@@ -28,8 +33,37 @@ def _build_chat_messages(
         "1. Answer directly and immediately. Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help').",
         "2. NEVER use exclamation marks (!) or any exclamatory sentences/words. Keep everything strictly declarative and professional.",
     ]
-    if guidance and guidance.strip():
-        system_parts.append(f"Workflow guidance: {guidance.strip()}")
+    if step_guidance:
+        system_parts.append(f"Workflow guidance: {step_guidance}")
+
+    if instruction_envelope:
+        envelope_lines: list[str] = []
+        current_step = instruction_envelope.get("current_step", "")
+        if current_step:
+            envelope_lines.append(f"Step: {current_step}")
+        required = instruction_envelope.get("required_artifacts") or []
+        if required:
+            envelope_lines.append(f"Required artifacts: {', '.join(required)}")
+        forbidden = instruction_envelope.get("forbidden_actions") or []
+        if forbidden:
+            envelope_lines.append(f"Forbidden actions: {', '.join(forbidden)}")
+        if envelope_lines:
+            system_parts.append("Step constraints:\n" + "\n".join(envelope_lines))
+
+    if continuity_brief:
+        brief_lines: list[str] = []
+        progress = continuity_brief.get("confirmed_progress") or []
+        if progress:
+            brief_lines.append(f"Progress: {'; '.join(progress)}")
+        blockers = continuity_brief.get("unresolved_blockers") or []
+        if blockers:
+            brief_lines.append(f"Blockers: {'; '.join(blockers)}")
+        next_actions = continuity_brief.get("next_valid_actions") or []
+        if next_actions:
+            brief_lines.append(f"Next: {'; '.join(next_actions[:2])}")
+        if brief_lines:
+            system_parts.append("Session context:\n" + "\n".join(brief_lines))
+
     system_parts.append(
         "A repository is available for code inspection."
         if state.repo_path
@@ -56,10 +90,49 @@ def _build_chat_messages(
         user_parts.append(
             "Relevant code from the repository:\n" + "\n\n".join(snippets)
         )
+    enriched = list(state.metadata.get("enriched_context") or [])
+    if enriched:
+        user_parts.append(_format_enriched_context(enriched))
     user_parts.append(f"Question: {state.query}")
     messages.append({"role": "user", "content": "\n\n".join(user_parts)})
 
     return messages
+
+
+def _build_retrieved_context(snippets: list[str], enriched_items: list[dict]) -> str:
+    """Combine code snippets and enriched store items into a single context string."""
+    parts: list[str] = []
+    if snippets:
+        parts.append("\n\n".join(snippets))
+    if enriched_items:
+        parts.append(_format_enriched_context(enriched_items))
+    return "\n\n".join(parts) if parts else "No context found."
+
+
+def _format_enriched_context(items: list[dict]) -> str:
+    """Build a structured knowledge-base section from enriched store items."""
+    lines: list[str] = [f"Knowledge base ({len(items)} items):"]
+    for i, item in enumerate(items, 1):
+        item_type = item.get("type", "item")
+        title = item.get("title", "Untitled")
+        content = str(item.get("content", "")).strip()
+        tags = item.get("tags") or []
+        quality = item.get("quality_score", 0.0)
+        language = item.get("language", "")
+
+        header = f"[{i}] {item_type.upper()}: {title}"
+        if language:
+            header += f" ({language})"
+        if quality:
+            header += f" [quality: {quality:.1f}]"
+        if tags:
+            header += f" [tags: {', '.join(tags)}]"
+
+        lines.append(header)
+        if content:
+            lines.append(content)
+        lines.append("")
+    return "\n".join(lines)
 
 
 class ReasoningNode:
@@ -71,10 +144,13 @@ class ReasoningNode:
             {"path": doc["path"], "title": doc["title"], "score": doc["score"]}
             for doc in docs
         ]
+        enriched_items = list(state.metadata.get("enriched_context") or [])
         snippets = []
-        for doc in docs[:3]:
+        # Increase snippet count when enriched context supplements code docs
+        snippet_limit = 3 if enriched_items else 6
+        for doc in docs[:snippet_limit]:
             content = str(doc.get("content", "")).strip()
-            snippets.append(f"Source: {doc['path']}\n{content[:240]}")
+            snippets.append(f"Source: {doc['path']}\n{content[:500]}")
 
         guidance = state.workflow_context.get("guidance", "")
         instruction_envelope = state.workflow_context.get("instruction_envelope", {})
@@ -127,11 +203,7 @@ class ReasoningNode:
                     else "No repository is currently selected. Minder can still describe its built-in tools and internal data capabilities, but repo-scoped code and graph inspection tools need repository context first."
                 ),
                 "user_query": state.query,
-                "retrieved_context": (
-                    "\n\n".join(snippets)
-                    if snippets
-                    else "No repository context found."
-                ),
+                "retrieved_context": _build_retrieved_context(snippets, enriched_items),
                 "correction_required": retry_reason,
                 "chat_history": (
                     "\n".join(
@@ -164,6 +236,8 @@ class ReasoningNode:
             state=state,
             snippets=snippets,
             guidance=guidance,
+            instruction_envelope=dict(instruction_envelope or {}),
+            continuity_brief=dict(continuity_brief or {}),
             retry_reason=retry_reason,
         )
 

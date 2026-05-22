@@ -1,6 +1,6 @@
 import pytest
 
-from minder.config import MinderConfig, GraphConfig
+from minder.config import MinderConfig, GraphConfig, WorkflowConfig
 from minder.graph.state import GraphState
 from minder.tools.query import QueryTools
 from minder.store.relational import RelationalStore
@@ -38,7 +38,8 @@ async def store() -> RelationalStore:
 async def test_minder_query_stream_langgraph(store: RelationalStore):
     config = MinderConfig()
     config.graph = GraphConfig(runtime="langgraph")
-    
+    config.workflow = WorkflowConfig(orchestration_runtime="langgraph")
+
     graph = MockGraph(runtime="langgraph")
     tools = QueryTools(store, config, graph=graph)
     
@@ -58,7 +59,8 @@ async def test_minder_query_stream_langgraph(store: RelationalStore):
 async def test_minder_query_stream_internal(store: RelationalStore):
     config = MinderConfig()
     config.graph = GraphConfig(runtime="internal")
-    
+    config.workflow = WorkflowConfig(orchestration_runtime="internal")
+
     graph = MockGraph(runtime="internal")
     tools = QueryTools(store, config, graph=graph)
     

@@ -64,7 +64,7 @@ function renderRegistry(): void {
     .map(
       (repo) => `
         <div class="relative">
-          <a href="/dashboard/repositories/${encodeURIComponent(repo.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+          <a href="/dashboard/repositories/${encodeURIComponent(repo.id)}" class="shell-card u-registry-card p-6 transition hover:-translate-y-0.5">
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0 flex-1">
                 <p class="eyebrow">${escapeHtml(repo.workflow_name ?? "Repository")}</p>

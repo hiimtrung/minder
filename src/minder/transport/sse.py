@@ -247,6 +247,12 @@ class SSETransport(BaseTransport):
             host=self._config.server.host,
             port=self._config.server.port,
             log_level="info",
+            # Keep-alive timeout — frees idle connections faster so the server
+            # can accept new ones during long-running LLM requests.
+            timeout_keep_alive=self._config.server.http_timeout_keep_alive,
+            # Allow multiple concurrent request handler coroutines.
+            # loop="auto" lets uvicorn pick the best async loop implementation.
+            loop="auto",
         )
         server = uvicorn.Server(config)
         await server.serve()

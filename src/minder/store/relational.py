@@ -47,6 +47,27 @@ from minder.models import (
     Checkpoint,
 )
 
+from minder.domain.entities import (
+    PromptSchema,
+    UserSchema,
+    SkillSchema,
+    AdminJobSchema,
+    SessionSchema,
+    WorkflowSchema,
+    RepositorySchema,
+    ClientSchema,
+    ClientApiKeySchema,
+    ClientSessionSchema,
+    AuditLogSchema,
+    RepositoryWorkflowStateSchema,
+    DocumentSchema,
+    HistorySchema,
+    ErrorSchema,
+    RuleSchema,
+    FeedbackSchema,
+    SubAgentSchema,
+)
+
 _REGISTERED_MODELS = (
     AdminJob,
     AuditLog,
@@ -161,33 +182,36 @@ class RelationalStore:
     # Prompts
     # ------------------------------------------------------------------
 
-    async def create_prompt(self, **kwargs: Any) -> Prompt:
+    async def create_prompt(self, **kwargs: Any) -> PromptSchema:
         async with self._session() as sess:
             item = Prompt(**kwargs)
             sess.add(item)
             await sess.flush()
             await sess.refresh(item)
-            return item
+            return PromptSchema.model_validate(item)
 
-    async def get_prompt_by_id(self, prompt_id: uuid.UUID) -> Optional[Prompt]:
+    async def get_prompt_by_id(self, prompt_id: uuid.UUID) -> Optional[PromptSchema]:
         async with self._session() as sess:
-            return await sess.get(Prompt, prompt_id)
+            item = await sess.get(Prompt, prompt_id)
+            return PromptSchema.model_validate(item) if item else None
 
-    async def get_prompt_by_name(self, name: str) -> Optional[Prompt]:
+    async def get_prompt_by_name(self, name: str) -> Optional[PromptSchema]:
         async with self._session() as sess:
             stmt = select(Prompt).where(Prompt.name == name)
             res = await sess.execute(stmt)
-            return res.scalar_one_or_none()
+            item = res.scalar_one_or_none()
+            return PromptSchema.model_validate(item) if item else None
 
-    async def list_prompts(self) -> List[Prompt]:
+    async def list_prompts(self) -> List[PromptSchema]:
         async with self._session() as sess:
             stmt = select(Prompt).order_by(Prompt.name)
             res = await sess.execute(stmt)
-            return list(res.scalars().all())
+            items = list(res.scalars().all())
+            return [PromptSchema.model_validate(item) for item in items]
 
     async def update_prompt(
         self, prompt_id: uuid.UUID, **kwargs: Any
-    ) -> Optional[Prompt]:
+    ) -> Optional[PromptSchema]:
         async with self._session() as sess:
             item = await sess.get(Prompt, prompt_id)
             if not item:
@@ -196,7 +220,7 @@ class RelationalStore:
                 setattr(item, k, v)
             await sess.flush()
             await sess.refresh(item)
-            return item
+            return PromptSchema.model_validate(item)
 
     async def delete_prompt(self, prompt_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -207,42 +231,47 @@ class RelationalStore:
     # User
     # ------------------------------------------------------------------
 
-    async def create_user(self, **kwargs) -> User:
+    async def create_user(self, **kwargs) -> UserSchema:
         async with self._session() as sess:
             user = User(**kwargs)
             sess.add(user)
             await sess.flush()
             await sess.refresh(user)
-            return user
+            return UserSchema.model_validate(user)
 
-    async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    async def get_user_by_id(self, user_id: uuid.UUID) -> Optional[UserSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(User).where(User.id == user_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return UserSchema.model_validate(item) if item else None
 
-    async def get_user_by_email(self, email: str) -> Optional[User]:
+    async def get_user_by_email(self, email: str) -> Optional[UserSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(User).where(User.email == email))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return UserSchema.model_validate(item) if item else None
 
-    async def get_user_by_username(self, username: str) -> Optional[User]:
+    async def get_user_by_username(self, username: str) -> Optional[UserSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(User).where(User.username == username))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return UserSchema.model_validate(item) if item else None
 
-    async def list_users(self, active_only: bool = True) -> List[User]:
+    async def list_users(self, active_only: bool = True) -> List[UserSchema]:
         async with self._session() as sess:
             stmt = select(User)
             if active_only:
                 stmt = stmt.where(User.is_active.is_(True))
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [UserSchema.model_validate(item) for item in items]
 
-    async def update_user(self, user_id: uuid.UUID, **kwargs) -> Optional[User]:
+    async def update_user(self, user_id: uuid.UUID, **kwargs) -> Optional[UserSchema]:
         async with self._session() as sess:
             await sess.execute(update(User).where(User.id == user_id).values(**kwargs))
             result = await sess.execute(select(User).where(User.id == user_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return UserSchema.model_validate(item) if item else None
 
     async def delete_user(self, user_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -259,23 +288,25 @@ class RelationalStore:
     # Skill
     # ------------------------------------------------------------------
 
-    async def create_skill(self, **kwargs) -> Skill:
+    async def create_skill(self, **kwargs) -> SkillSchema:
         async with self._session() as sess:
             skill = Skill(**kwargs)
             sess.add(skill)
             await sess.flush()
             await sess.refresh(skill)
-            return skill
+            return SkillSchema.model_validate(skill)
 
-    async def get_skill_by_id(self, skill_id: uuid.UUID) -> Optional[Skill]:
+    async def get_skill_by_id(self, skill_id: uuid.UUID) -> Optional[SkillSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Skill).where(Skill.id == skill_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SkillSchema.model_validate(item) if item else None
 
-    async def list_skills(self) -> List[Skill]:
+    async def list_skills(self) -> List[SkillSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Skill))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [SkillSchema.model_validate(item) for item in items]
 
     async def list_skills_by_kind(
         self,
@@ -283,7 +314,7 @@ class RelationalStore:
         is_memory: bool,
         exclude_deprecated: bool = True,
         owner_id: uuid.UUID | None = None,
-    ) -> List[Skill]:
+    ) -> List[SkillSchema]:
         _memory_langs = ["markdown", "text", "en", "vi", ""]
         _is_memory_cond = Skill.source_metadata.is_(None) & (
             or_(Skill.language.in_(_memory_langs), Skill.language.is_(None))
@@ -306,9 +337,10 @@ class RelationalStore:
                     )
                 )
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [SkillSchema.model_validate(item) for item in items]
 
-    async def update_skill(self, skill_id: uuid.UUID, **kwargs) -> Optional[Skill]:
+    async def update_skill(self, skill_id: uuid.UUID, **kwargs) -> Optional[SkillSchema]:
         async with self._session() as sess:
             skill = await sess.get(Skill, skill_id)
             if skill is None:
@@ -317,7 +349,7 @@ class RelationalStore:
                 setattr(skill, key, value)
             await sess.flush()
             await sess.refresh(skill)
-            return skill
+            return SkillSchema.model_validate(skill)
 
     async def delete_skill(self, skill_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -327,18 +359,19 @@ class RelationalStore:
     # Admin Jobs
     # ------------------------------------------------------------------
 
-    async def create_admin_job(self, **kwargs: Any) -> AdminJob:
+    async def create_admin_job(self, **kwargs: Any) -> AdminJobSchema:
         async with self._session() as sess:
             job = AdminJob(**kwargs)
             sess.add(job)
             await sess.flush()
             await sess.refresh(job)
-            return job
+            return AdminJobSchema.model_validate(job)
 
-    async def get_admin_job_by_id(self, job_id: uuid.UUID) -> Optional[AdminJob]:
+    async def get_admin_job_by_id(self, job_id: uuid.UUID) -> Optional[AdminJobSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(AdminJob).where(AdminJob.id == job_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return AdminJobSchema.model_validate(item) if item else None
 
     async def list_admin_jobs(
         self,
@@ -348,7 +381,7 @@ class RelationalStore:
         requested_by_user_id: uuid.UUID | None = None,
         limit: int | None = None,
         offset: int = 0,
-    ) -> List[AdminJob]:
+    ) -> List[AdminJobSchema]:
         async with self._session() as sess:
             stmt = select(AdminJob).order_by(AdminJob.created_at.desc())
             if job_type:
@@ -362,11 +395,12 @@ class RelationalStore:
             if limit is not None:
                 stmt = stmt.limit(limit)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [AdminJobSchema.model_validate(item) for item in items]
 
     async def update_admin_job(
         self, job_id: uuid.UUID, **kwargs: Any
-    ) -> Optional[AdminJob]:
+    ) -> Optional[AdminJobSchema]:
         async with self._session() as sess:
             job = await sess.get(AdminJob, job_id)
             if job is None:
@@ -375,45 +409,49 @@ class RelationalStore:
                 setattr(job, key, value)
             await sess.flush()
             await sess.refresh(job)
-            return job
+            return AdminJobSchema.model_validate(job)
 
     # ------------------------------------------------------------------
     # Session
     # ------------------------------------------------------------------
 
-    async def create_session(self, **kwargs) -> Session:
+    async def create_session(self, **kwargs) -> SessionSchema:
         async with self._session() as sess:
             session = Session(**kwargs)
             sess.add(session)
             await sess.flush()
             await sess.refresh(session)
-            return session
+            return SessionSchema.model_validate(session)
 
-    async def get_session_by_id(self, session_id: uuid.UUID) -> Optional[Session]:
+    async def get_session_by_id(self, session_id: uuid.UUID) -> Optional[SessionSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Session).where(Session.id == session_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SessionSchema.model_validate(item) if item else None
 
-    async def get_sessions_by_user(self, user_id: uuid.UUID) -> List[Session]:
+    async def get_sessions_by_user(self, user_id: uuid.UUID) -> List[SessionSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Session).where(Session.user_id == user_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [SessionSchema.model_validate(item) for item in items]
 
-    async def list_sessions(self) -> List[Session]:
+    async def list_sessions(self) -> List[SessionSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Session).order_by(Session.last_active.desc())
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [SessionSchema.model_validate(item) for item in items]
 
-    async def get_sessions_by_client(self, client_id: uuid.UUID) -> List[Session]:
+    async def get_sessions_by_client(self, client_id: uuid.UUID) -> List[SessionSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Session).where(Session.client_id == client_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [SessionSchema.model_validate(item) for item in items]
 
     async def find_session_by_name(
         self,
@@ -421,7 +459,7 @@ class RelationalStore:
         *,
         user_id: uuid.UUID | None = None,
         client_id: uuid.UUID | None = None,
-    ) -> Optional[Session]:
+    ) -> Optional[SessionSchema]:
         async with self._session() as sess:
             query = select(Session).where(Session.name == name)
             if client_id is not None:
@@ -430,17 +468,19 @@ class RelationalStore:
                 query = query.where(Session.user_id == user_id)
             query = query.order_by(Session.last_active.desc()).limit(1)
             result = await sess.execute(query)
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SessionSchema.model_validate(item) if item else None
 
     async def update_session(
         self, session_id: uuid.UUID, **kwargs
-    ) -> Optional[Session]:
+    ) -> Optional[SessionSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(Session).where(Session.id == session_id).values(**kwargs)
             )
             result = await sess.execute(select(Session).where(Session.id == session_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SessionSchema.model_validate(item) if item else None
 
     async def delete_session(self, session_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -497,34 +537,37 @@ class RelationalStore:
     # Workflow
     # ------------------------------------------------------------------
 
-    async def create_workflow(self, **kwargs) -> Workflow:
+    async def create_workflow(self, **kwargs) -> WorkflowSchema:
         async with self._session() as sess:
             workflow = Workflow(**kwargs)
             sess.add(workflow)
             await sess.flush()
             await sess.refresh(workflow)
-            return workflow
+            return WorkflowSchema.model_validate(workflow)
 
-    async def get_workflow_by_id(self, workflow_id: uuid.UUID) -> Optional[Workflow]:
+    async def get_workflow_by_id(self, workflow_id: uuid.UUID) -> Optional[WorkflowSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Workflow).where(Workflow.id == workflow_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return WorkflowSchema.model_validate(item) if item else None
 
-    async def get_workflow_by_name(self, name: str) -> Optional[Workflow]:
+    async def get_workflow_by_name(self, name: str) -> Optional[WorkflowSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Workflow).where(Workflow.name == name))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return WorkflowSchema.model_validate(item) if item else None
 
-    async def list_workflows(self) -> List[Workflow]:
+    async def list_workflows(self) -> List[WorkflowSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Workflow))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [WorkflowSchema.model_validate(item) for item in items]
 
     async def update_workflow(
         self, workflow_id: uuid.UUID, **kwargs
-    ) -> Optional[Workflow]:
+    ) -> Optional[WorkflowSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(Workflow).where(Workflow.id == workflow_id).values(**kwargs)
@@ -532,7 +575,8 @@ class RelationalStore:
             result = await sess.execute(
                 select(Workflow).where(Workflow.id == workflow_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return WorkflowSchema.model_validate(item) if item else None
 
     async def delete_workflow(self, workflow_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -542,36 +586,39 @@ class RelationalStore:
     # Repository
     # ------------------------------------------------------------------
 
-    async def create_repository(self, **kwargs) -> Repository:
+    async def create_repository(self, **kwargs) -> RepositorySchema:
         async with self._session() as sess:
             repo = Repository(**kwargs)
             sess.add(repo)
             await sess.flush()
             await sess.refresh(repo)
-            return repo
+            return RepositorySchema.model_validate(repo)
 
-    async def get_repository_by_id(self, repo_id: uuid.UUID) -> Optional[Repository]:
+    async def get_repository_by_id(self, repo_id: uuid.UUID) -> Optional[RepositorySchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Repository).where(Repository.id == repo_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositorySchema.model_validate(item) if item else None
 
-    async def get_repository_by_name(self, repo_name: str) -> Optional[Repository]:
+    async def get_repository_by_name(self, repo_name: str) -> Optional[RepositorySchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Repository).where(Repository.repo_name == repo_name)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositorySchema.model_validate(item) if item else None
 
-    async def list_repositories(self) -> List[Repository]:
+    async def list_repositories(self) -> List[RepositorySchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Repository))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [RepositorySchema.model_validate(item) for item in items]
 
     async def update_repository(
         self, repo_id: uuid.UUID, **kwargs
-    ) -> Optional[Repository]:
+    ) -> Optional[RepositorySchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(Repository).where(Repository.id == repo_id).values(**kwargs)
@@ -579,7 +626,8 @@ class RelationalStore:
             result = await sess.execute(
                 select(Repository).where(Repository.id == repo_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositorySchema.model_validate(item) if item else None
 
     async def delete_repository(self, repo_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -589,55 +637,60 @@ class RelationalStore:
     # Client Gateway
     # ------------------------------------------------------------------
 
-    async def create_client(self, **kwargs) -> Client:
+    async def create_client(self, **kwargs) -> ClientSchema:
         async with self._session() as sess:
             client = Client(**kwargs)
             sess.add(client)
             await sess.flush()
             await sess.refresh(client)
-            return client
+            return ClientSchema.model_validate(client)
 
-    async def get_client_by_id(self, client_id: uuid.UUID) -> Optional[Client]:
+    async def get_client_by_id(self, client_id: uuid.UUID) -> Optional[ClientSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Client).where(Client.id == client_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientSchema.model_validate(item) if item else None
 
-    async def get_client_by_slug(self, slug: str) -> Optional[Client]:
+    async def get_client_by_slug(self, slug: str) -> Optional[ClientSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Client).where(Client.slug == slug))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientSchema.model_validate(item) if item else None
 
-    async def list_clients(self) -> List[Client]:
+    async def list_clients(self) -> List[ClientSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Client))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [ClientSchema.model_validate(item) for item in items]
 
-    async def update_client(self, client_id: uuid.UUID, **kwargs) -> Optional[Client]:
+    async def update_client(self, client_id: uuid.UUID, **kwargs) -> Optional[ClientSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(Client).where(Client.id == client_id).values(**kwargs)
             )
             result = await sess.execute(select(Client).where(Client.id == client_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientSchema.model_validate(item) if item else None
 
-    async def create_client_api_key(self, **kwargs) -> ClientApiKey:
+    async def create_client_api_key(self, **kwargs) -> ClientApiKeySchema:
         async with self._session() as sess:
             key = ClientApiKey(**kwargs)
             sess.add(key)
             await sess.flush()
             await sess.refresh(key)
-            return key
+            return ClientApiKeySchema.model_validate(key)
 
-    async def list_client_api_keys(self, client_id: uuid.UUID) -> List[ClientApiKey]:
+    async def list_client_api_keys(self, client_id: uuid.UUID) -> List[ClientApiKeySchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(ClientApiKey).where(ClientApiKey.client_id == client_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [ClientApiKeySchema.model_validate(item) for item in items]
 
     async def update_client_api_key(
         self, key_id: uuid.UUID, **kwargs
-    ) -> Optional[ClientApiKey]:
+    ) -> Optional[ClientApiKeySchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(ClientApiKey).where(ClientApiKey.id == key_id).values(**kwargs)
@@ -645,15 +698,16 @@ class RelationalStore:
             result = await sess.execute(
                 select(ClientApiKey).where(ClientApiKey.id == key_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientApiKeySchema.model_validate(item) if item else None
 
-    async def create_client_session(self, **kwargs) -> ClientSession:
+    async def create_client_session(self, **kwargs) -> ClientSessionSchema:
         async with self._session() as sess:
             client_session = ClientSession(**kwargs)
             sess.add(client_session)
             await sess.flush()
             await sess.refresh(client_session)
-            return client_session
+            return ClientSessionSchema.model_validate(client_session)
 
     async def count_active_client_sessions(self) -> int:
         from sqlalchemy import func as sqlfunc
@@ -671,16 +725,17 @@ class RelationalStore:
 
     async def get_client_session_by_token_id(
         self, token_id: str
-    ) -> Optional[ClientSession]:
+    ) -> Optional[ClientSessionSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(ClientSession).where(ClientSession.access_token_id == token_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientSessionSchema.model_validate(item) if item else None
 
     async def update_client_session(
         self, session_id: uuid.UUID, **kwargs
-    ) -> Optional[ClientSession]:
+    ) -> Optional[ClientSessionSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(ClientSession)
@@ -690,15 +745,16 @@ class RelationalStore:
             result = await sess.execute(
                 select(ClientSession).where(ClientSession.id == session_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return ClientSessionSchema.model_validate(item) if item else None
 
-    async def create_audit_log(self, **kwargs) -> AuditLog:
+    async def create_audit_log(self, **kwargs) -> AuditLogSchema:
         async with self._session() as sess:
             audit_log = AuditLog(**kwargs)
             sess.add(audit_log)
             await sess.flush()
             await sess.refresh(audit_log)
-            return audit_log
+            return AuditLogSchema.model_validate(audit_log)
 
     async def list_audit_logs(
         self,
@@ -708,7 +764,7 @@ class RelationalStore:
         outcome: str | None = None,
         limit: int | None = None,
         offset: int = 0,
-    ) -> List[AuditLog]:
+    ) -> List[AuditLogSchema]:
         from sqlalchemy import desc
 
         async with self._session() as sess:
@@ -723,7 +779,8 @@ class RelationalStore:
             if limit is not None:
                 stmt = stmt.limit(limit)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [AuditLogSchema.model_validate(item) for item in items]
 
     async def count_audit_logs(
         self,
@@ -782,28 +839,29 @@ class RelationalStore:
     # RepositoryWorkflowState
     # ------------------------------------------------------------------
 
-    async def create_workflow_state(self, **kwargs) -> RepositoryWorkflowState:
+    async def create_workflow_state(self, **kwargs) -> RepositoryWorkflowStateSchema:
         async with self._session() as sess:
             state = RepositoryWorkflowState(**kwargs)
             sess.add(state)
             await sess.flush()
             await sess.refresh(state)
-            return state
+            return RepositoryWorkflowStateSchema.model_validate(state)
 
     async def get_workflow_state_by_id(
         self, state_id: uuid.UUID
-    ) -> Optional[RepositoryWorkflowState]:
+    ) -> Optional[RepositoryWorkflowStateSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(RepositoryWorkflowState).where(
                     RepositoryWorkflowState.id == state_id
                 )
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositoryWorkflowStateSchema.model_validate(item) if item else None
 
     async def get_workflow_state_by_repo(
         self, repo_id: uuid.UUID, *, branch: str = "main"
-    ) -> Optional[RepositoryWorkflowState]:
+    ) -> Optional[RepositoryWorkflowStateSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(RepositoryWorkflowState).where(
@@ -811,11 +869,12 @@ class RelationalStore:
                     RepositoryWorkflowState.branch == branch
                 )
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositoryWorkflowStateSchema.model_validate(item) if item else None
 
     async def update_workflow_state(
         self, state_id: uuid.UUID, **kwargs
-    ) -> Optional[RepositoryWorkflowState]:
+    ) -> Optional[RepositoryWorkflowStateSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(RepositoryWorkflowState)
@@ -827,7 +886,8 @@ class RelationalStore:
                     RepositoryWorkflowState.id == state_id
                 )
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RepositoryWorkflowStateSchema.model_validate(item) if item else None
 
     # ------------------------------------------------------------------
     # Checkpoint
@@ -912,7 +972,7 @@ class RelationalStore:
         *,
         chunks: dict[str, Any] | None = None,
         embedding: list[float] | None = None,
-    ) -> Document:
+    ) -> DocumentSchema:
         async with self._session() as sess:
             document = Document(
                 id=uuid.uuid4(),
@@ -927,33 +987,36 @@ class RelationalStore:
             sess.add(document)
             await sess.flush()
             await sess.refresh(document)
-            return document
+            return DocumentSchema.model_validate(document)
 
     async def get_document_by_path(
         self, source_path: str, *, project: str | None = None
-    ) -> Document | None:
+    ) -> DocumentSchema | None:
         async with self._session() as sess:
             stmt = select(Document).where(Document.source_path == source_path)
             if project is not None:
                 stmt = stmt.where(Document.project == project)
             result = await sess.execute(stmt)
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return DocumentSchema.model_validate(item) if item else None
 
-    async def get_documents_by_ids(self, doc_ids: list[uuid.UUID]) -> list[Document]:
+    async def get_documents_by_ids(self, doc_ids: list[uuid.UUID]) -> list[DocumentSchema]:
         if not doc_ids:
             return []
         async with self._session() as sess:
             stmt = select(Document).where(Document.id.in_(doc_ids))
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [DocumentSchema.model_validate(item) for item in items]
 
-    async def list_documents(self, project: str | None = None) -> list[Document]:
+    async def list_documents(self, project: str | None = None) -> list[DocumentSchema]:
         async with self._session() as sess:
             stmt = select(Document)
             if project is not None:
                 stmt = stmt.where(Document.project == project)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [DocumentSchema.model_validate(item) for item in items]
 
     async def upsert_document(
         self,
@@ -965,7 +1028,7 @@ class RelationalStore:
         project: str,
         chunks: dict[str, Any] | None = None,
         embedding: list[float] | None = None,
-    ) -> Document:
+    ) -> DocumentSchema:
         existing = await self.get_document_by_path(source_path, project=project)
         if existing is None:
             return await self.create_document(
@@ -994,7 +1057,8 @@ class RelationalStore:
             result = await sess.execute(
                 select(Document).where(Document.id == existing.id)
             )
-            return result.scalar_one()
+            item = result.scalar_one()
+            return DocumentSchema.model_validate(item)
 
     async def delete_documents_not_in_paths(
         self, *, project: str, keep_paths: set[str]
@@ -1018,7 +1082,7 @@ class RelationalStore:
         tool_calls: dict[str, Any] | None = None,
         tokens_used: int = 0,
         latency_ms: int = 0,
-    ) -> History:
+    ) -> HistorySchema:
         async with self._session() as sess:
             history = History(
                 id=uuid.uuid4(),
@@ -1033,23 +1097,25 @@ class RelationalStore:
             sess.add(history)
             await sess.flush()
             await sess.refresh(history)
-            return history
+            return HistorySchema.model_validate(history)
 
-    async def list_history_for_session(self, session_id: uuid.UUID) -> list[History]:
+    async def list_history_for_session(self, session_id: uuid.UUID) -> list[HistorySchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(History).where(History.session_id == session_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [HistorySchema.model_validate(item) for item in items]
 
-    async def list_history_for_user(self, user_id: uuid.UUID) -> list[History]:
+    async def list_history_for_user(self, user_id: uuid.UUID) -> list[HistorySchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(History)
                 .join(Session, Session.id == History.session_id)
                 .where(Session.user_id == user_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [HistorySchema.model_validate(item) for item in items]
 
     async def delete_history_for_session(self, session_id: uuid.UUID) -> int:
         async with self._session() as sess:
@@ -1072,7 +1138,7 @@ class RelationalStore:
         resolution: str | None = None,
         embedding: list[float] | None = None,
         resolved: bool = False,
-    ) -> Error:
+    ) -> ErrorSchema:
         async with self._session() as sess:
             error = Error(
                 id=uuid.uuid4(),
@@ -1087,12 +1153,13 @@ class RelationalStore:
             sess.add(error)
             await sess.flush()
             await sess.refresh(error)
-            return error
+            return ErrorSchema.model_validate(error)
 
-    async def list_errors(self) -> list[Error]:
+    async def list_errors(self) -> list[ErrorSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Error))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [ErrorSchema.model_validate(item) for item in items]
 
     async def search_errors(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         rows = await self.list_errors()
@@ -1132,39 +1199,44 @@ class RelationalStore:
     # Rule
     # ------------------------------------------------------------------
 
-    async def create_rule(self, **kwargs: Any) -> Rule:
+    async def create_rule(self, **kwargs: Any) -> RuleSchema:
         async with self._session() as sess:
             rule = Rule(**kwargs)
             sess.add(rule)
             await sess.flush()
             await sess.refresh(rule)
-            return rule
+            return RuleSchema.model_validate(rule)
 
-    async def get_rule_by_id(self, rule_id: uuid.UUID) -> Optional[Rule]:
+    async def get_rule_by_id(self, rule_id: uuid.UUID) -> Optional[RuleSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Rule).where(Rule.id == rule_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RuleSchema.model_validate(item) if item else None
 
-    async def list_rules(self) -> List[Rule]:
+    async def list_rules(self) -> List[RuleSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Rule))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [RuleSchema.model_validate(item) for item in items]
 
-    async def list_by_scope(self, scope: str) -> List[Rule]:
+    async def list_by_scope(self, scope: str) -> List[RuleSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Rule).where(Rule.scope == scope))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [RuleSchema.model_validate(item) for item in items]
 
-    async def list_active(self) -> List[Rule]:
+    async def list_active(self) -> List[RuleSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Rule).where(Rule.active.is_(True)))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [RuleSchema.model_validate(item) for item in items]
 
-    async def update_rule(self, rule_id: uuid.UUID, **kwargs: Any) -> Optional[Rule]:
+    async def update_rule(self, rule_id: uuid.UUID, **kwargs: Any) -> Optional[RuleSchema]:
         async with self._session() as sess:
             await sess.execute(update(Rule).where(Rule.id == rule_id).values(**kwargs))
             result = await sess.execute(select(Rule).where(Rule.id == rule_id))
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return RuleSchema.model_validate(item) if item else None
 
     async def delete_rule(self, rule_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -1174,29 +1246,31 @@ class RelationalStore:
     # Feedback
     # ------------------------------------------------------------------
 
-    async def create_feedback(self, **kwargs: Any) -> Feedback:
+    async def create_feedback(self, **kwargs: Any) -> FeedbackSchema:
         async with self._session() as sess:
             fb = Feedback(**kwargs)
             sess.add(fb)
             await sess.flush()
             await sess.refresh(fb)
-            return fb
+            return FeedbackSchema.model_validate(fb)
 
-    async def get_feedback_by_id(self, feedback_id: uuid.UUID) -> Optional[Feedback]:
+    async def get_feedback_by_id(self, feedback_id: uuid.UUID) -> Optional[FeedbackSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Feedback).where(Feedback.id == feedback_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return FeedbackSchema.model_validate(item) if item else None
 
-    async def list_feedback(self) -> List[Feedback]:
+    async def list_feedback(self) -> List[FeedbackSchema]:
         async with self._session() as sess:
             result = await sess.execute(select(Feedback))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [FeedbackSchema.model_validate(item) for item in items]
 
     async def list_by_entity(
         self, entity_type: str, entity_id: uuid.UUID
-    ) -> List[Feedback]:
+    ) -> List[FeedbackSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(Feedback).where(
@@ -1204,7 +1278,8 @@ class RelationalStore:
                     Feedback.entity_id == entity_id,
                 )
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [FeedbackSchema.model_validate(item) for item in items]
 
     async def average_rating(self, entity_id: uuid.UUID) -> Optional[float]:
         from sqlalchemy import func as sa_func
@@ -1220,7 +1295,7 @@ class RelationalStore:
 
     async def update_feedback(
         self, feedback_id: uuid.UUID, **kwargs: Any
-    ) -> Optional[Feedback]:
+    ) -> Optional[FeedbackSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(Feedback).where(Feedback.id == feedback_id).values(**kwargs)
@@ -1228,7 +1303,8 @@ class RelationalStore:
             result = await sess.execute(
                 select(Feedback).where(Feedback.id == feedback_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return FeedbackSchema.model_validate(item) if item else None
 
     async def delete_feedback(self, feedback_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -1238,27 +1314,29 @@ class RelationalStore:
     # SubAgent Repository
     # ------------------------------------------------------------------
 
-    async def create_agent(self, **kwargs: Any) -> SubAgent:
+    async def create_agent(self, **kwargs: Any) -> SubAgentSchema:
         async with self._session() as sess:
             agent = SubAgent(**kwargs)
             sess.add(agent)
             await sess.flush()
             await sess.refresh(agent)
-            return agent
+            return SubAgentSchema.model_validate(agent)
 
-    async def get_agent_by_id(self, agent_id: uuid.UUID) -> Optional[SubAgent]:
+    async def get_agent_by_id(self, agent_id: uuid.UUID) -> Optional[SubAgentSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(SubAgent).where(SubAgent.id == agent_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SubAgentSchema.model_validate(item) if item else None
 
-    async def get_agent_by_name(self, name: str) -> Optional[SubAgent]:
+    async def get_agent_by_name(self, name: str) -> Optional[SubAgentSchema]:
         async with self._session() as sess:
             result = await sess.execute(
                 select(SubAgent).where(SubAgent.name == name)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SubAgentSchema.model_validate(item) if item else None
 
     async def list_agents(
         self,
@@ -1266,16 +1344,17 @@ class RelationalStore:
         workflow_step: str | None = None,
         tag: str | None = None,
         is_default: bool | None = None,
-    ) -> List[SubAgent]:
+    ) -> List[SubAgentSchema]:
         async with self._session() as sess:
             stmt = select(SubAgent)
             if is_default is not None:
                 stmt = stmt.where(SubAgent.is_default == is_default)
             result = await sess.execute(stmt)
-            agents = list(result.scalars().all())
+            orm_agents = list(result.scalars().all())
+            agents = [SubAgentSchema.model_validate(a) for a in orm_agents]
         return _filter_agents(agents, workflow_step=workflow_step, tag=tag)
 
-    async def upsert_agent(self, name: str, **kwargs: Any) -> SubAgent:
+    async def upsert_agent(self, name: str, **kwargs: Any) -> SubAgentSchema:
         existing = await self.get_agent_by_name(name)
         if existing is not None:
             async with self._session() as sess:
@@ -1285,12 +1364,13 @@ class RelationalStore:
                 result = await sess.execute(
                     select(SubAgent).where(SubAgent.name == name)
                 )
-                return result.scalar_one()
+                item = result.scalar_one()
+                return SubAgentSchema.model_validate(item)
         return await self.create_agent(name=name, **kwargs)
 
     async def update_agent(
         self, agent_id: uuid.UUID, **kwargs: Any
-    ) -> Optional[SubAgent]:
+    ) -> Optional[SubAgentSchema]:
         async with self._session() as sess:
             await sess.execute(
                 update(SubAgent).where(SubAgent.id == agent_id).values(**kwargs)
@@ -1298,7 +1378,8 @@ class RelationalStore:
             result = await sess.execute(
                 select(SubAgent).where(SubAgent.id == agent_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return SubAgentSchema.model_validate(item) if item else None
 
     async def delete_agent(self, agent_id: uuid.UUID) -> None:
         async with self._session() as sess:

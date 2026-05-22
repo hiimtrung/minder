@@ -32,11 +32,11 @@ import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
-from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.application.continuity import build_continuity_brief, build_instruction_envelope
 from minder.config import MinderConfig
 from minder.observability.metrics import record_continuity_packet
 from minder.store.interfaces import IOperationalStore
-from minder.utils import _iso
+from minder.domain.utils import _iso
 
 
 class SessionTools:

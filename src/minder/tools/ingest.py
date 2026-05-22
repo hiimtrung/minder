@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import shutil
 import subprocess
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
@@ -18,23 +20,47 @@ SUPPORTED_SUFFIXES = {".py", ".md", ".txt", ".json", ".toml", ".yml", ".yaml"}
 # Maximum raw bytes to read from a URL response (4 MB).
 _MAX_URL_BYTES = 4 * 1024 * 1024
 
+# Per-process cooldown: re-scan a directory at most once per minute.
+# Avoids the full os.walk on every query when the repo hasn't changed.
+_INGEST_SCAN_COOLDOWN: dict[str, float] = {}
+_INGEST_COOLDOWN_SECS = 60.0
+
+
+def _scan_files(path: str, ignore_dirs: set[str], supported_suffixes: set[str]) -> list[str]:
+    """Collect all ingestible file paths under *path*. Runs in a thread pool."""
+    import os
+
+    files: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(path):
+        dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
+        for filename in filenames:
+            if filename.startswith("."):
+                continue
+            fp = Path(dirpath) / filename
+            if fp.suffix in supported_suffixes:
+                files.append(str(fp))
+    return files
+
 
 class IngestTools:
     def __init__(
-        self, 
-        document_store: IDocumentRepository, 
+        self,
+        document_store: IDocumentRepository,
         embedding_provider: EmbeddingProvider,
         vector_store: Any | None = None,
+        ingest_cooldown_secs: float = _INGEST_COOLDOWN_SECS,
     ) -> None:
         self._document_store = document_store
         self._embedding_provider = embedding_provider
         self._vector_store = vector_store
+        self._ingest_cooldown_secs = ingest_cooldown_secs
 
     async def minder_ingest_file(self, path: str, *, project: str | None = None) -> dict[str, object]:
         file_path = Path(path)
         doc_type = self._doc_type_for_suffix(file_path.suffix)
         target_project = project or file_path.parent.name
-        file_stat = file_path.stat()
+        # stat() is a blocking syscall — offload to avoid stalling the event loop.
+        file_stat = await asyncio.to_thread(file_path.stat)
         existing = await self._document_store.get_document_by_path(
             str(file_path),
             project=target_project,
@@ -57,8 +83,9 @@ class IngestTools:
                 "doc_type": doc_type,
             }
 
-        content = file_path.read_text(encoding="utf-8")
-        embedding = self._embedding_provider.embed(content)
+        # read_text and embed() are blocking — run in thread pool.
+        content = await asyncio.to_thread(lambda: file_path.read_text(encoding="utf-8"))
+        embedding = await asyncio.to_thread(self._embedding_provider.embed, content)
         chunks = {
             "size": len(content),
             "file_size": file_stat.st_size,
@@ -113,26 +140,28 @@ class IngestTools:
     ) -> dict[str, object]:
         root = Path(path)
         target_project = project or root.name
+
+        # Skip the full scan if we ingested this path recently.
+        # mtime checks inside minder_ingest_file guard against stale content;
+        # this cooldown just avoids the expensive os.walk on every query.
+        last_scan = _INGEST_SCAN_COOLDOWN.get(path, 0.0)
+        if time.monotonic() - last_scan < self._ingest_cooldown_secs:
+            return {"project": target_project, "ingested_count": 0, "from_cache": True}
+
+        _INGEST_SCAN_COOLDOWN[path] = time.monotonic()
+
+        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
+
+        # os.walk is synchronous blocking I/O — collect paths in a thread first.
+        file_paths = await asyncio.to_thread(_scan_files, path, ignore_dirs, SUPPORTED_SUFFIXES)
+
         ingested_paths: set[str] = set()
         ingested_count = 0
 
-        import os
-        ignore_dirs = {".git", ".svn", ".hg", "node_modules", "venv", ".venv", "__pycache__", ".minder_cache", ".gemini"}
-        
-        for dirpath, dirnames, filenames in os.walk(path):
-            # Prune ignored directories
-            dirnames[:] = [d for d in dirnames if d not in ignore_dirs and not d.startswith(".")]
-            
-            for filename in filenames:
-                if filename.startswith("."):
-                    continue
-                file_path = Path(dirpath) / filename
-                if file_path.suffix not in SUPPORTED_SUFFIXES:
-                    continue
-                
-                await self.minder_ingest_file(str(file_path), project=target_project)
-                ingested_paths.add(str(file_path))
-                ingested_count += 1
+        for file_path_str in file_paths:
+            await self.minder_ingest_file(file_path_str, project=target_project)
+            ingested_paths.add(file_path_str)
+            ingested_count += 1
 
         # We first need to get the list of documents that WILL be deleted
         docs_to_delete = []
@@ -199,7 +228,8 @@ class IngestTools:
 
         doc_ids: list[str] = []
         for i, chunk in enumerate(chunks):
-            embedding = self._embedding_provider.embed(chunk.content)
+            # embed() is CPU-bound (llama.cpp) — run in thread to keep the event loop free.
+            embedding = await asyncio.to_thread(self._embedding_provider.embed, chunk.content)
             title = f"{parsed.path.rstrip('/').rsplit('/', 1)[-1] or parsed.netloc}_chunk{i}"
             document = await self._document_store.upsert_document(
                 title=title,

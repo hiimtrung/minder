@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from minder.continuity import build_instruction_envelope
+from minder.application.continuity import build_instruction_envelope
 from minder.observability.metrics import (
     record_continuity_gate,
     record_continuity_packet,

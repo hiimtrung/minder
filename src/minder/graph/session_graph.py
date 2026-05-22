@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from langgraph.graph import END, StateGraph
 
-from minder.continuity import (
+from minder.application.continuity import (
     _extract_json_object,
     build_continuity_brief,
     build_instruction_envelope,

@@ -24,6 +24,7 @@ from sqlalchemy import cast, delete, or_, select, String, text, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from minder.models import Base, GraphEdge, GraphNode
+from minder.domain.entities import GraphNodeSchema, GraphEdgeSchema
 
 logger = logging.getLogger(__name__)
 
@@ -248,7 +249,7 @@ class KnowledgeGraphStore:
         *,
         repo_id: str = "",
         branch: str = "",
-    ) -> GraphNode:
+    ) -> GraphNodeSchema:
         """Insert a node. Raises on duplicate (repo_id, branch, type, name)."""
         async with self._session() as sess:
             node = GraphNode(
@@ -262,7 +263,7 @@ class KnowledgeGraphStore:
             sess.add(node)
             await sess.flush()
             await sess.refresh(node)
-            return node
+            return GraphNodeSchema.model_validate(node)
 
     async def upsert_node(
         self,
@@ -272,7 +273,7 @@ class KnowledgeGraphStore:
         *,
         repo_id: str = "",
         branch: str = "",
-    ) -> GraphNode:
+    ) -> GraphNodeSchema:
         """Insert or update a node by (repo_id, branch, type, name)."""
         async with self._session() as sess:
             # We don't use merge() directly because we want to scope by repo/branch/type/name
@@ -301,14 +302,15 @@ class KnowledgeGraphStore:
             sess.add(node)
             await sess.flush()
             await sess.commit()
-            return node
+            return GraphNodeSchema.model_validate(node)
 
-    async def get_node(self, node_id: uuid.UUID) -> GraphNode | None:
+    async def get_node(self, node_id: uuid.UUID) -> GraphNodeSchema | None:
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphNode).where(GraphNode.id == node_id)
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return GraphNodeSchema.model_validate(item) if item else None
 
     async def get_node_by_name(
         self,
@@ -317,7 +319,7 @@ class KnowledgeGraphStore:
         *,
         repo_id: str = "",
         branch: str = "",
-    ) -> GraphNode | None:
+    ) -> GraphNodeSchema | None:
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphNode).where(
@@ -327,13 +329,15 @@ class KnowledgeGraphStore:
                     GraphNode.name == name,
                 )
             )
-            return result.scalar_one_or_none()
+            item = result.scalar_one_or_none()
+            return GraphNodeSchema.model_validate(item) if item else None
 
-    async def list_nodes(self) -> list[GraphNode]:
+    async def list_nodes(self) -> list[GraphNodeSchema]:
         """Return ALL nodes across all repos/branches (use sparingly)."""
         async with self._session() as sess:
             result = await sess.execute(select(GraphNode))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphNodeSchema.model_validate(item) for item in items]
 
     async def list_nodes_by_scope(
         self,
@@ -341,7 +345,7 @@ class KnowledgeGraphStore:
         repo_id: str,
         branch: str | None = None,
         node_types: set[str] | None = None,
-    ) -> list[GraphNode]:
+    ) -> list[GraphNodeSchema]:
         """Fetch nodes scoped to a repository and optionally a branch."""
         async with self._session() as sess:
             stmt = select(GraphNode).where(GraphNode.repo_id == repo_id)
@@ -351,29 +355,33 @@ class KnowledgeGraphStore:
                 stmt = stmt.where(GraphNode.node_type.in_(list(node_types)))
             
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphNodeSchema.model_validate(item) for item in items]
 
-    async def list_edges(self) -> list[GraphEdge]:
+    async def list_edges(self) -> list[GraphEdgeSchema]:
         """Return ALL edges across all repos (use sparingly)."""
         async with self._session() as sess:
             result = await sess.execute(select(GraphEdge))
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphEdgeSchema.model_validate(item) for item in items]
 
-    async def list_edges_by_scope(self, *, repo_id: str) -> list[GraphEdge]:
+    async def list_edges_by_scope(self, *, repo_id: str) -> list[GraphEdgeSchema]:
         """Return edges scoped to a specific repo_id."""
         async with self._session() as sess:
             result = await sess.execute(
                 select(GraphEdge).where(GraphEdge.repo_id == repo_id)
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphEdgeSchema.model_validate(item) for item in items]
 
-    async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[GraphNode]:
+    async def query_by_type(self, node_type: str, *, repo_id: str = "") -> list[GraphNodeSchema]:
         async with self._session() as sess:
             stmt = select(GraphNode).where(GraphNode.node_type == node_type)
             if repo_id:
                 stmt = stmt.where(GraphNode.repo_id == repo_id)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphNodeSchema.model_validate(item) for item in items]
 
     async def delete_node(self, node_id: uuid.UUID) -> None:
         async with self._session() as sess:
@@ -462,7 +470,7 @@ class KnowledgeGraphStore:
         edge_id: uuid.UUID | None = None,
         *,
         repo_id: str = "",
-    ) -> GraphEdge:
+    ) -> GraphEdgeSchema:
         """Insert a directed edge. Raises on duplicate (repo_id, source, target, relation)."""
         async with self._session() as sess:
             edge = GraphEdge(
@@ -476,7 +484,7 @@ class KnowledgeGraphStore:
             sess.add(edge)
             await sess.flush()
             await sess.refresh(edge)
-            return edge
+            return GraphEdgeSchema.model_validate(edge)
 
     async def upsert_edge(
         self,
@@ -486,7 +494,7 @@ class KnowledgeGraphStore:
         weight: float = 1.0,
         *,
         repo_id: str = "",
-    ) -> GraphEdge:
+    ) -> GraphEdgeSchema:
         """Insert or update edge by (repo_id, source, target, relation)."""
         async with self._session() as sess:
             result = await sess.execute(
@@ -505,7 +513,7 @@ class KnowledgeGraphStore:
                     .values(weight=weight)
                 )
                 await sess.refresh(existing)
-                return existing
+                return GraphEdgeSchema.model_validate(existing)
             edge = GraphEdge(
                 id=uuid.uuid4(),
                 repo_id=repo_id,
@@ -517,7 +525,7 @@ class KnowledgeGraphStore:
             sess.add(edge)
             await sess.flush()
             await sess.refresh(edge)
-            return edge
+            return GraphEdgeSchema.model_validate(edge)
 
     async def bulk_upsert_nodes(
         self,
@@ -622,7 +630,7 @@ class KnowledgeGraphStore:
         branch: str | None = None,
         node_types: list[str] | None = None,
         limit: int = 50,
-    ) -> list[GraphNode]:
+    ) -> list[GraphNodeSchema]:
         """Search nodes by name or metadata using database-level filtering."""
         async with self._session() as sess:
             stmt = select(GraphNode).where(
@@ -641,7 +649,8 @@ class KnowledgeGraphStore:
                 
             stmt = stmt.limit(limit)
             result = await sess.execute(stmt)
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphNodeSchema.model_validate(item) for item in items]
 
     async def list_repositories(self) -> list[Any]:
         # This is just a placeholder if needed, usually handled by IRepositoryRepo
@@ -661,7 +670,7 @@ class KnowledgeGraphStore:
         *,
         direction: str = "out",
         relation: str | None = None,
-    ) -> list[GraphNode]:
+    ) -> list[GraphNodeSchema]:
         """
         Return neighbor nodes.
 
@@ -705,7 +714,8 @@ class KnowledgeGraphStore:
             result = await sess.execute(
                 select(GraphNode).where(GraphNode.id.in_(unique_ids))
             )
-            return list(result.scalars().all())
+            items = list(result.scalars().all())
+            return [GraphNodeSchema.model_validate(item) for item in items]
 
     async def get_path(
         self,
@@ -713,7 +723,7 @@ class KnowledgeGraphStore:
         target_id: uuid.UUID,
         *,
         max_depth: int = 6,
-    ) -> list[GraphNode]:
+    ) -> list[GraphNodeSchema]:
         """
         BFS shortest path from source to target following outgoing edges.
         Returns ordered list of nodes including source and target, or empty
@@ -741,7 +751,7 @@ class KnowledgeGraphStore:
             for nid in neighbors:
                 if nid == target_id:
                     full_path = path + [target_id]
-                    nodes: list[GraphNode] = []
+                    nodes: list[GraphNodeSchema] = []
                     async with self._session() as sess:
                         for pid in full_path:
                             r = await sess.execute(
@@ -749,7 +759,7 @@ class KnowledgeGraphStore:
                             )
                             n = r.scalar_one_or_none()
                             if n:
-                                nodes.append(n)
+                                nodes.append(GraphNodeSchema.model_validate(n))
                     return nodes
                 if nid not in visited:
                     visited.add(nid)
@@ -763,7 +773,7 @@ class KnowledgeGraphStore:
         *,
         max_depth: int = 4,
         max_nodes: int = 100,
-    ) -> tuple[list[GraphNode], list[GraphEdge]]:
+    ) -> tuple[list[GraphNodeSchema], list[GraphEdgeSchema]]:
         """
         Return nodes and edges in the neighborhood of a seed node using BFS.
         """
@@ -812,4 +822,7 @@ class KnowledgeGraphStore:
                 if e.source_id in final_node_ids and e.target_id in final_node_ids
             ]
             
-            return list(nodes_map.values()), final_edges
+            return (
+                [GraphNodeSchema.model_validate(n) for n in nodes_map.values()],
+                [GraphEdgeSchema.model_validate(e) for e in final_edges]
+            )

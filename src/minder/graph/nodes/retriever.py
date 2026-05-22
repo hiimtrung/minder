@@ -51,8 +51,14 @@ class RetrieverNode:
 
         repo_path = Path(state.repo_path or ".")
         query_terms = {term for term in state.query.lower().split() if len(term) > 2}
-        candidates: list[dict[str, Any]] = []
-        if repo_path.exists():
+        top_k = self._top_k
+
+        # rglob + read_text are synchronous blocking I/O — run in a thread so
+        # the event loop stays free to serve other requests while we scan.
+        def _lexical_scan() -> list[dict[str, Any]]:
+            candidates: list[dict[str, Any]] = []
+            if not repo_path.exists():
+                return candidates
             for path in repo_path.rglob("*"):
                 if not path.is_file():
                     continue
@@ -79,12 +85,10 @@ class RetrieverNode:
                         "doc_type": "code" if path.suffix == ".py" else "markdown",
                     }
                 )
-        ranked = sorted(
-            candidates,
-            key=lambda item: cast(float, item["score"]),
-            reverse=True,
-        )
-        state.retrieved_docs = ranked[: self._top_k]
+            return sorted(candidates, key=lambda item: cast(float, item["score"]), reverse=True)
+
+        ranked = await asyncio.to_thread(_lexical_scan)
+        state.retrieved_docs = ranked[:top_k]
         state.reranked_docs = list(state.retrieved_docs)
         state.metadata["retrieval_mode"] = "lexical"
         return state

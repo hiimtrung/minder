@@ -49,7 +49,7 @@ class GuardNode:
                 passed = False
                 reasons.append(f"python syntax error: {exc.msg}")
 
-        source_paths = [doc["path"] for doc in state.reranked_docs]
+        source_paths = [doc["path"] for doc in (state.reranked_docs or state.retrieved_docs)]
         claimed_sources = state.llm_output.get("sources", [])
         for source in claimed_sources:
             if source not in source_paths:

@@ -215,7 +215,7 @@ def test_model_bootstrap_replaces_download_script() -> None:
         "download_models.sh must be deleted: model bootstrap is now handled "
         "by minder.model_bootstrap.ensure_models_available() at server startup."
     )
-    bootstrap = Path("src/minder/model_bootstrap.py")
+    bootstrap = Path("src/minder/infrastructure/model_bootstrap.py")
     assert bootstrap.exists()
     text = bootstrap.read_text(encoding="utf-8")
     assert "ensure_models_available" in text

@@ -12,7 +12,7 @@ from starlette.routing import BaseRoute, Route
 from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.tools.skills import SkillTools
-from minder.utils import _iso
+from minder.domain.utils import _iso
 
 from .context import AdminRouteContext
 

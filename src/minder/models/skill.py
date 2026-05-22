@@ -1,30 +1,13 @@
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, List, Optional
+from datetime import datetime
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import Boolean, String, Integer, Float, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
 
-# Pydantic Schema
-class SkillSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    title: str
-    content: str
-    language: str
-    tags: List[str] = Field(default_factory=list)
-    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
-    usage_count: int = 0
-    quality_score: float = 0.0
-    deprecated: bool = False
-    source_metadata: Optional[Dict[str, Any]] = None
-    excerpt_kind: str = "none"
-    owner_id: Optional[uuid.UUID] = None  # principal who created this entry (None = team/legacy)
-    scope: str = "private"  # 'private' = owner-only, 'team' = visible to all principals
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 
 # SQLAlchemy Model

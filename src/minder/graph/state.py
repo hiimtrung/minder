@@ -12,6 +12,25 @@ def merge_dicts(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     return res
 
 
+def replace_list(a: list | None, b: list | None) -> list:
+    """Merges lists of dicts by deduplicating on 'path' or 'title' to support parallel retrieval."""
+    if not b:
+        return list(a or [])
+    if not a:
+        return list(b)
+    seen = set()
+    merged = []
+    for doc in list(a) + list(b):
+        if isinstance(doc, dict):
+            key = doc.get("path") or doc.get("title") or doc.get("name") or id(doc)
+            if key not in seen:
+                seen.add(key)
+                merged.append(doc)
+        else:
+            merged.append(doc)
+    return merged
+
+
 class GraphStateSchema(TypedDict, total=False):
     query: str
     session_id: uuid.UUID | None
@@ -19,8 +38,8 @@ class GraphStateSchema(TypedDict, total=False):
     repo_id: uuid.UUID | None
     repo_path: str | None
     plan: dict[str, Any]
-    retrieved_docs: Annotated[list[dict[str, Any]], operator.add]
-    reranked_docs: Annotated[list[dict[str, Any]], operator.add]
+    retrieved_docs: Annotated[list[dict[str, Any]], replace_list]
+    reranked_docs: Annotated[list[dict[str, Any]], replace_list]
     workflow_context: dict[str, Any]
     reasoning_output: dict[str, Any]
     llm_output: dict[str, Any]

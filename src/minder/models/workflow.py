@@ -1,23 +1,12 @@
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, List
+from datetime import datetime
+from typing import Dict, Any
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Boolean, Integer, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
-class WorkflowSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    name: str
-    description: str = ""
-    enforcement: str = "strict"
-    version: int = 1
-    steps: List[Dict[str, Any]] = Field(default_factory=list)
-    policies: Dict[str, Any] = Field(default_factory=dict)
-    default_for_repo: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 class Workflow(Base):
     __tablename__ = "workflows"

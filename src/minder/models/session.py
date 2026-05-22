@@ -1,28 +1,12 @@
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Integer, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
-class SessionSchema(BaseModelMeta):
-    """Pydantic schema for session serialisation / validation."""
 
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    # Owner — exactly one of user_id or client_id is set.
-    user_id: Optional[uuid.UUID] = None
-    client_id: Optional[uuid.UUID] = None
-    # Human-readable project label for cross-environment lookup.
-    name: Optional[str] = None
-    repo_id: Optional[uuid.UUID] = None
-    project_context: Dict[str, Any] = Field(default_factory=dict)
-    active_skills: Dict[str, Any] = Field(default_factory=dict)
-    state: Dict[str, Any] = Field(default_factory=dict)
-    ttl: int = 86400  # 24 h default — long enough for multi-day work continuity
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_active: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 class Session(Base):

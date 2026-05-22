@@ -13,7 +13,7 @@ from minder.config import MinderConfig
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.observability.metrics import record_admin_operation
 from minder.tools.memory import MemoryTools
-from minder.utils import _iso
+from minder.domain.utils import _iso
 
 from .context import AdminRouteContext
 

@@ -16,7 +16,7 @@ from minder.tools.query import QueryTools
 from minder.tools.session import SessionTools
 from minder.tools.skills import SkillTools
 
-from minder.utils import _iso
+from minder.domain.utils import _iso
 
 from .context import AdminRouteContext
 

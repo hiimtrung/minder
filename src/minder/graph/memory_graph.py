@@ -7,10 +7,11 @@ from typing import TYPE_CHECKING, Annotated, Any, TypedDict, cast
 
 from langgraph.graph import END, StateGraph
 
-from minder.continuity import _extract_json_object
+from minder.application.continuity import _extract_json_object
 from minder.observability.metrics import record_continuity_recall
 
 if TYPE_CHECKING:
+    from minder.application.memory.service import MemoryService
     from minder.config import MinderConfig
     from minder.tools.memory import MemoryTools
 
@@ -33,7 +34,7 @@ class MemoryRecallState(TypedDict):
 
 
 class AgenticMemoryGraph:
-    def __init__(self, memory_tools: MemoryTools, config: MinderConfig) -> None:
+    def __init__(self, memory_tools: MemoryTools | MemoryService, config: MinderConfig) -> None:
         self._memory_tools = memory_tools
         self._config = config
         self._compiled = self._build().compile()

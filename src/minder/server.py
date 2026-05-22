@@ -5,7 +5,7 @@ import sys
 
 from minder.bootstrap.agent_seeder import seed_default_agents
 from minder.bootstrap.workflow_seeder import seed_default_workflows
-from minder.model_bootstrap import ensure_models_available
+from minder.infrastructure.model_bootstrap import ensure_models_available
 from minder.bootstrap.providers import (
     build_cache,
     build_graph_store,

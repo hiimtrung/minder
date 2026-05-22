@@ -61,9 +61,9 @@ from minder.auth.service import AuthService
 from minder.config import MinderConfig
 from minder.observability.audit import AuditEmitter
 from minder.store.interfaces import IGraphRepository, IOperationalStore
-from minder.tools.graph import GraphTools
-from minder.tools.registry import SCOPEABLE_TOOLS
-from minder.utils import _iso
+from minder.application.graph import GraphService
+from minder.domain.value_objects import SCOPEABLE_TOOLS
+from minder.domain.utils import _iso
 
 _UNSET: Any = object()  # sentinel for optional update fields
 
@@ -108,7 +108,7 @@ class AdminConsoleUseCases:
         self._auth_service = auth_service
         self._config = config
         self._graph_store = graph_store
-        self._graph_tools = GraphTools(graph_store, store)
+        self._graph_service = GraphService(graph_store, store)
         self._audit = AuditEmitter(store)
 
     async def has_admin_users(self) -> bool:
@@ -1459,7 +1459,7 @@ class AdminConsoleUseCases:
                 },
             }
 
-        _, repo_nodes, repo_edges = await self._graph_tools.list_repo_graph(
+        _, repo_nodes, repo_edges = await self._graph_service.list_repo_graph(
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
             repo_path=self._repository_root_path(repository),
@@ -1622,7 +1622,7 @@ class AdminConsoleUseCases:
         if self._graph_store is None:
             raise RuntimeError("Graph sync store is not configured")
 
-        result = await self._graph_tools.minder_search_graph(
+        result = await self._graph_service.minder_search_graph(
             query,
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
@@ -1664,7 +1664,7 @@ class AdminConsoleUseCases:
         if self._graph_store is None:
             raise RuntimeError("Graph sync store is not configured")
 
-        result = await self._graph_tools.minder_find_impact(
+        result = await self._graph_service.minder_find_impact(
             target,
             repo_id=str(repo_id),
             repo_name=getattr(repository, "repo_name", None),
@@ -2047,7 +2047,7 @@ class AdminConsoleUseCases:
     async def _repository_graph_nodes(
         self, repository: Any, *, branch: str | None = None
     ) -> list[Any]:
-        _, repo_nodes = await self._graph_tools.list_repo_nodes(
+        _, repo_nodes = await self._graph_service.list_repo_nodes(
             repo_id=str(getattr(repository, "id")),
             repo_name=str(getattr(repository, "repo_name", "") or ""),
             repo_path=self._repository_root_path(repository),

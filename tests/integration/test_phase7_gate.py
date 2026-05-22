@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from minder.context_compactor import SummarizingCompactor
+from minder.application.context_compactor import SummarizingCompactor
 from minder.graph.nodes import ReflectionNode
 from minder.graph.state import GraphState
 from minder.learning import (
@@ -377,7 +377,7 @@ class TestSkillUsageIncrement:
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
 
-        with patch("minder.tools.skills.LocalEmbeddingProvider") as mock_provider_cls:
+        with patch("minder.embedding.local.LocalEmbeddingProvider") as mock_provider_cls:
             mock_instance = MagicMock()
             mock_instance.embed = MagicMock(return_value=emb)
             mock_provider_cls.return_value = mock_instance

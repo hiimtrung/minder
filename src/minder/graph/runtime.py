@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from minder.runtime import load_attr, module_available
+from minder.infrastructure.runtime import load_attr, module_available
 
 
 def graph_runtime_name(preferred: str = "langgraph") -> str:

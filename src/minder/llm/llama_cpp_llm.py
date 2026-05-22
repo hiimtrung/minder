@@ -37,7 +37,8 @@ class LlamaCppLLM:
         self._model_file = model_file
         self._context_length = max(512, context_length)
         self._temperature = temperature
-        self._runtime_override = runtime
+        import os
+        self._runtime_override = os.environ.get("MINDER_LLM__RUNTIME") or runtime
         self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
         self._initialized = False
@@ -56,7 +57,7 @@ class LlamaCppLLM:
             logger.warning("llama.cpp not usable on this host; LLM running in mock mode.")
             return
 
-        cache_key = f"{self._model_repo}:{self._model_file}"
+        cache_key = f"{self._model_repo}:{self._model_file}:{self._context_length}"
         if cache_key in _ENGINE_CACHE:
             self._engine = _ENGINE_CACHE[cache_key]
             return

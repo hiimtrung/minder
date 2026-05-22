@@ -32,17 +32,16 @@ class AuthConfig(BaseModel):
 
 
 class EmbeddingConfig(BaseModel):
-    provider: str = "llama_cpp"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
     llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF"
     llama_cpp_model_file: str = "embeddinggemma-300M-Q8_0.gguf"
     dimensions: int = 768
-    openai_api_key: Optional[str] = None
-    openai_model: str = "text-embedding-3-small"
+
 
 
 class LLMConfig(BaseModel):
     provider: str = "llama_cpp"  # "llama_cpp" | "openai"
+    runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
     llama_cpp_model_repo: str = "ggml-org/gemma-4-E2B-it-GGUF"
     llama_cpp_model_file: str = "gemma-4-E2B-it-Q8_0.gguf"
     context_length: int = 16384

@@ -8,6 +8,12 @@ from minder.graph.state import GraphState
 from minder.prompts import PromptRegistry
 from minder.tools.registry import tool_capability_manifest, tool_data_access_policy
 
+# Hard cap on total chars consumed by enriched context (memories + skills + errors)
+# before passing to the LLM.  At ~3 chars/token this is ~4 000 tokens — enough for
+# ~10-20 items at full detail.  Prevents OOM when context_length is tight and the
+# user queries a large memory/skill set.
+_ENRICHED_CONTEXT_BUDGET_CHARS = 12_000
+
 
 def _build_chat_messages(
     *,
@@ -151,6 +157,16 @@ class ReasoningNode:
             for doc in docs
         ]
         enriched_items = list(state.metadata.get("enriched_context") or [])
+        if enriched_items:
+            total_chars = 0
+            budget_items = []
+            for item in enriched_items:
+                item_chars = len(str(item.get("content", ""))) + len(str(item.get("title", "")))
+                if total_chars + item_chars > _ENRICHED_CONTEXT_BUDGET_CHARS:
+                    break
+                budget_items.append(item)
+                total_chars += item_chars
+            enriched_items = budget_items
         snippets = []
         # Increase snippet count when enriched context supplements code docs
         snippet_limit = 3 if enriched_items else 6

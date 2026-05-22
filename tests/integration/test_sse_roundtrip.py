@@ -55,10 +55,10 @@ async def test_sse_roundtrip(tmp_path, uv_path):
     env["MINDER_RELATIONAL_STORE__DB_PATH"] = str(db_file)
     env["MINDER_RELATIONAL_STORE__PROVIDER"] = "sqlite"
     env["MINDER_VECTOR_STORE__PROVIDER"] = "memory"
-    env["MINDER_EMBEDDING__PROVIDER"] = "openai"
-    env["MINDER_EMBEDDING__OPENAI_API_KEY"] = "sk-fake"
     env["MINDER_LLM__PROVIDER"] = "openai"
+
     env["MINDER_LLM__OPENAI_API_KEY"] = "sk-fake"
+
 
     # Seed the admin user
     seed_env = env.copy()

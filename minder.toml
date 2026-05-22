@@ -1,59 +1,40 @@
 [server]
-name = "minder"
-version = "0.1.0"
-transport = "sse"
-host = "0.0.0.0"
 port = 8800
 log_level = "info"
 
 [dashboard]
-base_path = "/dashboard"
 static_dir = "src/dashboard/dist"
-dev_server_url = ""
-api_url = ""
 
 [auth]
-enabled = true
 jwt_secret = "dev-secret-key-change-me-in-prod"
-jwt_expiry_hours = 24
-api_key_prefix = "mk_"
-default_admin_email = "admin@example.com"
 
 [embedding]
-provider = "llama_cpp"
 llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-llama_cpp_model_file = "*.gguf"
+llama_cpp_model_file = "embeddinggemma-300M-Q8_0.gguf"
 dimensions = 768
-openai_api_key = ""
-openai_model = "text-embedding-3-small"
+
 
 [llm]
 provider = "llama_cpp"
 llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
-llama_cpp_model_file = "*.gguf"
-context_length = 32768
+llama_cpp_model_file = "gemma-4-E2B-it-Q8_0.gguf"
+context_length = 16384
 temperature = 0.1
-openai_api_key = ""
-openai_model = "gpt-4o-mini"
 
 [qdrant]
 url = "http://localhost:6333"
-api_key = ""
-prefer_grpc = false
-collection_prefix = "minder_"
-
-[vector_store]
-provider = "qdrant"
 collection_prefix = "minder_"
 
 [relational_store]
+provider = "qdrant"
+
+[vector_store]
 provider = "qdrant"
 
 [retrieval]
 top_k = 10
 rerank_top_n = 5
 similarity_threshold = 0.7
-hybrid_alpha = 0.7
 
 [memory]
 agentic_recall = true
@@ -65,10 +46,8 @@ agentic_restore = true
 restore_recall_count = 8
 
 [graph]
-runtime = "langgraph"
 enable_parallel_retrieval = true
 enable_checkpointing = true
-checkpoint_ttl_days = 7
 
 [cache]
 enabled = true
@@ -79,15 +58,10 @@ ttl_seconds = 3600
 enabled = true
 sandbox = "docker"
 timeout_seconds = 30
-docker_image = "minder-sandbox:latest"
 
 [workflow]
+orchestration_runtime = "langgraph"
 enforcement = "strict"
 default_workflow = "tdd"
 repo_state_dir = ".minder"
 block_step_skips = true
-
-[seeding]
-skills_repo = ""
-skills_branch = "main"
-skills_path = "skills/"

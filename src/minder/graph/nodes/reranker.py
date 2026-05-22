@@ -18,7 +18,7 @@ from typing import Any
 from minder.embedding.base import EmbeddingProvider
 from minder.graph.state import GraphState
 from minder.retrieval.mmr import mmr_rerank
-from minder.runtime import load_attr, module_available
+from minder.infrastructure.runtime import load_attr, module_available
 
 
 class RerankerNode:

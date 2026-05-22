@@ -9,8 +9,8 @@ from typing import Any
 
 from minder.config import MinderConfig
 from minder.store.interfaces import IOperationalStore
-from minder.tools.skills import SkillTools
-from minder.utils import _iso
+from minder.application.skills.service import SkillService
+from minder.domain.utils import _iso
 
 
 def _utcnow() -> datetime:
@@ -137,7 +137,7 @@ class AdminJobService:
         if job is None:
             return
         payload = dict(getattr(job, "payload", {}) or {})
-        tools = SkillTools(self._store, self._config)
+        service = SkillService(self._store, self._config)
 
         async def emit_progress(update: dict[str, Any]) -> None:
             current_job = await self._store.get_admin_job_by_id(uuid.UUID(job_id))
@@ -181,7 +181,7 @@ class AdminJobService:
                 events=next_events,
             )
 
-        result = await tools.minder_skill_import_git(
+        result = await service.minder_skill_import_git(
             repo_url=str(payload.get("repo_url") or ""),
             source_path=str(payload.get("path") or "skills"),
             ref=str(payload.get("ref")) if payload.get("ref") else None,

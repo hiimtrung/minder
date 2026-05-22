@@ -10,7 +10,7 @@ from typing import Any
 from mcp.server.fastmcp import FastMCP
 
 from minder.store.interfaces import IGraphRepository, IOperationalStore
-from minder.utils import _iso
+from minder.domain.utils import _iso
 
 _MINDER_INSTRUCTIONS = """\
 # Minder MCP — Tool Usage Guide

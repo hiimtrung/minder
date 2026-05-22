@@ -182,7 +182,7 @@ def _slice_items(
 
 
 async def _prompt_items(context: AdminRouteContext) -> list[dict[str, Any]]:
-    prompt_index = {
+    prompt_index: dict[str, Any] = {
         prompt.name: prompt for prompt in PromptRegistry.builtin_prompt_models()
     }
     for prompt in await context.store.list_prompts():

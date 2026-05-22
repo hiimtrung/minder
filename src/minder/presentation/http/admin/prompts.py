@@ -11,7 +11,7 @@ from minder.config import MinderConfig
 from minder.observability.metrics import record_admin_operation
 from minder.prompts.formatter import PromptDraft, polish_prompt_draft
 from minder.prompts import PromptRegistry
-from minder.utils import _iso
+from minder.domain.utils import _iso
 from .context import AdminRouteContext
 
 logger = logging.getLogger(__name__)
@@ -78,7 +78,7 @@ def build_prompts_routes(context: AdminRouteContext) -> list[BaseRoute]:
             store=context.store,
         )
         try:
-            prompt_index = {
+            prompt_index: dict[str, Any] = {
                 prompt.name: prompt for prompt in PromptRegistry.builtin_prompt_models()
             }
             for prompt in await context.store.list_prompts():

@@ -1,23 +1,12 @@
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, List, Optional
+from datetime import datetime
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
-class DocumentSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    title: str
-    content: str
-    doc_type: str  # enum: markdown, code, api_spec, config
-    source_path: str
-    chunks: Dict[str, Any] = Field(default_factory=dict)  # JSON list of chunks
-    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
-    project: str
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 class Document(Base):
     __tablename__ = "documents"

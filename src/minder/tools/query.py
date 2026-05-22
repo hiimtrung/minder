@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from minder.config import MinderConfig
-from minder.context_compactor import HistoryCompactor
+from minder.application.context_compactor import HistoryCompactor
 from minder.embedding.local import LocalEmbeddingProvider
 from minder.graph import GraphState, MinderGraph
 from minder.graph.nodes.retriever import RetrieverNode

@@ -1,22 +1,12 @@
 import uuid
-from datetime import datetime, UTC
-from typing import Dict, Any, List, Optional
+from datetime import datetime
+from typing import Dict, Any, Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Boolean, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
-class ErrorSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    error_code: str
-    error_message: str
-    stack_trace: Optional[str] = None
-    context: Dict[str, Any] = Field(default_factory=dict)
-    resolution: Optional[str] = None
-    embedding: Optional[List[float]] = None  # vector(default 768) stored as JSON list
-    resolved: bool = False
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 class Error(Base):
     __tablename__ = "errors"

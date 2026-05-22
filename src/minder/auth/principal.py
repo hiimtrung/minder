@@ -4,6 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from minder.domain.entities.user import UserSchema
 from minder.models.user import User
 
 
@@ -19,9 +20,9 @@ class Principal:
 
 @dataclass(slots=True)
 class AdminUserPrincipal(Principal):
-    user: User | None = None
+    user: User | UserSchema | None = None
 
-    def __init__(self, user: User) -> None:
+    def __init__(self, user: User | UserSchema) -> None:
         super().__init__(
             principal_type="user",
             principal_id=user.id,

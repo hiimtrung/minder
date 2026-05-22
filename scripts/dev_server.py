@@ -16,5 +16,5 @@ _bootstrap_src_path()
 
 
 if __name__ == "__main__":
-    main = import_module("minder.dev").main
+    main = import_module("minder.infrastructure.dev").main
     raise SystemExit(main())

@@ -10,7 +10,7 @@ from typing import Optional
 
 from minder.auth.principal import Principal
 from minder.auth.service import AuthError, AuthService
-from minder.models.user import User
+from minder.domain.entities.user import UserSchema
 
 
 class AuthMiddleware:
@@ -49,7 +49,7 @@ class AuthMiddleware:
             raise AuthError("AUTH_MISSING_TOKEN", "Bearer token value is empty")
         return token
 
-    async def authenticate(self, authorization: Optional[str]) -> User:
+    async def authenticate(self, authorization: Optional[str]) -> UserSchema:
         """
         Full authentication flow: extract token → validate JWT → return user.
 

@@ -15,15 +15,13 @@ _migrate_graph_v2() on first boot when the columns are absent.
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, UTC
-from typing import Any
+from datetime import datetime
 
-from pydantic import Field
 from sqlalchemy import DateTime, Float, JSON, String, UUID, UniqueConstraint, func
 from sqlalchemy.ext.mutable import MutableDict
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
 
 # ---------------------------------------------------------------------------
@@ -31,24 +29,7 @@ from .base import Base, BaseModelMeta
 # ---------------------------------------------------------------------------
 
 
-class GraphNodeSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    repo_id: str = ""
-    branch: str = ""
-    node_type: str  # module | file | service | owner | route | api_endpoint | websocket_endpoint | mq_topic | …
-    name: str
-    extra_metadata: dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
-
-class GraphEdgeSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    repo_id: str = ""
-    source_id: uuid.UUID
-    target_id: uuid.UUID
-    relation: str  # depends_on | owns | imports | calls | exposes_route | publishes | consumes | cross_repo_calls
-    weight: float = 1.0
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
 
 
 # ---------------------------------------------------------------------------

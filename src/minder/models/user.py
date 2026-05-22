@@ -1,26 +1,12 @@
 import uuid
-from datetime import datetime, UTC
+from datetime import datetime
 from typing import Dict, Any, Optional
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Boolean, DateTime, UUID, JSON, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
-# Pydantic Schema
-class UserSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    email: str
-    username: str
-    display_name: str
-    api_key_hash: str
-    # bcrypt/pbkdf2 hash of the login password; None means password login disabled
-    password_hash: Optional[str] = None
-    role: str
-    settings: Dict[str, Any] = Field(default_factory=dict)
-    is_active: bool = True
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    last_login: Optional[datetime] = None
+
 
 # SQLAlchemy Model
 class User(Base):

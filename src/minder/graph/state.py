@@ -13,13 +13,22 @@ def merge_dicts(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
 
 
 def replace_list(a: list | None, b: list | None) -> list:
-    """Last-write-wins reducer for list fields that must not accumulate.
-
-    LangGraph calls the reducer with (old_value, node_update) for every state
-    key a node touches.  For retrieved_docs / reranked_docs we always want the
-    latest value, not a concatenation of old + new across retry iterations.
-    """
-    return list(b) if b is not None else list(a or [])
+    """Merges lists of dicts by deduplicating on 'path' or 'title' to support parallel retrieval."""
+    if not b:
+        return list(a or [])
+    if not a:
+        return list(b)
+    seen = set()
+    merged = []
+    for doc in list(a) + list(b):
+        if isinstance(doc, dict):
+            key = doc.get("path") or doc.get("title") or doc.get("name") or id(doc)
+            if key not in seen:
+                seen.add(key)
+                merged.append(doc)
+        else:
+            merged.append(doc)
+    return merged
 
 
 class GraphStateSchema(TypedDict, total=False):

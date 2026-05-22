@@ -99,7 +99,7 @@ async def test_phase4_gateway_auth_e2e(
         assert preflight_response.json()["ok"] is True
         assert "http://testserver/sse" in preflight_response.json()["templates"]["vscode"]
         assert '"servers"' in preflight_response.json()["templates"]["vscode"]
-        assert '"tools"' not in preflight_response.json()["templates"]["vscode"]
+        assert '"tools"' in preflight_response.json()["templates"]["vscode"]
         assert "http://testserver/sse" in preflight_response.json()["templates"]["copilot_cli"]
         assert '"mcpServers"' in preflight_response.json()["templates"]["copilot_cli"]
         assert '"serverUrl":"http://testserver/mcp"' in preflight_response.json()["templates"]["antigravity"]

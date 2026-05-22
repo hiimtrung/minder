@@ -46,11 +46,6 @@ ALLOWED_EXCEPTIONS: set[tuple[str, str]] = {
     ("minder/store/interfaces.py", "minder.domain.interfaces"),
     # auth/service.py re-exports AuthError from domain
     ("minder/auth/service.py", "minder.domain.exceptions"),
-    # TODO: These are pre-existing violations to be fixed when use-case
-    # services are fully extracted from tools/ into application/.
-    ("minder/application/admin/jobs.py", "minder.tools.skills"),
-    ("minder/application/admin/use_cases.py", "minder.tools.graph"),
-    ("minder/application/admin/use_cases.py", "minder.tools.registry"),
 }
 
 

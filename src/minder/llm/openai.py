@@ -4,7 +4,7 @@ from collections.abc import Generator
 from typing import Any
 
 from minder.graph.state import GraphState
-from minder.runtime import load_attr, module_available
+from minder.infrastructure.runtime import load_attr, module_available
 
 
 class OpenAIFallbackLLM:

@@ -184,7 +184,7 @@ async def test_admin_job_service_runs_skill_import_and_records_completion() -> N
         }
 
     with patch(
-        "minder.application.admin.jobs.SkillTools.minder_skill_import_git",
+        "minder.application.admin.jobs.SkillService.minder_skill_import_git",
         new=AsyncMock(side_effect=_fake_import),
     ):
         await service._run_skill_import(str(job_id))

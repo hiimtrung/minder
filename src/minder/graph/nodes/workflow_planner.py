@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Awaitable
 
-from minder.continuity import build_continuity_brief, build_instruction_envelope
+from minder.application.continuity import build_continuity_brief, build_instruction_envelope
 from minder.graph.state import GraphState
 from minder.store.interfaces import IGraphRepository, IOperationalStore
 

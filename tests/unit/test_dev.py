@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from minder.dev import build_dev_command, build_dev_env, collect_watch_files, snapshot_mtimes
+from minder.infrastructure.dev import build_dev_command, build_dev_env, collect_watch_files, snapshot_mtimes
 
 
 def test_build_dev_command_targets_minder_server_module() -> None:

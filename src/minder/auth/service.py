@@ -23,6 +23,8 @@ from passlib.exc import UnknownHashError  # type: ignore[import-untyped]
 
 from minder.auth.principal import AdminUserPrincipal, ClientPrincipal, Principal
 from minder.config import MinderConfig
+from minder.domain.entities.user import UserSchema
+from minder.domain.exceptions import AuthError as AuthError  # noqa: F401
 from minder.models.user import User
 from minder.store.interfaces import ICacheProvider, IOperationalStore
 from minder.tools.registry import DEFAULT_AGENT_TOOL_SCOPES
@@ -43,13 +45,6 @@ ROLE_HIERARCHY: dict[UserRole, int] = {
     UserRole.MEMBER: 2,
     UserRole.READONLY: 1,
 }
-
-# ---------------------------------------------------------------------------
-# Domain exception — canonical definition lives in domain.exceptions
-# Re-exported here for backward compatibility.
-# ---------------------------------------------------------------------------
-
-from minder.domain.exceptions import AuthError as AuthError  # noqa: F401
 
 
 # ---------------------------------------------------------------------------
@@ -122,7 +117,7 @@ class AuthService:
         display_name: str,
         role: UserRole | str = UserRole.MEMBER,
         password: str | None = None,
-    ) -> Tuple[User, str]:
+    ) -> Tuple[UserSchema, str]:
         """
         Create a new user account.
 
@@ -168,7 +163,7 @@ class AuthService:
     # Authentication
     # ------------------------------------------------------------------
 
-    async def authenticate_api_key(self, api_key: str) -> User:
+    async def authenticate_api_key(self, api_key: str) -> UserSchema:
         users = await self._store.list_users(active_only=False)
         import logging
         logger = logging.getLogger("minder.auth")
@@ -185,7 +180,7 @@ class AuthService:
                 return user
         raise AuthError("AUTH_INVALID_KEY", "Invalid API key")
 
-    async def authenticate_username_password(self, username: str, password: str) -> User:
+    async def authenticate_username_password(self, username: str, password: str) -> UserSchema:
         """Authenticate with username + password.
 
         Raises:
@@ -429,7 +424,7 @@ class AuthService:
     # JWT
     # ------------------------------------------------------------------
 
-    def issue_jwt(self, user: User) -> str:
+    def issue_jwt(self, user: User | UserSchema) -> str:
         """Issue a signed JWT for the user."""
         now = datetime.now(UTC)
         payload = {
@@ -463,7 +458,7 @@ class AuthService:
         except jwt.InvalidTokenError as exc:
             raise AuthError("AUTH_TOKEN_INVALID", f"Invalid JWT: {exc}")
 
-    async def get_user_from_jwt(self, token: str) -> User:
+    async def get_user_from_jwt(self, token: str) -> UserSchema:
         """Validate JWT and return the corresponding active user."""
         payload = self.validate_jwt(token)
         user_id = uuid.UUID(payload["sub"])

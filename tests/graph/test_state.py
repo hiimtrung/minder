@@ -33,6 +33,8 @@ def test_graph_state_schema_reducers_merge_parallel_updates() -> None:
 
     result = compiled.invoke({"query": "test", "metadata": {}, "retrieved_docs": [], "transition_log": []})
 
-    assert {doc["path"] for doc in result["retrieved_docs"]} == {"a.py", "b.py"}
+    assert len(result["retrieved_docs"]) == 2
+    paths = {doc["path"] for doc in result["retrieved_docs"]}
+    assert paths == {"a.py", "b.py"}
     assert result["metadata"] == {"a": True, "b": True}
     assert {item["edge"] for item in result["transition_log"]} == {"a", "b"}

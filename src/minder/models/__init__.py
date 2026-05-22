@@ -1,69 +1,88 @@
 # SQLAlchemy Base
 from .base import Base as Base
 
+# Domain entity schemas
+from minder.domain.entities.user import UserSchema as UserSchema
+from minder.domain.entities.client import (
+    AuditLogSchema as AuditLogSchema,
+    ClientApiKeySchema as ClientApiKeySchema,
+    ClientSchema as ClientSchema,
+    ClientSessionSchema as ClientSessionSchema,
+)
+from minder.domain.entities.skill import SkillSchema as SkillSchema
+from minder.domain.entities.job import AdminJobSchema as AdminJobSchema
+from minder.domain.entities.session import SessionSchema as SessionSchema
+from minder.domain.entities.workflow import WorkflowSchema as WorkflowSchema
+from minder.domain.entities.repository import (
+    RepositorySchema as RepositorySchema,
+    RepositoryWorkflowStateSchema as RepositoryWorkflowStateSchema,
+)
+from minder.domain.entities.history import HistorySchema as HistorySchema
+from minder.domain.entities.error import ErrorSchema as ErrorSchema
+from minder.domain.entities.document import DocumentSchema as DocumentSchema
+from minder.domain.entities.rule import (
+    FeedbackSchema as FeedbackSchema,
+    MetadataSchema as MetadataSchema,
+    RuleSchema as RuleSchema,
+)
+from minder.domain.entities.graph import (
+    GraphEdgeSchema as GraphEdgeSchema,
+    GraphNodeSchema as GraphNodeSchema,
+)
+from minder.domain.entities.agent import SubAgentSchema as SubAgentSchema
+
 # User
-from .user import User as User, UserSchema as UserSchema
+from .user import User as User
 
 # Client/Auth Gateway
 from .client import (
     AuditLog as AuditLog,
-    AuditLogSchema as AuditLogSchema,
     Client as Client,
     ClientApiKey as ClientApiKey,
-    ClientApiKeySchema as ClientApiKeySchema,
-    ClientSchema as ClientSchema,
     ClientSession as ClientSession,
-    ClientSessionSchema as ClientSessionSchema,
 )
 
 # Skill
-from .skill import Skill as Skill, SkillSchema as SkillSchema
+from .skill import Skill as Skill
 
 # Admin Jobs
-from .job import AdminJob as AdminJob, AdminJobSchema as AdminJobSchema
+from .job import AdminJob as AdminJob
 
 # Session
-from .session import Session as Session, SessionSchema as SessionSchema
+from .session import Session as Session
 
 # Workflow
-from .workflow import Workflow as Workflow, WorkflowSchema as WorkflowSchema
+from .workflow import Workflow as Workflow
 
 # Repository
 from .repository import (
     Repository as Repository,
-    RepositorySchema as RepositorySchema,
     RepositoryWorkflowState as RepositoryWorkflowState,
-    RepositoryWorkflowStateSchema as RepositoryWorkflowStateSchema,
 )
 
 # History
-from .history import History as History, HistorySchema as HistorySchema
+from .history import History as History
 
 # Error
-from .error import Error as Error, ErrorSchema as ErrorSchema
+from .error import Error as Error
 
 # Document
-from .document import Document as Document, DocumentSchema as DocumentSchema
+from .document import Document as Document
 
 # Rules, Feedback & Misc
 from .rule import (
     Feedback as Feedback,
-    FeedbackSchema as FeedbackSchema,
-    MetadataSchema as MetadataSchema,
     Rule as Rule,
-    RuleSchema as RuleSchema,
 )
 
 # Knowledge Graph
 from .graph import (
     GraphEdge as GraphEdge,
-    GraphEdgeSchema as GraphEdgeSchema,
     GraphNode as GraphNode,
-    GraphNodeSchema as GraphNodeSchema,
 )
 
 # SubAgent
-from .agent import SubAgent as SubAgent, SubAgentSchema as SubAgentSchema
+from .agent import SubAgent as SubAgent
 
 __all__ = [
     "Base",
@@ -111,7 +130,8 @@ __all__ = [
 ]
 
 # Prompts
-from .prompt import Prompt as Prompt, PromptSchema as PromptSchema
+from .prompt import Prompt as Prompt
+from minder.domain.entities.prompt import PromptSchema as PromptSchema
 
 # Checkpoint
 from .checkpoint import Checkpoint as Checkpoint

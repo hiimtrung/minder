@@ -12,7 +12,7 @@ from collections.abc import Generator
 from typing import Any, cast
 
 from minder.graph.state import GraphState
-from minder.runtime import get_writable_hf_cache_dir, llama_cpp_usable
+from minder.infrastructure.runtime import get_writable_hf_cache_dir, llama_cpp_usable
 
 logger = logging.getLogger(__name__)
 

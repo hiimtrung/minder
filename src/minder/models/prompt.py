@@ -1,23 +1,12 @@
 import uuid
-from datetime import datetime, UTC
-from typing import List
+from datetime import datetime
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, DateTime, UUID, JSON, Text, func
-from pydantic import Field
 
-from .base import Base, BaseModelMeta
+from .base import Base
 
 
-# Pydantic Schema
-class PromptSchema(BaseModelMeta):
-    id: uuid.UUID = Field(default_factory=uuid.uuid4)
-    name: str
-    title: str
-    description: str
-    content_template: str
-    arguments: List[str] = Field(default_factory=list)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
+
 
 
 # SQLAlchemy Model

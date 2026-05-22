@@ -253,7 +253,8 @@ class QueryTools:
                     if final_data:
                         final_state = GraphState.model_validate(final_data) if hasattr(GraphState, "model_validate") else GraphState(**final_data)
                         result = self._result_from_state(final_state)
-                        
+
+                        await self._graph._finalize_state(final_state)
                         record_continuity_packet("query")
                         record_query_prompt_render(
                             str(

@@ -22,7 +22,10 @@ class MockGraph:
             self.astream_events = MockLangGraph().astream_events
         else:
             self.stream = self._internal_stream
-            
+
+    async def _finalize_state(self, state: GraphState) -> None:
+        pass
+
     async def _internal_stream(self, state: GraphState):
         yield {"type": "final", "state": GraphState(query=state.query, llm_output={"text": "fallback"})}
 

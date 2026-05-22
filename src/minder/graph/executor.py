@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from dataclasses import dataclass, field
 import inspect
 import uuid
@@ -251,7 +250,7 @@ class LangGraphExecutorAdapter:
         workflow.add_node(
             "reasoning", self._wrap_state_handler(self._node_reasoning_wrapper)
         )
-        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.run))
+        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.run, use_llm_semaphore=True))
         workflow.add_node("guard", self._wrap_state_handler(self._nodes.guard.run))
         workflow.add_node(
             "verification", self._wrap_state_handler(self._nodes.verification.run)
@@ -470,7 +469,7 @@ class LangGraphExecutorAdapter:
         ]
 
     @staticmethod
-    def _wrap_state_handler(handler):  # noqa: ANN001
+    def _wrap_state_handler(handler, use_llm_semaphore: bool = False):  # noqa: ANN001
         is_async = inspect.iscoroutinefunction(handler)
 
         async def wrapped(state):  # noqa: ANN001
@@ -478,9 +477,9 @@ class LangGraphExecutorAdapter:
             if is_async:
                 result = await handler(graph_state)
             else:
-                # Run blocking sync handlers in a thread pool to avoid
-                # stalling the event loop during CPU-bound LLM inference.
-                result = await asyncio.to_thread(handler, graph_state)
+                result = await run_in_thread(
+                    handler, graph_state, use_llm_semaphore=use_llm_semaphore
+                )
             if isinstance(result, GraphState):
                 return dict(result)
             return result

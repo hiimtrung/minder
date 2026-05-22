@@ -89,6 +89,18 @@ export function clearFieldErrors(...fieldIds: string[]): void {
   }
 }
 
+/** Debounce a function — returns a version that delays execution until `ms` ms of inactivity */
+export function debounce<T extends unknown[]>(
+  fn: (...args: T) => void,
+  ms = 280,
+): (...args: T) => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: T) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
 /** Show a temporary toast message */
 export function showToast(
   message: string,

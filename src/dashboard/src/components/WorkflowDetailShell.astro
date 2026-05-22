@@ -118,7 +118,8 @@ import StepModal from "./StepModal.astro";
           condition that must pass before the agent advances.
         </p>
         <div id="step-editor-list" class="mt-5 grid gap-3">
-          <div class="u-placeholder-card">Loading steps...</div>
+          <div class="u-placeholder-card" aria-hidden="true"><div class="flex flex-col gap-2.5"><div class="skeleton h-3 w-12 rounded"></div><div class="skeleton h-4 w-3/5 rounded-md"></div><div class="skeleton h-3 w-full rounded"></div></div></div>
+          <div class="u-placeholder-card" aria-hidden="true"><div class="flex flex-col gap-2.5"><div class="skeleton h-3 w-10 rounded"></div><div class="skeleton h-4 w-2/3 rounded-md"></div><div class="skeleton h-3 w-4/5 rounded"></div></div></div>
         </div>
         <div class="mt-4 flex justify-end">
           <Button id="save-steps-button" variant="primary">Save steps</Button>

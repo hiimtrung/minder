@@ -1617,3 +1617,26 @@ export async function getServiceHealth(): Promise<HealthStatus> {
     return { ok: false, status: 0, latencyMs };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Runtime status
+// ---------------------------------------------------------------------------
+
+export type RuntimeComponentStatus = {
+  provider: string;
+  model: string;
+  status: "ready" | "initializing" | "mock";
+  runtime?: string;
+};
+
+export type RuntimeStatusPayload = {
+  llm: RuntimeComponentStatus;
+  embedding: RuntimeComponentStatus;
+};
+
+/** Returns LLM + embedding model initialization status. No auth required. */
+export async function getRuntimeStatus(): Promise<RuntimeStatusPayload> {
+  return requestJson<RuntimeStatusPayload>("/v1/admin/runtime-status", {
+    headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+  });
+}

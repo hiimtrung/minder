@@ -38,6 +38,7 @@ class LocalEmbeddingProvider:
         self._runtime = runtime
         self._model: Any | None = None
         self._initialized = False
+        self._ensure_initialized()
 
     def _ensure_initialized(self) -> None:
         if not self._initialized:

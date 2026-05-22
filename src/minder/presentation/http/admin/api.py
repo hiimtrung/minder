@@ -1407,17 +1407,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             llm_status = "ready"
             llm_model = getattr(llm_cfg, "openai_model", "openai")
 
-        if emb_cfg.provider == "llama_cpp":
-            if emb_runtime == "mock":
-                emb_status = "mock"
-            elif emb_initialized and emb_model_loaded:
-                emb_status = "ready"
-            else:
-                emb_status = "initializing"
-            emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
-        else:
+        if emb_runtime == "mock":
+            emb_status = "mock"
+        elif emb_initialized and emb_model_loaded:
             emb_status = "ready"
-            emb_model = emb_cfg.provider
+        else:
+            emb_status = "initializing"
+        emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
 
         return JSONResponse({
             "llm": {
@@ -1426,12 +1422,13 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 "status": llm_status,
             },
             "embedding": {
-                "provider": emb_cfg.provider,
+                "provider": "llama_cpp",
                 "model": emb_model,
                 "runtime": emb_runtime,
                 "status": emb_status,
             },
         })
+
 
     return [
         Route("/v1/admin/setup", setup_api, methods=["POST"]),

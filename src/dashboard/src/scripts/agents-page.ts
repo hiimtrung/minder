@@ -153,14 +153,14 @@ const renderAgents = () => {
     ? slice.items
         .map(
           (a) => `
-          <a href="/dashboard/agents/${encodeURIComponent(a.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+          <a href="/dashboard/agents/${encodeURIComponent(a.id)}" class="shell-card u-registry-card p-6 transition hover:-translate-y-0.5">
             <div class="flex flex-wrap items-center gap-2">
               <p class="eyebrow">${escapeHtml(a.is_default ? "default" : "custom")}</p>
               ${a.workflow_steps.length ? `<span class="rounded-full border border-stone-300 bg-white px-2 py-0.5 text-[10px] text-stone-500">${a.workflow_steps.map(escapeHtml).join(", ")}</span>` : ""}
             </div>
             <h2 class="font-display mt-3 text-xl font-semibold tracking-tight text-stone-950">${escapeHtml(a.title || a.name)}</h2>
             <p class="mt-1 font-mono text-xs text-stone-500">${escapeHtml(a.name)}</p>
-            <p class="mt-3 text-sm leading-6 text-stone-700">${escapeHtml(a.description || "No description.")}</p>
+            <p class="mt-3 line-clamp-2 text-sm leading-6 text-stone-700">${escapeHtml(a.description || "No description.")}</p>
             <div class="mt-4 flex flex-wrap gap-1">
               ${a.tags.map((t) => `<span class="rounded-full bg-stone-100 px-2 py-0.5 text-[10px] text-stone-600">${escapeHtml(t)}</span>`).join("")}
             </div>

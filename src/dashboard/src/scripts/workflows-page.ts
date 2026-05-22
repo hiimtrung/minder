@@ -275,11 +275,11 @@ const renderWorkflows = () => {
     ? slice.items
         .map(
           (w) => `
-          <a href="/dashboard/workflows/${encodeURIComponent(w.id)}" class="shell-card block p-6 transition hover:-translate-y-0.5">
+          <a href="/dashboard/workflows/${encodeURIComponent(w.id)}" class="shell-card u-registry-card p-6 transition hover:-translate-y-0.5">
             <p class="eyebrow">${escapeHtml(w.enforcement)}</p>
             <h2 class="mt-3 text-2xl font-semibold tracking-tight text-stone-950">${escapeHtml(w.name)}</h2>
-            <p class="mt-3 text-sm leading-6 text-stone-700">${escapeHtml(w.description || "No description.")}</p>
-            <p class="mt-5 text-sm text-stone-500">${w.steps.length} step${w.steps.length !== 1 ? "s" : ""}</p>
+            <p class="mt-3 line-clamp-2 text-sm leading-6 text-stone-700">${escapeHtml(w.description || "No description.")}</p>
+            <p class="mt-auto pt-4 text-sm text-stone-500">${w.steps.length} step${w.steps.length !== 1 ? "s" : ""}</p>
           </a>
         `,
         )

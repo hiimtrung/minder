@@ -523,11 +523,11 @@ const renderRegistry = () => {
           ? "border-amber-400 bg-amber-50/70"
           : "border-stone-200 bg-white";
       return `
-        <article class="shell-card border ${activeClass} p-5">
-          <div class="flex items-start justify-between gap-3">
+        <article class="shell-card u-registry-card border ${activeClass} p-5">
+          <div class="flex flex-1 items-start justify-between gap-3">
             <button
               type="button"
-              class="min-w-0 flex-1 text-left"
+              class="flex min-w-0 flex-1 flex-col text-left"
               data-skill-select="${escapeHtml(skill.id)}"
             >
               <p class="eyebrow">${escapeHtml(skill.language)}</p>
@@ -540,7 +540,7 @@ const renderRegistry = () => {
                 ${skill.excerpt_kind === "reusable_excerpt" ? `<span class="rounded-full border border-violet-200 bg-violet-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-violet-700">excerpt</span>` : ""}
                 ${skill.source ? `<span class="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-sky-700">${escapeHtml(skill.source.provider)}</span>` : ""}
               </div>
-              <p class="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">
+              <p class="mt-3 line-clamp-2 text-sm leading-6 text-stone-600">
                 ${escapeHtml(skill.content)}
               </p>
               ${skill.source ? `<p class="mt-3 wrap-break-word text-xs text-stone-500">${escapeHtml(summarizeSource(skill.source))}</p>` : ""}

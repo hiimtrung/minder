@@ -57,6 +57,7 @@ async def store() -> RelationalStore:
 def config() -> MinderConfig:
     c = MinderConfig()
     c.graph.runtime = "internal"
+    c.workflow.orchestration_runtime = "internal"
     return c
 
 

@@ -668,6 +668,12 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 workflow_name=payload.workflow_name,
                 max_attempts=payload.max_attempts,
             )
+        except TimeoutError as exc:
+            logger.warning("Runtime query timed out: %s", exc)
+            return JSONResponse(
+                {"error": "Query timed out. The LLM is busy — please retry shortly."},
+                status_code=503,
+            )
         except Exception as exc:
             logger.exception("Runtime query failed", exc_info=exc)
             return JSONResponse({"error": str(exc)}, status_code=400)
@@ -885,6 +891,12 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                         ) + "\n"
                         continue
                     yield json.dumps(event) + "\n"
+            except TimeoutError as exc:
+                logger.warning("Runtime query stream timed out: %s", exc)
+                yield json.dumps({
+                    "type": "error",
+                    "error": "LLM request timed out. The model is busy — please retry shortly.",
+                }) + "\n"
             except Exception as exc:
                 logger.exception("Runtime query stream failed", exc_info=exc)
                 yield json.dumps({"type": "error", "error": str(exc)}) + "\n"

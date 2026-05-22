@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -244,7 +245,13 @@ class WorkflowPlannerNode:
         continuity_brief: dict[str, Any] | None,
     ) -> str:
         sections = [base_guidance]
-        sections.append(f"Instruction envelope: {instruction_envelope}")
+        sections.append(
+            "Instruction envelope:\n"
+            + json.dumps(instruction_envelope, indent=2, sort_keys=True)
+        )
         if continuity_brief:
-            sections.append(f"Continuity brief: {continuity_brief}")
+            sections.append(
+                "Continuity brief:\n"
+                + json.dumps(continuity_brief, indent=2, sort_keys=True)
+            )
         return "\n\n".join(sections)

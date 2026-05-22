@@ -275,11 +275,11 @@ const renderRegistry = () => {
           ? "border-amber-400 bg-amber-50/70"
           : "border-stone-200 bg-white";
       return `
-        <article class="shell-card border ${activeClass} p-5">
-          <div class="flex items-start justify-between gap-3">
+        <article class="shell-card u-registry-card border ${activeClass} p-5">
+          <div class="flex flex-1 items-start justify-between gap-3">
             <button
               type="button"
-              class="min-w-0 flex-1 text-left"
+              class="flex min-w-0 flex-1 flex-col text-left"
               data-prompt-select="${escapeHtml(prompt.id)}"
             >
               <p class="eyebrow">${escapeHtml(prompt.name)}</p>
@@ -289,7 +289,7 @@ const renderRegistry = () => {
               <div class="mt-2 flex flex-wrap gap-2">
                 ${prompt.is_builtin ? '<span class="rounded-full border border-amber-200 bg-amber-100 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-amber-800">Built-in</span>' : '<span class="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-emerald-800">Custom</span>'}
               </div>
-              <p class="mt-2 text-sm leading-6 text-stone-600">
+              <p class="mt-2 line-clamp-2 text-sm leading-6 text-stone-600">
                 ${escapeHtml(prompt.description || "No description.")}
               </p>
               <div class="mt-4 flex flex-wrap gap-2">

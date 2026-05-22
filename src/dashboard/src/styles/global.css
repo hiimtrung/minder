@@ -159,6 +159,16 @@ select {
   box-shadow: var(--shadow-card);
 }
 
+.u-registry-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 220px;
+}
+
+.u-registry-card-grid {
+  grid-auto-rows: 1fr;
+}
+
 .u-placeholder-card {
   border-radius: 1rem;
   border: 1px solid rgb(231 229 228 / 0.8);

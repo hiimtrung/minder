@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass, field
 import inspect
 import uuid
@@ -7,9 +8,11 @@ from typing import Any
 
 from minder.config import MinderConfig
 from minder.graph.checkpoint import MinderCheckpointSaver
+from minder.graph.concurrency import run_in_thread
 from minder.graph.edges import determine_next_edge
 from minder.graph.nodes import (
     ClarificationNode,
+    ContextEnricherNode,
     EvaluatorNode,
     GuardNode,
     LLMNode,
@@ -41,6 +44,7 @@ class GraphNodes:
     evaluator: EvaluatorNode
     reranker: RerankerNode | None = field(default=None)
     reflection: ReflectionNode | None = field(default=None)
+    context_enricher: ContextEnricherNode | None = field(default=None)
 
 
 class InternalGraphExecutor:
@@ -52,22 +56,32 @@ class InternalGraphExecutor:
         state.metadata.setdefault("attempt_failures", [])
         state.metadata["orchestration_runtime"] = "internal"
         state = await self._nodes.workflow_planner.run(state)
-        state = self._nodes.planning.run(state)
-        state = self._nodes.clarification.run(state)
+        # Fast sync nodes — run in thread to yield control to the event loop
+        state = await run_in_thread(self._nodes.planning.run, state)
+        state = await run_in_thread(self._nodes.clarification.run, state)
         if state.metadata.get("needs_clarification"):
             return state
         state = await self._nodes.retriever.run(state)
         if self._nodes.reranker is not None:
             state = await self._nodes.reranker.run(state)
+        if self._nodes.context_enricher is not None:
+            state = await self._nodes.context_enricher.run(state)
 
         attempt = 0
         while True:
             attempt += 1
             state.retry_count = attempt - 1
-            state = self._nodes.reasoning.run(state)
-            state = self._nodes.llm.run(state)
-            state = self._nodes.guard.run(state)
-            state = self._nodes.verification.run(state)
+            # reasoning builds the prompt (CPU-bound string work)
+            state = await run_in_thread(self._nodes.reasoning.run, state)
+            # LLM inference is the main bottleneck — run in dedicated thread
+            # with semaphore + timeout so other requests keep moving
+            state = await run_in_thread(
+                self._nodes.llm.run,
+                state,
+                use_llm_semaphore=True,
+            )
+            state = await run_in_thread(self._nodes.guard.run, state)
+            state = await run_in_thread(self._nodes.verification.run, state)
             edge = determine_next_edge(state)
             state.transition_log.append(
                 {
@@ -101,7 +115,7 @@ class InternalGraphExecutor:
             )
             state.metadata["retry_reason"] = retry_reason
 
-        state = self._nodes.evaluator.run(state)
+        state = await run_in_thread(self._nodes.evaluator.run, state)
         state.metadata["edge"] = determine_next_edge(state)
 
         if self._nodes.reflection is not None:
@@ -228,6 +242,12 @@ class LangGraphExecutorAdapter:
                 "reranker", self._wrap_state_handler(self._nodes.reranker.run)
             )
 
+        if self._nodes.context_enricher is not None:
+            workflow.add_node(
+                "context_enricher",
+                self._wrap_state_handler(self._nodes.context_enricher.run),
+            )
+
         workflow.add_node(
             "reasoning", self._wrap_state_handler(self._node_reasoning_wrapper)
         )
@@ -295,11 +315,18 @@ class LangGraphExecutorAdapter:
         else:
             retrieval_end_node = "retriever"
 
+        has_enricher = self._nodes.context_enricher is not None
         if self._nodes.reranker is not None:
             workflow.add_edge(retrieval_end_node, "reranker")
-            workflow.add_edge("reranker", "reasoning")
+            post_retrieval_node = "reranker"
         else:
-            workflow.add_edge(retrieval_end_node, "reasoning")
+            post_retrieval_node = retrieval_end_node
+
+        if has_enricher:
+            workflow.add_edge(post_retrieval_node, "context_enricher")
+            workflow.add_edge("context_enricher", "reasoning")
+        else:
+            workflow.add_edge(post_retrieval_node, "reasoning")
 
         workflow.add_edge("reasoning", "llm")
         workflow.add_edge("llm", "guard")
@@ -444,11 +471,16 @@ class LangGraphExecutorAdapter:
 
     @staticmethod
     def _wrap_state_handler(handler):  # noqa: ANN001
+        is_async = inspect.iscoroutinefunction(handler)
+
         async def wrapped(state):  # noqa: ANN001
             graph_state = GraphState.model_validate(state)
-            result = handler(graph_state)
-            if inspect.isawaitable(result):
-                result = await result
+            if is_async:
+                result = await handler(graph_state)
+            else:
+                # Run blocking sync handlers in a thread pool to avoid
+                # stalling the event loop during CPU-bound LLM inference.
+                result = await asyncio.to_thread(handler, graph_state)
             if isinstance(result, GraphState):
                 return dict(result)
             return result

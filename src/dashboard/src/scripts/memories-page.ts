@@ -132,18 +132,18 @@ const renderRegistry = () => {
           ? "border-amber-400 bg-amber-50/70"
           : "border-stone-200 bg-white";
       return `
-        <article class="shell-card border ${activeClass} p-5">
-          <div class="flex items-start justify-between gap-3">
+        <article class="shell-card u-registry-card border ${activeClass} p-5">
+          <div class="flex flex-1 items-start justify-between gap-3">
             <button
               type="button"
-              class="min-w-0 flex-1 text-left"
+              class="flex min-w-0 flex-1 flex-col text-left"
               data-memory-select="${escapeHtml(memory.id)}"
             >
               <p class="eyebrow">${escapeHtml(memory.language)}</p>
               <h2 class="mt-2 wrap-break-word text-xl font-semibold tracking-tight text-stone-950">
                 ${escapeHtml(memory.title)}
               </h2>
-              <p class="mt-3 line-clamp-3 text-sm leading-6 text-stone-600">
+              <p class="mt-3 line-clamp-2 text-sm leading-6 text-stone-600">
                 ${escapeHtml(memory.content)}
               </p>
               <div class="mt-4 flex flex-wrap gap-2">

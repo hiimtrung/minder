@@ -6,7 +6,7 @@ from typing import Any, TYPE_CHECKING
 
 from minder.continuity import compatibility_score_for_memory
 from minder.config import MinderConfig
-from minder.embedding.local import LocalEmbeddingProvider
+from minder.domain.interfaces.embedding import IEmbeddingProvider
 from minder.observability.metrics import record_continuity_recall
 from minder.retrieval.hybrid import HybridRetriever
 from minder.store.interfaces import IOperationalStore
@@ -29,15 +29,27 @@ def is_memory_record(skill: Any) -> bool:
 
 
 class MemoryTools:
-    def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
+    def __init__(
+        self,
+        store: IOperationalStore,
+        config: MinderConfig,
+        *,
+        embedder: IEmbeddingProvider | None = None,
+    ) -> None:
         self._store = store
         self._config = config
-        self._embedder = LocalEmbeddingProvider(
-            llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
-            llama_cpp_model_file=config.embedding.llama_cpp_model_file,
-            dimensions=config.embedding.dimensions,
-            runtime=config.embedding.runtime,
-        )
+        # Dependency Inversion: accept an embedding provider via the constructor.
+        # If none is provided, fall back to lazy construction (backward compat).
+        if embedder is not None:
+            self._embedder = embedder
+        else:
+            from minder.embedding.local import LocalEmbeddingProvider
+            self._embedder = LocalEmbeddingProvider(
+                llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+                llama_cpp_model_file=config.embedding.llama_cpp_model_file,
+                dimensions=config.embedding.dimensions,
+                runtime=config.embedding.runtime,
+            )
         self._synthesizer: ContinuitySynthesizer | None = None
         self._agentic_graph: Any | None = None
 

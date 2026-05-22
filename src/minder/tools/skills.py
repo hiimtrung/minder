@@ -14,7 +14,7 @@ from collections.abc import Awaitable, Callable
 
 from minder.continuity import compatibility_score_for_memory, step_keywords
 from minder.config import MinderConfig
-from minder.embedding.local import LocalEmbeddingProvider
+from minder.domain.interfaces.embedding import IEmbeddingProvider
 from minder.observability.metrics import record_continuity_skill_recall
 from minder.store.interfaces import IOperationalStore
 from minder.tools.memory import _RECALL_CONTENT_MAX_CHARS
@@ -84,14 +84,26 @@ class SkillTools:
         "step_notes",
     }
 
-    def __init__(self, store: IOperationalStore, config: MinderConfig) -> None:
+    def __init__(
+        self,
+        store: IOperationalStore,
+        config: MinderConfig,
+        *,
+        embedder: IEmbeddingProvider | None = None,
+    ) -> None:
         self._store = store
-        self._embedder = LocalEmbeddingProvider(
-            llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
-            llama_cpp_model_file=config.embedding.llama_cpp_model_file,
-            dimensions=config.embedding.dimensions,
-            runtime=config.embedding.runtime,
-        )
+        # Dependency Inversion: accept an embedding provider via the constructor.
+        # If none is provided, fall back to lazy construction (backward compat).
+        if embedder is not None:
+            self._embedder = embedder
+        else:
+            from minder.embedding.local import LocalEmbeddingProvider
+            self._embedder = LocalEmbeddingProvider(
+                llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+                llama_cpp_model_file=config.embedding.llama_cpp_model_file,
+                dimensions=config.embedding.dimensions,
+                runtime=config.embedding.runtime,
+            )
 
     async def minder_skill_store(
         self,

@@ -45,20 +45,11 @@ ROLE_HIERARCHY: dict[UserRole, int] = {
 }
 
 # ---------------------------------------------------------------------------
-# Domain exception
+# Domain exception — canonical definition lives in domain.exceptions
+# Re-exported here for backward compatibility.
 # ---------------------------------------------------------------------------
 
-
-class AuthError(Exception):
-    """Raised for all auth-layer failures. Carries a structured error code."""
-
-    def __init__(self, code: str, message: str) -> None:
-        self.code = code
-        self.message = message
-        super().__init__(message)
-
-    def __repr__(self) -> str:
-        return f"AuthError(code={self.code!r}, message={self.message!r})"
+from minder.domain.exceptions import AuthError as AuthError  # noqa: F401
 
 
 # ---------------------------------------------------------------------------

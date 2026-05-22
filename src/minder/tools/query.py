@@ -46,6 +46,7 @@ class QueryTools:
             self._store,
             self._embedding_provider,
             vector_store=self._vector_store,
+            ingest_cooldown_secs=config.retrieval.ingest_cooldown_secs,
         )
         self._graph_tools = graph_tools
         self._history_compactor = HistoryCompactor()
@@ -359,7 +360,6 @@ class QueryTools:
                 for doc in semantic_code_hits[:limit]
             ]
 
-        project_name = Path(repo_path).name
         state = GraphState(
             query=query,
             repo_path=repo_path,

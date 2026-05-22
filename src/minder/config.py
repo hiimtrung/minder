@@ -84,6 +84,7 @@ class RetrievalConfig(BaseModel):
     rerank_top_n: int = 5
     similarity_threshold: float = 0.7
     hybrid_alpha: float = 0.7
+    ingest_cooldown_secs: float = 60.0  # Skip re-scan if repo was ingested within this window
 
 
 class MemoryConfig(BaseModel):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from minder.graph.state import GraphState
@@ -64,11 +65,16 @@ def _build_chat_messages(
         if brief_lines:
             system_parts.append("Session context:\n" + "\n".join(brief_lines))
 
-    system_parts.append(
-        "A repository is available for code inspection."
-        if state.repo_path
-        else "No repository is currently selected. Answer from the conversation context and general knowledge."
-    )
+    if state.repo_path:
+        project_name = Path(state.repo_path).name
+        system_parts.append(
+            f"Repository: {project_name} (path: {state.repo_path}). "
+            "A repository is available for code inspection."
+        )
+    else:
+        system_parts.append(
+            "No repository is currently selected. Answer from the conversation context and general knowledge."
+        )
     if retry_reason:
         system_parts.append(
             f"Your previous answer was rejected. Reason: {retry_reason}. Please correct it."

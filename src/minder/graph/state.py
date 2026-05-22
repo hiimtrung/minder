@@ -12,6 +12,16 @@ def merge_dicts(a: dict[str, Any], b: dict[str, Any]) -> dict[str, Any]:
     return res
 
 
+def replace_list(a: list | None, b: list | None) -> list:
+    """Last-write-wins reducer for list fields that must not accumulate.
+
+    LangGraph calls the reducer with (old_value, node_update) for every state
+    key a node touches.  For retrieved_docs / reranked_docs we always want the
+    latest value, not a concatenation of old + new across retry iterations.
+    """
+    return list(b) if b is not None else list(a or [])
+
+
 class GraphStateSchema(TypedDict, total=False):
     query: str
     session_id: uuid.UUID | None
@@ -19,8 +29,8 @@ class GraphStateSchema(TypedDict, total=False):
     repo_id: uuid.UUID | None
     repo_path: str | None
     plan: dict[str, Any]
-    retrieved_docs: Annotated[list[dict[str, Any]], operator.add]
-    reranked_docs: Annotated[list[dict[str, Any]], operator.add]
+    retrieved_docs: Annotated[list[dict[str, Any]], replace_list]
+    reranked_docs: Annotated[list[dict[str, Any]], replace_list]
     workflow_context: dict[str, Any]
     reasoning_output: dict[str, Any]
     llm_output: dict[str, Any]

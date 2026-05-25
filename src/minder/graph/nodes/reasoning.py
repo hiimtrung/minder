@@ -32,14 +32,25 @@ def _build_chat_messages(
     # Extract only the base step instruction (before the embedded envelope/brief sections).
     step_guidance = guidance.split("\n\nInstruction envelope:")[0].strip() if guidance else ""
 
+    intent = str((state.plan or {}).get("intent", "explain"))
+    is_chat = intent == "chat"
     system_parts: list[str] = [
         "You are Minder, a repository-aware engineering assistant.",
-        "Answer the user's question with absolute completeness yet extreme conciseness.",
-        "Cite specific file paths when referencing code.",
-        "To maximize response speed and ensure a purely professional engineering tone:",
-        "1. Answer directly and immediately. Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help').",
-        "2. NEVER use exclamation marks (!) or any exclamatory sentences/words. Keep everything strictly declarative and professional.",
     ]
+    if is_chat:
+        system_parts.append(
+            "The user is being conversational. Respond naturally and briefly — "
+            "a short friendly acknowledgement is appropriate. "
+            "You may greet the user back."
+        )
+    else:
+        system_parts += [
+            "Answer the user's question with absolute completeness yet extreme conciseness.",
+            "Cite specific file paths when referencing code.",
+            "To maximize response speed and ensure a purely professional engineering tone:",
+            "1. Answer directly and immediately. Prohibit all polite greetings, conversational filler, introductory remarks, closing remarks, and polite honorifics in Vietnamese or English (e.g. NEVER use 'Dạ', 'ạ', 'thưa', 'nhé', 'nha', 'chào', 'rất vui', 'sure', 'here is', 'glad to help').",
+            "2. NEVER use exclamation marks (!) or any exclamatory sentences/words. Keep everything strictly declarative and professional.",
+        ]
     if step_guidance:
         system_parts.append(f"Workflow guidance: {step_guidance}")
 

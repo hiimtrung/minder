@@ -1,8 +1,41 @@
-.PHONY: all lint test test-slow test-all check-all clean build-docker dev-install release-start release-tag dashboard-dev dashboard-build dashboard-check
+.PHONY: all lint test test-slow test-all check-all clean build-docker dev-install release-start release-tag dashboard-dev dashboard-build dashboard-check native-install native-run bundle app-dev app-build
 
 dev-install:
 	uv tool install --editable . --force
 	bun install
+
+native-install:
+	uv sync --extra server
+	bun install
+	bun run build
+
+native-run: dashboard-build
+	@rm -f ~/.minder/data/vectors.db/LOCK
+	uv run python -m minder.server
+
+# --- Phase 2: Bundle Python server as a PyInstaller binary ---
+
+# Produce dist/minder-server-<target-triple> ready for Tauri sidecar.
+# Requires PyInstaller: uv add --dev pyinstaller
+bundle:
+	@echo "Building PyInstaller bundle..."
+	@command -v pyinstaller >/dev/null 2>&1 || uv add --dev pyinstaller
+	uv run pyinstaller minder-server.spec --clean --noconfirm
+	@TARGET=$$(rustc -Vv | grep host | cut -d' ' -f2); \
+	 mkdir -p src-tauri/binaries; \
+	 cp -r "dist/minder-server/." "src-tauri/binaries/minder-server-$$TARGET/"; \
+	 echo "Sidecar ready: src-tauri/binaries/minder-server-$$TARGET"
+
+# --- Phase 3: Tauri desktop app ---
+
+# Launch Tauri dev window (expects Python server already running via `make native-run`).
+app-dev:
+	bun run tauri dev
+
+# Build the distributable desktop app (.dmg on macOS, .AppImage/.deb on Linux).
+# Requires: `make bundle` first to create the sidecar binary.
+app-build: native-install bundle
+	bun run tauri build
 
 dashboard-dev:
 	bun run dev

@@ -1,87 +1,63 @@
+"""
+Tests verifying the native-app architecture artifacts are in place.
+
+These replace the old Docker-centric checks. The target distribution is
+a Tauri desktop app (src-tauri/) that bundles the Python server as a sidecar.
+"""
+
 from __future__ import annotations
 
 from pathlib import Path
 
 
-def test_phase4_3_production_dockerfiles_exist_for_api_and_dashboard() -> None:
-    api_dockerfile = Path("docker/Dockerfile.api").read_text()
-    dashboard_dockerfile = Path("docker/Dockerfile.dashboard").read_text()
-    caddyfile = Path("docker/Caddyfile").read_text()
-    install_script = Path("scripts/release/install-minder-release.sh").read_text()
-    full_compose = Path("docker/docker-compose.full.yml").read_text()
-    dockerignore = Path(".dockerignore").read_text()
-
-    assert "FROM python:3.14-slim AS api-builder" in api_dockerfile
-    assert "UV_PROJECT_ENVIRONMENT=/app/.venv" in api_dockerfile
-    assert "uv sync --frozen --no-dev --no-install-project --no-editable" in api_dockerfile
-    assert "COPY --from=api-builder /app/.venv /app/.venv" in api_dockerfile
-    assert 'CMD ["python", "-m", "minder.server"]' in api_dockerfile
-
-    assert "FROM oven/bun:1.2.21-alpine AS dashboard-builder" in dashboard_dockerfile
-    assert "COPY package.json bun.lock" in dashboard_dockerfile
-    assert "COPY astro.config.mjs tsconfig.json" in dashboard_dockerfile
-    assert "bun install --frozen-lockfile" in dashboard_dockerfile
-    assert "RUN bun run build" in dashboard_dockerfile
-    assert 'CMD ["node", "dist/server/entry.mjs"]' in dashboard_dockerfile
-
-    assert "reverse_proxy dashboard:8808" in caddyfile
-    assert "reverse_proxy minder-api:8801" in caddyfile
-    assert "__REPO_OWNER__" in install_script
-    assert "releases/download" in install_script
-    assert 'curl -fsSL "$RELEASE_BASE_URL/docker-compose.yml"' in install_script
-    assert "MINDER_API_IMAGE" in install_script
-    assert "MINDER_DASHBOARD_IMAGE" in install_script
-    assert "llama_cpp" in install_script.lower() or "llama-cpp" in install_script.lower() or "gguf" in install_script.lower()
-    assert 'dockerfile: docker/Dockerfile.api' in full_compose
-    assert 'dockerfile: docker/Dockerfile.dashboard' in full_compose
-    assert ".venv" in dockerignore
-    assert "dist" in dockerignore
-    assert "tests" in dockerignore
+def test_tauri_project_structure_exists() -> None:
+    assert Path("src-tauri/Cargo.toml").exists()
+    assert Path("src-tauri/tauri.conf.json").exists()
+    assert Path("src-tauri/src/main.rs").exists()
+    assert Path("src-tauri/src/lib.rs").exists()
+    assert Path("src-tauri/build.rs").exists()
+    assert Path("src-tauri/capabilities/default.json").exists()
+    assert Path("src-tauri/splash/index.html").exists()
 
 
-def test_phase4_3_production_compose_uses_gateway_dashboard_and_api_services() -> None:
-    compose = Path("docker/docker-compose.yml").read_text()
-
-    assert "gateway:" in compose
-    assert "dashboard:" in compose
-    assert "minder-api:" in compose
-    assert 'ghcr.io/hiimtrung/minder-api:latest' in compose
-    assert 'ghcr.io/hiimtrung/minder-dashboard:latest' in compose
-    assert '${MINDER_PORT:-8800}:8800' in compose
-    assert 'MINDER_SERVER__PORT: 8801' in compose
-    assert 'MINDER_LLM__PROVIDER: llama_cpp' in compose
-    assert 'minder-api:' in compose  # llama_cpp runs inside the API container
+def test_tauri_conf_has_correct_product_name_and_sidecar() -> None:
+    import json
+    conf = json.loads(Path("src-tauri/tauri.conf.json").read_text())
+    assert conf["productName"] == "Minder"
+    assert "externalBin" in conf["bundle"]
+    assert any("minder-server" in b for b in conf["bundle"]["externalBin"])
 
 
-def test_phase4_3_release_workflow_uses_buildx_cache_for_images() -> None:
-    release_workflow = Path(".github/workflows/release.yml").read_text()
-
-    assert "cache-from: type=gha,scope=minder-api" in release_workflow
-    assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow
-    assert "cache-from: type=gha,scope=minder-dashboard" in release_workflow
-    assert "cache-to: type=gha,mode=max,scope=minder-dashboard" in release_workflow
+def test_milvus_store_package_exists() -> None:
+    assert Path("src/minder/store/milvus/__init__.py").exists()
+    assert Path("src/minder/store/milvus/client.py").exists()
+    assert Path("src/minder/store/milvus/vector_store.py").exists()
 
 
-def test_phase6_powershell_installer_has_release_placeholders_and_core_steps() -> None:
-    installer = Path("scripts/release/install-minder-release.ps1").read_text()
-
-    assert "__REPO_OWNER__" in installer
-    assert "__REPO_NAME__" in installer
-    assert "__RELEASE_TAG__" in installer
-    assert "Invoke-WebRequest" in installer
-    assert "& docker @composeArgs pull" in installer  # argv form, not shell string
-    assert "& docker @composeArgs up -d" in installer
-    assert "docker-compose.yml" in installer
-    assert "Caddyfile" in installer
-    assert ".minder-release.json" in installer
-    assert "MINDER_INSTALL_DIR" in installer
-    assert "llama_cpp" in installer.lower() or "llama-cpp" in installer.lower() or "gguf" in installer.lower()
+def test_pyinstaller_spec_exists() -> None:
+    assert Path("minder-server.spec").exists()
+    spec = Path("minder-server.spec").read_text()
+    assert "minder-server" in spec
+    assert "pymilvus" in spec
 
 
-def test_phase6_release_workflow_publishes_both_installers() -> None:
-    release_workflow = Path(".github/workflows/release.yml").read_text()
+def test_native_makefile_targets_exist() -> None:
+    makefile = Path("Makefile").read_text()
+    assert "native-install:" in makefile
+    assert "native-run:" in makefile
+    assert "bundle:" in makefile
+    assert "app-dev:" in makefile
+    assert "app-build:" in makefile
 
-    assert "install-minder-release.sh" in release_workflow
-    assert "install-minder-release.ps1" in release_workflow
-    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1" in release_workflow
-    assert "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh" in release_workflow
+
+def test_model_bootstrap_handles_startup() -> None:
+    bootstrap = Path("src/minder/infrastructure/model_bootstrap.py")
+    assert bootstrap.exists()
+    text = bootstrap.read_text()
+    assert "ensure_models_available" in text
+    assert "hf_hub_download" in text
+
+
+def test_no_qdrant_store_package() -> None:
+    # The Qdrant store has been removed — native stack uses Milvus Lite + SQLite.
+    assert not Path("src/minder/store/qdrant").exists()

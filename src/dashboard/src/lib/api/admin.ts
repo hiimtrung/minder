@@ -423,20 +423,29 @@ export async function queryRuntimeStream(
     buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
 
     let newlineIndex = buffer.indexOf("\n");
+    let streamDone = false;
     while (newlineIndex >= 0) {
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
       if (line) {
-        onEvent(JSON.parse(line) as RuntimeQueryStreamEvent);
+        const event = JSON.parse(line) as RuntimeQueryStreamEvent;
+        onEvent(event);
+        if (event.type === "final" || event.type === "error") {
+          streamDone = true;
+          break;
+        }
       }
       newlineIndex = buffer.indexOf("\n");
     }
 
-    if (done) {
-      const finalLine = buffer.trim();
-      if (finalLine) {
-        onEvent(JSON.parse(finalLine) as RuntimeQueryStreamEvent);
+    if (streamDone || done) {
+      if (done && !streamDone) {
+        const finalLine = buffer.trim();
+        if (finalLine) {
+          onEvent(JSON.parse(finalLine) as RuntimeQueryStreamEvent);
+        }
       }
+      reader.cancel().catch(() => undefined);
       break;
     }
   }

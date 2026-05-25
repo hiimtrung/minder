@@ -1,31 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import TYPE_CHECKING
 
 from minder.cache.providers import LRUCacheProvider
 from minder.config import MinderConfig
 from minder.store.interfaces import ICacheProvider, IGraphRepository, IOperationalStore, IVectorStore
 from minder.store.vector import VectorStore
-
-if TYPE_CHECKING:
-    from minder.store.qdrant.client import QdrantClientWrapper
-
-# Single shared Qdrant client — all three stores reuse the same connection pool.
-_qdrant_client: QdrantClientWrapper | None = None
-
-
-def _get_qdrant_client(config: MinderConfig) -> QdrantClientWrapper:
-    global _qdrant_client
-    if _qdrant_client is None:
-        from minder.store.qdrant.client import QdrantClientWrapper
-        _qdrant_client = QdrantClientWrapper(
-            url=config.qdrant.url,
-            api_key=config.qdrant.api_key or None,
-            prefer_grpc=config.qdrant.prefer_grpc,
-            prefix=config.qdrant.collection_prefix,
-        )
-    return _qdrant_client
 
 
 def _sqlite_db_url(raw_path: str) -> str:
@@ -36,10 +16,6 @@ def _sqlite_db_url(raw_path: str) -> str:
 
 def build_store(config: MinderConfig) -> IOperationalStore:
     provider = config.relational_store.provider
-
-    if provider == "qdrant":
-        from minder.store.qdrant.operational_store import QdrantOperationalStore
-        return QdrantOperationalStore(_get_qdrant_client(config))  # type: ignore[return-value]
 
     if provider in ("sqlite", "postgresql"):
         from minder.store.relational import RelationalStore
@@ -52,7 +28,7 @@ def build_store(config: MinderConfig) -> IOperationalStore:
 
     raise ValueError(
         f"Unsupported relational_store.provider '{provider}'. "
-        "Supported: 'qdrant', 'sqlite', 'postgresql'."
+        "Supported: 'sqlite', 'postgresql'."
     )
 
 
@@ -66,12 +42,13 @@ def build_cache(config: MinderConfig) -> ICacheProvider:
 def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVectorStore:
     provider = config.vector_store.provider
 
-    if provider == "qdrant":
-        from minder.store.qdrant.vector_store import QdrantVectorStore
-        return QdrantVectorStore(
-            _get_qdrant_client(config),
+    if provider == "milvus":
+        from minder.store.milvus.client import MilvusClientWrapper
+        from minder.store.milvus.vector_store import MilvusVectorStore
+        client = MilvusClientWrapper(db_path=config.milvus.db_path)
+        return MilvusVectorStore(
+            client,
             store,  # type: ignore[arg-type]
-            prefix=config.qdrant.collection_prefix,
             dimensions=config.embedding.dimensions,
         )
 
@@ -85,10 +62,6 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
     provider = config.graph_store.provider
     if provider == "auto":
         provider = config.relational_store.provider
-
-    if provider == "qdrant":
-        from minder.store.qdrant.graph_store import QdrantGraphStore
-        return QdrantGraphStore(_get_qdrant_client(config))  # type: ignore[return-value]
 
     if provider in ("sqlite", "postgresql"):
         from minder.store.graph import KnowledgeGraphStore
@@ -106,5 +79,5 @@ def build_graph_store(config: MinderConfig) -> IGraphRepository | None:
 
     raise ValueError(
         f"Unsupported graph_store.provider '{provider}'. "
-        "Supported: 'auto', 'qdrant', 'sqlite', 'postgresql'."
+        "Supported: 'auto', 'sqlite', 'postgresql'."
     )

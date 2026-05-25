@@ -32,6 +32,8 @@ class ParallelRetrieverNode:
         self._graph_tools = graph_tools
 
     def plan_retrieval(self, state: GraphState) -> list[Send]:
+        if str((state.plan or {}).get("retrieval_strategy", "")) == "none":
+            return [Send("retrieve_strategy", state.model_dump(mode="python"))]
         strategies = ["vector", "bm25", "knowledge_graph"]
         sends: list[Send] = []
         for strategy in strategies:
@@ -43,6 +45,8 @@ class ParallelRetrieverNode:
         return sends
 
     async def retrieve_strategy(self, state: GraphState) -> dict[str, Any]:
+        if str((state.plan or {}).get("retrieval_strategy", "")) == "none":
+            return {"retrieved_docs": []}
         strategy = str(state.metadata.get("retrieval_strategy", "vector") or "vector")
         if strategy == "lexical":
             strategy = "bm25"

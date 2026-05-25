@@ -1393,8 +1393,8 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         llm_cfg = context.config.llm
         emb_cfg = context.config.embedding
 
-        llm_key = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}"
-        llm_loaded = llm_key in _ENGINE_CACHE
+        llm_key_prefix = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}:"
+        llm_loaded = any(k.startswith(llm_key_prefix) for k in _ENGINE_CACHE)
 
         emb_initialized = context.embedder._initialized  # noqa: SLF001
         emb_model_loaded = context.embedder._model is not None  # noqa: SLF001

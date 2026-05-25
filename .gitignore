@@ -29,6 +29,12 @@ build/
 node_modules
 .astro
 
+# Tauri build artifacts
+src-tauri/target/
+src-tauri/gen/
+# PyInstaller sidecar outputs (large binaries from `make bundle`) are gitignored.
+# The committed shell script stubs in src-tauri/binaries/ are intentionally tracked.
+
 .cursor
 .codex
 .claude

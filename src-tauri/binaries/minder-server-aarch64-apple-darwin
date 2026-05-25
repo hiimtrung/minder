@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# minder-server sidecar — development stub
+# In production, replace this file with the PyInstaller binary via `make bundle`.
+#
+# This script walks up to find the project root (contains minder.toml)
+# then starts the server via uv.
+set -euo pipefail
+
+DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+while [ "$DIR" != "/" ]; do
+  [ -f "$DIR/minder.toml" ] && break
+  DIR="$(dirname "$DIR")"
+done
+
+if [ ! -f "$DIR/minder.toml" ]; then
+  echo "[minder-server] ERROR: could not locate minder.toml" >&2
+  exit 1
+fi
+
+cd "$DIR"
+exec uv run python -m minder.server

@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 _ENGINE_CACHE: dict[str, Any] = {}
 # ~3 chars per token; truncate at 90% of context_length to leave room for output
 _CHARS_PER_TOKEN = 3
+import re as _re
+_THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
 
 
 class LlamaCppLLM:
@@ -76,6 +78,7 @@ class LlamaCppLLM:
                 filename=self._model_file,
                 n_ctx=self._context_length,
                 n_gpu_layers=n_gpu_layers,
+                flash_attn=True,
                 verbose=False,
                 **cache_kwargs,
             )
@@ -128,11 +131,21 @@ class LlamaCppLLM:
             try:
                 response = self._engine.create_chat_completion(
                     messages,
-                    max_tokens=1024,
+                    max_tokens=512,
                     temperature=self._temperature,
                     stream=False,
                 )
-                text = str(response["choices"][0]["message"].get("content", "")).strip() or fallback
+                text = self._strip_thinking(str(response["choices"][0]["message"].get("content", "")))
+                # If the model produced a useless placeholder, retry with a minimal prompt.
+                if not text or text.upper() in ("N/A", "NA", "NONE", "-"):
+                    minimal = [
+                        {"role": "system", "content": "You are a helpful assistant. Answer briefly."},
+                        {"role": "user", "content": state.query},
+                    ]
+                    resp2 = self._engine.create_chat_completion(
+                        minimal, max_tokens=512, temperature=0.3, stream=False
+                    )
+                    text = self._strip_thinking(str(resp2["choices"][0]["message"].get("content", ""))) or fallback
             except Exception as e:
                 logger.warning("create_chat_completion failed, falling back to text: %s", e)
                 prompt = reasoning_output.get("prompt") or state.query
@@ -183,7 +196,7 @@ class LlamaCppLLM:
             if messages:
                 response = self._engine.create_chat_completion(
                     messages,
-                    max_tokens=2048,
+                    max_tokens=512,
                     temperature=self._temperature,
                     stream=True,
                 )
@@ -198,7 +211,7 @@ class LlamaCppLLM:
                 )
                 response = self._engine(
                     prompt,
-                    max_tokens=2048,
+                    max_tokens=512,
                     temperature=self._temperature,
                     stream=True,
                 )
@@ -213,7 +226,7 @@ class LlamaCppLLM:
                 yield {"type": "chunk", "delta": fallback}
             deltas = [fallback] if fallback else []
 
-        text = "".join(deltas).strip() or fallback
+        text = self._strip_thinking("".join(deltas)) or fallback
         yield {
             "type": "result",
             "result": self._build_result(text, source_paths, "llama_cpp", deltas),
@@ -238,7 +251,7 @@ class LlamaCppLLM:
                 temperature=temperature,
                 stream=False,
             )
-            return cast(str, response["choices"][0]["text"])
+            return self._strip_thinking(cast(str, response["choices"][0]["text"]))
         except Exception as e:
             logger.warning("Llama.cpp completion failed: %s", e)
             return fallback
@@ -246,6 +259,11 @@ class LlamaCppLLM:
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _strip_thinking(text: str) -> str:
+        """Remove Qwen3-style <think>...</think> blocks from output."""
+        return _THINK_RE.sub("", text).strip()
 
     def _truncate_prompt(self, prompt: str) -> str:
         """Truncate prompt to fit within context_length, preserving head and tail."""

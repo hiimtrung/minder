@@ -1,18 +1,48 @@
 name: minder-local
-
+# Local development: build images from source and run the full stack.
+# Milvus Lite and SQLite are embedded — no external database services needed.
+#
+# Usage:
+#   docker compose -f docker/docker-compose.local.yml up --build
 services:
-  qdrant:
-    container_name: minder-qdrant
-    image: qdrant/qdrant:latest
+  gateway:
+    container_name: minder-gateway
+    image: caddy:2.11.2-alpine
+    restart: unless-stopped
     ports:
-      - "6333:6333"
+      - "${MINDER_PORT:-8800}:8800"
     volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:6333/healthz"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - dashboard
+      - minder-api
+
+  minder-api:
+    container_name: minder-server
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    image: minder-api:local
+    restart: unless-stopped
+    volumes:
+      - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
+      - minder-data:/root/.minder/data
+    environment:
+      MINDER_SERVER__PORT: 8801
+      MINDER_LLM__PROVIDER: llama_cpp
+      MINDER_VECTOR_STORE__PROVIDER: milvus
+      HUGGINGFACE_HUB_CACHE: /models
+      MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+
+  dashboard:
+    container_name: minder-dashboard
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.dashboard
+    image: minder-dashboard:local
+    restart: unless-stopped
+    depends_on:
+      - minder-api
 
 volumes:
-  qdrant-data:
+  minder-data:

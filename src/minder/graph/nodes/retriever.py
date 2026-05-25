@@ -26,6 +26,11 @@ class RetrieverNode:
 
     async def run(self, state: GraphState) -> GraphState:
         project = state.metadata.get("project_name")
+        if str((state.plan or {}).get("retrieval_strategy", "")) == "none":
+            state.retrieved_docs = []
+            state.reranked_docs = []
+            state.metadata["retrieval_mode"] = "none"
+            return state
         if state.repo_path is None and not isinstance(project, str):
             state.retrieved_docs = []
             state.reranked_docs = []

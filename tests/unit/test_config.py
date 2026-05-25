@@ -41,13 +41,13 @@ def test_dotenv_file_override(tmp_path, monkeypatch):
     assert settings.vector_store.provider == "memory"
 
 
-def test_graph_store_defaults_to_auto_qdrant_for_qdrant() -> None:
+def test_graph_store_defaults_to_auto_sqlite_for_sqlite() -> None:
     settings = Settings(_env_file=None)
 
     graph_store = build_graph_store(settings)
-    
-    from minder.store.qdrant.graph_store import QdrantGraphStore
-    assert isinstance(graph_store, QdrantGraphStore)
+
+    from minder.store.graph import KnowledgeGraphStore
+    assert isinstance(graph_store, KnowledgeGraphStore)
 
 
 def test_graph_store_env_override(monkeypatch) -> None:

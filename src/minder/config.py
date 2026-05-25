@@ -11,7 +11,7 @@ class ServerConfig(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8800
     log_level: str = "info"
-    http_timeout_keep_alive: int = 10  # uvicorn keep-alive timeout (seconds)
+    http_timeout_keep_alive: int = 10
 
 
 class DashboardConfig(BaseModel):
@@ -38,7 +38,6 @@ class EmbeddingConfig(BaseModel):
     dimensions: int = 768
 
 
-
 class LLMConfig(BaseModel):
     provider: str = "llama_cpp"  # "llama_cpp" | "openai"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
@@ -48,18 +47,17 @@ class LLMConfig(BaseModel):
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"
-    timeout_seconds: float = 120.0  # wall-clock budget per LLM call
-    max_concurrent: int = 1  # max simultaneous LLM inferences
+    timeout_seconds: float = 120.0
+    max_concurrent: int = 1
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str = "qdrant"  # "qdrant" | "memory"
-    collection_prefix: str = "minder_"
+    provider: str = "milvus"  # "milvus" | "memory"
 
 
 class RelationalStoreConfig(BaseModel):
-    provider: str = "qdrant"  # "qdrant" | "sqlite" | "postgresql"
-    db_path: str = "minder.db"  # sqlite fallback
+    provider: str = "sqlite"  # "sqlite" | "postgresql"
+    db_path: str = "~/.minder/data/minder.db"
     uri: str = "postgresql+asyncpg://localhost/minder"  # postgresql only
 
 
@@ -70,12 +68,8 @@ class GraphStoreConfig(BaseModel):
     uri: str = "postgresql+asyncpg://localhost/minder_graph"  # postgresql only
 
 
-class QdrantConfig(BaseModel):
-    url: str = "http://localhost:6333"
-    api_key: Optional[str] = None
-    prefer_grpc: bool = False
-    collection_prefix: str = "minder_"
-
+class MilvusConfig(BaseModel):
+    db_path: str = "~/.minder/data/vectors.db"
 
 
 class RetrievalConfig(BaseModel):
@@ -83,7 +77,7 @@ class RetrievalConfig(BaseModel):
     rerank_top_n: int = 5
     similarity_threshold: float = 0.7
     hybrid_alpha: float = 0.7
-    ingest_cooldown_secs: float = 60.0  # Skip re-scan if repo was ingested within this window
+    ingest_cooldown_secs: float = 60.0
 
 
 class MemoryConfig(BaseModel):
@@ -121,9 +115,8 @@ class RateLimitConfig(BaseModel):
 
 class VerificationConfig(BaseModel):
     enabled: bool = True
-    sandbox: str = "docker"
+    sandbox: str = "none"
     timeout_seconds: int = 30
-    docker_image: str = "minder-sandbox:latest"
 
 
 class WorkflowConfig(BaseModel):
@@ -147,11 +140,9 @@ class Settings(BaseSettings):
     embedding: EmbeddingConfig = Field(default_factory=EmbeddingConfig)
     llm: LLMConfig = Field(default_factory=LLMConfig)
     vector_store: VectorStoreConfig = Field(default_factory=VectorStoreConfig)
-    relational_store: RelationalStoreConfig = Field(
-        default_factory=RelationalStoreConfig
-    )
+    relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
     graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
-    qdrant: QdrantConfig = Field(default_factory=QdrantConfig)
+    milvus: MilvusConfig = Field(default_factory=MilvusConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     session: SessionConfig = Field(default_factory=SessionConfig)

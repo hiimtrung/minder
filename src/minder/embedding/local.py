@@ -70,6 +70,8 @@ class LocalEmbeddingProvider:
                 repo_id=self._model_repo,
                 filename=self._model_file,
                 embedding=True,
+                n_ctx=512,
+                flash_attn=True,
                 verbose=False,
                 **cache_kwargs,
             )

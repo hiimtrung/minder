@@ -1,0 +1,42 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Minder",
+  "version": "0.6.7",
+  "identifier": "asia.tastech.minder",
+  "build": {
+    "beforeDevCommand": "make native-run",
+    "devUrl": "http://localhost:8800/dashboard",
+    "frontendDist": "splash"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "Minder",
+        "url": "splash/index.html",
+        "visible": false,
+        "width": 1280,
+        "height": 800,
+        "minWidth": 960,
+        "minHeight": 600,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/icon.png"
+    ],
+    "externalBin": ["binaries/minder-server"]
+  },
+  "plugins": {
+    "shell": {
+      "open": false
+    }
+  }
+}

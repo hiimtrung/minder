@@ -2,7 +2,7 @@
 Domain Repository & Store Interfaces — Clean Architecture boundary.
 
 These Protocol classes define the contracts that all store adapters
-(SQLite, PostgreSQL, Qdrant, etc.) must satisfy. The application layer
+(SQLite, PostgreSQL, etc.) must satisfy. The application layer
 depends only on these interfaces, never on concrete implementations.
 
 Migrated from ``minder.store.interfaces`` to the domain layer so that

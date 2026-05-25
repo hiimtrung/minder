@@ -241,6 +241,11 @@ class QueryTools:
                     chunk = event.get("data", {}).get("chunk")
                     if chunk and hasattr(chunk, "content"):
                         yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
+
+                elif event_name == "on_custom_event" and name == "llm_token":
+                    delta = str(event.get("data", {}).get("delta", ""))
+                    if delta:
+                        yield {"type": "chunk", "attempt": 1, "delta": delta}
                 
                 elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
                     output = event.get("data", {}).get("output", {})

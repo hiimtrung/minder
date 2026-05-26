@@ -167,7 +167,7 @@ class DockerSandboxRunner:
 class VerificationNode:
     def __init__(
         self,
-        sandbox: str = "docker",
+        sandbox: str = "subprocess",
         timeout_seconds: int = 30,
         docker_runner: VerificationRunner | None = None,
         subprocess_runner: VerificationRunner | None = None,
@@ -208,12 +208,25 @@ class VerificationNode:
             return state
 
         code = str(payload.get("code", ""))
-        if self._sandbox == "subprocess":
-            result = self._subprocess_runner.run_python(
+        if self._sandbox == "none":
+            state.verification_result = {
+                "passed": True,
+                "returncode": 0,
+                "stdout": "",
+                "stderr": "",
+                "runner": "none",
+                "skipped": True,
+                "timeout_seconds": self._timeout_seconds,
+                "failure_kind": None,
+                "retryable": False,
+            }
+            return state
+        elif self._sandbox == "docker":
+            result = self._docker_runner.run_python(
                 code, self._timeout_seconds, state.repo_path
             )
         else:
-            result = self._docker_runner.run_python(
+            result = self._subprocess_runner.run_python(
                 code, self._timeout_seconds, state.repo_path
             )
         state.verification_result = self._normalize_result(result)

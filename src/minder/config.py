@@ -115,7 +115,7 @@ class RateLimitConfig(BaseModel):
 
 class VerificationConfig(BaseModel):
     enabled: bool = True
-    sandbox: str = "none"
+    sandbox: str = "subprocess"
     timeout_seconds: int = 30
 
 

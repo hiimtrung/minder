@@ -28,6 +28,7 @@ jobs:
       contents: read
     outputs:
       release_tag: ${{ steps.release_meta.outputs.release_tag }}
+      version: ${{ steps.release_meta.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -51,7 +52,9 @@ jobs:
 
       - name: Compute release metadata
         id: release_meta
-        run: echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: Upload Python distribution artifacts
         uses: actions/upload-artifact@v4
@@ -80,138 +83,118 @@ jobs:
           packages-dir: dist
           skip-existing: true
 
-  # Native ARM64 + AMD64 builds in parallel — needed because llama-cpp-python
-  # compiles Rust/C++ and is prohibitively slow under QEMU emulation.
-  build-api:
+  # Build native Tauri desktop apps — one job per platform/arch.
+  # PyInstaller + Rust compilation are both slow under QEMU; use native runners.
+  build-tauri:
     needs: build-dist
     strategy:
       fail-fast: false
       matrix:
         include:
-          - platform: linux/amd64
-            runner: ubuntu-latest
-          - platform: linux/arm64
-            runner: ubuntu-24.04-arm
+          - runner: macos-14          # Apple Silicon (ARM64)
+            target: aarch64-apple-darwin
+          - runner: macos-13          # Intel (x86_64)
+            target: x86_64-apple-darwin
+          - runner: ubuntu-latest     # Linux x86_64
+            target: x86_64-unknown-linux-gnu
+          - runner: ubuntu-24.04-arm  # Linux ARM64
+            target: aarch64-unknown-linux-gnu
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 60
+    timeout-minutes: 90
     permissions:
       contents: read
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set platform pair env
+      - name: Install Linux system dependencies
+        if: runner.os == 'Linux'
         run: |
-          platform="${{ matrix.platform }}"
-          echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          python-version: "3.14"
 
-      - name: Build and push by digest
-        id: build
-        uses: docker/build-push-action@v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
         with:
-          context: .
-          file: docker/Dockerfile.api
-          platforms: ${{ matrix.platform }}
-          cache-from: type=gha,scope=minder-api-${{ env.PLATFORM_PAIR }}
-          cache-to: type=gha,mode=max,scope=minder-api-${{ env.PLATFORM_PAIR }}
-          outputs: type=image,name=ghcr.io/${{ github.repository_owner }}/minder-api,push-by-digest=true,name-canonical=true,push=true
+          workspaces: ". -> src-tauri/target"
 
-      - name: Export digest
+      - name: Sync Python dependencies
+        run: uv sync --frozen --extra server
+
+      - name: Build Astro dashboard
         run: |
-          mkdir -p /tmp/digests
-          touch "/tmp/digests/${DIGEST#sha256:}"
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
+          bun install --frozen-lockfile
+          bun run build
 
-      - name: Upload digest
+      - name: Build PyInstaller sidecar
+        run: |
+          uv add --dev pyinstaller
+          uv run pyinstaller minder-server.spec --clean --noconfirm
+          TARGET=$(rustc -Vv | grep host | cut -d' ' -f2)
+          mkdir -p src-tauri/binaries
+          cp -r "dist/minder-server/." "src-tauri/binaries/minder-server-$TARGET/"
+          echo "Sidecar ready: src-tauri/binaries/minder-server-$TARGET"
+
+      - name: Set version in tauri.conf.json
+        run: |
+          VERSION="${{ needs.build-dist.outputs.version }}"
+          python3 -c "
+          import json, pathlib
+          p = pathlib.Path('src-tauri/tauri.conf.json')
+          cfg = json.loads(p.read_text())
+          cfg['version'] = '$VERSION'
+          p.write_text(json.dumps(cfg, indent=2) + '\n')
+          "
+
+      - name: Build Tauri app
+        run: bun run tauri build
+
+      - name: Upload macOS artifacts
+        if: runner.os == 'macOS'
         uses: actions/upload-artifact@v4
         with:
-          name: digest-api-${{ env.PLATFORM_PAIR }}
-          path: /tmp/digests/*
+          name: tauri-${{ matrix.target }}
+          path: src-tauri/target/release/bundle/dmg/*.dmg
           if-no-files-found: error
-          retention-days: 1
 
-  # Dashboard is pure Bun/Node — no Rust compilation, QEMU overhead is negligible.
-  # Single job building both platforms is simpler and fast enough.
-  build-dashboard:
-    needs: build-dist
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
+      - name: Upload Linux artifacts
+        if: runner.os == 'Linux'
+        uses: actions/upload-artifact@v4
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: docker/Dockerfile.dashboard
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha,scope=minder-dashboard
-          cache-to: type=gha,mode=max,scope=minder-dashboard
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/minder-dashboard:${{ needs.build-dist.outputs.release_tag }}
+          name: tauri-${{ matrix.target }}
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: error
 
   release-github:
-    needs: [build-dist, release-pypi, build-api, build-dashboard]
+    needs: [build-dist, release-pypi, build-tauri]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: write
-      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Download API digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests/api
-          pattern: digest-api-*
-          merge-multiple: true
-
-      - name: Create and push API manifest
-        run: |
-          docker buildx imagetools create \
-            -t ghcr.io/${{ github.repository_owner }}/minder-api:${{ needs.build-dist.outputs.release_tag }} \
-            $(printf 'ghcr.io/${{ github.repository_owner }}/minder-api@sha256:%s ' $(ls /tmp/digests/api))
 
       - name: Download Python distribution artifacts
         uses: actions/download-artifact@v4
@@ -219,85 +202,75 @@ jobs:
           name: python-dist
           path: dist
 
-      - name: Prepare release assets
+      - name: Download all Tauri artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist/tauri
+          pattern: tauri-*
+          merge-multiple: true
+
+      - name: Prepare install scripts
         run: |
           mkdir -p dist/release
-          cp docker/docker-compose.yml dist/release/docker-compose.yml
-          cp docker/Caddyfile dist/release/Caddyfile
           sed \
             -e 's|__REPO_OWNER__|${{ github.repository_owner }}|g' \
             -e 's|__REPO_NAME__|${{ github.event.repository.name }}|g' \
             -e 's|__RELEASE_TAG__|${{ needs.build-dist.outputs.release_tag }}|g' \
-            scripts/release/install-minder-release.sh > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
+            scripts/release/install-minder-release.sh \
+            > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
           chmod +x dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
+
           sed \
             -e 's|__REPO_OWNER__|${{ github.repository_owner }}|g' \
             -e 's|__REPO_NAME__|${{ github.event.repository.name }}|g' \
             -e 's|__RELEASE_TAG__|${{ needs.build-dist.outputs.release_tag }}|g' \
-            scripts/release/install-minder-release.ps1 > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
+            scripts/release/install-minder-release.ps1 \
+            > dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
 
+      - name: Generate release notes
+        run: |
           cat > dist/release/release-notes.md <<'EOF'
           ## Quick Start
 
-          **Requirements:** Docker with Compose plugin + `curl` (Linux/macOS) or Docker Desktop (Windows)
+          ### macOS / Linux — Native App
 
-          ### Install
-
-          Linux/macOS:
           ```bash
           curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh | bash
           ```
 
-          Windows PowerShell:
+          Or download the installer directly from the assets below:
+          - **macOS Apple Silicon**: `Minder_${{ needs.build-dist.outputs.version }}_aarch64.dmg`
+          - **macOS Intel**: `Minder_${{ needs.build-dist.outputs.version }}_x64.dmg`
+          - **Linux (Debian/Ubuntu)**: `minder_${{ needs.build-dist.outputs.version }}_amd64.deb` or `*_arm64.deb`
+          - **Linux (AppImage)**: `Minder_${{ needs.build-dist.outputs.version }}_amd64.AppImage` or `*_aarch64.AppImage`
+
+          ### Windows — Headless Server
+
           ```powershell
           iwr -useb https://github.com/${{ github.repository }}/releases/download/${{ needs.build-dist.outputs.release_tag }}/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1 | iex
           ```
-
-          The installer:
-          - Creates `~/.minder/releases/${{ needs.build-dist.outputs.release_tag }}`
-          - Downloads `docker-compose.yml` and `Caddyfile` from this release
-          - Starts the Minder server and dashboard via Docker Compose
-          - GGUF models are downloaded automatically from Hugging Face on first startup (no manual setup)
-          - All data (vector store, database) is stored locally in a Docker volume — no external services
 
           ### Connect via CLI
 
           ```bash
           uv tool install --upgrade minder-cli
           minder login --client-key mkc_your_client_key --server-url http://localhost:8800/sse
-          minder install-ide --target vscode --target claude-code
+          minder install --target vscode --target claude-code
           ```
 
           ### Update
 
-          Linux/macOS:
           ```bash
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.sh | bash
           ```
 
-          Windows PowerShell:
-          ```powershell
-          irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/update-minder.ps1 | iex
-          ```
-
           ### Uninstall
 
-          Linux/macOS:
           ```bash
-          # Keep downloaded models and data:
+          # Keep data:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash -s -- --keep-data
-
           # Full removal:
           curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.sh | bash
-          ```
-
-          Windows PowerShell:
-          ```powershell
-          # Keep downloaded models and data:
-          & ([scriptblock]::Create((irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.ps1))) -KeepData
-
-          # Full removal:
-          irm https://raw.githubusercontent.com/${{ github.repository }}/main/scripts/release/uninstall-minder.ps1 | iex
           ```
           EOF
 
@@ -306,11 +279,12 @@ jobs:
         with:
           body_path: dist/release/release-notes.md
           append_body: true
+          generate_release_notes: true
           files: |
             dist/*.whl
             dist/*.tar.gz
-            dist/release/docker-compose.yml
-            dist/release/Caddyfile
+            dist/tauri/**/*.dmg
+            dist/tauri/**/*.deb
+            dist/tauri/**/*.AppImage
             dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.sh
             dist/release/install-minder-${{ needs.build-dist.outputs.release_tag }}.ps1
-          generate_release_notes: true

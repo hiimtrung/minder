@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 
+# Minder native installer — macOS and Linux.
+# Placeholders substituted at release time by the CI pipeline.
+#
+# macOS:  mounts the .dmg and copies Minder.app to /Applications.
+# Linux:  installs the .deb (when dpkg + sudo available) or places the
+#         AppImage in ~/.local/bin as a fallback.
+
 set -euo pipefail
 
 REPO_OWNER="__REPO_OWNER__"
 REPO_NAME="__REPO_NAME__"
 RELEASE_TAG="__RELEASE_TAG__"
 
-INSTALL_DIR="${MINDER_INSTALL_DIR:-$HOME/.minder/releases/$RELEASE_TAG}"
-CURRENT_LINK="${MINDER_CURRENT_LINK:-$HOME/.minder/current}"
-MODELS_DIR="${MINDER_MODELS_DIR:-$HOME/.minder/models}"
-PUBLIC_PORT="${MINDER_PORT:-8800}"
-API_IMAGE="ghcr.io/${REPO_OWNER}/minder-api:${RELEASE_TAG}"
-DASHBOARD_IMAGE="ghcr.io/${REPO_OWNER}/minder-dashboard:${RELEASE_TAG}"
+VERSION="${RELEASE_TAG#v}"   # strip leading 'v'
 RELEASE_BASE_URL="https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${RELEASE_TAG}"
-
-LLM_MODEL_REPO="${MINDER_LLM_MODEL_REPO:-unsloth/Qwen3.5-2B-GGUF}"
-EMBEDDING_MODEL="${MINDER_EMBEDDING_MODEL:-ggml-org/embeddinggemma-300M-GGUF}"
+MINDER_DIR="${HOME}/.minder"
 
 # ------------------------------------------------------------------
 # Helpers
@@ -28,87 +28,158 @@ require_command() {
   fi
 }
 
+download() {
+  local url="$1" dest="$2"
+  echo "  Downloading $(basename "$dest")..."
+  curl -fsSL --progress-bar "$url" -o "$dest"
+}
+
 # ------------------------------------------------------------------
-# Step 1: Verify Docker
+# Platform detection
 # ------------------------------------------------------------------
 
-require_command docker
+OS="$(uname -s)"
+ARCH="$(uname -m)"
+
 require_command curl
 
-if ! docker compose version >/dev/null 2>&1; then
-  echo "docker compose plugin is required." >&2
-  exit 1
-fi
-
 # ------------------------------------------------------------------
-# Step 2: Prepare models directory
+# macOS install
 # ------------------------------------------------------------------
 
-mkdir -p "$MODELS_DIR"
+install_macos() {
+  case "$ARCH" in
+    arm64)   ARCH_SUFFIX="aarch64" ;;
+    x86_64)  ARCH_SUFFIX="x64" ;;
+    *)
+      echo "Unsupported architecture: $ARCH" >&2
+      exit 1
+      ;;
+  esac
 
-echo "GGUF models will be downloaded automatically by llama-cpp-python on first startup."
-echo "  LLM repo:       $LLM_MODEL_REPO"
-echo "  Embedding repo: $EMBEDDING_MODEL"
+  local dmg_name="Minder_${VERSION}_${ARCH_SUFFIX}.dmg"
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  local tmp_dmg="${tmp_dir}/minder.dmg"
+
+  download "${RELEASE_BASE_URL}/${dmg_name}" "$tmp_dmg"
+
+  echo "  Mounting disk image..."
+  local mount_output
+  mount_output="$(hdiutil attach "$tmp_dmg" -nobrowse -quiet)"
+  local mount_point
+  mount_point="$(echo "$mount_output" | awk 'END{print $NF}')"
+
+  echo "  Installing Minder.app → /Applications/"
+  cp -r "${mount_point}/Minder.app" /Applications/
+
+  echo "  Unmounting..."
+  hdiutil detach "$mount_point" -quiet
+  rm -rf "$tmp_dir"
+
+  echo "Minder installed at /Applications/Minder.app"
+}
 
 # ------------------------------------------------------------------
-# Step 3: Verify pre-conditions
+# Linux install — .deb preferred, AppImage fallback
+# ------------------------------------------------------------------
+
+install_linux_deb() {
+  case "$ARCH" in
+    x86_64)          ARCH_SUFFIX="amd64" ;;
+    aarch64|arm64)   ARCH_SUFFIX="arm64" ;;
+    *)
+      echo "Unsupported architecture: $ARCH" >&2
+      exit 1
+      ;;
+  esac
+
+  local deb_name="minder_${VERSION}_${ARCH_SUFFIX}.deb"
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  local tmp_deb="${tmp_dir}/minder.deb"
+
+  download "${RELEASE_BASE_URL}/${deb_name}" "$tmp_deb"
+
+  echo "  Installing .deb package (sudo required)..."
+  sudo dpkg -i "$tmp_deb"
+  rm -rf "$tmp_dir"
+
+  echo "Minder installed. Run: minder-app"
+}
+
+install_linux_appimage() {
+  case "$ARCH" in
+    x86_64)          ARCH_SUFFIX="amd64" ;;
+    aarch64|arm64)   ARCH_SUFFIX="aarch64" ;;
+    *)
+      echo "Unsupported architecture: $ARCH" >&2
+      exit 1
+      ;;
+  esac
+
+  local app_name="Minder_${VERSION}_${ARCH_SUFFIX}.AppImage"
+  local install_dir="${HOME}/.local/bin"
+  mkdir -p "$install_dir"
+
+  download "${RELEASE_BASE_URL}/${app_name}" "${install_dir}/Minder.AppImage"
+  chmod +x "${install_dir}/Minder.AppImage"
+
+  echo "Minder AppImage installed: ${install_dir}/Minder.AppImage"
+  if ! echo "$PATH" | grep -q "${install_dir}"; then
+    echo "  Add ${install_dir} to your PATH to run it as 'Minder.AppImage'."
+  fi
+}
+
+# ------------------------------------------------------------------
+# Dispatch
 # ------------------------------------------------------------------
 
 echo ""
-echo "Pre-flight checks:"
-echo "  [✓] Docker with Compose plugin"
-echo "  [✓] LLM model repo (llama.cpp/GGUF, auto-download): $LLM_MODEL_REPO"
-echo "  [✓] Embedding model repo (llama.cpp/GGUF, auto-download): $EMBEDDING_MODEL"
+echo "Installing Minder ${RELEASE_TAG}..."
 echo ""
 
+case "$OS" in
+  Darwin)
+    install_macos
+    ;;
+  Linux)
+    if command -v dpkg >/dev/null 2>&1 && command -v sudo >/dev/null 2>&1; then
+      install_linux_deb
+    else
+      install_linux_appimage
+    fi
+    ;;
+  *)
+    echo "Unsupported OS: $OS" >&2
+    exit 1
+    ;;
+esac
+
 # ------------------------------------------------------------------
-# Step 4: Download release assets and start Docker Compose
+# Save release metadata (used by update/uninstall scripts)
 # ------------------------------------------------------------------
 
-mkdir -p "$INSTALL_DIR"
-mkdir -p "$(dirname "$CURRENT_LINK")"
-
-curl -fsSL "$RELEASE_BASE_URL/docker-compose.yml" -o "$INSTALL_DIR/docker-compose.yml"
-curl -fsSL "$RELEASE_BASE_URL/Caddyfile" -o "$INSTALL_DIR/Caddyfile"
-
-cat > "$INSTALL_DIR/.env" <<EOF
-MINDER_PORT=$PUBLIC_PORT
-MINDER_API_IMAGE=$API_IMAGE
-MINDER_DASHBOARD_IMAGE=$DASHBOARD_IMAGE
-MINDER_MODELS_DIR=$MODELS_DIR
-MINDER_LLM_MODEL_REPO=$LLM_MODEL_REPO
-MINDER_EMBEDDING_MODEL=$EMBEDDING_MODEL
-OPENAI_API_KEY=${OPENAI_API_KEY:-}
-EOF
-
-cat > "$INSTALL_DIR/.minder-release.json" <<EOF
+mkdir -p "$MINDER_DIR"
+cat > "${MINDER_DIR}/.minder-release.json" <<EOF
 {
-  "repo_owner": "$REPO_OWNER",
-  "repo_name": "$REPO_NAME",
-  "repository": "https://github.com/$REPO_OWNER/$REPO_NAME",
-  "release_tag": "$RELEASE_TAG"
+  "repo_owner": "${REPO_OWNER}",
+  "repo_name": "${REPO_NAME}",
+  "repository": "https://github.com/${REPO_OWNER}/${REPO_NAME}",
+  "release_tag": "${RELEASE_TAG}"
 }
 EOF
 
-docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" pull
-docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" up -d
-ln -sfn "$INSTALL_DIR" "$CURRENT_LINK"
-
-cat <<EOF
-Minder release $RELEASE_TAG is starting.
-
-Deployment directory: $INSTALL_DIR
-Current release link: $CURRENT_LINK
-API image: $API_IMAGE
-Dashboard image: $DASHBOARD_IMAGE
-LLM model repo (llama.cpp/GGUF): $LLM_MODEL_REPO
-Embedding model repo (llama.cpp/GGUF): $EMBEDDING_MODEL
-
-Open:
-  http://localhost:$PUBLIC_PORT/dashboard/setup
-  http://localhost:$PUBLIC_PORT/sse
-
-Useful commands:
-  docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" ps
-  docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" logs -f gateway
-EOF
+echo ""
+echo "Minder ${RELEASE_TAG} is ready."
+echo ""
+echo "First run:"
+echo "  macOS:  open /Applications/Minder.app"
+echo "  Linux:  minder-app   (deb)  or  Minder.AppImage  (AppImage)"
+echo ""
+echo "Dashboard: http://localhost:8800/dashboard/setup"
+echo "MCP SSE:   http://localhost:8800/sse"
+echo ""
+echo "CLI:"
+echo "  uv tool install minder-cli"
+echo "  minder login --client-key mkc_... --server-url http://localhost:8800/sse"

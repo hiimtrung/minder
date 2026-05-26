@@ -1,14 +1,12 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-
-# ------------------------------------------------------------------
 # Minder Uninstall Script
 #
 # Usage:
-#   ./uninstall-minder.sh               # Full uninstall (removes everything)
-#   ./uninstall-minder.sh --keep-data   # Keeps models, Docker volumes, config
-# ------------------------------------------------------------------
+#   ./uninstall-minder.sh               # Full uninstall (app + all data)
+#   ./uninstall-minder.sh --keep-data   # Remove app only, keep ~/.minder/ data
+
+set -euo pipefail
 
 KEEP_DATA=false
 for arg in "$@"; do
@@ -17,82 +15,68 @@ for arg in "$@"; do
     --help|-h)
       echo "Usage: $0 [--keep-data]"
       echo ""
-      echo "  --keep-data   Keep downloaded models, Docker volumes, and config files"
-      echo "                Only removes Minder containers and release directories"
+      echo "  --keep-data   Keep downloaded models and data in ~/.minder/"
+      echo "                Only removes the app binary / package"
       exit 0
       ;;
-    *) echo "Unknown option: $arg"; exit 1 ;;
+    *) echo "Unknown option: $arg" >&2; exit 1 ;;
   esac
 done
 
+OS="$(uname -s)"
 MINDER_DIR="${HOME}/.minder"
-CURRENT_LINK="${MINDER_DIR}/current"
 
 # ------------------------------------------------------------------
-# Step 1: Stop and remove Minder Docker containers
+# Step 1: Remove the installed app
 # ------------------------------------------------------------------
 
-echo "Stopping Minder containers..."
-
-if [ -L "$CURRENT_LINK" ]; then
-  INSTALL_DIR="$(readlink "$CURRENT_LINK")"
-  if [ -f "$INSTALL_DIR/docker-compose.yml" ]; then
-    docker compose --env-file "$INSTALL_DIR/.env" -f "$INSTALL_DIR/docker-compose.yml" down 2>/dev/null || true
-  fi
-fi
-
-# Also try all release directories
-if [ -d "${MINDER_DIR}/releases" ]; then
-  for release_dir in "${MINDER_DIR}/releases"/*/; do
-    if [ -f "${release_dir}docker-compose.yml" ]; then
-      docker compose --env-file "${release_dir}.env" -f "${release_dir}docker-compose.yml" down 2>/dev/null || true
+case "$OS" in
+  Darwin)
+    if [ -d /Applications/Minder.app ]; then
+      echo "Removing /Applications/Minder.app..."
+      rm -rf /Applications/Minder.app
+    else
+      echo "Minder.app not found in /Applications — skipping."
     fi
-  done
-fi
-
-echo "Minder containers stopped."
+    ;;
+  Linux)
+    # .deb install
+    if command -v dpkg >/dev/null 2>&1 && dpkg -l minder >/dev/null 2>&1; then
+      echo "Removing minder .deb package (sudo required)..."
+      sudo dpkg -r minder
+    fi
+    # AppImage install
+    if [ -f "${HOME}/.local/bin/Minder.AppImage" ]; then
+      echo "Removing ${HOME}/.local/bin/Minder.AppImage..."
+      rm -f "${HOME}/.local/bin/Minder.AppImage"
+    fi
+    ;;
+  *)
+    echo "Unsupported OS: $OS" >&2
+    exit 1
+    ;;
+esac
 
 # ------------------------------------------------------------------
-# Step 2: Remove release directories and current link
+# Step 2: Handle data directory
 # ------------------------------------------------------------------
-
-echo "Removing release directories..."
-rm -rf "${MINDER_DIR}/releases"
-rm -f "$CURRENT_LINK"
 
 if [ "$KEEP_DATA" = true ]; then
   echo ""
-  echo "Uninstall complete (--keep-data mode)."
+  echo "Minder app removed."
+  echo "Data kept at: ${MINDER_DIR}/"
   echo ""
-  echo "Kept:"
-  echo "  - Downloaded models"
-  echo "  - Docker volumes (minder-data)"
-  echo "  - Config files in ${MINDER_DIR}/"
-  echo ""
-  echo "To remove Docker volumes manually:"
-  echo "  docker volume ls | grep minder"
-  echo "  docker volume rm <volume-name>"
+  echo "To fully remove data later:"
+  echo "  rm -rf \"${MINDER_DIR}\""
   exit 0
 fi
 
-# ------------------------------------------------------------------
-# Step 3: Full cleanup (only when --keep-data is NOT set)
-# ------------------------------------------------------------------
-
-echo "Removing Docker volumes..."
-for vol in $(docker volume ls -q 2>/dev/null | grep "minder" || true); do
-  echo "  Removing volume: $vol"
-  docker volume rm "$vol" 2>/dev/null || true
-done
-
-echo "Removing Minder config directory..."
-rm -rf "$MINDER_DIR"
-
-
+if [ -d "$MINDER_DIR" ]; then
+  echo "Removing Minder data directory: ${MINDER_DIR}/"
+  rm -rf "$MINDER_DIR"
+fi
 
 echo ""
-echo "Minder has been fully uninstalled."
-echo "  - All containers stopped and removed"
-echo "  - Docker volumes removed"
-
-echo "  - Config directory removed: ${MINDER_DIR}"
+echo "Minder fully uninstalled."
+echo "  - App removed"
+echo "  - Data directory removed: ${MINDER_DIR}"

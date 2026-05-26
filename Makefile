@@ -64,7 +64,7 @@ test-slow:
 test-all:
 	uv run pytest tests/unit tests/integration
 
-check-all: lint test-all build-docker
+check-all: lint test-all
 
 clean:
 	rm -rf .venv .mypy_cache .pytest_cache .ruff_cache build dist *.egg-info
@@ -95,10 +95,18 @@ release-start:
 	git rebase origin/main; \
 	echo "Updating version to $$CLEAN_VERSION in pyproject.toml..."; \
 	sed -i.bak -e "s/^version = \".*\"/version = \"$$CLEAN_VERSION\"/" pyproject.toml && rm pyproject.toml.bak; \
+	echo "Updating version to $$CLEAN_VERSION in src-tauri/tauri.conf.json..."; \
+	python3 -c " \
+import json, pathlib; \
+p = pathlib.Path('src-tauri/tauri.conf.json'); \
+cfg = json.loads(p.read_text()); \
+cfg['version'] = '$$CLEAN_VERSION'; \
+p.write_text(json.dumps(cfg, indent=2) + '\n') \
+	"; \
 	echo "Updating uv.lock..."; \
 	uv lock; \
-	if ! git diff --quiet pyproject.toml uv.lock; then \
-		git add pyproject.toml uv.lock; \
+	if ! git diff --quiet pyproject.toml uv.lock src-tauri/tauri.conf.json; then \
+		git add pyproject.toml uv.lock src-tauri/tauri.conf.json; \
 		git commit -m "chore(release): update version to v$$CLEAN_VERSION"; \
 		git push -u origin $$BRANCH_NAME; \
 		if command -v gh >/dev/null 2>&1; then \

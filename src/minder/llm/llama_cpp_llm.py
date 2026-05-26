@@ -8,6 +8,7 @@ Automatically downloads models from Hugging Face Hub if they don't exist locally
 from __future__ import annotations
 import gc
 import logging
+import re as _re
 from collections.abc import Generator
 from typing import Any, cast
 
@@ -20,7 +21,6 @@ logger = logging.getLogger(__name__)
 _ENGINE_CACHE: dict[str, Any] = {}
 # ~3 chars per token; truncate at 90% of context_length to leave room for output
 _CHARS_PER_TOKEN = 3
-import re as _re
 _THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
 
 

@@ -18,15 +18,13 @@ services:
     restart: unless-stopped
     volumes:
       - ${MINDER_MODELS_DIR:-~/.minder/models}:/models
+      - minder-data:/root/.minder/data
     environment:
       MINDER_SERVER__PORT: 8801
       MINDER_LLM__PROVIDER: llama_cpp
-      MINDER_QDRANT__URL: http://qdrant:6333
+      MINDER_VECTOR_STORE__PROVIDER: milvus
       HUGGINGFACE_HUB_CACHE: /models
       MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-    depends_on:
-      qdrant:
-        condition: service_healthy
 
   dashboard:
     container_name: minder-dashboard
@@ -35,18 +33,5 @@ services:
     depends_on:
       - minder-api
 
-  qdrant:
-    container_name: minder-qdrant
-    image: qdrant/qdrant:latest
-    restart: unless-stopped
-    volumes:
-      - qdrant-data:/qdrant/storage
-    healthcheck:
-      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
 volumes:
-  qdrant-data:
+  minder-data:

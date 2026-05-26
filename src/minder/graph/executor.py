@@ -250,7 +250,7 @@ class LangGraphExecutorAdapter:
         workflow.add_node(
             "reasoning", self._wrap_state_handler(self._node_reasoning_wrapper)
         )
-        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.run, use_llm_semaphore=True))
+        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.arun))
         workflow.add_node("guard", self._wrap_state_handler(self._nodes.guard.run))
         workflow.add_node(
             "verification", self._wrap_state_handler(self._nodes.verification.run)

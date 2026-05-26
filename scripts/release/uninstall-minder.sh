@@ -66,7 +66,7 @@ if [ "$KEEP_DATA" = true ]; then
   echo ""
   echo "Kept:"
   echo "  - Downloaded models"
-  echo "  - Docker volumes (for example qdrant-data)"
+  echo "  - Docker volumes (minder-data)"
   echo "  - Config files in ${MINDER_DIR}/"
   echo ""
   echo "To remove Docker volumes manually:"
@@ -80,7 +80,7 @@ fi
 # ------------------------------------------------------------------
 
 echo "Removing Docker volumes..."
-for vol in $(docker volume ls -q 2>/dev/null | grep -E "(minder|qdrant)" || true); do
+for vol in $(docker volume ls -q 2>/dev/null | grep "minder" || true); do
   echo "  Removing volume: $vol"
   docker volume rm "$vol" 2>/dev/null || true
 done

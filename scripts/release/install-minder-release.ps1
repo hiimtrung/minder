@@ -43,7 +43,7 @@ $CurrentLink   = Get-EnvOrDefault -Name 'MINDER_CURRENT_LINK'     -Default (Join
 $ModelsDir     = Get-EnvOrDefault -Name 'MINDER_MODELS_DIR'       -Default (Join-Path $HOME '.minder\models')
 $PublicPort    = Get-EnvOrDefault -Name 'MINDER_PORT'             -Default '8800'
 $OpenAiKey     = Get-EnvOrDefault -Name 'OPENAI_API_KEY'          -Default ''
-$LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'   -Default 'ggml-org/gemma-4-E2B-it-GGUF'
+$LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'   -Default 'unsloth/Qwen3.5-2B-GGUF'
 $EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL'  -Default 'ggml-org/embeddinggemma-300M-GGUF'
 
 $ApiImage       = "ghcr.io/$RepoOwner/minder-api:$ReleaseTag"

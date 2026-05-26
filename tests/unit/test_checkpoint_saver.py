@@ -8,7 +8,7 @@ import pytest
 from minder.graph.checkpoint import MinderCheckpointSaver
 
 
-class FakeQdrantCheckpointStore:
+class FakeCheckpointStore:
     def __init__(self) -> None:
         self.record: dict[str, Any] | None = None
 
@@ -43,8 +43,8 @@ class FakeQdrantCheckpointStore:
 
 
 @pytest.mark.asyncio
-async def test_checkpoint_saver_reads_qdrant_base64_payloads() -> None:
-    store = FakeQdrantCheckpointStore()
+async def test_checkpoint_saver_roundtrips_base64_payloads() -> None:
+    store = FakeCheckpointStore()
     saver = MinderCheckpointSaver(store)  # type: ignore[arg-type]
     config = {"configurable": {"thread_id": "thread-1", "checkpoint_ns": ""}}
     checkpoint = {

@@ -139,14 +139,30 @@ class RelationalStore:
         from sqlalchemy import inspect, text
 
         inspector = inspect(sync_conn)
-        # skills.deprecated (added in Phase 8)
+        if "users" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("users")}
+            if "password_hash" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE users ADD COLUMN password_hash VARCHAR DEFAULT NULL")
+                )
+
+        if "sessions" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("sessions")}
+            if "client_id" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE sessions ADD COLUMN client_id VARCHAR(36) DEFAULT NULL")
+                )
+            if "name" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE sessions ADD COLUMN name VARCHAR DEFAULT NULL")
+                )
+
         if "skills" in inspector.get_table_names():
             existing = {col["name"] for col in inspector.get_columns("skills")}
             if "deprecated" not in existing:
                 sync_conn.execute(
                     text("ALTER TABLE skills ADD COLUMN deprecated BOOLEAN NOT NULL DEFAULT 0")
                 )
-            # skills.owner_id + skills.scope (multi-developer isolation)
             if "owner_id" not in existing:
                 sync_conn.execute(
                     text("ALTER TABLE skills ADD COLUMN owner_id VARCHAR(36) DEFAULT NULL")
@@ -155,12 +171,56 @@ class RelationalStore:
                 sync_conn.execute(
                     text("ALTER TABLE skills ADD COLUMN scope VARCHAR(10) NOT NULL DEFAULT 'team'")
                 )
+            if "source_metadata" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN source_metadata JSON DEFAULT NULL")
+                )
+            if "excerpt_kind" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN excerpt_kind VARCHAR NOT NULL DEFAULT 'none'")
+                )
+
+        if "workflows" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("workflows")}
+            if "description" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE workflows ADD COLUMN description VARCHAR NOT NULL DEFAULT ''")
+                )
+            if "enforcement" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE workflows ADD COLUMN enforcement VARCHAR NOT NULL DEFAULT 'strict'")
+                )
+
+        if "repositories" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("repositories")}
+            if "tracked_branches" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE repositories ADD COLUMN tracked_branches JSON DEFAULT NULL")
+                )
 
         if "repository_workflow_states" in inspector.get_table_names():
             existing = {col["name"] for col in inspector.get_columns("repository_workflow_states")}
             if "branch" not in existing:
                 sync_conn.execute(
                     text("ALTER TABLE repository_workflow_states ADD COLUMN branch VARCHAR(255) NOT NULL DEFAULT 'main'")
+                )
+
+        if "graph_nodes" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("graph_nodes")}
+            if "repo_id" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE graph_nodes ADD COLUMN repo_id VARCHAR NOT NULL DEFAULT ''")
+                )
+            if "branch" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE graph_nodes ADD COLUMN branch VARCHAR NOT NULL DEFAULT ''")
+                )
+
+        if "graph_edges" in inspector.get_table_names():
+            existing = {col["name"] for col in inspector.get_columns("graph_edges")}
+            if "repo_id" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE graph_edges ADD COLUMN repo_id VARCHAR NOT NULL DEFAULT ''")
                 )
 
     async def dispose(self) -> None:

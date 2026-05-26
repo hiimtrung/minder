@@ -100,11 +100,14 @@ def test_release_assets_contain_cross_platform_installers() -> None:
     assert "& docker @composeArgs up -d" in powershell_installer
 
 
-def test_production_guide_documents_both_install_paths() -> None:
+def test_production_guide_documents_native_deployment() -> None:
     guide = Path("docs/guides/production-deployment.md").read_text()
 
-    assert "install-minder-<tag>.sh" in guide
-    assert "install-minder-<tag>.ps1" in guide
-    assert "MINDER_INSTALL_DIR" in guide
-    assert "MINDER_MODELS_DIR" in guide
-    assert "minder update --component server" in guide
+    # Tauri desktop app path
+    assert "make bundle" in guide
+    assert "make app-build" in guide
+    # Standalone Python server path
+    assert "uv run python -m minder.server" in guide
+    # Service management examples
+    assert "systemd" in guide
+    assert "launchctl" in guide

@@ -5,7 +5,7 @@
 
 **Minder** is a self-hosted MCP (Model Context Protocol) platform for repository-aware engineering intelligence.
 
-It combines an LLM inference stack, a persistent memory and workflow engine, a browser admin console, and a lightweight CLI into a single deployable unit.
+It runs **natively** on macOS and Linux — no Docker, no external services. The stack is a Python FastAPI server with SQLite, Milvus Lite (embedded vector search), and llama-cpp-python for local LLM inference, distributed as a Tauri desktop app or standalone server.
 
 ## What's in this repo
 
@@ -22,35 +22,32 @@ Developer workstation
   ├── minder-cli          repo sync, MCP config
   └── AI agent (IDE)  ──► Minder Server :8800
                               │
-                    ┌──────────────┼──────────────────────┐
-                    │              │                      │
-                 Qdrant   SQLite / PostgreSQL    llama-cpp-python
-          (default vector +   (optional relational/   (LLM + embedding,
-           operational data)    graph adapters)        GGUF on host)
+                  ┌───────────┼───────────────────┐
+                  │           │                   │
+               SQLite    Milvus Lite        llama-cpp-python
+          (users, sessions,  (embedded vector    (LLM, GGUF,
+           workflows, graph)  search, file-based)  Metal/CPU)
 ```
 
 - **Transport**: SSE (`/sse`), streamable HTTP (`/mcp`), stdio
 - **LLM inference**: llama-cpp-python with GGUF models auto-downloaded from HuggingFace (Metal on Mac, CPU elsewhere)
-- **Vector search**: Qdrant for semantic retrieval
-- **Operational storage**: Qdrant by default, with optional SQLite/PostgreSQL adapters for relational and graph workloads
+- **Vector search**: Milvus Lite — embedded, file-based, no separate server
+- **Relational storage**: SQLite (default) or PostgreSQL
+- **Desktop**: optional Tauri v2 shell that bundles the Python server as a sidecar
 
 ## Quick Start
 
-### 1. Run the server
+### 1. Install and run
 
 ```bash
-# Start infra (Qdrant)
-docker compose -f docker/docker-compose.local.yml up -d
+# Install dependencies and build the dashboard
+make native-install
 
-# Run Minder Server (GGUF models auto-download on first start)
-uv run python scripts/dev_server.py
+# Start the server (dashboard + MCP API on port 8800)
+make native-run
 ```
 
-Or use the one-command release installer (Docker only):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/hiimtrung/minder/main/scripts/release/install-minder-release.sh | bash
-```
+GGUF models (`ggml-org/gemma-4-E2B-it-GGUF`) are downloaded automatically on first startup. No manual setup required.
 
 ### 2. Open the dashboard
 
@@ -62,7 +59,7 @@ First run → `/dashboard/setup` to create an admin and get your `mk_...` key.
 
 ### 3. Create a client and connect your IDE
 
-1. Open `/dashboard/clients` → create a client → save the `mkc_...` key (shown once in a modal)
+1. Open `/dashboard/clients` → create a client → save the `mkc_...` key (shown once)
 2. Open the client detail → copy the MCP snippet for your IDE from **Copy-ready MCP snippets**
 3. Open `/dashboard/instruction` → copy the agent orchestration rules for your IDE
 
@@ -100,25 +97,25 @@ When connected, Minder exposes these tools to your AI agents:
 
 ## Dashboard Pages
 
-| Route                      | Description                                                                      |
-| -------------------------- | -------------------------------------------------------------------------------- |
-| `/dashboard`               | Home — stats and quick nav                                                       |
-| `/dashboard/clients`       | Create clients, copy MCP snippets                                                |
-| `/dashboard/instruction`   | Agent orchestration rules — copy for Claude Code, Cursor, VS Code, Codex |
-| `/dashboard/sessions`      | LLM session management                                                           |
-| `/dashboard/memories`      | Persistent memory browser                                                        |
-| `/dashboard/skills`        | Skill / pattern catalog                                                          |
-| `/dashboard/agents`        | SubAgent registry                                                                |
-| `/dashboard/chat`          | Browser-based runtime chat                                                       |
-| `/dashboard/repositories`  | Repo graph explorer                                                              |
-| `/dashboard/workflows`     | Workflow definitions                                                             |
-| `/dashboard/observability` | Audit and trace                                                                  |
+| Route                      | Description                                                            |
+| -------------------------- | ---------------------------------------------------------------------- |
+| `/dashboard`               | Home — stats and quick nav                                             |
+| `/dashboard/clients`       | Create clients, copy MCP snippets                                      |
+| `/dashboard/instruction`   | Agent orchestration rules — copy for Claude Code, Cursor, VS Code      |
+| `/dashboard/sessions`      | LLM session management                                                 |
+| `/dashboard/memories`      | Persistent memory browser                                              |
+| `/dashboard/skills`        | Skill / pattern catalog                                                |
+| `/dashboard/agents`        | SubAgent registry                                                      |
+| `/dashboard/chat`          | Browser-based runtime chat                                             |
+| `/dashboard/repositories`  | Repo graph explorer                                                    |
+| `/dashboard/workflows`     | Workflow definitions                                                   |
+| `/dashboard/observability` | Audit and trace                                                        |
 
 ## Documentation
 
-- [System Design](docs/architecture/system-design.md)
 - [Local Dev Setup](docs/guides/local-setup.md)
 - [Production Deployment](docs/guides/production-deployment.md)
+- [System Design](docs/architecture/system-design.md)
 - [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md)
 - [Minder CLI](docs/guides/minder-cli.md)
 

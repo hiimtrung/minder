@@ -73,6 +73,18 @@ let activeAssistantMessageIndex: number | null = null;
 let sessionId: string | null = null;
 let conversationList: RuntimeConversationSessionPayload[] = [];
 
+// Batch DOM updates so renderThread() fires at most once per animation frame
+// during token streaming instead of once per token.
+let _renderPending = false;
+const scheduleRenderThread = () => {
+  if (_renderPending) return;
+  _renderPending = true;
+  requestAnimationFrame(() => {
+    _renderPending = false;
+    renderThread();
+  });
+};
+
 const SESSION_STORAGE_KEY = "minder:runtime-chat:session-id";
 
 const QUERY_MIN_ROWS = 2;
@@ -535,7 +547,7 @@ const appendAssistantDelta = (delta: string) => {
     ...current,
     content: `${current.content}${delta}`,
   };
-  renderThread();
+  scheduleRenderThread();
 };
 
 const markRetry = (reason: string) => {
@@ -549,7 +561,7 @@ const markRetry = (reason: string) => {
       warning: `Retrying answer generation: ${reason}`,
     },
   };
-  renderThread();
+  scheduleRenderThread();
 };
 
 const setSubmitting = (isSubmitting: boolean) => {

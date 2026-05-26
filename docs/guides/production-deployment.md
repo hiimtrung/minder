@@ -1,242 +1,235 @@
 # Production Deployment Guide
 
-This guide deploys Minder behind a single public gateway on one port:
+Minder is distributed as a **native desktop app** (Tauri) for macOS and Linux.
+It bundles the Python server as a sidecar — no Docker, no external services required.
 
-- MCP server on `SSE`
-- Astro admin console on `/dashboard`
-- Admin and client APIs on `/v1/...`
+For server-side headless deployments (CI, self-hosted server), the Python server
+can also run standalone with `uv` or as a PyInstaller binary.
 
-The browser still uses one public origin on `:8800`, but production now runs three internal services:
+---
 
-- `gateway` on public `8800`
-- `dashboard` on internal `8808`
-- `minder-api` on internal `8801`
+## Option 1 — Tauri Desktop App (Recommended)
 
-Local split frontend development on `8808` is a development-only workflow and is not part of the production shape.
-Do not copy the split local frontend `.env` workflow into production images.
-
-Canonical runtime and deployment architecture:
-
-- [System Design](../../docs/system-design.md)
-
-## What the Production Stack Builds
-
-The production stack uses:
-
-1. [docker/Dockerfile.api](../../docker/Dockerfile.api) for the Python API runtime
-2. [docker/Dockerfile.dashboard](../../docker/Dockerfile.dashboard) for the Astro standalone runtime
-3. [docker/Caddyfile](../../docker/Caddyfile) as the public routing layer
-
-At runtime:
-
-- `/dashboard/*` is served by the Astro service
-- `/v1/*`, `/sse`, `/messages/*`, and `/setup` are served by the Python API service
-- the browser still sees a single origin on `http://host:8800`
-
-## Prerequisites
-
-- Docker Engine or Docker Desktop
-- enough memory for Qdrant and llama-cpp-python inference (~4 GB RAM minimum)
-- `Bun 1.2.21` for local dashboard work
-- `Node 22.12+` only if you run frontend tooling outside Bun
-
-GGUF models (`ggml-org/gemma-4-E2B-it-GGUF` for LLM, `ggml-org/embeddinggemma-300M-GGUF` for embedding) are downloaded automatically by llama-cpp-python from HuggingFace on first startup. No manual download required.
-
-## 1. Recommended Release Install
-
-From the GitHub release page, run the attached installer script.
-
-On macOS or Linux:
+### Build
 
 ```bash
-curl -fsSL https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.sh | bash
+make native-install   # install Python deps + build dashboard
+make bundle           # package Python server via PyInstaller
+make app-build        # build native app (Tauri)
 ```
 
-On Windows (PowerShell, with Docker Desktop running):
+Outputs:
+- **macOS**: `src-tauri/target/release/bundle/dmg/Minder_*.dmg`
+- **Linux**: `src-tauri/target/release/bundle/deb/minder_*.deb` and `.AppImage`
 
-```powershell
-iwr -useb https://github.com/<owner>/<repo>/releases/download/<tag>/install-minder-<tag>.ps1 | iex
-```
+### Install
 
-Both installers create a deployment directory, download `docker-compose.yml` and `Caddyfile` from the same GitHub Release page, write a local `.env` with the release image tags, start the full stack, and refresh the `~/.minder/current` pointer used by `minder check-update` and `minder update`.
-
-Overridable environment variables (identical across platforms):
-
-- `MINDER_INSTALL_DIR` — target deployment directory
-- `MINDER_CURRENT_LINK` — stable symlink/junction path
-- `MINDER_MODELS_DIR` — GGUF model directory
-- `MINDER_PORT` — public gateway port
-- `OPENAI_API_KEY` — optional OpenAI fallback
-
-If you also want the repo-local sync CLI on operator or developer machines, install it separately from PyPI:
+**macOS:**
 
 ```bash
-uv tool install minder
+open "src-tauri/target/release/bundle/dmg/Minder_*.dmg"
+# Drag Minder.app to /Applications
 ```
 
-Or:
+**Linux (Debian/Ubuntu):**
 
 ```bash
-pipx install minder
+sudo dpkg -i src-tauri/target/release/bundle/deb/minder_*.deb
+minder-app
 ```
 
-After a client key is provisioned, the same machine can run:
+**Linux (AppImage):**
 
 ```bash
-minder login --client-key mkc_your_client_key --protocol sse --server-url http://localhost:8800/sse
-minder sync --repo-id <repository-uuid>
+chmod +x Minder_*.AppImage
+./Minder_*.AppImage
 ```
 
-## 2. Manual Compose Install
+### First Run
 
-Run:
+The app starts the Python server automatically (sidecar mode), shows a loading screen,
+then navigates to the dashboard at `http://localhost:8800/dashboard`.
+
+Data is stored in `~/.minder/data/`. Models download automatically on first boot (~4 GB).
+
+---
+
+## Option 2 — Standalone Python Server (Headless)
+
+For server deployments (no GUI required).
+
+### Install via uv
 
 ```bash
-export MINDER_API_IMAGE=ghcr.io/<owner>/minder-api:<tag>
-export MINDER_DASHBOARD_IMAGE=ghcr.io/<owner>/minder-dashboard:<tag>
-export MINDER_MODELS_DIR=~/.minder/models
-docker compose -f docker/docker-compose.yml up -d
+uv tool install minder-cli
 ```
 
-Current defaults already point to:
-
-- `ghcr.io/hiimtrung/minder-api:latest`
-- `ghcr.io/hiimtrung/minder-dashboard:latest`
-
-## 2a. Full Source Build
-
-If you want Docker Compose to build everything from the checked-out source instead of pulling GHCR images:
+Or from the repo:
 
 ```bash
-docker compose -f docker/docker-compose.full.yml up --build -d
+uv sync --extra server
 ```
 
-`docker-compose.full.yml` mounts `${MINDER_MODELS_DIR:-~/.minder/models}` as a read-only volume, so `MINDER_MODELS_DIR` is only needed when your HuggingFace model cache lives elsewhere.
+### Run
 
-The public gateway will listen on:
+```bash
+uv run python -m minder.server
+```
 
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-- [http://localhost:8800/sse](http://localhost:8800/sse)
+The server starts on port `8800` by default. Serve it behind a reverse proxy (nginx, Caddy)
+for production TLS termination.
 
-## 3. Bootstrap the First Admin
+### systemd Service (Linux)
 
-Open:
+Create `/etc/systemd/system/minder.service`:
 
-- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
+```ini
+[Unit]
+Description=Minder MCP Server
+After=network.target
 
-Fill in:
+[Service]
+Type=simple
+User=minder
+WorkingDirectory=/opt/minder
+ExecStart=uv run python -m minder.server
+Restart=on-failure
+RestartSec=5
+Environment=MINDER_SERVER__HOST=0.0.0.0
+Environment=MINDER_AUTH__JWT_SECRET=<your-secret>
 
-- username
-- email
-- display name
+[Install]
+WantedBy=multi-user.target
+```
 
-Minder will show the bootstrap admin API key one time only. Save the `mk_...` value before leaving the page.
+```bash
+sudo systemctl enable --now minder
+```
 
-## 4. Sign In
+### launchd Service (macOS)
 
-Open:
+Create `~/Library/LaunchAgents/asia.tastech.minder.plist`:
 
-- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>asia.tastech.minder</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/path/to/uv</string>
+    <string>run</string>
+    <string>python</string>
+    <string>-m</string>
+    <string>minder.server</string>
+  </array>
+  <key>WorkingDirectory</key><string>/opt/minder</string>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+</dict>
+</plist>
+```
 
-Use the saved `mk_...` admin API key.
+```bash
+launchctl load ~/Library/LaunchAgents/asia.tastech.minder.plist
+```
 
-## 5. Create and Onboard a Client
+---
 
-After login:
+## Configuration
 
-1. Open the client registry at [http://localhost:8800/dashboard/clients](http://localhost:8800/dashboard/clients)
-2. Create a client — the `mkc_...` API key is shown once in a modal with a copy button
-3. Open the client detail view
-4. Copy the MCP config snippet for your IDE from **Copy-ready MCP snippets**
-5. Open [http://localhost:8800/dashboard/instruction](http://localhost:8800/dashboard/instruction) to copy the agent orchestration rules for your IDE
+All settings in `minder.toml` or environment variables (`MINDER_<SECTION>__<KEY>`):
 
-## 6. Verify SSE Access
+```toml
+[server]
+host = "0.0.0.0"
+port = 8800
 
-Run:
+[auth]
+jwt_secret = "change-this-in-production"
+
+[relational_store]
+provider = "sqlite"
+db_path = "~/.minder/data/minder.db"
+
+[vector_store]
+provider = "milvus"
+
+[milvus]
+db_path = "~/.minder/data/vectors.db"
+
+[llm]
+provider = "llama_cpp"
+llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
+llama_cpp_model_file = "gemma-4-E2B-it-Q8_0.gguf"
+```
+
+For PostgreSQL (larger deployments):
+
+```toml
+[relational_store]
+provider = "postgresql"
+uri = "postgresql+asyncpg://user:pass@host/minder"
+
+[graph_store]
+provider = "postgresql"
+uri = "postgresql+asyncpg://user:pass@host/minder_graph"
+```
+
+---
+
+## First-Run Admin Bootstrap
+
+1. Start the server
+2. Open `http://<host>:8800/dashboard/setup`
+3. Enter email, username, display name
+4. Copy the `mk_...` admin API key — shown once only
+
+---
+
+## Verify the MCP Server
 
 ```bash
 curl -N http://localhost:8800/sse
 ```
 
-Expected output begins with:
+Expected response:
 
-```text
+```
 event: endpoint
 data: /messages/?session_id=...
 ```
 
-## 7. Recover an Admin Key
+---
 
-If the admin key is lost:
-
-```bash
-docker compose -f docker/docker-compose.yml exec minder-api \
-  uv run python scripts/reset_admin_api_key.py \
-  --username admin
-```
-
-The old key is invalid immediately after rotation.
-
-## Important Runtime Settings
-
-The production compose file sets:
-
-- `gateway` as the only public port binder on `8800`
-- `MINDER_SERVER__PORT=8801` for `minder-api`
-- `dashboard` runtime on internal `8808`
-- `MINDER_DASHBOARD__BASE_PATH=/dashboard` so backend redirects and onboarding URLs stay aligned
-
-## Upgrade Workflow
-
-For a new release:
+## Recover a Lost Admin Key
 
 ```bash
-export MINDER_API_IMAGE=ghcr.io/<owner>/minder-api:<tag>
-export MINDER_DASHBOARD_IMAGE=ghcr.io/<owner>/minder-dashboard:<tag>
-export MINDER_MODELS_DIR=~/.minder/models
-docker compose -f docker/docker-compose.yml pull
-docker compose -f docker/docker-compose.yml up -d
+uv run python scripts/reset_admin_api_key.py --username admin
 ```
 
-Upgrade the CLI independently with:
+---
+
+## Upgrade
+
+### Tauri App
+
+Rebuild with the new source:
 
 ```bash
-uv tool upgrade minder
+git pull
+make native-install
+make bundle
+make app-build
 ```
 
-Or use Minder's unified update surface:
+Replace the app in `/Applications` or reinstall the `.deb`.
+
+### Standalone Server
 
 ```bash
-minder check-update
-minder update --component cli
+git pull
+uv sync --extra server
+systemctl restart minder
 ```
-
-Check and upgrade the deployed server release in place:
-
-```bash
-minder check-update --component server --install-dir ~/.minder/current
-minder update --component server --install-dir ~/.minder/current
-```
-
-The release installer now keeps a stable `~/.minder/current` link and writes release metadata into each deployment directory so the CLI can resolve the current server version before applying an upgrade.
-
-## Health Checks
-
-Recommended checks:
-
-```bash
-docker compose -f docker/docker-compose.yml ps
-docker compose -f docker/docker-compose.yml logs gateway
-docker compose -f docker/docker-compose.yml logs dashboard
-docker compose -f docker/docker-compose.yml logs minder-api
-docker compose -f docker/docker-compose.yml logs qdrant
-```
-
-## Rollback
-
-Rollback is image-based:
-
-1. switch `MINDER_IMAGE_TAG`
-2. redeploy `docker compose -f docker/docker-compose.yml up -d`
-
-The public contract remains single-port because the gateway still owns `:8800`.

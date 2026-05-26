@@ -1,272 +1,229 @@
-# Local Setup Guide
+# Local Development Guide
 
-This guide gets the local dependency stack running so you can debug Minder and the Astro dashboard against real backing services.
+Minder runs **natively** on macOS and Linux — no Docker, no external services.
+The stack is: Python FastAPI server + Astro dashboard + SQLite (relational) + Milvus Lite (vector search).
 
-It uses one local development shape:
-
-- Docker for infra services only
-- local Python for Minder
-- optional local Astro dev server for dashboard work
-
-System-level architecture lives in:
-
-- [System Design](../../docs/system-design.md)
+---
 
 ## Prerequisites
 
-- Docker Desktop or compatible Docker runtime
-- `uv`
-- enough disk for Qdrant storage and GGUF model files (~4 GB for default models)
+| Tool | Purpose |
+|------|---------|
+| `uv` | Python dependency management |
+| `bun` | Dashboard build (Astro) |
+| `rust` + `cargo` | Tauri desktop app (optional) |
 
-## 1. Create local env files
+~4 GB disk for GGUF model files (downloaded automatically on first startup into `~/.minder/models/`).
 
-Backend:
+---
 
-```bash
-cp .env.example .env
-```
-
-Frontend:
+## Quick Start
 
 ```bash
-cp src/dashboard/.env.example src/dashboard/.env
+# 1. Install all dependencies and build the dashboard
+make native-install
+
+# 2. Start the server (dashboard + MCP API on port 8800)
+make native-run
 ```
 
-The example files already target:
+Open [http://localhost:8800/dashboard](http://localhost:8800/dashboard).
 
-- Minder backend on `8800`
-- Astro dev server on `8808`
-- dashboard API calls to `http://localhost:8800`
-- local Qdrant on `http://localhost:6333`
+---
 
-## 2. Start the local infrastructure stack
+## Data Directories
 
-Run:
+All persistent state lives under `~/.minder/` (created automatically):
 
-```bash
-docker compose -f docker/docker-compose.local.yml up -d
-```
+| Path | Contents |
+|------|----------|
+| `~/.minder/data/minder.db` | SQLite — users, sessions, workflows, repos |
+| `~/.minder/data/vectors.db` | Milvus Lite — document embeddings |
+| `~/.minder/data/graph.db` | SQLite — knowledge graph |
+| `~/.minder/models/` | GGUF model cache |
 
-The stack exposes:
+---
 
-- Qdrant: `http://localhost:6333`
-
-Wait until all infra services are healthy.
-
-Recommended check:
-
-```bash
-docker compose -f docker/docker-compose.local.yml ps
-```
-
-Local Docker now provides the shared infra runtime:
-
-- `qdrant`
-
-It intentionally does not start the Minder app or the Astro dashboard. You run those locally so you can debug them directly.
-
-LLM inference runs on the host via llama-cpp-python (no Docker required for LLM). GGUF models are downloaded automatically from HuggingFace on first startup.
-
-## 2a. Start Minder locally against the Docker infra
-
-Start Minder with hot reload:
+## Dev Mode (hot reload)
 
 ```bash
 uv run python scripts/dev_server.py
 ```
 
-This launcher watches `src/**/*.py`, `.env`, and `minder.toml`, then restarts Minder automatically after code or config changes.
-If Qdrant is not reachable, the launcher prints a preflight hint before starting the server process.
+Watches `src/**/*.py`, `.env`, and `minder.toml` and restarts the server on any change.
 
-Useful options:
+Options:
 
 ```bash
 uv run python scripts/dev_server.py --port 8810
 uv run python scripts/dev_server.py --transport stdio
 ```
 
-If you need the old production-like one-shot entrypoint, you can still run:
+---
+
+## Astro Dashboard Dev Mode
+
+Run Astro on its own port for hot-reloaded frontend work:
 
 ```bash
-PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+bun run dev        # http://localhost:8808/dashboard
 ```
 
-Open after Minder starts:
+API calls go to `http://localhost:8800` (set `PUBLIC_API_URL` in `src/dashboard/.env`).
 
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-- [http://localhost:8800/sse](http://localhost:8800/sse)
+---
 
-## 2b. Optional Astro frontend-dev mode
+## Configuration
 
-Start Astro:
+All settings live in `minder.toml` at the project root. Environment variables override any setting using `MINDER_<SECTION>__<KEY>`.
+
+Key defaults:
+
+```toml
+[server]
+port = 8800
+
+[relational_store]
+provider = "sqlite"
+db_path = "~/.minder/data/minder.db"
+
+[vector_store]
+provider = "milvus"
+
+[milvus]
+db_path = "~/.minder/data/vectors.db"
+
+[llm]
+provider = "llama_cpp"
+llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
+llama_cpp_model_file = "gemma-4-E2B-it-Q8_0.gguf"
+```
+
+To use OpenAI instead of llama-cpp:
 
 ```bash
-cd src/dashboard
-bun install
-bun run dev
+MINDER_LLM__PROVIDER=openai OPENAI_API_KEY=sk-... uv run python -m minder.server
 ```
 
-Open:
+---
 
-- [http://localhost:8808/dashboard](http://localhost:8808/dashboard)
+## First-Run Setup
 
-Important behavior:
+1. Start the server (`make native-run`)
+2. Open [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
+3. Enter email, username, display name
+4. Copy the `mk_...` admin API key shown once on the success page
+5. Sign in at [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 
-- Astro runs on `8808`
-- Minder APIs stay on `8800`
-- the frontend calls Minder through `API_URL` from `src/dashboard/.env`
-- Astro bridges `API_URL` into the browser-safe `PUBLIC_API_URL`
-- onboarding snippets and connection-test templates use the backend origin seen by Minder, so in split mode they resolve to `http://localhost:8800`
-- when Astro is not running, Minder can still serve the built dashboard on the same origin if you already built `src/dashboard`
-- in production, `/dashboard/*` is served by the dedicated Astro service behind the gateway
+---
 
-## 3. Open the first-run setup page
-
-On a fresh deployment with no admin users, open:
-
-- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
-
-Fill in:
-
-- email
-- username
-- display name
-
-On success, Minder redirects to a setup-complete page and reveals the bootstrap admin API key once.
-
-Save the `mk_...` value before leaving that page.
-
-If an admin already exists, `/dashboard/setup` is no longer the right entrypoint and you should use `/dashboard/login` instead.
-
-## 4. Sign in to the dashboard
-
-Open:
-
-- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
-
-Paste the `mk_...` admin API key from the setup-complete page.
-
-On success, the browser is redirected to:
-
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-
-The dashboard session is stored in an `HttpOnly` cookie.
-
-## 5. Verify the SSE server is up
-
-Run:
+## MCP SSE Verification
 
 ```bash
 curl -N http://localhost:8800/sse
 ```
 
-Expected output starts like this:
+Expected:
 
-```text
+```
 event: endpoint
 data: /messages/?session_id=...
 ```
 
-If you see that, the MCP SSE server is reachable.
+---
 
-## 6. Verify the direct stdio bootstrap path
-
-For local stdio-based MCP clients, export a client key and start Minder in stdio mode:
+## stdio MCP Mode
 
 ```bash
 export MINDER_CLIENT_API_KEY="mkc_..."
-MINDER_SERVER__TRANSPORT=stdio UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+MINDER_SERVER__TRANSPORT=stdio uv run python -m minder.server
 ```
 
-Protected tool calls can now resolve the client principal directly from `MINDER_CLIENT_API_KEY` without a token-exchange pre-step.
+---
 
-## 7. Move to onboarding
+## Tauri Desktop App (Optional)
 
-Continue with:
+The Tauri shell provides a native desktop window that manages the Python server as a sidecar process.
 
-- [Admin and Client Onboarding Guide](../../docs/guides/admin-client-onboarding.md)
+**Development mode** (requires Python server already running):
+
+```bash
+make app-dev
+```
+
+**Production build** (bundles PyInstaller binary + Tauri):
+
+```bash
+make bundle      # build PyInstaller binary
+make app-build   # build .dmg (macOS) or .AppImage/.deb (Linux)
+```
+
+See [Native App Migration](../roadmap/native-app-migration.md) for full architecture details.
+
+---
 
 ## Route Map
 
-- `/dashboard/setup`: first-run admin bootstrap
-- `/dashboard/login`: admin browser login
-- `/dashboard/clients`: client registry — create clients, copy MCP snippets
-- `/dashboard/instruction`: agent orchestration rules — copy for Claude Code, Cursor, VS Code, Codex
-- `/dashboard/sessions`: LLM session management
-- `/dashboard/memories`: persistent memory browser
-- `/dashboard/skills`: skill / pattern catalog
-- `/dashboard/agents`: SubAgent registry
-- `/dashboard/chat`: browser-based runtime chat
-- `/dashboard/repositories`: repo graph explorer
-- `/dashboard/workflows`: workflow definitions
-- `/dashboard/observability`: audit and trace
-- `/v1/admin/*`: admin JSON APIs used by the dashboard
-- `/v1/auth/token-exchange`: client key to bearer token exchange
-- `/sse`: MCP SSE entrypoint
-- `/mcp`: MCP streamable HTTP entrypoint
+| Route | Purpose |
+|-------|---------|
+| `/dashboard/setup` | First-run admin bootstrap |
+| `/dashboard/login` | Admin login |
+| `/dashboard/clients` | Client registry, MCP config snippets |
+| `/dashboard/instruction` | Agent orchestration rules |
+| `/dashboard/sessions` | Session management |
+| `/dashboard/memories` | Memory browser |
+| `/dashboard/skills` | Skill catalog |
+| `/dashboard/agents` | SubAgent registry |
+| `/dashboard/chat` | Browser chat |
+| `/dashboard/repositories` | Repo graph explorer |
+| `/dashboard/workflows` | Workflow definitions |
+| `/dashboard/observability` | Audit and trace |
+| `/v1/admin/*` | Admin APIs |
+| `/v1/auth/token-exchange` | Client key → bearer token |
+| `/sse` | MCP SSE entrypoint |
+| `/mcp` | MCP streamable HTTP entrypoint |
 
-Split frontend-dev URL map:
-
-- `http://localhost:8808/dashboard/*`: Astro dev console
-- `http://localhost:8800/v1/admin/*`: admin APIs
-- `http://localhost:8800/v1/auth/*`: auth APIs
-- `http://localhost:8800/sse`: MCP SSE entrypoint
+---
 
 ## Troubleshooting
 
 ### Models are not downloading
 
-GGUF models are fetched automatically via HuggingFace Hub on first startup. Check HuggingFace cache:
+GGUF models download automatically via HuggingFace Hub on first startup. Check:
 
 ```bash
+ls ~/.minder/models/
+# or
 ls ~/.cache/huggingface/hub/
 ```
 
-### Minder process cannot boot
-
-Check:
+If download fails due to rate limits, set `HF_TOKEN`:
 
 ```bash
-PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python -m minder.server
+HF_TOKEN=hf_... uv run python -m minder.server
 ```
 
-If startup fails with `ResponseHandlingException: All connection attempts failed`, the current config is still targeting Qdrant and the local dependency is not up yet. Start it with:
+### Server fails to start
+
+Run directly for full error output:
 
 ```bash
-docker compose -f docker/docker-compose.local.yml up -d
+uv run python -m minder.server
 ```
 
-Or switch `MINDER_RELATIONAL_STORE__PROVIDER`, `MINDER_VECTOR_STORE__PROVIDER`, and `MINDER_GRAPH_STORE__PROVIDER` in `.env` / `minder.toml` to a non-Qdrant backend.
+Common causes:
+- Python < 3.14 (check `python --version`)
+- Missing server extra: run `uv sync --extra server`
+- Port 8800 already in use: set `MINDER_SERVER__PORT=8810`
 
-### I lost the first admin API key
-
-Run:
+### Lost admin API key
 
 ```bash
-PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py \
-  --username admin
+uv run python scripts/reset_admin_api_key.py --username admin
 ```
 
-The command rotates the admin API key and prints the new `mk_...` value once.
+Prints a new `mk_...` key and invalidates the old one.
 
-### I need to verify browser onboarding again
+### First-run setup page already used
 
-Open these routes in order:
-
-- [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
-- [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-
-### SSE does not respond
-
-Check:
-
-```bash
-curl http://localhost:8800/sse
-```
-
-and confirm the container is running:
-
-```bash
-docker compose -f docker/docker-compose.local.yml ps
-```
+Once an admin exists, `/dashboard/setup` is locked. Use `/dashboard/login` directly.

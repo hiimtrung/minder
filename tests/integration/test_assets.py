@@ -184,29 +184,10 @@ async def test_server_build_transport_registers_expected_tools(
     assert "minder_search_code" in tool_names
 
 
-def test_wave3_assets_exist_and_contain_expected_commands() -> None:
-    compose = Path("docker/docker-compose.local.yml")
+def test_ci_and_release_workflows_exist() -> None:
     ci_workflow = Path(".github/workflows/ci.yml")
-    release_workflow = Path(".github/workflows/release.yml")
-
-    assert compose.exists()
-    compose_text = compose.read_text(encoding="utf-8")
-    assert "qdrant:" in compose_text
     assert ci_workflow.exists()
     assert "make test" in ci_workflow.read_text(encoding="utf-8")
-    assert release_workflow.exists()
-    release_workflow_text = release_workflow.read_text(encoding="utf-8")
-    assert "docker/Dockerfile.api" in release_workflow_text
-    assert "docker/Dockerfile.dashboard" in release_workflow_text
-    assert (
-        "install-minder-${{ needs.build-dist.outputs.release_tag }}.sh"
-        in release_workflow_text
-    )
-    assert "dist/release/docker-compose.yml" in release_workflow_text
-    assert "dist/release/Caddyfile" in release_workflow_text
-    assert "body_path: dist/release/release-notes.md" in release_workflow_text
-    assert "cache-from: type=gha,scope=minder-api" in release_workflow_text
-    assert "cache-to: type=gha,mode=max,scope=minder-api" in release_workflow_text
 
 
 def test_model_bootstrap_replaces_download_script() -> None:

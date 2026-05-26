@@ -67,7 +67,7 @@ class AgentSupervisor:
                 last_node = self._add_edge_and_return(workflow, last_node, "reranker")
 
         workflow.add_node("reasoning", self._wrap_state_handler(self._nodes.reasoning.run))
-        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.run))
+        workflow.add_node("llm", self._wrap_state_handler(self._nodes.llm.arun))
         workflow.add_edge(last_node, "reasoning")
         workflow.add_edge("reasoning", "llm")
         workflow.set_entry_point("inject_context")
@@ -115,6 +115,9 @@ class AgentSupervisor:
 
     def supervisor_router(self, state: GraphState) -> list[Any] | str:
         from langgraph.types import Send
+
+        if str((state.plan or {}).get("intent", "")) == "chat":
+            return "fallback_retrieval"
 
         selected = self._select_agent_names(state)
         if not selected:

@@ -18,6 +18,7 @@ block_cipher = None
 # collect_all returns (datas, binaries, hiddenimports) tuples.
 minder_d, minder_b, minder_h = collect_all("minder")
 milvus_d, milvus_b, milvus_h = collect_all("pymilvus")
+turbovec_d, turbovec_b, turbovec_h = collect_all("turbovec")
 langgraph_d, langgraph_b, langgraph_h = collect_all("langgraph")
 litellm_d, litellm_b, litellm_h = collect_all("litellm")
 mcp_d, mcp_b, mcp_h = collect_all("mcp")
@@ -25,10 +26,10 @@ mcp_d, mcp_b, mcp_h = collect_all("mcp")
 a = Analysis(
     [str(Path("src") / "minder" / "server.py")],
     pathex=[str(Path("src"))],
-    binaries=minder_b + milvus_b + langgraph_b + litellm_b + mcp_b,
-    datas=minder_d + milvus_d + langgraph_d + litellm_d + mcp_d,
+    binaries=minder_b + milvus_b + turbovec_b + langgraph_b + litellm_b + mcp_b,
+    datas=minder_d + milvus_d + turbovec_d + langgraph_d + litellm_d + mcp_d,
     hiddenimports=(
-        minder_h + milvus_h + langgraph_h + litellm_h + mcp_h
+        minder_h + milvus_h + turbovec_h + langgraph_h + litellm_h + mcp_h
         + collect_submodules("aiosqlite")
         + collect_submodules("sqlalchemy")
         + collect_submodules("passlib")

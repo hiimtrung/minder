@@ -42,6 +42,14 @@ def build_cache(config: MinderConfig) -> ICacheProvider:
 def build_vector_store(config: MinderConfig, store: IOperationalStore) -> IVectorStore:
     provider = config.vector_store.provider
 
+    if provider == "turbovec":
+        from minder.store.turbovec.vector_store import TurbovecVectorStore
+        return TurbovecVectorStore(
+            db_path=config.turbovec.db_path,
+            document_store=store,  # type: ignore[arg-type]
+            dimensions=config.embedding.dimensions,
+        )
+
     if provider == "milvus":
         from minder.store.milvus.client import MilvusClientWrapper
         from minder.store.milvus.vector_store import MilvusVectorStore

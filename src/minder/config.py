@@ -52,7 +52,7 @@ class LLMConfig(BaseModel):
 
 
 class VectorStoreConfig(BaseModel):
-    provider: str = "milvus"  # "milvus" | "memory"
+    provider: str = "turbovec"  # "turbovec" | "milvus" | "memory"
 
 
 class RelationalStoreConfig(BaseModel):
@@ -70,6 +70,10 @@ class GraphStoreConfig(BaseModel):
 
 class MilvusConfig(BaseModel):
     db_path: str = "~/.minder/data/vectors.db"
+
+
+class TurbovecConfig(BaseModel):
+    db_path: str = "~/.minder/data/vectors.tvim"
 
 
 class RetrievalConfig(BaseModel):
@@ -143,6 +147,7 @@ class Settings(BaseSettings):
     relational_store: RelationalStoreConfig = Field(default_factory=RelationalStoreConfig)
     graph_store: GraphStoreConfig = Field(default_factory=GraphStoreConfig)
     milvus: MilvusConfig = Field(default_factory=MilvusConfig)
+    turbovec: TurbovecConfig = Field(default_factory=TurbovecConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
     session: SessionConfig = Field(default_factory=SessionConfig)

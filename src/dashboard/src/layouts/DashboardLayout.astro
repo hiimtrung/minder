@@ -372,14 +372,21 @@ function getIconSvg(label: string) {
           const res = await fetch("/v1/admin/runtime-status", { credentials: "include" });
           if (!res.ok) throw new Error("status " + res.status);
           const data = await res.json() as {
-            llm: { model: string; status: string };
-            embedding: { model: string; status: string };
+            llm: { model: string; status: string; error_detail?: string };
+            embedding: { model: string; status: string; error_detail?: string };
           };
           const llm = data.llm;
           const emb = data.embedding;
+          const anyError = llm.status === "error" || emb.status === "error";
           const bothReady = llm.status === "ready" && emb.status === "ready";
           const anyInit  = llm.status === "initializing" || emb.status === "initializing";
-          if (bothReady) {
+          if (anyError) {
+            const errSource = llm.status === "error" ? llm : emb;
+            const errDetail = errSource.error_detail || "Unknown error";
+            const label = `${errSource.model} (error)`;
+            applyStatus(statusDot, statusText, statusPill, label, "error");
+            if (statusPill) statusPill.title = `Init failed: ${errDetail}`;
+          } else if (bothReady) {
             applyStatus(statusDot, statusText, statusPill, `${llm.model}`, "ready");
           } else if (anyInit) {
             const label = llm.status === "initializing" ? `Loading ${llm.model}…` : `Loading ${emb.model}…`;

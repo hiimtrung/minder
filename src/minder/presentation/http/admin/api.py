@@ -1399,21 +1399,36 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         try:
             from minder.infrastructure.model_bootstrap import _is_cached
             from minder.infrastructure.runtime import get_effective_hf_cache_dir, llama_cpp_usable
-            from minder.llm.llama_cpp_llm import _ENGINE_CACHE
+            from minder.llm.llama_cpp_llm import _ENGINE_CACHE, _INIT_ERRORS
+            from minder.embedding.local import _EMBED_INIT_ERRORS
 
             llm_cfg = context.config.llm
             emb_cfg = context.config.embedding
             hf_cache = get_effective_hf_cache_dir()
+            llm_error_detail: str | None = None
+            emb_error_detail: str | None = None
 
             # LLM status: check engine cache first (in-memory loaded), then
             # fall back to file existence check (downloaded but not yet loaded).
+            # Crucially, also check _INIT_ERRORS to surface real init failures
+            # instead of misleadingly reporting "mock" or "initializing".
             if llm_cfg.provider == "llama_cpp":
                 llm_model = llm_cfg.llama_cpp_model_repo.split("/")[-1]
                 llm_key_prefix = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}:"
                 llm_in_memory = any(k.startswith(llm_key_prefix) for k in _ENGINE_CACHE)
-                if not llama_cpp_usable():
+                # Check if _init_engine() recorded a failure for any matching key.
+                llm_init_err = next(
+                    (v for k, v in _INIT_ERRORS.items() if k.startswith(llm_key_prefix)),
+                    None,
+                )
+                if llm_in_memory:
+                    llm_status = "ready"
+                elif llm_init_err:
+                    llm_status = "error"
+                    llm_error_detail = llm_init_err[:500]
+                elif not llama_cpp_usable():
                     llm_status = "mock"
-                elif llm_in_memory or _is_cached(llm_cfg.llama_cpp_model_repo, llm_cfg.llama_cpp_model_file, hf_cache):
+                elif _is_cached(llm_cfg.llama_cpp_model_repo, llm_cfg.llama_cpp_model_file, hf_cache):
                     llm_status = "ready"
                 else:
                     llm_status = "initializing"
@@ -1426,14 +1441,21 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             # context.embedder.runtime property returns "mock" when its own
             # in-memory model is None, but that doesn't mean the file isn't
             # cached — so we must check _is_cached independently.
+            # Also check _EMBED_INIT_ERRORS for real init failures.
             emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
             emb_model_loaded = context.embedder._model is not None  # noqa: SLF001
-            if not llama_cpp_usable():
-                emb_runtime = "mock"
-                emb_status = "mock"
-            elif emb_model_loaded:
+            emb_cache_key = f"{emb_cfg.llama_cpp_model_repo}:{emb_cfg.llama_cpp_model_file}"
+            emb_init_err = _EMBED_INIT_ERRORS.get(emb_cache_key)
+            if emb_model_loaded:
                 emb_runtime = "llama_cpp"
                 emb_status = "ready"
+            elif emb_init_err:
+                emb_runtime = "mock"
+                emb_status = "error"
+                emb_error_detail = emb_init_err[:500]
+            elif not llama_cpp_usable():
+                emb_runtime = "mock"
+                emb_status = "mock"
             elif _is_cached(emb_cfg.llama_cpp_model_repo, emb_cfg.llama_cpp_model_file, hf_cache):
                 emb_runtime = "llama_cpp"
                 emb_status = "ready"
@@ -1441,18 +1463,26 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 emb_runtime = "mock"
                 emb_status = "initializing"
 
+            llm_payload: dict[str, object] = {
+                "provider": llm_cfg.provider,
+                "model": llm_model,
+                "status": llm_status,
+            }
+            if llm_error_detail:
+                llm_payload["error_detail"] = llm_error_detail
+
+            emb_payload: dict[str, object] = {
+                "provider": "llama_cpp",
+                "model": emb_model,
+                "runtime": emb_runtime,
+                "status": emb_status,
+            }
+            if emb_error_detail:
+                emb_payload["error_detail"] = emb_error_detail
+
             return JSONResponse({
-                "llm": {
-                    "provider": llm_cfg.provider,
-                    "model": llm_model,
-                    "status": llm_status,
-                },
-                "embedding": {
-                    "provider": "llama_cpp",
-                    "model": emb_model,
-                    "runtime": emb_runtime,
-                    "status": emb_status,
-                },
+                "llm": llm_payload,
+                "embedding": emb_payload,
             })
         except Exception as exc:
             logger.exception("Failed to get runtime status: %s", exc)

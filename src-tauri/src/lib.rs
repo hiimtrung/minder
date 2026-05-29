@@ -77,8 +77,29 @@ pub fn run() {
                 _ => {}
             }
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Minder");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app_handle, event| {
+            match event {
+                tauri::RunEvent::Exit => {
+                    if let Some(state) = app_handle.try_state::<ServerProcess>() {
+                        let mut guard = state.0.lock().unwrap();
+                        if let Some(child) = guard.take() {
+                            let _ = child.kill();
+                        }
+                    }
+                }
+                tauri::RunEvent::ExitRequested { .. } => {
+                    if let Some(state) = app_handle.try_state::<ServerProcess>() {
+                        let mut guard = state.0.lock().unwrap();
+                        if let Some(child) = guard.take() {
+                            let _ = child.kill();
+                        }
+                    }
+                }
+                _ => {}
+            }
+        });
 }
 
 fn manage_server(app: AppHandle, log_buffer: Arc<Mutex<Vec<String>>>) {

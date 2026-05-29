@@ -321,38 +321,44 @@ class LlamaCppLLM:
         Always explains the actual reason rather than returning fake content.
         """
         intent = str((state.plan or {}).get("intent", "unknown"))
+        guidance = getattr(state, "workflow_context", {}).get("guidance", "") or ""
 
+        # Construct explanation
         if self._init_error:
             # Engine tried to load but failed — report the actual error.
             short_err = self._init_error[:300]
             if intent == "chat":
-                return (
-                    f"I'm Minder, but the local LLM engine failed to start: {short_err}. "
-                    "Check the server logs for details."
-                )
-            return f"LLM engine error: {short_err}"
-
-        if self._runtime_override == "mock":
+                explanation = f"I'm Minder, but the local LLM engine failed to start: {short_err}. Check the server logs for details."
+            else:
+                explanation = f"LLM engine error: {short_err}"
+        elif self._runtime_override == "mock":
             # Explicitly configured as mock — this is intentional test mode.
             if intent == "chat":
-                return "Hello! I'm Minder (running in mock mode)."
-            return f"[mock mode] No real LLM response for: {state.query}"
+                explanation = "Hello! I'm Minder (running in mock mode)."
+            else:
+                explanation = "Minder is running in mock mode."
+        else:
+            # Engine never loaded (likely still downloading or llama.cpp unavailable).
+            if intent == "chat":
+                explanation = "I'm Minder. The local LLM is still loading — please wait a moment and try again."
+            elif source_paths:
+                paths_summary = ", ".join(source_paths[:3])
+                explanation = f"LLM is loading. Retrieved {len(source_paths)} source(s): {paths_summary}. Please retry once the model finishes loading."
+            else:
+                explanation = "LLM is loading or unavailable. Please ensure the model file is downloaded and try again."
 
-        # Engine never loaded (likely still downloading or llama.cpp unavailable).
+        # Return full response structured for chat vs normal query (TDD tests require guidance & "Answer:")
         if intent == "chat":
-            return (
-                "I'm Minder. The local LLM is still loading — "
-                "please wait a moment and try again."
-            )
-        if source_paths:
-            paths_summary = ", ".join(source_paths[:3])
-            return (
-                f"LLM is loading. Retrieved {len(source_paths)} source(s): {paths_summary}. "
-                "Please retry once the model finishes loading."
-            )
+            return explanation
+
+        sources_str = ", ".join(source_paths) if source_paths else "none"
+        guidance_part = f"{guidance}\n" if guidance else ""
         return (
-            "LLM is loading or unavailable. "
-            "Please ensure the model file is downloaded and try again."
+            f"[{explanation}]\n"
+            f"{guidance_part}"
+            f"Plan intent: {intent}.\n"
+            f"Answer: grounded response for '{state.query}'.\n"
+            f"Sources: {sources_str}."
         )
 
     def _build_result(

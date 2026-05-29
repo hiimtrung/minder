@@ -22,6 +22,7 @@ turbovec_d, turbovec_b, turbovec_h = collect_all("turbovec")
 langgraph_d, langgraph_b, langgraph_h = collect_all("langgraph")
 litellm_d, litellm_b, litellm_h = collect_all("litellm")
 mcp_d, mcp_b, mcp_h = collect_all("mcp")
+llama_d, llama_b, llama_h = collect_all("llama_cpp")
 
 # ---------------------------------------------------------------------------
 # Native deployment: bundle dashboard dist + config for self-contained app.
@@ -45,10 +46,10 @@ if minder_toml.is_file():
 a = Analysis(
     [str(Path("src") / "minder" / "server.py")],
     pathex=[str(Path("src"))],
-    binaries=minder_b + milvus_b + turbovec_b + langgraph_b + litellm_b + mcp_b,
-    datas=minder_d + milvus_d + turbovec_d + langgraph_d + litellm_d + mcp_d + native_datas,
+    binaries=minder_b + milvus_b + turbovec_b + langgraph_b + litellm_b + mcp_b + llama_b,
+    datas=minder_d + milvus_d + turbovec_d + langgraph_d + litellm_d + mcp_d + llama_d + native_datas,
     hiddenimports=(
-        minder_h + milvus_h + turbovec_h + langgraph_h + litellm_h + mcp_h
+        minder_h + milvus_h + turbovec_h + langgraph_h + litellm_h + mcp_h + llama_h
         + collect_submodules("aiosqlite")
         + collect_submodules("sqlalchemy")
         + collect_submodules("passlib")

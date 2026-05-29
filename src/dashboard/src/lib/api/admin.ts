@@ -1634,8 +1634,9 @@ export async function getServiceHealth(): Promise<HealthStatus> {
 export type RuntimeComponentStatus = {
   provider: string;
   model: string;
-  status: "ready" | "initializing" | "mock";
+  status: "ready" | "initializing" | "mock" | "error";
   runtime?: string;
+  error_detail?: string;
 };
 
 export type RuntimeStatusPayload = {

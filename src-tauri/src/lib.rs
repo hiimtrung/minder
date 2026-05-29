@@ -53,15 +53,28 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            if let tauri::WindowEvent::CloseRequested { .. } = event {
-                if window.label() == "main" {
-                    if let Some(state) = window.try_state::<ServerProcess>() {
-                        let mut guard = state.0.lock().unwrap();
-                        if let Some(child) = guard.take() {
-                            let _ = child.kill();
+            match event {
+                tauri::WindowEvent::CloseRequested { api, .. } => {
+                    if window.label() == "main" {
+                        // Hide the window instead of closing it so the
+                        // Python sidecar keeps running in the background.
+                        api.prevent_close();
+                        let _ = window.hide();
+                    }
+                }
+                tauri::WindowEvent::Destroyed => {
+                    // Window is being destroyed (app is truly quitting).
+                    // Kill the sidecar so it doesn't linger as an orphan.
+                    if window.label() == "main" {
+                        if let Some(state) = window.try_state::<ServerProcess>() {
+                            let mut guard = state.0.lock().unwrap();
+                            if let Some(child) = guard.take() {
+                                let _ = child.kill();
+                            }
                         }
                     }
                 }
+                _ => {}
             }
         })
         .run(tauri::generate_context!())

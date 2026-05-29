@@ -1668,3 +1668,14 @@ export type DiagnosticsLogsPayload = {
 export async function getDiagnosticsLogs(): Promise<DiagnosticsLogsPayload> {
   return requestJson<DiagnosticsLogsPayload>("/v1/admin/diagnostics/logs");
 }
+
+export async function getAppVersion(): Promise<string> {
+  try {
+    const data = await requestJson<{ version: string }>("/v1/admin/version", {
+      headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
+    });
+    return data.version;
+  } catch {
+    return "";
+  }
+}

@@ -1,11 +1,9 @@
 ---
 interface Props {
-  version?: string;
   showHealth?: boolean;
 }
 
 const {
-  version = import.meta.env.PUBLIC_VERSION ?? "0.1.0",
   showHealth = false,
 } = Astro.props;
 
@@ -16,7 +14,7 @@ const year = new Date().getFullYear();
   <div class="footer-left">
     <span>© {year} Minder</span>
     <span class="footer-sep" aria-hidden="true">·</span>
-    <span>v{version}</span>
+    <span id="footer-version-label">v…</span>
     {showHealth && (
       <>
         <span class="footer-sep" aria-hidden="true">·</span>
@@ -35,6 +33,22 @@ const year = new Date().getFullYear();
     <a href="/dashboard/observability">Status</a>
   </div>
 </footer>
+
+<script>
+(async () => {
+  const el = document.getElementById("footer-version-label");
+  if (!el) return;
+  try {
+    const res = await fetch("/v1/admin/version");
+    if (res.ok) {
+      const { version } = await res.json() as { version: string };
+      if (version) el.textContent = `v${version}`;
+    }
+  } catch {
+    // keep placeholder if fetch fails
+  }
+})();
+</script>
 
 <style>
   .dashboard-footer {

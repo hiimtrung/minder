@@ -32,7 +32,12 @@ form?.addEventListener("submit", async (event) => {
     return;
   }
 
-  if (password && password.length < 8) {
+  if (!password) {
+    setStatus("Password is required to enable username + password login.", "danger");
+    return;
+  }
+
+  if (password.length < 8) {
     setStatus("Password must be at least 8 characters.", "danger");
     return;
   }
@@ -52,7 +57,10 @@ form?.addEventListener("submit", async (event) => {
     });
     if (apiKeyNode) apiKeyNode.textContent = created.api_key;
     result?.classList.remove("hidden");
-    setStatus("Admin created. You can now sign in with username + password.");
+    setStatus("Admin created! Redirecting to login...");
+    setTimeout(() => {
+      window.location.href = "/dashboard/login";
+    }, 2000);
   } catch (error) {
     setStatus(error instanceof Error ? error.message : "Setup failed.", "danger");
   }

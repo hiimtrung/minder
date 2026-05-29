@@ -18,9 +18,17 @@ def _bundle_base_dir() -> Path | None:
     return None
 
 
+def _package_version() -> str:
+    try:
+        from importlib.metadata import version as _v
+        return _v("minder")
+    except Exception:
+        return "0.6.9"
+
+
 class ServerConfig(BaseModel):
     name: str = "minder"
-    version: str = "0.1.0"
+    version: str = Field(default_factory=_package_version)
     transport: str = "sse"
     host: str = "0.0.0.0"
     port: int = 8800

@@ -1396,46 +1396,65 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         return JSONResponse(result, status_code=201 if result["created"] else 200)
 
     async def admin_runtime_status(_request) -> JSONResponse:
-        from minder.llm.llama_cpp_llm import _ENGINE_CACHE
+        try:
+            from minder.infrastructure.model_bootstrap import _is_cached
+            from minder.infrastructure.runtime import get_effective_hf_cache_dir, llama_cpp_usable
+            from minder.llm.llama_cpp_llm import _ENGINE_CACHE
 
-        llm_cfg = context.config.llm
-        emb_cfg = context.config.embedding
+            llm_cfg = context.config.llm
+            emb_cfg = context.config.embedding
+            hf_cache = get_effective_hf_cache_dir()
 
-        llm_key_prefix = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}:"
-        llm_loaded = any(k.startswith(llm_key_prefix) for k in _ENGINE_CACHE)
+            # LLM status: check engine cache first (in-memory loaded), then
+            # fall back to file existence check (downloaded but not yet loaded).
+            if llm_cfg.provider == "llama_cpp":
+                llm_model = llm_cfg.llama_cpp_model_repo.split("/")[-1]
+                llm_key_prefix = f"{llm_cfg.llama_cpp_model_repo}:{llm_cfg.llama_cpp_model_file}:"
+                llm_in_memory = any(k.startswith(llm_key_prefix) for k in _ENGINE_CACHE)
+                if not llama_cpp_usable():
+                    llm_status = "mock"
+                elif llm_in_memory or _is_cached(llm_cfg.llama_cpp_model_repo, llm_cfg.llama_cpp_model_file, hf_cache):
+                    llm_status = "ready"
+                else:
+                    llm_status = "initializing"
+            else:
+                llm_status = "ready"
+                llm_model = getattr(llm_cfg, "openai_model", "openai")
 
-        emb_initialized = context.embedder._initialized  # noqa: SLF001
-        emb_model_loaded = context.embedder._model is not None  # noqa: SLF001
-        emb_runtime = context.embedder.runtime
+            # Embedding status: same two-tier check
+            emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
+            emb_runtime = context.embedder.runtime  # noqa: SLF001
+            if emb_runtime == "mock":
+                emb_status = "mock"
+            elif context.embedder._model is not None:  # noqa: SLF001
+                emb_status = "ready"
+            elif _is_cached(emb_cfg.llama_cpp_model_repo, emb_cfg.llama_cpp_model_file, hf_cache):
+                emb_status = "ready"
+            else:
+                emb_status = "initializing"
 
-        if llm_cfg.provider == "llama_cpp":
-            llm_status = "ready" if llm_loaded else "initializing"
-            llm_model = llm_cfg.llama_cpp_model_repo.split("/")[-1]
-        else:
-            llm_status = "ready"
-            llm_model = getattr(llm_cfg, "openai_model", "openai")
+            return JSONResponse({
+                "llm": {
+                    "provider": llm_cfg.provider,
+                    "model": llm_model,
+                    "status": llm_status,
+                },
+                "embedding": {
+                    "provider": "llama_cpp",
+                    "model": emb_model,
+                    "runtime": emb_runtime,
+                    "status": emb_status,
+                },
+            })
+        except Exception as exc:
+            logger.exception("Failed to get runtime status: %s", exc)
+            return JSONResponse(
+                {"error": "Failed to retrieve runtime status", "detail": str(exc)},
+                status_code=500,
+            )
 
-        if emb_runtime == "mock":
-            emb_status = "mock"
-        elif emb_initialized and emb_model_loaded:
-            emb_status = "ready"
-        else:
-            emb_status = "initializing"
-        emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
-
-        return JSONResponse({
-            "llm": {
-                "provider": llm_cfg.provider,
-                "model": llm_model,
-                "status": llm_status,
-            },
-            "embedding": {
-                "provider": "llama_cpp",
-                "model": emb_model,
-                "runtime": emb_runtime,
-                "status": emb_status,
-            },
-        })
+    async def admin_version(_request) -> JSONResponse:
+        return JSONResponse({"version": context.config.server.version})
 
     async def diagnostics_logs(_request) -> JSONResponse:
         from minder.observability.logging import get_in_memory_logs
@@ -1455,6 +1474,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
 
     return [
+        Route("/v1/admin/version", admin_version, methods=["GET"]),
         Route("/v1/admin/diagnostics/logs", diagnostics_logs, methods=["GET"]),
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),

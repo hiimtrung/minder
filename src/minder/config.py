@@ -1,7 +1,21 @@
+import sys
+from pathlib import Path
 from typing import Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict, TomlConfigSettingsSource
+
+
+def _bundle_base_dir() -> Path | None:
+    """Return the PyInstaller bundle directory when running as a frozen app.
+
+    PyInstaller sets ``sys.frozen = True`` and ``sys._MEIPASS`` to the temp
+    directory where bundled resources are extracted.  Returns ``None`` when
+    running from source (normal development).
+    """
+    if getattr(sys, "frozen", False):
+        return Path(getattr(sys, "_MEIPASS", "."))
+    return None
 
 
 class ServerConfig(BaseModel):
@@ -19,6 +33,17 @@ class DashboardConfig(BaseModel):
     static_dir: str = "src/dashboard/dist"
     dev_server_url: str | None = None
     api_url: str | None = None
+
+    @model_validator(mode="after")
+    def _resolve_bundled_static_dir(self) -> "DashboardConfig":
+        """In PyInstaller frozen mode, resolve static_dir to the bundled dashboard."""
+        bundle = _bundle_base_dir()
+        if bundle is None:
+            return self
+        bundled = bundle / "dashboard_dist"
+        if bundled.is_dir():
+            self.static_dir = str(bundled)
+        return self
 
 
 class AuthConfig(BaseModel):
@@ -180,11 +205,26 @@ class Settings(BaseSettings):
         dotenv_settings,
         file_secret_settings,
     ):
+        # In PyInstaller frozen mode, resolve minder.toml from the bundle
+        # directory so the sidecar finds its default config.
+        bundle = _bundle_base_dir()
+        if bundle is not None:
+            bundled_toml = bundle / "minder.toml"
+            if bundled_toml.is_file():
+                toml_source = TomlConfigSettingsSource(
+                    settings_cls,
+                    toml_file=bundled_toml,
+                )
+            else:
+                toml_source = TomlConfigSettingsSource(settings_cls)
+        else:
+            toml_source = TomlConfigSettingsSource(settings_cls)
+
         return (
             init_settings,
             env_settings,
             dotenv_settings,
-            TomlConfigSettingsSource(settings_cls),
+            toml_source,
             file_secret_settings,
         )
 

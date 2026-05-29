@@ -1,5 +1,6 @@
 import {
   eventStreamUrl,
+  getDiagnosticsLogs,
   getMetricsSummary,
   listAdminJobs,
   listAudit,
@@ -9,6 +10,41 @@ import {
   type MetricsSummaryPayload,
 } from "../lib/api/admin";
 import { escapeHtml } from "./ui-utils";
+
+// Intercept frontend console events for diagnostics log stream
+const frontendLogs: string[] = [];
+const maxFrontendLogs = 300;
+
+const origLog = console.log;
+const origWarn = console.warn;
+const origError = console.error;
+
+const pushFrontendLog = (type: string, ...args: any[]) => {
+  const time = new Date().toISOString().slice(11, 19);
+  const msg = args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ');
+  const line = `[${time}] [${type.toUpperCase()}] ${msg}`;
+  frontendLogs.push(line);
+  if (frontendLogs.length > maxFrontendLogs) frontendLogs.shift();
+  
+  if (type === 'log') origLog(...args);
+  else if (type === 'warn') origWarn(...args);
+  else if (type === 'error') origError(...args);
+  
+  // Call renderer
+  renderFrontendLogs();
+};
+
+console.log = (...args) => pushFrontendLog('log', ...args);
+console.warn = (...args) => pushFrontendLog('warn', ...args);
+console.error = (...args) => pushFrontendLog('error', ...args);
+
+// Catch unhandled web exceptions
+window.addEventListener('error', (e) => {
+  pushFrontendLog('error', `Unhandled Exception: ${e.message} at ${e.filename}:${e.lineno}`);
+});
+window.addEventListener('unhandledrejection', (e) => {
+  pushFrontendLog('error', `Unhandled Promise Rejection: ${e.reason}`);
+});
 
 // ---------------------------------------------------------------------------
 // Element refs
@@ -98,7 +134,18 @@ const tabs = {
   audit: document.querySelector("#tab-audit"),
   jobs: document.querySelector("#tab-jobs"),
   continuity: document.querySelector("#tab-continuity"),
+  diagnostics: document.querySelector("#tab-diagnostics"),
 };
+
+// Diagnostics UI Refs
+const diagEnvHost = document.querySelector("#diag-env-host");
+const diagEnvPort = document.querySelector("#diag-env-port");
+const diagEnvPlatform = document.querySelector("#diag-env-platform");
+const diagEnvPython = document.querySelector("#diag-env-python");
+const diagFrontendLogs = document.querySelector("#diagnostics-frontend-logs");
+const diagBackendLogs = document.querySelector("#diagnostics-backend-logs");
+const diagBtnClear = document.querySelector("#diagnostics-btn-clear");
+const diagBtnCopy = document.querySelector("#diagnostics-btn-copy");
 
 // ---------------------------------------------------------------------------
 // Pagination / filter state
@@ -196,6 +243,74 @@ const sortJobs = (jobs: AdminJobPayload[]): AdminJobPayload[] =>
     return rightTime - leftTime;
   });
 
+let diagnosticsInterval: ReturnType<typeof setInterval> | null = null;
+let currentTab: string = "overview";
+
+const renderFrontendLogs = () => {
+  if (diagFrontendLogs) {
+    const isAtBottom = diagFrontendLogs.scrollHeight - diagFrontendLogs.clientHeight <= diagFrontendLogs.scrollTop + 20;
+    diagFrontendLogs.textContent = frontendLogs.length > 0 ? frontendLogs.join('\n') : "Awaiting frontend events...";
+    if (isAtBottom) {
+      diagFrontendLogs.scrollTop = diagFrontendLogs.scrollHeight;
+    }
+  }
+};
+
+const loadDiagnostics = async () => {
+  try {
+    const data = await getDiagnosticsLogs();
+    if (diagEnvHost) diagEnvHost.textContent = data.environment.host;
+    if (diagEnvPort) diagEnvPort.textContent = String(data.environment.port);
+    if (diagEnvPlatform) diagEnvPlatform.textContent = data.environment.platform;
+    
+    const firstLineVersion = data.environment.python_version.split('\n')[0];
+    if (diagEnvPython) diagEnvPython.textContent = firstLineVersion;
+
+    if (diagBackendLogs) {
+      const isAtBottom = diagBackendLogs.scrollHeight - diagBackendLogs.clientHeight <= diagBackendLogs.scrollTop + 20;
+      
+      const formattedLogs = data.logs.map(line => {
+        try {
+          const json = JSON.parse(line);
+          const time = json.timestamp ? json.timestamp.slice(11, 19) : "";
+          const level = json.level ? json.level : "INFO";
+          const msg = json.message ? json.message : line;
+          return `[${time}] [${level}] ${msg}`;
+        } catch {
+          return line;
+        }
+      });
+
+      diagBackendLogs.textContent = formattedLogs.length > 0 ? formattedLogs.join('\n') : "Awaiting backend streams...";
+      
+      if (isAtBottom) {
+        diagBackendLogs.scrollTop = diagBackendLogs.scrollHeight;
+      }
+    }
+  } catch (error) {
+    if (diagBackendLogs) {
+      diagBackendLogs.textContent = "Error fetching backend logs:\n" + (error instanceof Error ? error.message : String(error));
+    }
+  }
+};
+
+const startDiagnosticsPolling = () => {
+  if (diagnosticsInterval) return;
+  void loadDiagnostics();
+  renderFrontendLogs();
+  diagnosticsInterval = setInterval(() => {
+    void loadDiagnostics();
+    renderFrontendLogs();
+  }, 1500);
+};
+
+const stopDiagnosticsPolling = () => {
+  if (diagnosticsInterval) {
+    clearInterval(diagnosticsInterval);
+    diagnosticsInterval = null;
+  }
+};
+
 const switchTab = (tabName: keyof typeof tabs) => {
   document
     .querySelectorAll("[data-tab-btn]")
@@ -209,6 +324,13 @@ const switchTab = (tabName: keyof typeof tabs) => {
 
   const panel = document.querySelector(`[data-tab-panel="${tabName}"]`);
   if (panel) panel.classList.remove("hidden");
+
+  currentTab = tabName;
+  if (tabName === "diagnostics") {
+    startDiagnosticsPolling();
+  } else {
+    stopDiagnosticsPolling();
+  }
 };
 
 // ---------------------------------------------------------------------------
@@ -911,6 +1033,48 @@ autoRefreshToggle?.addEventListener("change", () => {
 // Tab listeners
 Object.entries(tabs).forEach(([name, el]) => {
   el?.addEventListener("click", () => switchTab(name as keyof typeof tabs));
+});
+
+// Diagnostics listeners
+diagBtnClear?.addEventListener("click", () => {
+  frontendLogs.length = 0;
+  renderFrontendLogs();
+  if (diagBackendLogs) {
+    diagBackendLogs.textContent = "Awaiting backend streams (cleared)...";
+  }
+});
+
+diagBtnCopy?.addEventListener("click", () => {
+  const hostVal = diagEnvHost?.textContent || "unknown";
+  const portVal = diagEnvPort?.textContent || "unknown";
+  const osVal = diagEnvPlatform?.textContent || "unknown";
+  const pyVal = diagEnvPython?.textContent || "unknown";
+  const frontLogsText = diagFrontendLogs?.textContent || "";
+  const backLogsText = diagBackendLogs?.textContent || "";
+
+  const report = [
+    "=== MINDER DESKTOP DIAGNOSTICS REPORT ===",
+    `Service Host: ${hostVal}`,
+    `Binding Port: ${portVal}`,
+    `Platform/OS : ${osVal}`,
+    `Python Ver  : ${pyVal}`,
+    "",
+    "--- FRONTEND LOGS ---",
+    frontLogsText,
+    "",
+    "--- BACKEND LOGS ---",
+    backLogsText
+  ].join("\n");
+
+  navigator.clipboard.writeText(report).then(() => {
+    if (diagBtnCopy instanceof HTMLButtonElement || diagBtnCopy instanceof HTMLElement) {
+      const origText = diagBtnCopy.textContent;
+      diagBtnCopy.textContent = "Copied Report!";
+      setTimeout(() => {
+        diagBtnCopy.textContent = origText;
+      }, 2000);
+    }
+  });
 });
 
 // ---------------------------------------------------------------------------

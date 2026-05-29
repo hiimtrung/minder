@@ -6,12 +6,20 @@ Extracted from bootstrap/transport.py to respect Single Responsibility.
 
 from __future__ import annotations
 
+import logging
+import uuid
 from typing import Any
 
+from minder.domain.interfaces.repositories import IOperationalStore
 from minder.tools.skills import SkillTools
 
+logger = logging.getLogger(__name__)
 
-def create_skill_handlers(skill_tools: SkillTools) -> dict[str, Any]:
+
+def create_skill_handlers(
+    skill_tools: SkillTools,
+    store: IOperationalStore | None = None,
+) -> dict[str, Any]:
     """Return a dict of {tool_name: handler_fn} for skill-related MCP tools."""
 
     async def minder_skill_store(
@@ -46,15 +54,26 @@ def create_skill_handlers(skill_tools: SkillTools) -> dict[str, Any]:
         current_step: str | None = None,
         artifact_type: str | None = None,
         min_quality_score: float = 0.0,
+        session_id: str | None = None,
     ) -> list[dict[str, Any]]:  # noqa: ANN001
         del user
-        return await skill_tools.minder_skill_recall(
+        results, summary = await skill_tools.minder_skill_recall_with_summary(
             query,
             limit=limit,
             current_step=current_step,
             artifact_type=artifact_type,
             min_quality_score=min_quality_score,
         )
+        if session_id and results and store is not None:
+            try:
+                sid = uuid.UUID(session_id)
+                titles = ", ".join(r.get("title", "") for r in results[:3] if r.get("title"))
+                history_content = summary or f"Recalled {len(results)} skills for '{query}': {titles}."
+                await store.create_history(session_id=sid, role="user", content=query)
+                await store.create_history(session_id=sid, role="assistant", content=history_content)
+            except Exception as exc:
+                logger.debug("minder_skill_recall: failed to persist history: %s", exc)
+        return results
 
     async def minder_skill_list(
         *,

@@ -15,6 +15,7 @@ from minder.application.admin.dto import (
     UpsertRepositoryBranchLinkRequest,
 )
 from minder.auth.principal import ClientPrincipal
+from minder.domain.exceptions import AuthError
 from minder.observability.metrics import (
     get_metrics_summary,
     record_admin_operation,
@@ -161,11 +162,18 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 "auth.login", "denied", client_id="dashboard", store=context.store
             )
             return JSONResponse({"error": "Admin role required."}, status_code=403)
-        except Exception:
+        except AuthError as exc:
             await record_auth_event(
                 "auth.login", "failure", client_id="dashboard", store=context.store
             )
-            return JSONResponse({"error": "Invalid credentials."}, status_code=401)
+            logger.exception("Dashboard login failed due to AuthError: %s", exc)
+            return JSONResponse({"error": f"Invalid credentials: {exc.message}"}, status_code=401)
+        except Exception as exc:
+            await record_auth_event(
+                "auth.login", "failure", client_id="dashboard", store=context.store
+            )
+            logger.exception("Dashboard login failed due to unexpected exception")
+            return JSONResponse({"error": f"Invalid credentials: {str(exc)}"}, status_code=401)
 
         await record_auth_event(
             "auth.login", "success", client_id="dashboard", store=context.store
@@ -1429,8 +1437,25 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
             },
         })
 
+    async def diagnostics_logs(_request) -> JSONResponse:
+        from minder.observability.logging import get_in_memory_logs
+        import platform
+        import sys
+
+        return JSONResponse({
+            "logs": get_in_memory_logs(),
+            "environment": {
+                "python_version": sys.version,
+                "platform": platform.platform(),
+                "host": context.config.server.host,
+                "port": context.config.server.port,
+                "transport": context.config.server.transport,
+            }
+        })
+
 
     return [
+        Route("/v1/admin/diagnostics/logs", diagnostics_logs, methods=["GET"]),
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),
         Route("/v1/admin/logout", dashboard_logout_api, methods=["POST"]),

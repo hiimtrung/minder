@@ -4,30 +4,302 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Minder</title>
+  <!-- Import identical Google Fonts as dashboard for premium typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,100..900;1,9..144,100..900&family=Inter:wght@100..900&family=JetBrains+Mono:wght@100..800&display=swap" rel="stylesheet" />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      background: #0f172a;
-      color: #94a3b8;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5ede3;
+      background-image: linear-gradient(160deg, #fbf8f3 0%, #f0e8db 100%);
+      color: rgb(87, 83, 78);
+      font-family: "Inter", system-ui, -apple-system, sans-serif;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       height: 100vh;
-      gap: 1.5rem;
+      width: 100vw;
       user-select: none;
+      overflow: hidden;
     }
-    .logo {
-      font-size: 2rem;
+    
+    .container {
+      background: rgba(255, 252, 245, 0.99);
+      border: 1px solid rgba(231, 229, 228, 0.95);
+      border-radius: 26px;
+      padding: 2.5rem 2rem;
+      box-shadow: 0 30px 90px rgba(28, 25, 23, 0.08);
+      max-width: 520px;
+      width: 90%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1.5rem;
+      text-align: center;
+      transition: all 0.3s ease;
+    }
+
+    /* Glowing Loader Logo in Gold/Amber gradient */
+    .logo-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 0.2rem;
+    }
+
+    .logo-glow {
+      position: absolute;
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(146, 64, 14, 0.15) 0%, rgba(217, 119, 6, 0.05) 70%, transparent 100%);
+      filter: blur(15px);
+      animation: pulse 3s infinite ease-in-out;
+    }
+
+    .logo-circle {
+      width: 72px;
+      height: 72px;
+      border-radius: 18px;
+      background: linear-gradient(135deg, rgb(146, 64, 14), rgb(180, 83, 9));
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #ffffff;
+      font-size: 2.2rem;
+      font-weight: 800;
+      box-shadow: 0 8px 24px rgba(146, 64, 14, 0.25);
+      animation: float 4s infinite ease-in-out;
+      font-family: "Fraunces", serif;
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); opacity: 0.6; }
+      50% { transform: scale(1.2); opacity: 1; }
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px) rotate(0deg); }
+      50% { transform: translateY(-6px) rotate(2deg); }
+    }
+
+    /* Branding & Progress */
+    .brand-title {
+      font-family: "Fraunces", serif;
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      color: rgb(28, 25, 23);
+      margin-top: -0.5rem;
+    }
+
+    .status-section {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      width: 100%;
+      max-width: 440px;
+    }
+
+    .status-text {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: rgb(87, 83, 78);
+    }
+
+    .step-text {
+      font-size: 0.75rem;
+      color: rgb(120, 113, 108);
+      font-family: "JetBrains Mono", monospace;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      background: rgba(250, 245, 235, 0.8);
+      padding: 0.5rem 0.8rem;
+      border-radius: 8px;
+      border: 1px solid rgba(231, 229, 228, 0.8);
+    }
+
+    .progress-bar-track {
+      width: 100%;
+      height: 6px;
+      background: rgb(231, 229, 228);
+      border-radius: 99px;
+      overflow: hidden;
+      margin-top: 0.2rem;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 25%;
+      background: linear-gradient(to right, rgb(146, 64, 14), rgb(217, 119, 6));
+      border-radius: 99px;
+      animation: loading-bar 2s infinite ease-in-out;
+    }
+
+    @keyframes loading-bar {
+      0% { margin-left: -35%; width: 35%; }
+      50% { width: 50%; }
+      100% { margin-left: 100%; width: 35%; }
+    }
+
+    /* Diagnostics Drawer */
+    .diagnostics-toggle {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: rgb(146, 64, 14);
+      cursor: pointer;
+      text-decoration: none;
+      margin-top: 0.2rem;
+      border-bottom: 1px dashed rgb(146, 64, 14);
+      transition: all 0.2s;
+    }
+    
+    .diagnostics-toggle:hover {
+      color: rgb(120, 53, 15);
+      border-bottom-color: rgb(120, 53, 15);
+    }
+
+    .diagnostics-container {
+      display: none;
+      width: 100%;
+      flex-direction: column;
+      gap: 0.75rem;
+      text-align: left;
+      animation: fadeIn 0.3s ease-out;
+      margin-top: 0.5rem;
+      border-top: 1px solid rgba(231, 229, 228, 0.8);
+      padding-top: 1rem;
+    }
+
+    .diagnostics-info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 0.5rem;
+      font-size: 0.7rem;
+      color: rgb(87, 83, 78);
+      background: rgba(250, 245, 235, 0.6);
+      padding: 0.6rem;
+      border-radius: 8px;
+      border: 1px solid rgba(231, 229, 228, 0.6);
+    }
+
+    .diagnostics-info-item {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .diagnostics-info-label {
+      font-weight: bold;
+      color: rgb(120, 113, 108);
+      text-transform: uppercase;
+      font-size: 0.58rem;
+      letter-spacing: 0.05em;
+    }
+
+    .diagnostics-info-value {
+      font-family: "JetBrains Mono", monospace;
+      color: rgb(28, 25, 23);
+      margin-top: 0.1rem;
+    }
+
+    .diagnostics-log-box {
+      background: rgb(254, 252, 248);
+      border: 1px solid rgba(231, 229, 228, 0.9);
+      border-radius: 8px;
+      padding: 0.75rem;
+      max-height: 160px;
+      overflow-y: auto;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.68rem;
+      color: rgb(87, 83, 78);
+      line-height: 1.55;
+      white-space: pre-wrap;
+    }
+
+    /* Error UI */
+    .error-container {
+      display: none;
+      flex-direction: column;
+      gap: 1.25rem;
+      width: 100%;
+      max-width: 520px;
+      text-align: left;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .error-title {
+      color: rgb(190, 18, 60);
+      font-size: 1.15rem;
       font-weight: 700;
-      color: #f1f5f9;
-      letter-spacing: -0.03em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: "Fraunces", serif;
     }
-    .status {
-      font-size: 0.875rem;
-      color: #64748b;
+
+    .error-box {
+      background: rgb(254, 242, 242);
+      border: 1px solid rgb(252, 165, 165);
+      border-radius: 12px;
+      padding: 1.25rem;
+      max-height: 250px;
+      overflow-y: auto;
+      font-family: "JetBrains Mono", monospace;
+      font-size: 0.72rem;
+      color: rgb(159, 18, 57);
+      line-height: 1.6;
+      white-space: pre-wrap;
     }
+
+    .error-actions {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .btn {
+      padding: 0.65rem 1.25rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      flex: 1;
+      text-align: center;
+    }
+
+    .btn-primary {
+      background: rgb(146, 64, 14);
+      color: white;
+      box-shadow: 0 4px 12px rgba(146, 64, 14, 0.2);
+    }
+    
+    .btn-primary:hover {
+      background: rgb(120, 53, 15);
+    }
+
+    .btn-secondary {
+      background: white;
+      color: rgb(87, 83, 78);
+      border: 1px solid rgb(214, 211, 209);
+    }
+
+    .btn-secondary:hover {
+      background: rgb(245, 245, 244);
+      color: rgb(28, 25, 23);
+    }
+
+    /* Dots animation */
     .dots span {
       animation: blink 1.4s infinite both;
       opacity: 0;
@@ -38,24 +310,173 @@
       0%, 80%, 100% { opacity: 0; }
       40% { opacity: 1; }
     }
-    .error { color: #f87171; font-size: 0.8rem; max-width: 340px; text-align: center; line-height: 1.5; }
   </style>
 </head>
 <body>
-  <div class="logo">Minder</div>
-  <div class="status">
-    Starting server<span class="dots"><span>.</span><span>.</span><span>.</span></span>
+  <div class="container" id="main-card">
+    <div class="logo-wrapper">
+      <div class="logo-glow"></div>
+      <div class="logo-circle">M</div>
+    </div>
+    
+    <div class="brand-title">Minder</div>
+
+    <!-- Status loading details -->
+    <div class="status-section" id="status-sect">
+      <div class="status-text" id="status-title">Starting Minder Engine<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
+      <div class="step-text" id="status-step">Checking system environment...</div>
+      <div class="progress-bar-track">
+        <div class="progress-bar-fill"></div>
+      </div>
+      
+      <div style="margin-top: 0.5rem;">
+        <span class="diagnostics-toggle" id="toggle-diagnostics">Show Diagnostics Console</span>
+      </div>
+      
+      <!-- Collapsible Live Diagnostics Drawer -->
+      <div class="diagnostics-container" id="diagnostics-drawer">
+        <div class="diagnostics-info-grid">
+          <div class="diagnostics-info-item">
+            <span class="diagnostics-info-label">Target Port</span>
+            <span class="diagnostics-info-value" id="diag-port">Checking...</span>
+          </div>
+          <div class="diagnostics-info-item">
+            <span class="diagnostics-info-label">Local Host</span>
+            <span class="diagnostics-info-value" id="diag-host">Checking...</span>
+          </div>
+          <div class="diagnostics-info-item">
+            <span class="diagnostics-info-label">Tauri Mode</span>
+            <span class="diagnostics-info-value">Native Webview</span>
+          </div>
+          <div class="diagnostics-info-item">
+            <span class="diagnostics-info-label">Connection</span>
+            <span class="diagnostics-info-value" id="diag-status" style="color:rgb(217, 119, 6);">Pending...</span>
+          </div>
+        </div>
+        <div style="font-size:0.6rem; font-weight:bold; color:rgb(120, 113, 108); margin: 0.5rem 0 0.2rem 0; text-transform:uppercase; letter-spacing:0.05em;">Live Sidecar Output</div>
+        <div class="diagnostics-log-box" id="diagnostics-logs">Awaiting log streams...</div>
+      </div>
+    </div>
+
+    <!-- Error reports -->
+    <div class="error-container" id="error-sect">
+      <div class="error-title">
+        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span>Server Startup Failed</span>
+      </div>
+      <div class="error-box" id="error-details">An unknown error occurred during sidecar initialization.</div>
+      <div class="error-actions">
+        <button class="btn btn-primary" onclick="window.location.reload()">Retry Startup</button>
+        <button class="btn btn-secondary" id="btn-logs-copy">Copy Diagnostic Logs</button>
+      </div>
+    </div>
   </div>
-  <div class="error" id="err" style="display:none"></div>
+
   <script>
+    // System callback on server success
     window.__minderReady = function(url) {
       window.location.replace(url);
     };
-    window.__minderError = function(msg) {
-      document.getElementById('err').textContent = msg;
-      document.getElementById('err').style.display = 'block';
-      document.querySelector('.status').style.display = 'none';
+
+    // System callback for status update
+    window.__minderStatus = function(title, step) {
+      if (title) {
+        document.getElementById('status-title').innerHTML = title + '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
+      }
+      if (step) {
+        document.getElementById('status-step').textContent = step;
+      }
     };
+
+    // System callback for startup failure
+    window.__minderError = function(errorMsg) {
+      document.getElementById('status-sect').style.display = 'none';
+      document.getElementById('error-sect').style.display = 'flex';
+      document.getElementById('error-details').textContent = errorMsg;
+      
+      // Auto-expand diagnostics logs inside the error view
+      const logsBox = document.getElementById('diagnostics-logs');
+      if (logsBox && logsBox.textContent !== "Awaiting log streams...") {
+        document.getElementById('error-details').textContent = errorMsg + "\n\n=== Diagnostics Captured Logs ===\n" + logsBox.textContent;
+      }
+    };
+
+    // Diagnostics drawer toggling
+    let isDrawerOpen = false;
+    const toggleBtn = document.getElementById('toggle-diagnostics');
+    const drawer = document.getElementById('diagnostics-drawer');
+    const mainCard = document.getElementById('main-card');
+
+    toggleBtn.addEventListener('click', () => {
+      isDrawerOpen = !isDrawerOpen;
+      if (isDrawerOpen) {
+        drawer.style.display = 'flex';
+        toggleBtn.textContent = 'Hide Diagnostics Console';
+        mainCard.style.maxWidth = '600px';
+      } else {
+        drawer.style.display = 'none';
+        toggleBtn.textContent = 'Show Diagnostics Console';
+        mainCard.style.maxWidth = '520px';
+      }
+    });
+
+    // Wire log clipboard copying
+    document.getElementById('btn-logs-copy').addEventListener('click', function() {
+      const logText = document.getElementById('error-details').textContent;
+      navigator.clipboard.writeText(logText).then(() => {
+        const btn = document.getElementById('btn-logs-copy');
+        const orig = btn.textContent;
+        btn.textContent = 'Copied to Clipboard!';
+        setTimeout(() => btn.textContent = orig, 2000);
+      });
+    });
+
+    // Real-time log tailing and configs querying via Tauri IPC
+    async function queryTauriDiagnostics() {
+      try {
+        if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+          // Query current configuration
+          const config = await window.__TAURI__.core.invoke('get_bootstrap_config');
+          if (config) {
+            document.getElementById('diag-port').textContent = config.port;
+            document.getElementById('diag-host').textContent = config.host;
+          }
+
+          // Query logs buffer
+          const logs = await window.__TAURI__.core.invoke('get_bootstrap_logs');
+          if (logs && logs.length > 0) {
+            const logsBox = document.getElementById('diagnostics-logs');
+            const shouldScroll = logsBox.scrollHeight - logsBox.clientHeight <= logsBox.scrollTop + 20;
+            
+            logsBox.textContent = logs.join('\n');
+            
+            if (shouldScroll) {
+              logsBox.scrollTop = logsBox.scrollHeight;
+            }
+
+            // Update connection state text if uvicorn logs are seen
+            const logContent = logs.join('\n');
+            if (logContent.includes("Uvicorn running on") || logContent.includes("server ready")) {
+              document.getElementById('diag-status').textContent = 'Ready';
+              document.getElementById('diag-status').style.color = 'rgb(5, 150, 105)';
+            } else if (logContent.includes("prematurely") || logContent.includes("Failed")) {
+              document.getElementById('diag-status').textContent = 'Refused';
+              document.getElementById('diag-status').style.color = 'rgb(190, 18, 60)';
+            } else {
+              document.getElementById('diag-status').textContent = 'Starting...';
+              document.getElementById('diag-status').style.color = 'rgb(217, 119, 6)';
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Tauri IPC Invocation Failed:", err);
+      }
+    }
+
+    // Set polling interval
+    setInterval(queryTauriDiagnostics, 500);
   </script>
 </body>
 </html>

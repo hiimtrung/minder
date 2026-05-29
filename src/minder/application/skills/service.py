@@ -167,7 +167,7 @@ class SkillService:
         current_step: str | None,
         artifact_type: str | None,
         min_quality_score: float = 0.0,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], str]:
         graph = self._get_agentic_graph()
         result = await graph.run(
             {
@@ -181,7 +181,7 @@ class SkillService:
                 "summary": "",
             }
         )
-        return list(result.get("final_items", []))
+        return list(result.get("final_items", [])), str(result.get("summary", ""))
 
     async def minder_skill_store(
         self,
@@ -216,7 +216,7 @@ class SkillService:
         )
         return {**self._serialize_skill(skill), "ok": True}
 
-    async def minder_skill_recall(
+    async def minder_skill_recall_with_summary(
         self,
         query: str,
         *,
@@ -224,10 +224,12 @@ class SkillService:
         current_step: str | None = None,
         artifact_type: str | None = None,
         min_quality_score: float = 0.0,
-    ) -> list[dict[str, Any]]:
+    ) -> tuple[list[dict[str, Any]], str]:
+        """Recall skills and return (items, summary). The summary is an LLM-generated
+        overview from the agentic RAG path, or a heuristic fallback otherwise."""
         if self._use_agentic_loop():
             try:
-                limited = await self._agentic_recall(
+                limited, summary = await self._agentic_recall(
                     query,
                     limit=limit,
                     current_step=current_step,
@@ -235,7 +237,7 @@ class SkillService:
                     min_quality_score=min_quality_score,
                 )
             except Exception:
-                limited = []
+                limited, summary = [], ""
             if limited:
                 for item in limited:
                     record_continuity_skill_recall(
@@ -249,7 +251,7 @@ class SkillService:
                         )
                     except Exception:
                         pass
-                return limited
+                return limited, summary
 
         limited = await self._skill_recall_candidates(
             query,
@@ -271,7 +273,25 @@ class SkillService:
                 )
             except Exception:
                 pass
-        return limited
+        return limited, ""
+
+    async def minder_skill_recall(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        current_step: str | None = None,
+        artifact_type: str | None = None,
+        min_quality_score: float = 0.0,
+    ) -> list[dict[str, Any]]:
+        items, _ = await self.minder_skill_recall_with_summary(
+            query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+            min_quality_score=min_quality_score,
+        )
+        return items
 
     async def minder_skill_list(
         self,

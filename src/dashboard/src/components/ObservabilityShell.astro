@@ -57,6 +57,9 @@ import SectionHeader from "./ui/molecules/SectionHeader.astro";
         <button data-tab-btn="continuity" id="tab-continuity" class="tab-btn"
           >Continuity & Health</button
         >
+        <button data-tab-btn="diagnostics" id="tab-diagnostics" class="tab-btn"
+          >Diagnostics & Logs</button
+        >
       </div>
       <div
         class="hidden md:flex items-center gap-1 shrink-0 pr-2 text-[10px] font-semibold uppercase tracking-widest text-stone-400"
@@ -410,6 +413,78 @@ import SectionHeader from "./ui/molecules/SectionHeader.astro";
             </tr>
           </tbody>
         </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Diagnostics & Logs Tab Panel -->
+  <div
+    id="panel-diagnostics"
+    data-tab-panel="diagnostics"
+    class="hidden space-y-4 text-stone-900"
+  >
+    <div class="grid gap-5">
+      <!-- Diagnostics Host/Port Status Card -->
+      <Card padding="md">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <SectionHeader
+              title="Desktop Connection & Diagnostics"
+              description="Verify local port/host connectivity parameters and environment specs of the Minder service."
+              class="mb-0"
+            />
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <Button id="diagnostics-btn-clear" size="sm" variant="secondary">Clear View</Button>
+            <Button id="diagnostics-btn-copy" size="sm">Copy Diagnostics Report</Button>
+          </div>
+        </div>
+
+        <div class="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-4">
+          <div class="rounded-2xl border border-stone-200 bg-stone-50/50 px-4 py-3 text-sm">
+            <span class="block text-[10px] uppercase tracking-[0.15em] text-stone-400 font-bold">Service Host</span>
+            <span id="diag-env-host" class="mt-1 block font-mono font-semibold text-stone-950">127.0.0.1</span>
+          </div>
+          <div class="rounded-2xl border border-stone-200 bg-stone-50/50 px-4 py-3 text-sm">
+            <span class="block text-[10px] uppercase tracking-[0.15em] text-stone-400 font-bold">Binding Port</span>
+            <span id="diag-env-port" class="mt-1 block font-mono font-semibold text-stone-950">8800</span>
+          </div>
+          <div class="rounded-2xl border border-stone-200 bg-stone-50/50 px-4 py-3 text-sm">
+            <span class="block text-[10px] uppercase tracking-[0.15em] text-stone-400 font-bold">Platform / OS</span>
+            <span id="diag-env-platform" class="mt-1 block text-stone-950 truncate font-semibold">macOS</span>
+          </div>
+          <div class="rounded-2xl border border-stone-200 bg-stone-50/50 px-4 py-3 text-sm">
+            <span class="block text-[10px] uppercase tracking-[0.15em] text-stone-400 font-bold">Python Version</span>
+            <span id="diag-env-python" class="mt-1 block text-stone-950 truncate font-semibold">3.12.x</span>
+          </div>
+        </div>
+      </Card>
+
+      <!-- Logs split pane terminal -->
+      <div class="grid gap-4 md:grid-cols-2">
+        <!-- Frontend Logs Panel -->
+        <Card padding="sm" class="flex flex-col h-[520px]">
+          <div class="flex items-center justify-between border-b border-stone-100 pb-2 mb-2 px-1">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-emerald-500 animate-ping"></span>
+              <p class="font-bold text-xs uppercase tracking-wider text-stone-500">Frontend (Webview Console) Logs</p>
+            </div>
+            <span class="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-mono">browser-events</span>
+          </div>
+          <div id="diagnostics-frontend-logs" class="flex-1 overflow-auto rounded-lg bg-stone-950 p-4 font-mono text-[11px] text-emerald-400 leading-normal whitespace-pre-wrap select-text selection:bg-emerald-800 selection:text-white h-full no-scrollbar">Awaiting frontend events...</div>
+        </Card>
+
+        <!-- Backend Logs Panel -->
+        <Card padding="sm" class="flex flex-col h-[520px]">
+          <div class="flex items-center justify-between border-b border-stone-100 pb-2 mb-2 px-1">
+            <div class="flex items-center gap-2">
+              <span class="h-2 w-2 rounded-full bg-amber-500 animate-ping"></span>
+              <p class="font-bold text-xs uppercase tracking-wider text-stone-500">Backend (Python Sidecar) Logs</p>
+            </div>
+            <span class="text-[10px] bg-stone-100 text-stone-600 px-2 py-0.5 rounded-full font-mono">server-stdout</span>
+          </div>
+          <div id="diagnostics-backend-logs" class="flex-1 overflow-auto rounded-lg bg-stone-950 p-4 font-mono text-[11px] text-amber-400 leading-normal whitespace-pre-wrap select-text selection:bg-amber-800 selection:text-white h-full no-scrollbar">Awaiting backend streams...</div>
+        </Card>
       </div>
     </div>
   </div>

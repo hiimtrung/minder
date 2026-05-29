@@ -47,6 +47,14 @@ def llama_cpp_usable() -> bool:
         _LLAMA_CPP_PROBE = False
         return False
 
+    if getattr(sys, "frozen", False):
+        # Package builds compile llama.cpp natively for the host architecture.
+        # Since sys.executable is the compiled sidecar binary itself, executing
+        # `sys.executable -c` would start an infinite subprocess loop (fork bomb).
+        # We skip the probe and return True.
+        _LLAMA_CPP_PROBE = True
+        return True
+
     try:
         proc = subprocess.run(
             [

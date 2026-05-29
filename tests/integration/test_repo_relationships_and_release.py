@@ -95,9 +95,9 @@ def test_release_assets_contain_cross_platform_installers() -> None:
         in release_workflow
     )
 
-    # PowerShell installer must use the argv form so Windows PowerShell 5.1 is safe.
-    assert "& docker @composeArgs pull" in powershell_installer
-    assert "& docker @composeArgs up -d" in powershell_installer
+    # PowerShell installer must use uv tool install.
+    assert "uv tool install" in powershell_installer
+
 
 
 def test_production_guide_documents_native_deployment() -> None:

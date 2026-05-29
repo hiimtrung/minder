@@ -67,6 +67,23 @@ class SkillTools:
             min_quality_score=min_quality_score,
         )
 
+    async def minder_skill_recall_with_summary(
+        self,
+        query: str,
+        *,
+        limit: int = 5,
+        current_step: str | None = None,
+        artifact_type: str | None = None,
+        min_quality_score: float = 0.0,
+    ) -> tuple[list[dict[str, Any]], str]:
+        return await self._service.minder_skill_recall_with_summary(
+            query=query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+            min_quality_score=min_quality_score,
+        )
+
     async def minder_skill_list(
         self,
         *,

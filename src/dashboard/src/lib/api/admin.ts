@@ -1649,3 +1649,22 @@ export async function getRuntimeStatus(): Promise<RuntimeStatusPayload> {
     headers: { "X-Minder-Redirect-On-Unauthorized": "false" },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Diagnostics
+// ---------------------------------------------------------------------------
+
+export type DiagnosticsLogsPayload = {
+  logs: string[];
+  environment: {
+    python_version: string;
+    platform: string;
+    host: string;
+    port: number;
+    transport: string;
+  };
+};
+
+export async function getDiagnosticsLogs(): Promise<DiagnosticsLogsPayload> {
+  return requestJson<DiagnosticsLogsPayload>("/v1/admin/diagnostics/logs");
+}

@@ -226,13 +226,50 @@ class RuntimeAgentExecutor:
         repository: dict[str, Any],
     ) -> dict[str, Any] | None:
         normalized = query.lower()
+        if _contains_any(normalized, _RECALL_VERBS) and not _contains_any(
+            normalized, _READ_LIST_VERBS
+        ):
+            results = await self._memory_tools.minder_memory_recall(query)
+            if results:
+                parts: list[str] = []
+                for item in results[:10]:
+                    hit_summary = str(item.get("hit_summary", "")).strip()
+                    content = str(item.get("content", "")).strip()
+                    snippet = hit_summary or content[:300].rstrip() + ("…" if len(content) > 300 else "")
+                    parts.append(
+                        f"**{item['title']}** (score={item.get('score', 0):.2f})\n{snippet}"
+                    )
+                answer = "\n\n".join(parts)
+            else:
+                answer = "No matching memories found."
+            return _agentic_payload(
+                query=query,
+                repository=repository,
+                answer=answer,
+                agent_actions=[
+                    {
+                        "tool": "minder_memory_recall",
+                        "mode": "read",
+                        "status": "success",
+                        "count": len(results),
+                    }
+                ],
+            )
+
         if _contains_any(normalized, _READ_LIST_VERBS):
             memories = await self._memory_tools.minder_memory_list()
-            preview = (
-                "\n".join(f"- {item['id']}: {item['title']}" for item in memories[:10])
-                if memories
-                else "- No memories found."
-            )
+            if memories:
+                parts = []
+                for item in memories[:10]:
+                    content = str(item.get("content", "")).strip()
+                    snippet = content[:120].rstrip() + ("…" if len(content) > 120 else "")
+                    line = f"- **{item['title']}**"
+                    if snippet:
+                        line += f": {snippet}"
+                    parts.append(line)
+                preview = "\n".join(parts)
+            else:
+                preview = "- No memories found."
             return _agentic_payload(
                 query=query,
                 repository=repository,
@@ -309,19 +346,23 @@ class RuntimeAgentExecutor:
         if _contains_any(normalized, _RECALL_VERBS) and not _contains_any(
             normalized, _READ_LIST_VERBS
         ):
-            results = await self._skill_tools.minder_skill_recall(query)
-            preview = (
-                "\n".join(
-                    f"- {item['id']}: {item['title']} (score={item.get('score', 0):.2f})"
-                    for item in results[:10]
-                )
-                if results
-                else "- No matching skills found."
-            )
+            results, recall_summary = await self._skill_tools.minder_skill_recall_with_summary(query)
+            if results:
+                parts: list[str] = []
+                for item in results[:10]:
+                    content = str(item.get("content", "")).strip()
+                    snippet = content[:300].rstrip() + ("…" if len(content) > 300 else "")
+                    parts.append(
+                        f"**{item['title']}** (score={item.get('score', 0):.2f})\n{snippet}"
+                    )
+                detail = "\n\n".join(parts)
+                answer = f"{recall_summary}\n\n{detail}" if recall_summary else f"Recalled {len(results)} skills.\n\n{detail}"
+            else:
+                answer = "No matching skills found."
             return _agentic_payload(
                 query=query,
                 repository=repository,
-                answer=f"Recalled {len(results)} skills for query.\n{preview}",
+                answer=answer,
                 agent_actions=[
                     {
                         "tool": "minder_skill_recall",
@@ -657,6 +698,20 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
             admin_user_id=admin_user.id,
         )
         if agentic_result is not None:
+            if session_id:
+                try:
+                    await context.store.create_history(
+                        session_id=session_id,
+                        role="user",
+                        content=query,
+                    )
+                    await context.store.create_history(
+                        session_id=session_id,
+                        role="assistant",
+                        content=str(agentic_result.get("answer", "")),
+                    )
+                except Exception:
+                    logger.debug("Failed to persist agentic history for session %s", session_id)
             return JSONResponse(agentic_result)
 
         try:
@@ -852,6 +907,20 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 admin_user_id=admin_user.id,
             )
             if agentic_result is not None:
+                if session_id:
+                    try:
+                        await context.store.create_history(
+                            session_id=session_id,
+                            role="user",
+                            content=query,
+                        )
+                        await context.store.create_history(
+                            session_id=session_id,
+                            role="assistant",
+                            content=str(agentic_result.get("answer", "")),
+                        )
+                    except Exception:
+                        logger.debug("Failed to persist agentic stream history for session %s", session_id)
                 yield json.dumps({"type": "final", "payload": agentic_result}) + "\n"
                 return
 

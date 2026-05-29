@@ -85,6 +85,10 @@ jobs:
 
   # Build native Tauri desktop apps — one job per platform/arch.
   # PyInstaller + Rust compilation are both slow under QEMU; use native runners.
+  #
+  # Each platform gets optimized CMAKE_ARGS for llama.cpp:
+  #   macOS:   Metal GPU acceleration (both Apple Silicon and Intel with discrete GPU)
+  #   Linux:   Native CPU ISA (AVX2/AVX-512/FMA auto-detected by compiler)
   build-tauri:
     needs: build-dist
     strategy:
@@ -93,12 +97,16 @@ jobs:
         include:
           - runner: macos-14          # Apple Silicon (ARM64)
             target: aarch64-apple-darwin
+            cmake_args: "-DGGML_NATIVE=ON -DGGML_METAL=ON"
           - runner: macos-13          # Intel (x86_64)
             target: x86_64-apple-darwin
+            cmake_args: "-DGGML_NATIVE=ON -DGGML_METAL=ON"
           - runner: ubuntu-latest     # Linux x86_64
             target: x86_64-unknown-linux-gnu
+            cmake_args: "-DGGML_NATIVE=ON"
           - runner: ubuntu-24.04-arm  # Linux ARM64
             target: aarch64-unknown-linux-gnu
+            cmake_args: "-DGGML_NATIVE=ON"
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 90
     permissions:
@@ -146,7 +154,10 @@ jobs:
           bun run build
 
       - name: Build PyInstaller sidecar
+        env:
+          CMAKE_ARGS: ${{ matrix.cmake_args }}
         run: |
+          echo "Building sidecar with CMAKE_ARGS=${CMAKE_ARGS}"
           uv add --dev pyinstaller
           uv run pyinstaller minder-server.spec --clean --noconfirm
           TARGET=$(rustc -Vv | grep host | cut -d' ' -f2)

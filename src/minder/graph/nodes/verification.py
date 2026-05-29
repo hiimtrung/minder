@@ -28,8 +28,9 @@ class SubprocessVerificationRunner:
             with tempfile.TemporaryDirectory() as temp_dir:
                 script_path = Path(temp_dir) / "snippet.py"
                 script_path.write_text(code, encoding="utf-8")
+                python_exe = "python3" if getattr(sys, "frozen", False) else sys.executable
                 completed = subprocess.run(
-                    [sys.executable, str(script_path)],
+                    [python_exe, str(script_path)],
                     capture_output=True,
                     text=True,
                     cwd=cwd,

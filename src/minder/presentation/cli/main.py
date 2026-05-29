@@ -8,6 +8,7 @@ from .commands.auth import login_command
 from .commands.mcp import install_mcp_command, uninstall_mcp_command, remove_mcp_command, _global_target_path
 from .commands.update import version_command, check_update_command, update_command
 from .commands.sync import sync_command
+from .commands.admin import reset_password_command, list_users_command
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -112,6 +113,18 @@ def build_parser() -> argparse.ArgumentParser:
     version = subparsers.add_parser("version", help="Show version information.")
     version.add_argument("--check", action="store_true", help="Check for newer version on PyPI.")
     version.set_defaults(func=version_command)
+
+    # ── Admin recovery ────────────────────────────────────────────────────────
+    admin_users = subparsers.add_parser("list-users", help="List all admin users in the database.")
+    admin_users.set_defaults(func=list_users_command)
+
+    reset_pw = subparsers.add_parser(
+        "reset-password",
+        help="Reset a Minder admin user password (recovery tool).",
+    )
+    reset_pw.add_argument("password", help="New password (min 8 characters).")
+    reset_pw.add_argument("--username", help="Target username. Defaults to the first admin.")
+    reset_pw.set_defaults(func=reset_password_command)
 
     return parser
 

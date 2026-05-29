@@ -85,9 +85,13 @@ class RetrievalConfig(BaseModel):
 
 
 class MemoryConfig(BaseModel):
-    agentic_recall: bool = False
+    agentic_recall: bool = True
     recall_min_score: float = 0.4
     recall_max_iterations: int = 3
+
+
+class SkillConfig(BaseModel):
+    agentic_recall: bool = True
 
 
 class SessionConfig(BaseModel):
@@ -150,6 +154,7 @@ class Settings(BaseSettings):
     turbovec: TurbovecConfig = Field(default_factory=TurbovecConfig)
     retrieval: RetrievalConfig = Field(default_factory=RetrievalConfig)
     memory: MemoryConfig = Field(default_factory=MemoryConfig)
+    skill: SkillConfig = Field(default_factory=SkillConfig)
     session: SessionConfig = Field(default_factory=SessionConfig)
     graph: GraphConfig = Field(default_factory=GraphConfig)
     cache: CacheConfig = Field(default_factory=CacheConfig)

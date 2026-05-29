@@ -104,6 +104,84 @@ class SkillService:
                 dimensions=config.embedding.dimensions,
                 runtime=config.embedding.runtime,
             )
+        self._agentic_graph: Any | None = None
+
+    def _use_agentic_loop(self) -> bool:
+        return bool(self._config.skill.agentic_recall)
+
+    def _get_agentic_graph(self) -> Any:
+        if self._agentic_graph is None:
+            from minder.graph.skill_graph import AgenticSkillGraph
+
+            self._agentic_graph = AgenticSkillGraph(self, self._config)
+        return self._agentic_graph
+
+    async def _skill_recall_candidates(
+        self,
+        query: str,
+        *,
+        limit: int,
+        current_step: str | None,
+        artifact_type: str | None,
+        min_quality_score: float = 0.0,
+    ) -> list[dict[str, Any]]:
+        """Raw ranked candidates without usage-count side effects."""
+        query_embedding = self._embedder.embed(query)
+        ranked: list[dict[str, Any]] = []
+        for skill in await self._store.list_skills_by_kind(is_memory=False):
+            quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
+            if quality_score < min_quality_score:
+                continue
+            embedding = skill.embedding if isinstance(skill.embedding, list) else None
+            if not embedding:
+                continue
+            semantic_score = self._cosine_similarity(query_embedding, embedding)
+            compatibility_score, _ = compatibility_score_for_memory(
+                tags=list(skill.tags) if isinstance(skill.tags, list) else [],
+                title=str(skill.title),
+                content=str(skill.content),
+                current_step=current_step,
+                artifact_type=artifact_type,
+            )
+            blended_score = min(
+                (semantic_score * 0.65)
+                + (compatibility_score * 0.2)
+                + (min(quality_score, 1.0) * 0.15),
+                1.5,
+            )
+            ranked.append(
+                {
+                    **self._serialize_skill_compact(skill, truncate_content=True),
+                    "score": round(blended_score, 4),
+                    "_step_compat": round(compatibility_score, 4),
+                }
+            )
+        ranked.sort(key=lambda item: float(item["score"]), reverse=True)
+        return ranked[:limit]
+
+    async def _agentic_recall(
+        self,
+        query: str,
+        *,
+        limit: int,
+        current_step: str | None,
+        artifact_type: str | None,
+        min_quality_score: float = 0.0,
+    ) -> list[dict[str, Any]]:
+        graph = self._get_agentic_graph()
+        result = await graph.run(
+            {
+                "original_query": query,
+                "current_step": current_step,
+                "artifact_type": artifact_type,
+                "target_count": limit,
+                "min_quality_score": min_quality_score,
+                "raw_items": [],
+                "final_items": [],
+                "summary": "",
+            }
+        )
+        return list(result.get("final_items", []))
 
     async def minder_skill_store(
         self,
@@ -147,39 +225,39 @@ class SkillService:
         artifact_type: str | None = None,
         min_quality_score: float = 0.0,
     ) -> list[dict[str, Any]]:
-        query_embedding = self._embedder.embed(query)
-        ranked: list[dict[str, Any]] = []
-        for skill in await self._store.list_skills_by_kind(is_memory=False):
-            quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
-            if quality_score < min_quality_score:
-                continue
+        if self._use_agentic_loop():
+            try:
+                limited = await self._agentic_recall(
+                    query,
+                    limit=limit,
+                    current_step=current_step,
+                    artifact_type=artifact_type,
+                    min_quality_score=min_quality_score,
+                )
+            except Exception:
+                limited = []
+            if limited:
+                for item in limited:
+                    record_continuity_skill_recall(
+                        step_compatibility=float(item.get("step_compatibility", item.pop("_step_compat", 0.0))),
+                        quality_score=float(item.get("quality_score", 0.0)),
+                    )
+                    try:
+                        await self._store.update_skill(
+                            uuid.UUID(str(item["id"])),
+                            usage_count=int(item.get("usage_count", 0) or 0) + 1,
+                        )
+                    except Exception:
+                        pass
+                return limited
 
-            embedding = skill.embedding if isinstance(skill.embedding, list) else None
-            if not embedding:
-                continue
-            semantic_score = self._cosine_similarity(query_embedding, embedding)
-            compatibility_score, compatibility_reasons = compatibility_score_for_memory(
-                tags=list(skill.tags) if isinstance(skill.tags, list) else [],
-                title=str(skill.title),
-                content=str(skill.content),
-                current_step=current_step,
-                artifact_type=artifact_type,
-            )
-            blended_score = min(
-                (semantic_score * 0.65)
-                + (compatibility_score * 0.2)
-                + (min(quality_score, 1.0) * 0.15),
-                1.5,
-            )
-            ranked_item = {
-                **self._serialize_skill_compact(skill, truncate_content=True),
-                "score": round(blended_score, 4),
-                # kept for internal record_continuity_skill_recall below
-                "_step_compat": round(compatibility_score, 4),
-            }
-            ranked.append(ranked_item)
-        ranked.sort(key=lambda item: float(item["score"]), reverse=True)
-        limited = ranked[:limit]
+        limited = await self._skill_recall_candidates(
+            query,
+            limit=limit,
+            current_step=current_step,
+            artifact_type=artifact_type,
+            min_quality_score=min_quality_score,
+        )
         for item in limited:
             record_continuity_skill_recall(
                 step_compatibility=float(item.get("_step_compat", 0.0)),

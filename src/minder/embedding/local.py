@@ -20,6 +20,8 @@ logger = logging.getLogger(__name__)
 
 _MODEL_CACHE: dict[str, Any] = {}
 _EMBEDDING_CACHE: OrderedDict[str, list[float]] = OrderedDict()
+# repo_id:filename → error string from last failed _init_model() call.
+_EMBED_INIT_ERRORS: dict[str, str] = {}
 MAX_CACHE_SIZE = 100
 MAX_TEXT_LENGTH = 8000  # Safety truncation to avoid over-context (~2000 tokens)
 
@@ -60,28 +62,43 @@ class LocalEmbeddingProvider:
 
         try:
             from llama_cpp import Llama
+            from minder.infrastructure.hardware import get_hardware_profile
 
-            logger.info("Initializing Llama.cpp embedding engine for %s", self._model_repo)
+            hw = get_hardware_profile()
+            logger.info(
+                "Initializing Llama.cpp embedding engine for %s "
+                "[n_gpu_layers=%d flash_attn=%s]",
+                self._model_repo, hw.n_gpu_layers, hw.use_flash_attn,
+            )
             cache_dir = get_writable_hf_cache_dir()
             cache_kwargs: dict[str, Any] = (
                 {} if cache_dir is None else {"cache_dir": cache_dir}
             )
+            init_kwargs: dict[str, Any] = {
+                "embedding": True,
+                "n_ctx": 512,   # Embeddings need small context — fixed
+                "n_gpu_layers": hw.n_gpu_layers,
+                "flash_attn": hw.use_flash_attn,
+                "verbose": False,
+            }
+            if hw.n_threads > 0:
+                init_kwargs["n_threads"] = hw.n_threads
             self._model = Llama.from_pretrained(
                 repo_id=self._model_repo,
                 filename=self._model_file,
-                embedding=True,
-                n_ctx=512,
-                flash_attn=True,
-                verbose=False,
+                **init_kwargs,
                 **cache_kwargs,
             )
             _MODEL_CACHE[cache_key] = self._model
         except Exception as e:
-            logger.warning(
-                "Failed to initialize Llama.cpp model %s: %s. Using mock.",
-                self._model_repo, e,
+            error_msg = str(e)
+            logger.error(
+                "Embedding engine failed to initialize for %s/%s: %s",
+                self._model_repo, self._model_file, error_msg,
+                exc_info=True,
             )
             self._model = None
+            _EMBED_INIT_ERRORS[f"{self._model_repo}:{self._model_file}"] = error_msg
 
     @property
     def runtime(self) -> str:

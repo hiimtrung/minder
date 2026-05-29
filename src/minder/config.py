@@ -67,7 +67,8 @@ class AuthConfig(BaseModel):
 class EmbeddingConfig(BaseModel):
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
     llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF"
-    llama_cpp_model_file: str = "embeddinggemma-300M-Q8_0.gguf"
+    # Q4_K_M uses ~45% less RAM than Q8_0 with negligible embedding quality loss.
+    llama_cpp_model_file: str = "embeddinggemma-300M-Q4_K_M.gguf"
     dimensions: int = 768
 
 
@@ -75,8 +76,13 @@ class LLMConfig(BaseModel):
     provider: str = "llama_cpp"  # "llama_cpp" | "openai"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
     llama_cpp_model_repo: str = "ggml-org/gemma-4-E2B-it-GGUF"
-    llama_cpp_model_file: str = "gemma-4-E2B-it-Q8_0.gguf"
-    context_length: int = 16384
+    llama_cpp_model_file: str = "gemma-4-E2B-it-Q4_K_M.gguf"
+    # context_length is the UPPER BOUND requested.  The actual value used by the
+    # engine is further capped by hardware detection (see hardware.py) to keep
+    # KV-cache + Metal compute buffers within safe limits for the current device.
+    # 8192 is a good default: enough for long conversations while staying well
+    # within the 16 GB unified-memory budget of an M4 Mac Mini.
+    context_length: int = 8192
     temperature: float = 0.1
     openai_api_key: Optional[str] = None
     openai_model: str = "gpt-4o-mini"

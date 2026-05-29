@@ -13,24 +13,33 @@ class PlanningNode:
         "xóa skill", "sửa skill",
     )
 
-    _CONVERSATIONAL = (
-        "hello", "hi", "hey", "chào", "xin chào", "good morning",
-        "good afternoon", "good evening", "how are you", "what's up",
-        "sup", "yo", "thanks", "thank you", "cảm ơn", "bye", "goodbye",
-        "tạm biệt",
+    # Single-word tokens checked against the word-set of the query.
+    _CONVERSATIONAL_WORDS = frozenset({
+        "hello", "hi", "hey", "chào", "howdy", "greetings",
+        "thanks", "ty", "thx", "cảm", "ok", "okay", "alright",
+        "sup", "yo", "bye", "goodbye", "ciao", "tạm",
+    })
+
+    # Multi-word phrases checked via substring search (after lower + strip).
+    _CONVERSATIONAL_PHRASES = (
+        "xin chào", "good morning", "good afternoon", "good evening",
+        "good night", "how are you", "how are u", "how r u",
+        "how's it going", "hows it going", "what's up", "what's new",
+        "thank you", "cảm ơn", "tạm biệt", "have a good",
+        "nice to meet", "i'm back", "just saying hi",
     )
 
     def run(self, state: GraphState) -> GraphState:
         query = state.query.lower().strip()
         intent = "explain"
 
-        # Short conversational messages bypass the heavy agent/retrieval pipeline.
-        # Use word-boundary matching for single-word phrases to avoid false positives
-        # (e.g. "hi" matching inside "this").
+        # Short conversational messages — detect by word-token or phrase match.
+        # Cap at 10 words: longer queries always have real intent even if they
+        # contain a greeting word.
         query_words = set(query.split())
-        if len(query.split()) <= 6 and any(
-            (phrase in query_words if " " not in phrase else phrase in query)
-            for phrase in self._CONVERSATIONAL
+        if len(query.split()) <= 10 and (
+            query_words & self._CONVERSATIONAL_WORDS
+            or any(phrase in query for phrase in self._CONVERSATIONAL_PHRASES)
         ):
             intent = "chat"
 

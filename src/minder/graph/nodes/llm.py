@@ -26,6 +26,10 @@ class LLMNode:
             state.llm_output = self._fallback.generate(state)
             state.metadata["fallback_used"] = True
             state.metadata["llm_provider"] = state.llm_output.get("provider")
+        # Strip the large prompt/messages fields — they are only needed by the LLM
+        # and keeping them inflates state size for every subsequent node
+        # (especially costly in LangGraph which serializes state at each boundary).
+        self._strip_inference_artifacts(state)
         return state
 
     async def arun(self, state: GraphState) -> GraphState:
@@ -57,6 +61,8 @@ class LLMNode:
             state.llm_output = self._fallback.generate(state)
             state.metadata["fallback_used"] = True
             state.metadata["llm_provider"] = state.llm_output.get("provider")
+        # Strip large prompt/messages — only needed during inference, not by downstream nodes.
+        self._strip_inference_artifacts(state)
         return state
 
     def stream(self, state: GraphState) -> Generator[dict[str, object], None, None]:
@@ -87,4 +93,19 @@ class LLMNode:
                 yield {"type": "chunk", "delta": text}
             state.metadata["fallback_used"] = True
             state.metadata["llm_provider"] = state.llm_output.get("provider")
+        # Strip large prompt/messages before yielding final result.
+        self._strip_inference_artifacts(state)
         yield {"type": "result", "result": state.llm_output}
+
+    @staticmethod
+    def _strip_inference_artifacts(state: GraphState) -> None:
+        """Remove large fields from reasoning_output that are only needed during inference.
+
+        ``prompt`` and ``messages`` can be 10-100 KB each.  Keeping them in
+        state inflates every subsequent node's serialized payload — especially
+        harmful in LangGraph which serializes at every node boundary.
+        """
+        ro = state.reasoning_output
+        if ro and isinstance(ro, dict):
+            ro.pop("prompt", None)
+            ro.pop("messages", None)

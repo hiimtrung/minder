@@ -59,20 +59,21 @@ import PageHero from "../components/ui/molecules/PageHero.astro";
         </Button>
       </form>
 
-      <details class="mt-5">
-        <summary
-          class="cursor-pointer select-none text-sm text-stone-500 hover:text-stone-700"
-        >
-          Sign in with API key instead
-        </summary>
-        <form id="apikey-form" class="mt-4 space-y-3">
-          <Field label="Admin API key" htmlFor="api-key">
-            <Input id="api-key" type="password" placeholder="mk_..." />
+      <div class="mt-5 border-t border-stone-100 pt-4">
+        <p class="text-xs font-semibold uppercase tracking-wider text-stone-400 mb-3">
+          Alternative login
+        </p>
+        <form id="apikey-form" class="space-y-3">
+          <Field label="Admin API key (mk_...)" htmlFor="api-key">
+            <Input id="api-key" type="password" placeholder="mk_..." autocomplete="off" />
           </Field>
+          <p class="text-xs text-stone-400">
+            The API key was shown once after initial setup. Use it if you forgot your password.
+          </p>
           <FormStatus id="apikey-status" />
           <Button type="submit" fullWidth>Sign in with API key</Button>
         </form>
-      </details>
+      </div>
 
       <p id="setup-hint" class="mt-5 hidden text-center text-sm text-stone-500">
         Fresh install?

@@ -1421,16 +1421,24 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 llm_status = "ready"
                 llm_model = getattr(llm_cfg, "openai_model", "openai")
 
-            # Embedding status: same two-tier check
+            # Embedding status: check llama_cpp availability first (system
+            # capability), then in-memory model, then cached file.  The
+            # context.embedder.runtime property returns "mock" when its own
+            # in-memory model is None, but that doesn't mean the file isn't
+            # cached — so we must check _is_cached independently.
             emb_model = emb_cfg.llama_cpp_model_repo.split("/")[-1]
-            emb_runtime = context.embedder.runtime  # noqa: SLF001
-            if emb_runtime == "mock":
+            emb_model_loaded = context.embedder._model is not None  # noqa: SLF001
+            if not llama_cpp_usable():
+                emb_runtime = "mock"
                 emb_status = "mock"
-            elif context.embedder._model is not None:  # noqa: SLF001
+            elif emb_model_loaded:
+                emb_runtime = "llama_cpp"
                 emb_status = "ready"
             elif _is_cached(emb_cfg.llama_cpp_model_repo, emb_cfg.llama_cpp_model_file, hf_cache):
+                emb_runtime = "llama_cpp"
                 emb_status = "ready"
             else:
+                emb_runtime = "mock"
                 emb_status = "initializing"
 
             return JSONResponse({

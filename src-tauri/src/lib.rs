@@ -126,6 +126,11 @@ fn manage_server(app: AppHandle, log_buffer: Arc<Mutex<Vec<String>>>) {
     let log_buffer_clone = log_buffer.clone();
     let terminated = Arc::new(AtomicBool::new(false));
     let terminated_clone = terminated.clone();
+    // Once the server is ready and we navigate away from the splash page we
+    // must stop eval-ing __minderStatus because that function only exists on
+    // the splash screen.  Setting this flag to true disables the eval calls.
+    let splash_done = Arc::new(AtomicBool::new(false));
+    let splash_done_clone = splash_done.clone();
     let window_clone = window.clone();
 
     // Spawn a background thread to read child process stdout/stderr streams
@@ -135,19 +140,21 @@ fn manage_server(app: AppHandle, log_buffer: Arc<Mutex<Vec<String>>>) {
                 match event {
                     CommandEvent::Stdout(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
-                        process_sidecar_log_line(&window_clone, &line, &log_buffer_clone);
+                        process_sidecar_log_line(&window_clone, &line, &log_buffer_clone, &splash_done_clone);
                     }
                     CommandEvent::Stderr(line_bytes) => {
                         let line = String::from_utf8_lossy(&line_bytes).to_string();
-                        process_sidecar_log_line(&window_clone, &line, &log_buffer_clone);
+                        process_sidecar_log_line(&window_clone, &line, &log_buffer_clone, &splash_done_clone);
                     }
                     CommandEvent::Terminated(status) => {
                         terminated_clone.store(true, Ordering::SeqCst);
                         let mut guard = log_buffer_clone.lock().unwrap();
                         guard.push(format!("[minder] sidecar process exited prematurely with code {:?}", status.code));
-                        let msg = format!("Process exited unexpectedly (code {:?})", status.code);
-                        let escaped = msg.replace('\'', "\\'");
-                        let _ = window_clone.eval(&format!("window.__minderError('Startup Failed: {escaped}')"));
+                        if !splash_done_clone.load(Ordering::SeqCst) {
+                            let msg = format!("Process exited unexpectedly (code {:?})", status.code);
+                            let escaped = msg.replace('\'', "\\'");
+                            let _ = window_clone.eval(&format!("window.__minderError('Startup Failed: {escaped}')"));
+                        }
                     }
                     CommandEvent::Error(err) => {
                         let mut guard = log_buffer_clone.lock().unwrap();
@@ -163,6 +170,9 @@ fn manage_server(app: AppHandle, log_buffer: Arc<Mutex<Vec<String>>>) {
     let ready = wait_for_server(SERVER_HOST, SERVER_PORT, READY_TIMEOUT_SECS, &terminated);
 
     if ready {
+        // Mark splash as done BEFORE navigating so the log reader thread stops
+        // calling window.__minderStatus on the dashboard page.
+        splash_done.store(true, Ordering::SeqCst);
         // Navigate to dashboard control panel
         let url: tauri::Url = DASHBOARD_URL.parse().expect("valid dashboard URL");
         let _ = window.navigate(url);
@@ -190,7 +200,12 @@ fn manage_server(app: AppHandle, log_buffer: Arc<Mutex<Vec<String>>>) {
     }
 }
 
-fn process_sidecar_log_line(window: &tauri::WebviewWindow, line: &str, log_buffer: &Arc<Mutex<Vec<String>>>) {
+fn process_sidecar_log_line(
+    window: &tauri::WebviewWindow,
+    line: &str,
+    log_buffer: &Arc<Mutex<Vec<String>>>,
+    splash_done: &AtomicBool,
+) {
     let trimmed = line.trim();
     if trimmed.is_empty() {
         return;
@@ -199,13 +214,20 @@ fn process_sidecar_log_line(window: &tauri::WebviewWindow, line: &str, log_buffe
     // Output to main app logs for debug visibility
     eprintln!("[sidecar] {trimmed}");
 
-    // Append to log buffer
+    // Append to log buffer (always, even after navigation)
     {
         let mut guard = log_buffer.lock().unwrap();
         guard.push(trimmed.to_string());
         if guard.len() > 300 {
             guard.remove(0);
         }
+    }
+
+    // Only call window.__minderStatus while the splash screen is showing.
+    // After navigation to the dashboard the function no longer exists and
+    // calling it would throw uncaught exceptions on every log line.
+    if splash_done.load(Ordering::SeqCst) {
+        return;
     }
 
     // Try to parse as JSON log line
@@ -225,7 +247,6 @@ fn process_sidecar_log_line(window: &tauri::WebviewWindow, line: &str, log_buffe
             } else if msg.contains("Admin") || msg.contains("ADMIN") {
                 let _ = window.eval(&format!("window.__minderStatus('Configuring control plane', '{}')", escaped_msg));
             } else {
-                // General step info
                 let _ = window.eval(&format!("window.__minderStatus('Starting Minder Services', '{}')", escaped_msg));
             }
         }

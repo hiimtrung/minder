@@ -406,6 +406,32 @@ function getIconSvg(label: string) {
     </script>
 
     {sessionControls && <script src="../scripts/session-header.ts" />}
+
+    <!-- Intercept external link clicks in Tauri webview and open via shell plugin -->
+    <script>
+      import { invoke } from "@tauri-apps/api/core";
+
+      document.addEventListener("click", async (e) => {
+        const anchor = (e.target as Element).closest("a[href]");
+        if (!(anchor instanceof HTMLAnchorElement)) return;
+        const href = anchor.getAttribute("href") ?? "";
+        if (!/^https?:\/\//i.test(href)) return;
+        try {
+          if (new URL(href).hostname === location.hostname) return;
+        } catch {
+          return;
+        }
+        if (!(window as unknown as Record<string, unknown>)["__TAURI_INTERNALS__"]) return;
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+          await invoke("plugin:shell|open", { path: href });
+        } catch {
+          // fall back to window.open if invoke fails
+          window.open(href, "_blank", "noopener,noreferrer");
+        }
+      });
+    </script>
   </body>
 </html>
 
@@ -427,7 +453,7 @@ function getIconSvg(label: string) {
   .dashboard-sidebar {
     display: flex;
     flex-direction: column;
-    width: 290px;
+    width: 240px;
     height: 100%;
     flex-shrink: 0;
     z-index: 50;
@@ -439,35 +465,35 @@ function getIconSvg(label: string) {
 
   /* ── Sidebar Brand Header ── */
   .sidebar-brand-wrapper {
-    padding: 1.6rem 1.4rem;
+    padding: 1.1rem 1.1rem;
     border-bottom: 1px solid rgba(231, 229, 228, 0.85);
   }
 
   .sidebar-brand-link {
     display: flex;
     align-items: center;
-    gap: 0.8rem;
+    gap: 0.75rem;
     text-decoration: none;
     min-width: 0;
   }
 
   .sidebar-brand-mark {
     display: flex;
-    height: 2.35rem;
-    width: 2.35rem;
+    height: 2.1rem;
+    width: 2.1rem;
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-radius: 0.9rem;
+    border-radius: 0.75rem;
     background: linear-gradient(135deg, rgb(146, 64, 14), rgb(180, 83, 9));
     color: white;
-    box-shadow: 0 8px 20px rgba(146, 64, 14, 0.22);
+    box-shadow: 0 6px 16px rgba(146, 64, 14, 0.22);
     transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   }
 
   .sidebar-brand-mark span {
     font-family: var(--font-sans);
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 800;
   }
 
@@ -483,7 +509,7 @@ function getIconSvg(label: string) {
 
   .sidebar-brand-title {
     font-family: var(--font-display);
-    font-size: 1.05rem;
+    font-size: 0.98rem;
     font-weight: 700;
     letter-spacing: -0.02em;
     color: rgb(28, 25, 23);
@@ -491,7 +517,7 @@ function getIconSvg(label: string) {
   }
 
   .sidebar-brand-subtitle {
-    font-size: 0.62rem;
+    font-size: 0.58rem;
     font-weight: 800;
     letter-spacing: 0.2em;
     text-transform: uppercase;
@@ -505,25 +531,25 @@ function getIconSvg(label: string) {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    padding: 1.5rem 0.85rem;
+    padding: 0.85rem 0.65rem;
     overscroll-behavior: contain;
   }
 
   .sidebar-nav-groups-container {
     display: flex;
     flex-direction: column;
-    gap: 1.6rem;
+    gap: 1rem;
   }
 
   .sidebar-group {
     display: flex;
     flex-direction: column;
-    gap: 0.45rem;
+    gap: 0.35rem;
   }
 
   .sidebar-group-label {
-    padding-left: 0.8rem;
-    font-size: 0.64rem;
+    padding-left: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 800;
     letter-spacing: 0.18em;
     text-transform: uppercase;
@@ -537,17 +563,17 @@ function getIconSvg(label: string) {
     margin: 0;
     display: flex;
     flex-direction: column;
-    gap: 0.22rem;
+    gap: 0.18rem;
   }
 
   .sidebar-nav-link {
     position: relative;
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.6rem 0.8rem;
-    border-radius: 0.8rem;
-    font-size: 0.84rem;
+    gap: 0.65rem;
+    padding: 0.45rem 0.65rem;
+    border-radius: 0.7rem;
+    font-size: 0.82rem;
     font-weight: 500;
     color: rgb(87, 83, 78);
     text-decoration: none;
@@ -607,12 +633,12 @@ function getIconSvg(label: string) {
     position: sticky;
     bottom: 0;
     margin-top: auto;
-    padding: 1.25rem 1.1rem;
+    padding: 0.85rem 0.85rem;
     border-top: 1px solid rgba(231, 229, 228, 0.85);
     background: linear-gradient(180deg, transparent, rgba(247, 244, 239, 0.99) 15%);
     display: flex;
     flex-direction: column;
-    gap: 0.8rem;
+    gap: 0.6rem;
     z-index: 10;
   }
 
@@ -625,7 +651,7 @@ function getIconSvg(label: string) {
   }
 
   .sidebar-session-label {
-    font-size: 0.65rem;
+    font-size: 0.62rem;
     font-weight: 700;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -638,13 +664,13 @@ function getIconSvg(label: string) {
     justify-content: center;
     gap: 0.5rem;
     width: 100%;
-    border-radius: 0.8rem;
+    border-radius: 0.7rem;
     border: 1px solid rgb(214, 211, 209);
     background: white;
     color: rgb(41, 37, 36);
-    font-size: 0.82rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    padding: 0.55rem 0.85rem;
+    padding: 0.45rem 0.75rem;
     transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 1px 3px rgba(28, 25, 23, 0.02);
   }
@@ -676,8 +702,8 @@ function getIconSvg(label: string) {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    height: 3.5rem;
-    padding: 0 1.5rem;
+    height: 2.9rem;
+    padding: 0 1rem;
     background: rgba(255, 252, 247, 0.9);
     backdrop-filter: blur(16px);
     border-bottom: 1px solid rgba(231, 229, 228, 0.85);
@@ -836,8 +862,8 @@ function getIconSvg(label: string) {
     display: flex;
     min-height: 100%;
     flex-direction: column;
-    padding-top: 1rem;
-    padding-bottom: 1.8rem;
+    padding-top: 0.75rem;
+    padding-bottom: 1.25rem;
   }
 
   /* ── Drawer Overlay ── */

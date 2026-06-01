@@ -1494,6 +1494,34 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def admin_version(_request) -> JSONResponse:
         return JSONResponse({"version": context.config.server.version})
 
+    async def admin_cli_status(_request) -> JSONResponse:
+        import asyncio
+        import re
+        import shutil
+        import subprocess
+
+        def _check() -> dict:
+            path = shutil.which("minder")
+            if not path:
+                return {"installed": False, "version": None, "path": None}
+            try:
+                result = subprocess.run(
+                    ["minder", "--version"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                raw = (result.stdout or result.stderr or "").strip()
+                m = re.search(r"(\d+\.\d+\.\d+)", raw)
+                version = m.group(1) if m else (raw or "unknown")
+                return {"installed": True, "version": version, "path": path}
+            except subprocess.TimeoutExpired:
+                return {"installed": True, "version": "unknown", "path": path}
+            except Exception:
+                return {"installed": False, "version": None, "path": None}
+
+        return JSONResponse(await asyncio.to_thread(_check))
+
     async def diagnostics_logs(_request) -> JSONResponse:
         from minder.observability.logging import get_in_memory_logs
         import platform
@@ -1513,6 +1541,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
 
     return [
         Route("/v1/admin/version", admin_version, methods=["GET"]),
+        Route("/v1/admin/cli-status", admin_cli_status, methods=["GET"]),
         Route("/v1/admin/diagnostics/logs", diagnostics_logs, methods=["GET"]),
         Route("/v1/admin/setup", setup_api, methods=["POST"]),
         Route("/v1/admin/login", dashboard_login_api, methods=["POST"]),

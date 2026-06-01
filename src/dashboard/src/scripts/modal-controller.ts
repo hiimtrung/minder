@@ -133,9 +133,7 @@ async function openModal(options: ModalOptions): Promise<string | boolean | null
   const cancelBtn = document.getElementById("common-modal-cancel");
 
   if (!backdrop || !container || !titleEl || !msgEl || !promptArea || !input || !confirmBtn || !cancelBtn) {
-    // Fallback to native if modal not in DOM
-    if (options.showPrompt) return window.prompt(options.message, options.defaultValue);
-    return window.confirm(options.message);
+    return options.showPrompt ? null : false;
   }
 
   titleEl.textContent = options.title || "Modal";

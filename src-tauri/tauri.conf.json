@@ -40,7 +40,7 @@
   },
   "plugins": {
     "shell": {
-      "open": false
+      "open": true
     }
   }
 }

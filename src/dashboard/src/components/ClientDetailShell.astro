@@ -7,6 +7,7 @@ import Input from "./ui/atoms/Input.astro";
 import Textarea from "./ui/atoms/Textarea.astro";
 import Button from "./ui/atoms/Button.astro";
 import FormStatus from "./ui/atoms/FormStatus.astro";
+import CliSetupCard from "./CliSetupCard.astro";
 
 interface Props {
   clientId?: string;
@@ -161,6 +162,9 @@ const detailHref = clientId
           </Button>
         </form>
       </Card>
+
+      <!-- CLI Setup -->
+      <CliSetupCard />
     </aside>
 
     <div class="grid gap-5">

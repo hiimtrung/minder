@@ -1680,3 +1680,13 @@ export async function getAppVersion(): Promise<string> {
     return "";
   }
 }
+
+export type CliStatusPayload = {
+  installed: boolean;
+  version: string | null;
+  path: string | null;
+};
+
+export async function getCliStatus(): Promise<CliStatusPayload> {
+  return requestJson<CliStatusPayload>("/v1/admin/cli-status");
+}

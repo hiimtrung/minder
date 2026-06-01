@@ -18,6 +18,7 @@ import {
 
 import "./components/tip-element";
 import { escapeHtml } from "./ui-utils";
+import { showDangerConfirm } from "./modal-controller";
 
 const formEl = document.querySelector(
   "#runtime-chat-form",
@@ -762,8 +763,10 @@ conversationListEl?.addEventListener("click", async (event) => {
   const deleteId = target.closest<HTMLElement>("[data-delete-conv-id]")?.dataset
     .deleteConvId;
   if (deleteId) {
-    const confirmed = window.confirm(
+    const confirmed = await showDangerConfirm(
       "Delete this conversation and its history?",
+      "Delete Conversation",
+      "Delete",
     );
     if (!confirmed) return;
     try {

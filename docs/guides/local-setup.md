@@ -1,6 +1,6 @@
 # Local Development Guide
 
-Minder runs **natively** on macOS and Linux — no Docker, no external services.
+Minder runs **natively** on macOS, Linux, and Windows — no Docker, no external services.
 The stack is: Python FastAPI server + Astro dashboard + SQLite (relational) + Milvus Lite (vector search).
 
 ---
@@ -155,7 +155,7 @@ make app-dev
 
 ```bash
 make bundle      # build PyInstaller binary
-make app-build   # build .dmg (macOS) or .AppImage/.deb (Linux)
+make app-build   # build .dmg (macOS), .AppImage/.deb (Linux), or .exe setup (Windows)
 ```
 
 See [Native App Migration](../roadmap/native-app-migration.md) for full architecture details.

@@ -24,7 +24,24 @@ Set-StrictMode -Version Latest
 $MinderDir = Join-Path $HOME '.minder'
 
 # ------------------------------------------------------------------
-# Step 1: Remove minder-cli uv tool
+# Step 1: Remove Minder Desktop App (NSIS installer) if exists
+# ------------------------------------------------------------------
+
+$Uninstaller = Join-Path $env:LOCALAPPDATA "Programs\Minder\Uninstall.exe"
+if (-not (Test-Path $Uninstaller)) {
+    $Uninstaller = Join-Path $env:ProgramFiles "Minder\Uninstall.exe"
+}
+
+if (Test-Path $Uninstaller) {
+    Write-Host "Minder Desktop App detected. Launching uninstaller..."
+    Start-Process -FilePath $Uninstaller -Wait
+    Write-Host "Desktop App uninstallation completed."
+} else {
+    Write-Host "Minder Desktop App uninstaller not found (skipping)."
+}
+
+# ------------------------------------------------------------------
+# Step 2: Remove minder-cli uv tool
 # ------------------------------------------------------------------
 
 Write-Host "Removing minder-cli..."
@@ -41,7 +58,7 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 }
 
 # ------------------------------------------------------------------
-# Step 2: Handle data directory
+# Step 3: Handle data directory
 # ------------------------------------------------------------------
 
 if ($KeepData) {

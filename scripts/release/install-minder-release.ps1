@@ -12,7 +12,9 @@
     The headless server works via uv + Python and runs on port 8800.
 #>
 
-param()
+param(
+    [switch]$Headless
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -43,40 +45,60 @@ $LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'  -Default 'unslo
 $EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'ggml-org/embeddinggemma-300M-GGUF'
 
 # ------------------------------------------------------------------
-# Step 1: Verify uv is available
+# Save release metadata helper
+# ------------------------------------------------------------------
+function Save-ReleaseMetadata {
+    New-Item -ItemType Directory -Force -Path $MinderDir | Out-Null
+    $meta = [ordered]@{
+        repo_owner  = $RepoOwner
+        repo_name   = $RepoName
+        repository  = "https://github.com/$RepoOwner/$RepoName"
+        release_tag = $ReleaseTag
+    }
+    $meta | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $MinderDir '.minder-release.json') -Encoding ASCII
+}
+
+# ------------------------------------------------------------------
+# Desktop App (Default) vs Headless Selection
+# ------------------------------------------------------------------
+
+if (-not $Headless) {
+    $installerName = "Minder_${Version}_x64-setup.exe"
+    $installerUrl  = "https://github.com/${RepoOwner}/${RepoName}/releases/download/${ReleaseTag}/${installerName}"
+    $tempDir       = [System.IO.Path]::GetTempPath()
+    $tempInstaller = Join-Path $tempDir $installerName
+
+    Write-Host ""
+    Write-Host "Downloading Minder Desktop App Installer ($installerName)..."
+    Invoke-WebRequest -Uri $installerUrl -OutFile $tempInstaller -UseBasicParsing
+
+    Write-Host "Running Minder Desktop App Installer..."
+    Start-Process -FilePath $tempInstaller -Wait
+
+    Save-ReleaseMetadata
+
+    Write-Host ""
+    Write-Host "Minder Desktop App installer completed."
+    Write-Host "Data directory: $MinderDir\"
+    Write-Host ""
+    exit 0
+}
+
+# ------------------------------------------------------------------
+# Headless Server Installation
 # ------------------------------------------------------------------
 
 Require-Command uv
-
-# ------------------------------------------------------------------
-# Step 2: Install minder-cli from PyPI
-# ------------------------------------------------------------------
 
 Write-Host ""
 Write-Host "Installing minder-cli $Version via uv..."
 & uv tool install "minder-cli==$Version" --force
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-# ------------------------------------------------------------------
-# Step 3: Save release metadata
-# ------------------------------------------------------------------
-
-New-Item -ItemType Directory -Force -Path $MinderDir | Out-Null
-
-$meta = [ordered]@{
-    repo_owner  = $RepoOwner
-    repo_name   = $RepoName
-    repository  = "https://github.com/$RepoOwner/$RepoName"
-    release_tag = $ReleaseTag
-}
-$meta | ConvertTo-Json -Depth 4 | Set-Content -Path (Join-Path $MinderDir '.minder-release.json') -Encoding ASCII
-
-# ------------------------------------------------------------------
-# Step 4: Summary
-# ------------------------------------------------------------------
+Save-ReleaseMetadata
 
 Write-Host ""
-Write-Host "Minder $ReleaseTag installed."
+Write-Host "Minder $ReleaseTag Headless Server installed."
 Write-Host ""
 Write-Host "Start the server:"
 Write-Host "  uv run python -m minder.server"

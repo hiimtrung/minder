@@ -45,6 +45,7 @@ def _make_ingest_tools(monkeypatch: pytest.MonkeyPatch) -> tuple[IngestTools, Ma
         document_store=doc_store,
         embedding_provider=embedding_provider,
         vector_store=None,
+        ingest_cooldown_secs=0,
     )
     return tools, doc_store
 

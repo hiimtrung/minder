@@ -8,6 +8,14 @@
     "shell:allow-stdin-write",
     "shell:allow-kill",
     "shell:allow-execute",
-    "shell:allow-open"
+    {
+      "identifier": "shell:allow-open",
+      "scope": {
+        "allow": [
+          { "url": "http://**/*" },
+          { "url": "https://**/*" }
+        ]
+      }
+    }
   ]
 }

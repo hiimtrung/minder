@@ -1081,7 +1081,7 @@ minder-tip:empty {
   }
 }
 
-@media (min-width: 1280px) {
+@media (min-width: 1024px) {
   .runtime-chat-layout {
     grid-template-columns: minmax(0, 1fr) minmax(0, 340px);
     grid-template-rows: minmax(0, 1fr);

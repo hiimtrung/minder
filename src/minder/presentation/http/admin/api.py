@@ -1597,7 +1597,7 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route(
             "/v1/admin/sessions/{session_id:uuid}",
             session_detail,
-            methods=["GET", "DELETE"],
+            methods=["GET", "PATCH", "DELETE"],
         ),
         # Repository management
         Route("/v1/admin/repositories", admin_repositories, methods=["GET"]),

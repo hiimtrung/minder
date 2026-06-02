@@ -121,15 +121,25 @@ class AgenticMemoryGraph:
         }
 
     def _merge_node(self, state: MemoryRecallState) -> dict[str, Any]:
-        final_memories = self._dedupe_memories(state.get("all_memories", []))[
-            : state["target_count"]
-        ]
+        all_deduped = self._dedupe_memories(state.get("all_memories", []))
+        # Give the synthesizer a wider pool so its filtering is meaningful.
+        synthesis_pool = all_deduped[: max(state["target_count"] * 2, 8)]
         synthesis, synthesis_meta = self._memory_tools._get_synthesizer().synthesize_memory_hits(  # noqa: SLF001
             query=state["original_query"],
-            hits=final_memories,
+            hits=synthesis_pool,
             current_step=state.get("current_step"),
             artifact_type=state.get("artifact_type"),
         )
+        # Apply LLM-recommended filtering: keep only ids the LLM approved.
+        recommended_ids = {
+            str(rid) for rid in list(synthesis.get("recommended_hit_ids") or [])
+        }
+        if recommended_ids:
+            approved = [m for m in all_deduped if str(m.get("id", "")) in recommended_ids]
+            final_memories = (approved or all_deduped)[: state["target_count"]]
+        else:
+            final_memories = all_deduped[: state["target_count"]]
+
         for item in final_memories:
             item["recall_summary"] = synthesis["summary"]
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")

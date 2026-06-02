@@ -4,11 +4,10 @@
 .SYNOPSIS
     Uninstalls Minder from Windows.
 .DESCRIPTION
-    Stops all Minder Docker containers and removes release directories.
-    With -KeepData, preserves downloaded models and Docker volumes.
+    Removes the minder-cli uv tool installation and optionally the data directory.
 .PARAMETER KeepData
-    Keep downloaded models, Docker volumes, and config files.
-    Only removes containers and release directories.
+    Keep downloaded models and config files in ~/.minder/.
+    Only removes the minder-cli tool installation.
 .EXAMPLE
     .\uninstall-minder.ps1
 .EXAMPLE
@@ -22,80 +21,47 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 
-$MinderDir   = Join-Path $HOME '.minder'
-$CurrentLink = Join-Path $MinderDir 'current'
-$ReleasesDir = Join-Path $MinderDir 'releases'
+$MinderDir = Join-Path $HOME '.minder'
 
 # ------------------------------------------------------------------
-# Step 1: Stop and remove Minder Docker containers
+# Step 1: Remove minder-cli uv tool
 # ------------------------------------------------------------------
 
-Write-Host "Stopping Minder containers..."
+Write-Host "Removing minder-cli..."
 
-if (Test-Path $CurrentLink) {
-    $installDir  = (Get-Item -LiteralPath $CurrentLink -Force).Target
-    $composeFile = Join-Path $installDir 'docker-compose.yml'
-    if (Test-Path $composeFile) {
-        $envFile     = Join-Path $installDir '.env'
-        $composeArgs = @('compose', '--env-file', $envFile, '-f', $composeFile, 'down')
-        & docker @composeArgs 2>$null
+if (Get-Command uv -ErrorAction SilentlyContinue) {
+    & uv tool uninstall minder-cli 2>$null
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "minder-cli removed."
+    } else {
+        Write-Host "minder-cli was not installed via uv (skipping)."
     }
+} else {
+    Write-Host "uv not found — skipping minder-cli removal."
 }
 
-# Also sweep all release directories in case the symlink is broken
-if (Test-Path $ReleasesDir) {
-    Get-ChildItem -Path $ReleasesDir -Directory | ForEach-Object {
-        $composeFile = Join-Path $_.FullName 'docker-compose.yml'
-        if (Test-Path $composeFile) {
-            $envFile     = Join-Path $_.FullName '.env'
-            $composeArgs = @('compose', '--env-file', $envFile, '-f', $composeFile, 'down')
-            & docker @composeArgs 2>$null
-        }
-    }
-}
-
-Write-Host "Minder containers stopped."
-
 # ------------------------------------------------------------------
-# Step 2: Remove release directories and current link
+# Step 2: Handle data directory
 # ------------------------------------------------------------------
-
-Write-Host "Removing release directories..."
-
-if (Test-Path $ReleasesDir) { Remove-Item -Recurse -Force $ReleasesDir }
-if (Test-Path $CurrentLink) { Remove-Item -LiteralPath $CurrentLink -Force }
 
 if ($KeepData) {
     Write-Host ""
-    Write-Host "Uninstall complete (-KeepData mode)."
+    Write-Host "Minder uninstalled (-KeepData mode)."
     Write-Host ""
     Write-Host "Kept:"
-    Write-Host "  - Downloaded models"
-    Write-Host "  - Docker volumes (minder-data)"
-    Write-Host "  - Config files in $MinderDir\"
+    Write-Host "  - Downloaded models and data in $MinderDir\"
     Write-Host ""
-    Write-Host "To remove Docker volumes manually:"
-    Write-Host "  docker volume ls | Select-String 'minder'"
-    Write-Host "  docker volume rm <volume-name>"
+    Write-Host "To remove data later:"
+    Write-Host "  Remove-Item -Recurse -Force `"$MinderDir`""
     exit 0
 }
 
-# ------------------------------------------------------------------
-# Step 3: Full cleanup (only when -KeepData is NOT set)
-# ------------------------------------------------------------------
-
-Write-Host "Removing Docker volumes..."
-$volumes = docker volume ls -q 2>$null | Where-Object { $_ -match 'minder' }
-foreach ($vol in $volumes) {
-    Write-Host "  Removing volume: $vol"
-    docker volume rm $vol 2>$null
+if (Test-Path $MinderDir) {
+    Write-Host "Removing Minder data directory: $MinderDir..."
+    Remove-Item -Recurse -Force $MinderDir
 }
 
-Write-Host "Removing Minder config directory..."
-if (Test-Path $MinderDir) { Remove-Item -Recurse -Force $MinderDir }
-
 Write-Host ""
-Write-Host "Minder has been fully uninstalled."
-Write-Host "  - All containers stopped and removed"
-Write-Host "  - Docker volumes removed"
-Write-Host "  - Config directory removed: $MinderDir"
+Write-Host "Minder fully uninstalled."
+Write-Host "  - minder-cli removed"
+Write-Host "  - Data directory removed: $MinderDir"

@@ -42,6 +42,53 @@ class MCPCompatApp:
         updated_scope["raw_path"] = path.encode("utf-8")
         return updated_scope
 
+    @staticmethod
+    def _sse_guarded_send(send: Send) -> Send:
+        """Return a send wrapper that prevents the inner SSE app's error middleware
+        from sending a second ``http.response.start`` after streaming has begun.
+
+        The inner Starlette SSE app includes its own ServerErrorMiddleware.  When
+        the SSE client disconnects (or any exception occurs mid-stream), that
+        middleware catches the exception and tries to send a 500 JSON error response
+        — which requires a new ``http.response.start``.  But uvicorn has already
+        locked the response to the first set of headers and raises:
+
+            RuntimeError: Expected http.response.body, but got http.response.start
+
+        This crashes the server process.  The guard below suppresses the duplicate
+        ``http.response.start`` and converts the accompanying error body into a clean
+        stream terminator (empty body, ``more_body=False``) so the connection closes
+        gracefully instead of crashing.
+        """
+        headers_sent = False
+        swallowing_error_response = False
+
+        async def guarded(message: Any) -> None:
+            nonlocal headers_sent, swallowing_error_response
+            msg_type = message.get("type")
+
+            if msg_type == "http.response.start":
+                if headers_sent:
+                    # Suppress duplicate start (error middleware trying to send 500).
+                    swallowing_error_response = True
+                    return
+                headers_sent = True
+                await send(message)
+
+            elif msg_type == "http.response.body":
+                if swallowing_error_response:
+                    # Convert error body to an empty stream terminator so the
+                    # SSE connection closes cleanly instead of sending garbled data.
+                    swallowing_error_response = False
+                    await send({"type": "http.response.body", "body": b"", "more_body": False})
+                else:
+                    await send(message)
+
+            else:
+                await send(message)
+
+        return guarded
+
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
             await self._streamable_http_app(scope, receive, send)
@@ -51,11 +98,11 @@ class MCPCompatApp:
         method = scope.get("method", "GET").upper()
 
         if path == "/sse" and method in {"GET", "HEAD"}:
-            await self._sse_app(scope, receive, send)
+            await self._sse_app(scope, receive, self._sse_guarded_send(send))
             return
 
         if path.startswith("/messages"):
-            await self._sse_app(scope, receive, send)
+            await self._sse_app(scope, receive, self._sse_guarded_send(send))
             return
 
         if path == "/sse" and method in {"POST", "DELETE", "OPTIONS"}:
@@ -195,7 +242,7 @@ class SSETransport(BaseTransport):
             streamable_http_app=streamable_http_app,
         )
 
-        app = Starlette(debug=True, lifespan=self._app_lifespan)
+        app = Starlette(lifespan=self._app_lifespan)
         app.state.store = self._store
         app.state.config = self._config
         dev_origin = dashboard_dev_origin(self._config)

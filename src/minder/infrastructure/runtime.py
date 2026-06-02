@@ -6,6 +6,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,14 @@ def llama_cpp_usable() -> bool:
         logger.warning("llama-cpp-python is not installed. Falling back to mock mode.")
         _LLAMA_CPP_PROBE = False
         return False
+
+    if getattr(sys, "frozen", False):
+        # Package builds compile llama.cpp natively for the host architecture.
+        # Since sys.executable is the compiled sidecar binary itself, executing
+        # `sys.executable -c` would start an infinite subprocess loop (fork bomb).
+        # We skip the probe and return True.
+        _LLAMA_CPP_PROBE = True
+        return True
 
     try:
         proc = subprocess.run(
@@ -139,3 +148,10 @@ def get_effective_hf_cache_dir() -> str | None:
 
     # No env override — let HF resolve its default (~/.cache/huggingface/hub)
     return None
+
+
+# Global thread lock to serialize llama.cpp and llama-cpp-python native executions.
+# Prevents concurrent execution of native methods (like decode and embedding creation)
+# which are not thread-safe and can cause segfaults (SIGSEGV).
+llama_cpp_lock = threading.Lock()
+

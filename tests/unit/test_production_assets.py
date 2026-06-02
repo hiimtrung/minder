@@ -34,11 +34,21 @@ def test_milvus_store_package_exists() -> None:
     assert Path("src/minder/store/milvus/vector_store.py").exists()
 
 
+def test_turbovec_store_package_exists() -> None:
+    assert Path("src/minder/store/turbovec/__init__.py").exists()
+    assert Path("src/minder/store/turbovec/vector_store.py").exists()
+
+
 def test_pyinstaller_spec_exists() -> None:
     assert Path("minder-server.spec").exists()
     spec = Path("minder-server.spec").read_text()
     assert "minder-server" in spec
     assert "pymilvus" in spec
+    assert "turbovec" in spec
+    # Verify native deployment: dashboard + config bundled in sidecar
+    assert "native_datas" in spec
+    assert "dashboard_dist" in spec
+    assert "minder.toml" in spec
 
 
 def test_native_makefile_targets_exist() -> None:
@@ -46,8 +56,10 @@ def test_native_makefile_targets_exist() -> None:
     assert "native-install:" in makefile
     assert "native-run:" in makefile
     assert "bundle:" in makefile
-    assert "app-dev:" in makefile
-    assert "app-build:" in makefile
+    assert "app-dev" in makefile
+    assert "native-dev" in makefile
+    assert "app-build" in makefile
+    assert "native-build" in makefile
 
 
 def test_model_bootstrap_handles_startup() -> None:

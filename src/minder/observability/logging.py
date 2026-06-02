@@ -5,6 +5,7 @@ import json
 import logging
 import time
 import uuid
+import collections
 from contextvars import ContextVar
 from typing import TYPE_CHECKING, Any, MutableMapping
 
@@ -91,16 +92,50 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(payload, default=str)
 
 
+class InMemoryLogHandler(logging.Handler):
+    """Keep the last N JSON log lines in memory for the diagnostics route."""
+
+    def __init__(self, limit: int = 500) -> None:
+        super().__init__()
+        self.limit = limit
+        self.records: collections.deque[str] = collections.deque(maxlen=limit)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            msg = self.format(record)
+            self.records.append(msg)
+        except Exception:
+            self.handleError(record)
+
+
+_in_memory_handler: InMemoryLogHandler | None = None
+
+
+def get_in_memory_logs() -> list[str]:
+    """Retrieve the captured JSON logs from memory."""
+    if _in_memory_handler is not None:
+        return list(_in_memory_handler.records)
+    return []
+
+
 def configure_json_logging(level: str = "INFO") -> None:
-    """Replace the root logger's handlers with a JSON-emitting stream handler.
+    """Replace the root logger's handlers with a JSON-emitting stream handler and in-memory capture.
 
     Call this once at server startup; subsequent ``logging.getLogger(…)``
     calls will inherit the formatter automatically.
     """
-    handler = logging.StreamHandler()
-    handler.setFormatter(JsonFormatter())
+    global _in_memory_handler
+    
+    formatter = JsonFormatter()
+    
+    stream_handler = logging.StreamHandler()
+    stream_handler.setFormatter(formatter)
+    
+    _in_memory_handler = InMemoryLogHandler()
+    _in_memory_handler.setFormatter(formatter)
+    
     root = logging.getLogger()
-    root.handlers = [handler]
+    root.handlers = [stream_handler, _in_memory_handler]
     root.setLevel(getattr(logging, level.upper(), logging.INFO))
 
 

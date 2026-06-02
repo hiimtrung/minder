@@ -33,9 +33,11 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_memory_recall",
         description=(
-            "Search stored memory entries by semantic similarity. "
+            "Search stored memory entries by semantic similarity and return each result with an LLM-generated hit_summary. "
             "Call before starting work that may depend on past decisions, constraints, or project-specific context. "
-            "Prefer over minder_skill_recall when seeking project facts rather than reusable patterns."
+            "Pass session_id to persist the recall to session history so subsequent minder_query calls see it as context — "
+            "example: minder_memory_recall(query='auth decisions', session_id=session_id). "
+            "Prefer over minder_skill_recall when seeking project-specific facts rather than reusable patterns."
         ),
     ),
     ToolMeta(
@@ -76,8 +78,11 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_skill_recall",
         description=(
             "Retrieve reusable skills ranked by workflow-step compatibility and semantic relevance. "
-            "Call at the start of each workflow step to load applicable patterns and conventions before acting. "
-            "Pass current_step to get step-specific skills first."
+            "Each result includes the skill content so you can apply patterns directly. "
+            "Pass current_step to prioritise step-specific skills. "
+            "Pass session_id to write the recall into session history so subsequent minder_query calls see the retrieved skills as context — "
+            "example: minder_skill_recall(query='backend patterns', current_step='implementation', session_id=session_id). "
+            "Call at the start of each workflow step before acting."
         ),
     ),
     ToolMeta(

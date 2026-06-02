@@ -326,7 +326,7 @@ class TestRerankerNode:
             verification=VerificationNode(sandbox="subprocess"),
             evaluator=EvaluatorNode(),
         )
-        state = GraphState(query="hello", repo_path=".")
+        state = GraphState(query="explain the authentication module", repo_path=".")
         state = await InternalGraphExecutor(nodes).run(state)
         assert fired["reranker"] is True
 

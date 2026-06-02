@@ -116,12 +116,41 @@ class RelationalStore:
     """Async SQLAlchemy store. Thread-safe; one instance per application."""
 
     def __init__(self, db_url: str, echo: bool = False) -> None:
-        self._engine: AsyncEngine = create_async_engine(db_url, echo=echo)
+        is_sqlite = db_url.startswith("sqlite")
+        engine_kwargs: dict[str, Any] = {"echo": echo}
+        if is_sqlite:
+            # aiosqlite passes timeout to the underlying sqlite3 module as
+            # the "check same thread" + busy-wait duration (seconds).
+            engine_kwargs["connect_args"] = {"timeout": 30}
+        self._engine: AsyncEngine = create_async_engine(db_url, **engine_kwargs)
+
+        if is_sqlite:
+            self._configure_sqlite(self._engine)
+
         self._session_factory = async_sessionmaker(
             self._engine,
             expire_on_commit=False,
             class_=AsyncSession,
         )
+
+    @staticmethod
+    def _configure_sqlite(engine: AsyncEngine) -> None:
+        """Enable WAL journaling and busy-timeout for every new SQLite connection.
+
+        WAL (Write-Ahead Logging) allows concurrent reads alongside a write,
+        eliminates most "database is locked" errors under normal load.
+        busy_timeout=30 000 ms makes SQLite retry for up to 30 s before raising
+        OperationalError, so short write contention resolves without a crash.
+        """
+        from sqlalchemy import event
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def _set_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
 
     # ------------------------------------------------------------------
     # Lifecycle

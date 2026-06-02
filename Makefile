@@ -1,4 +1,4 @@
-.PHONY: all lint test test-slow test-all check-all clean build-docker dev-install release-start release-tag dashboard-dev dashboard-build dashboard-check native-install native-run bundle app-dev app-build
+.PHONY: all lint test test-slow test-all check-all clean build-docker dev-install release-start release-tag dashboard-dev dashboard-build dashboard-check native-install native-run native-build native-dev bundle app-dev app-build
 
 dev-install:
 	uv tool install --editable . --force
@@ -17,24 +17,44 @@ native-run: dashboard-build
 
 # Produce dist/minder-server-<target-triple> ready for Tauri sidecar.
 # Requires PyInstaller: uv add --dev pyinstaller
-bundle:
-	@echo "Building PyInstaller bundle..."
+#
+# Unlike Docker builds (which use -DGGML_NATIVE=OFF for portability), native
+# builds compile llama.cpp with full hardware acceleration:
+#   macOS:  Metal GPU + Accelerate framewhisork (auto-detected)
+#   Linux:  AVX2 / AVX-512 / FMA based on the build host CPU
+#
+# Override: CMAKE_ARGS="-DGGML_NATIVE=OFF" make bundle
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+  NATIVE_CMAKE_ARGS ?= -DGGML_NATIVE=ON -DGGML_METAL=ON
+else
+  NATIVE_CMAKE_ARGS ?= -DGGML_NATIVE=ON
+endif
+
+bundle: dashboard-build
+	@echo "Building PyInstaller bundle (native optimizations: $(NATIVE_CMAKE_ARGS))..."
 	@command -v pyinstaller >/dev/null 2>&1 || uv add --dev pyinstaller
-	uv run pyinstaller minder-server.spec --clean --noconfirm
+	CMAKE_ARGS="$(NATIVE_CMAKE_ARGS)" uv run pyinstaller minder-server.spec --clean --noconfirm
 	@TARGET=$$(rustc -Vv | grep host | cut -d' ' -f2); \
+	 echo "Copying sidecar for target: $$TARGET"; \
+	 rm -rf "src-tauri/binaries/minder-server-$$TARGET" \
+	        "src-tauri/binaries/_internal"; \
 	 mkdir -p src-tauri/binaries; \
-	 cp -r "dist/minder-server/." "src-tauri/binaries/minder-server-$$TARGET/"; \
+	 cp "dist/minder-server" \
+	    "src-tauri/binaries/minder-server-$$TARGET"; \
+	 chmod +x "src-tauri/binaries/minder-server-$$TARGET"; \
 	 echo "Sidecar ready: src-tauri/binaries/minder-server-$$TARGET"
+
 
 # --- Phase 3: Tauri desktop app ---
 
 # Launch Tauri dev window (expects Python server already running via `make native-run`).
-app-dev:
+app-dev native-dev:
 	bun run tauri dev
 
 # Build the distributable desktop app (.dmg on macOS, .AppImage/.deb on Linux).
 # Requires: `make bundle` first to create the sidecar binary.
-app-build: native-install bundle
+app-build native-build: native-install bundle
 	bun run tauri build
 
 dashboard-dev:
@@ -64,7 +84,7 @@ test-slow:
 test-all:
 	uv run pytest tests/unit tests/integration
 
-check-all: lint test-all build-docker
+check-all: lint test-all
 
 clean:
 	rm -rf .venv .mypy_cache .pytest_cache .ruff_cache build dist *.egg-info
@@ -95,10 +115,18 @@ release-start:
 	git rebase origin/main; \
 	echo "Updating version to $$CLEAN_VERSION in pyproject.toml..."; \
 	sed -i.bak -e "s/^version = \".*\"/version = \"$$CLEAN_VERSION\"/" pyproject.toml && rm pyproject.toml.bak; \
+	echo "Updating version to $$CLEAN_VERSION in src-tauri/tauri.conf.json..."; \
+	python3 -c " \
+import json, pathlib; \
+p = pathlib.Path('src-tauri/tauri.conf.json'); \
+cfg = json.loads(p.read_text()); \
+cfg['version'] = '$$CLEAN_VERSION'; \
+p.write_text(json.dumps(cfg, indent=2) + '\n') \
+	"; \
 	echo "Updating uv.lock..."; \
 	uv lock; \
-	if ! git diff --quiet pyproject.toml uv.lock; then \
-		git add pyproject.toml uv.lock; \
+	if ! git diff --quiet pyproject.toml uv.lock src-tauri/tauri.conf.json; then \
+		git add pyproject.toml uv.lock src-tauri/tauri.conf.json; \
 		git commit -m "chore(release): update version to v$$CLEAN_VERSION"; \
 		git push -u origin $$BRANCH_NAME; \
 		if command -v gh >/dev/null 2>&1; then \

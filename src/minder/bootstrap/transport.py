@@ -140,7 +140,7 @@ def build_transport(
     all_handlers.update(session_handlers)
 
     # Memory handlers
-    memory_handlers = create_memory_handlers(memory_tools)
+    memory_handlers = create_memory_handlers(memory_tools, store=store)
     all_handlers.update(memory_handlers)
 
     # Workflow handlers
@@ -148,7 +148,7 @@ def build_transport(
     all_handlers.update(workflow_handlers)
 
     # Skill handlers
-    skill_handlers = create_skill_handlers(skill_tools)
+    skill_handlers = create_skill_handlers(skill_tools, store=store)
     all_handlers.update(skill_handlers)
 
     # Search handlers

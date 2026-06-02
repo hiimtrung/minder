@@ -7,6 +7,7 @@ Supports filtering by scope and active flag.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -20,12 +21,30 @@ class RuleStore:
     """Async store for :class:`~minder.models.Rule` entities."""
 
     def __init__(self, db_url: str, echo: bool = False) -> None:
-        self._engine = create_async_engine(db_url, echo=echo)
+        is_sqlite = db_url.startswith("sqlite")
+        engine_kwargs: dict[str, Any] = {"echo": echo}
+        if is_sqlite:
+            engine_kwargs["connect_args"] = {"timeout": 30}
+        self._engine = create_async_engine(db_url, **engine_kwargs)
+        if is_sqlite:
+            self._configure_sqlite(self._engine)
         self._session_factory = async_sessionmaker(
             self._engine,
             expire_on_commit=False,
             class_=AsyncSession,
         )
+
+    @staticmethod
+    def _configure_sqlite(engine: Any) -> None:
+        from sqlalchemy import event
+
+        @event.listens_for(engine.sync_engine, "connect")
+        def _set_pragmas(dbapi_connection: Any, _connection_record: Any) -> None:
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=30000")
+            cursor.close()
 
     # ------------------------------------------------------------------
     # Lifecycle

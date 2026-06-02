@@ -65,8 +65,29 @@ def _detect_llama_cpp_runtime(config: Settings) -> str:
 
 
 
+async def _watch_parent_process() -> None:
+    import os
+    import signal
+    try:
+        initial_ppid = os.getppid()
+        if initial_ppid <= 1:
+            return
+        while True:
+            await asyncio.sleep(2)
+            if os.getppid() != initial_ppid:
+                # Parent process died (adopted by init/launchd)
+                try:
+                    os.kill(os.getpid(), signal.SIGTERM)
+                except Exception:
+                    sys.exit(0)
+                break
+    except Exception:
+        pass
+
+
 async def _async_run() -> None:
     print("MINDER SERVER STARTING", file=sys.stderr, flush=True)
+    asyncio.create_task(_watch_parent_process())
     config = Settings()
 
     # Initialise structured JSON logging and tracing before anything else

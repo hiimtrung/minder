@@ -3,6 +3,7 @@ import {
   type ClientPayload,
   getClientDetail,
   getClientOnboarding,
+  getCliStatus,
   listAudit,
   listTools,
   revokeClientKeys,
@@ -618,6 +619,7 @@ document
       const clientFormDialog = document.querySelector("#client-form-dialog") as HTMLDialogElement | null;
       clientFormDialog?.close();
       showApiKeyModal(created.client_api_key);
+      prefillCliKey(created.client_api_key);
       showToast(`Created client ${created.client.slug}.`, "success");
       await syncVisibleClients();
     } catch (error) {
@@ -638,6 +640,7 @@ document
       const rotated = await rotateClientKey(selectedClientId);
       setDetailStatus("Issued new client key.", "success");
       showApiKeyModal(rotated.client_api_key);
+      prefillCliKey(rotated.client_api_key);
       showToast("Issued new client key.", "success");
       await renderDetail();
     } catch (error) {
@@ -819,6 +822,103 @@ document.querySelector("#client-close-dialog")?.addEventListener("click", () => 
 clientFormDialogEl?.addEventListener("click", (event) => {
   if (event.target === clientFormDialogEl) clientFormDialogEl.close();
 });
+
+// ─── CLI Setup ────────────────────────────────────────────────────────────────
+
+function cliLoginCommand(key: string): string {
+  const k = key.trim() || "<paste key above>";
+  return `minder login --client-key ${k} \\\n  --server-url ${window.location.origin}`;
+}
+
+function updateCliLoginCmd() {
+  const keyInput = document.getElementById("cli-key-input") as HTMLInputElement | null;
+  const keyDisplay = document.getElementById("cli-key-display");
+  const serverUrlSpan = document.getElementById("cli-server-url");
+  const key = keyInput?.value.trim() ?? "";
+  if (keyDisplay) {
+    if (key) {
+      keyDisplay.textContent = key;
+      keyDisplay.className = "text-stone-800";
+    } else {
+      keyDisplay.textContent = "<paste key above>";
+      keyDisplay.className = "text-stone-400";
+    }
+  }
+  if (serverUrlSpan) {
+    serverUrlSpan.textContent = window.location.origin;
+  }
+}
+
+function prefillCliKey(key: string) {
+  const keyInput = document.getElementById("cli-key-input") as HTMLInputElement | null;
+  if (keyInput) {
+    keyInput.value = key;
+    updateCliLoginCmd();
+  }
+}
+
+async function refreshCliStatus() {
+  const dot = document.getElementById("cli-status-dot");
+  const text = document.getElementById("cli-status-text");
+  const badge = document.getElementById("cli-installed-badge");
+  if (!dot || !text) return;
+
+  dot.className = "inline-block h-2 w-2 flex-shrink-0 rounded-full bg-stone-300";
+  text.textContent = "Checking CLI…";
+
+  try {
+    const status = await getCliStatus();
+    if (status.installed) {
+      dot.className = "inline-block h-2 w-2 flex-shrink-0 rounded-full bg-emerald-500";
+      text.textContent = status.version ? `minder-cli ${status.version} installed` : "minder-cli installed";
+      badge?.classList.remove("hidden");
+    } else {
+      dot.className = "inline-block h-2 w-2 flex-shrink-0 rounded-full bg-amber-400";
+      text.textContent = "minder-cli not found — install it (Step 1)";
+      badge?.classList.add("hidden");
+    }
+  } catch {
+    dot.className = "inline-block h-2 w-2 flex-shrink-0 rounded-full bg-stone-300";
+    text.textContent = "Could not check CLI status";
+  }
+}
+
+document.getElementById("cli-key-input")?.addEventListener("input", updateCliLoginCmd);
+
+document.getElementById("cli-refresh-status")?.addEventListener("click", () => {
+  void refreshCliStatus();
+});
+
+document.getElementById("cli-setup-card")?.addEventListener("click", async (event) => {
+  const btn = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-copy-cli]");
+  if (!btn) return;
+  const target = btn.dataset.copyCli ?? "";
+  let text = "";
+
+  if (target === "pip") {
+    text = "pip install minder-cli";
+  } else if (target === "login") {
+    const key = (document.getElementById("cli-key-input") as HTMLInputElement | null)?.value.trim() ?? "";
+    text = cliLoginCommand(key);
+  } else if (target === "install-mcp") {
+    text = "minder install --global";
+  }
+
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    const orig = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => { btn.textContent = orig; }, 1500);
+  } catch {
+    showToast("Copy failed — select the command manually.", "danger");
+  }
+});
+
+if (document.getElementById("cli-setup-card")) {
+  updateCliLoginCmd();
+  void refreshCliStatus();
+}
 
 void syncVisibleClients();
 void renderDetail();

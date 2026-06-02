@@ -289,13 +289,18 @@ class ContinuitySynthesizer:
         )
         prompt = "\n\n".join(
             [
-                "You are synthesizing recalled engineering memories for a workflow-aware assistant.",
-                "Return only valid JSON with keys: summary, focus, recommended_hit_ids, hit_summaries.",
-                "Keep hit_summaries as an object keyed by hit id.",
+                "You are a retrieval quality filter for a workflow-aware engineering assistant.",
+                "Task: evaluate each retrieved memory hit and keep ONLY those that directly answer the query.",
+                "Remove hits that are off-topic, duplicates, or add no useful information.",
+                "Return ONLY valid JSON (no markdown) with keys:",
+                "  summary         — 2-3 sentence summary of the KEPT hits",
+                "  focus           — the main theme of the kept hits",
+                "  recommended_hit_ids — array of hit ids to KEEP (omit irrelevant ones)",
+                "  hit_summaries   — object keyed by hit id, one-line note per kept hit",
                 f"Current workflow step: {current_step or 'unknown'}",
                 f"Artifact type: {artifact_type or 'unknown'}",
                 f"User recall query: {query}",
-                f"Hits: {json.dumps(hits[:5], ensure_ascii=True, indent=2)}",
+                f"Hits to evaluate: {json.dumps(hits, ensure_ascii=True, indent=2)}",
             ]
         )
         raw = self._llm.complete_text(

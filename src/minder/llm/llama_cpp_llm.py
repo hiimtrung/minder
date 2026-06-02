@@ -13,15 +13,32 @@ from collections.abc import Generator
 from typing import Any, cast
 
 from minder.graph.state import GraphState
-from minder.infrastructure.runtime import get_writable_hf_cache_dir, llama_cpp_usable
+from minder.infrastructure.runtime import get_writable_hf_cache_dir, llama_cpp_usable, llama_cpp_lock
 
 logger = logging.getLogger(__name__)
 
 
 _ENGINE_CACHE: dict[str, Any] = {}
+# cache_key → error string from the last failed _init_engine() call.
+# Exposed so the status API can surface a real error reason instead of "mock".
+_INIT_ERRORS: dict[str, str] = {}
 # ~3 chars per token; truncate at 90% of context_length to leave room for output
 _CHARS_PER_TOKEN = 3
 _THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
+
+
+class LockedIterator:
+    """Wrapper to synchronize each next() call of an iterator using a Lock."""
+    def __init__(self, iterator: Any, lock: Any) -> None:
+        self._iterator = iterator
+        self._lock = lock
+
+    def __iter__(self) -> LockedIterator:
+        return self
+
+    def __next__(self) -> Any:
+        with self._lock:
+            return next(self._iterator)
 
 
 class LlamaCppLLM:
@@ -44,6 +61,7 @@ class LlamaCppLLM:
         self._engine: Any = None  # None until initialized; Llama instance after _init_engine
         self._model_name = self._model_repo.split("/")[-1]
         self._initialized = False
+        self._init_error: str | None = None  # Set when _init_engine() fails
         self._ensure_initialized()
 
     def _ensure_initialized(self) -> None:
@@ -59,7 +77,17 @@ class LlamaCppLLM:
             logger.warning("llama.cpp not usable on this host; LLM running in mock mode.")
             return
 
-        cache_key = f"{self._model_repo}:{self._model_file}:{self._context_length}"
+        from minder.infrastructure.hardware import get_hardware_profile
+
+        hw = get_hardware_profile(max_ctx=self._context_length)
+
+        # Cache key incorporates actual hardware-derived settings so two
+        # instances with the same model but different HW profiles get the right
+        # engine, and so that changing settings invalidates the cache.
+        cache_key = (
+            f"{self._model_repo}:{self._model_file}"
+            f":ctx{hw.n_ctx}:batch{hw.n_batch}"
+        )
         if cache_key in _ENGINE_CACHE:
             self._engine = _ENGINE_CACHE[cache_key]
             return
@@ -67,25 +95,53 @@ class LlamaCppLLM:
         try:
             from llama_cpp import Llama
 
-            n_gpu_layers = -1  # Let llama.cpp handle Metal / CUDA layer offloading
-            logger.info("Initializing Llama.cpp engine for %s", self._model_repo)
+            logger.info(
+                "Initializing Llama.cpp engine for %s "
+                "[n_ctx=%d n_batch=%d n_ubatch=%d n_gpu_layers=%d flash_attn=%s ram=%.0fGB]",
+                self._model_repo,
+                hw.n_ctx, hw.n_batch, hw.n_ubatch, hw.n_gpu_layers,
+                hw.use_flash_attn, hw.total_ram_gb,
+            )
+
+            init_kwargs: dict[str, Any] = {
+                "n_ctx": hw.n_ctx,
+                "n_gpu_layers": hw.n_gpu_layers,
+                "n_batch": hw.n_batch,
+                "flash_attn": hw.use_flash_attn,
+                "verbose": False,
+            }
+            # n_ubatch: intentionally NOT set — llama.cpp's batch-split logic
+            # in ubatch_add has a heap-corruption bug (POINTER_BEING_FREED_WAS_
+            # NOT_ALLOCATED) when n_ubatch < n_batch in the bundled llama.cpp
+            # version, causing SIGABRT on the first inference call.
+            # Omitting n_ubatch lets llama.cpp use its own safe default (=n_batch).
+            if hw.n_threads > 0:
+                init_kwargs["n_threads"] = hw.n_threads
+
             cache_dir = get_writable_hf_cache_dir()
             cache_kwargs: dict[str, Any] = (
                 {} if cache_dir is None else {"cache_dir": cache_dir}
             )
-            self._engine = Llama.from_pretrained(
-                repo_id=self._model_repo,
-                filename=self._model_file,
-                n_ctx=self._context_length,
-                n_gpu_layers=n_gpu_layers,
-                flash_attn=True,
-                verbose=False,
-                **cache_kwargs,
-            )
+            with llama_cpp_lock:
+                self._engine = Llama.from_pretrained(
+                    repo_id=self._model_repo,
+                    filename=self._model_file,
+                    **init_kwargs,
+                    **cache_kwargs,
+                )
+            # Store the effective context length so truncation uses the real value.
+            self._context_length = hw.n_ctx
             _ENGINE_CACHE[cache_key] = self._engine
         except Exception as e:
-            logger.warning("Failed to initialize Llama.cpp engine: %s. Falling back to mock mode.", e)
+            error_msg = str(e)
+            logger.error(
+                "Llama.cpp engine failed to initialize for %s/%s: %s",
+                self._model_repo, self._model_file, error_msg,
+                exc_info=True,
+            )
             self._engine = None
+            self._init_error = error_msg
+            _INIT_ERRORS[cache_key] = error_msg
 
     # ------------------------------------------------------------------
     # Runtime detection
@@ -116,25 +172,20 @@ class LlamaCppLLM:
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
         source_paths = [doc["path"] for doc in docs[:3]]
-        guidance = getattr(state, "workflow_context", {}).get("guidance", "")
-        fallback = (
-            f"{guidance}\n"
-            f"Plan intent: {state.plan.get('intent', 'unknown')}.\n"
-            f"Answer: grounded response for '{state.query}'.\n"
-            f"Sources: {', '.join(source_paths) if source_paths else 'none'}."
-        )
+        fallback = self._build_mock_response(state, source_paths)
 
         reasoning_output = getattr(state, "reasoning_output", {}) or {}
         messages = reasoning_output.get("messages") or []
 
         if messages and self.runtime == "llama_cpp" and self._engine is not None:
             try:
-                response = self._engine.create_chat_completion(
-                    messages,
-                    max_tokens=512,
-                    temperature=self._temperature,
-                    stream=False,
-                )
+                with llama_cpp_lock:
+                    response = self._engine.create_chat_completion(
+                        messages,
+                        max_tokens=512,
+                        temperature=self._temperature,
+                        stream=False,
+                    )
                 text = self._strip_thinking(str(response["choices"][0]["message"].get("content", "")))
                 # If the model produced a useless placeholder, retry with a minimal prompt.
                 if not text or text.upper() in ("N/A", "NA", "NONE", "-"):
@@ -142,9 +193,10 @@ class LlamaCppLLM:
                         {"role": "system", "content": "You are a helpful assistant. Answer briefly."},
                         {"role": "user", "content": state.query},
                     ]
-                    resp2 = self._engine.create_chat_completion(
-                        minimal, max_tokens=512, temperature=0.3, stream=False
-                    )
+                    with llama_cpp_lock:
+                        resp2 = self._engine.create_chat_completion(
+                            minimal, max_tokens=512, temperature=0.3, stream=False
+                        )
                     text = self._strip_thinking(str(resp2["choices"][0]["message"].get("content", ""))) or fallback
             except Exception as e:
                 logger.warning("create_chat_completion failed, falling back to text: %s", e)
@@ -171,13 +223,7 @@ class LlamaCppLLM:
         retrieved = getattr(state, "retrieved_docs", []) or []
         docs = reranked or retrieved
         source_paths = [doc["path"] for doc in docs[:3]]
-        guidance = getattr(state, "workflow_context", {}).get("guidance", "")
-        fallback = (
-            f"{guidance}\n"
-            f"Plan intent: {state.plan.get('intent', 'unknown')}.\n"
-            f"Answer: grounded response for '{state.query}'.\n"
-            f"Sources: {', '.join(source_paths) if source_paths else 'none'}."
-        )
+        fallback = self._build_mock_response(state, source_paths)
 
         if self.runtime != "llama_cpp":
             if fallback:
@@ -194,13 +240,15 @@ class LlamaCppLLM:
 
         try:
             if messages:
-                response = self._engine.create_chat_completion(
-                    messages,
-                    max_tokens=512,
-                    temperature=self._temperature,
-                    stream=True,
-                )
-                for chunk in response:
+                with llama_cpp_lock:
+                    response = self._engine.create_chat_completion(
+                        messages,
+                        max_tokens=512,
+                        temperature=self._temperature,
+                        stream=True,
+                    )
+                locked_response = LockedIterator(response, llama_cpp_lock)
+                for chunk in locked_response:
                     delta = chunk["choices"][0]["delta"].get("content", "")
                     if delta:
                         deltas.append(delta)
@@ -209,13 +257,15 @@ class LlamaCppLLM:
                 prompt = self._truncate_prompt(
                     str(reasoning_output.get("prompt") or state.query)
                 )
-                response = self._engine(
-                    prompt,
-                    max_tokens=512,
-                    temperature=self._temperature,
-                    stream=True,
-                )
-                for chunk in response:
+                with llama_cpp_lock:
+                    response = self._engine(
+                        prompt,
+                        max_tokens=512,
+                        temperature=self._temperature,
+                        stream=True,
+                    )
+                locked_response = LockedIterator(response, llama_cpp_lock)
+                for chunk in locked_response:
                     delta = chunk["choices"][0]["text"]
                     if delta:
                         deltas.append(delta)
@@ -245,12 +295,13 @@ class LlamaCppLLM:
             return fallback
 
         try:
-            response = self._engine(
-                self._truncate_prompt(prompt),
-                max_tokens=max_tokens,
-                temperature=temperature,
-                stream=False,
-            )
+            with llama_cpp_lock:
+                response = self._engine(
+                    self._truncate_prompt(prompt),
+                    max_tokens=max_tokens,
+                    temperature=temperature,
+                    stream=False,
+                )
             return self._strip_thinking(cast(str, response["choices"][0]["text"]))
         except Exception as e:
             logger.warning("Llama.cpp completion failed: %s", e)
@@ -280,6 +331,52 @@ class LlamaCppLLM:
         head = max_chars // 4
         tail = max_chars - head
         return prompt[:head] + "\n[...context truncated...]\n" + prompt[-tail:]
+
+    def _build_mock_response(self, state: GraphState, source_paths: list[str]) -> str:
+        """Build an honest response when the LLM engine is not available.
+
+        Always explains the actual reason rather than returning fake content.
+        """
+        intent = str((state.plan or {}).get("intent", "unknown"))
+        guidance = getattr(state, "workflow_context", {}).get("guidance", "") or ""
+
+        # Construct explanation
+        if self._init_error:
+            # Engine tried to load but failed — report the actual error.
+            short_err = self._init_error[:300]
+            if intent == "chat":
+                explanation = f"I'm Minder, but the local LLM engine failed to start: {short_err}. Check the server logs for details."
+            else:
+                explanation = f"LLM engine error: {short_err}"
+        elif self._runtime_override == "mock":
+            # Explicitly configured as mock — this is intentional test mode.
+            if intent == "chat":
+                explanation = "Hello! I'm Minder (running in mock mode)."
+            else:
+                explanation = "Minder is running in mock mode."
+        else:
+            # Engine never loaded (likely still downloading or llama.cpp unavailable).
+            if intent == "chat":
+                explanation = "I'm Minder. The local LLM is still loading — please wait a moment and try again."
+            elif source_paths:
+                paths_summary = ", ".join(source_paths[:3])
+                explanation = f"LLM is loading. Retrieved {len(source_paths)} source(s): {paths_summary}. Please retry once the model finishes loading."
+            else:
+                explanation = "LLM is loading or unavailable. Please ensure the model file is downloaded and try again."
+
+        # Return full response structured for chat vs normal query (TDD tests require guidance & "Answer:")
+        if intent == "chat":
+            return explanation
+
+        sources_str = ", ".join(source_paths) if source_paths else "none"
+        guidance_part = f"{guidance}\n" if guidance else ""
+        return (
+            f"[{explanation}]\n"
+            f"{guidance_part}"
+            f"Plan intent: {intent}.\n"
+            f"Answer: grounded response for '{state.query}'.\n"
+            f"Sources: {sources_str}."
+        )
 
     def _build_result(
         self,

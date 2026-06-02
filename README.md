@@ -5,7 +5,7 @@
 
 **Minder** is a self-hosted MCP (Model Context Protocol) platform for repository-aware engineering intelligence.
 
-It runs **natively** on macOS and Linux — no Docker, no external services. The stack is a Python FastAPI server with SQLite, Milvus Lite (embedded vector search), and llama-cpp-python for local LLM inference, distributed as a Tauri desktop app or standalone server.
+It runs **natively** on macOS, Linux, and Windows — no Docker, no external services. The stack is a Python FastAPI server with SQLite, Milvus Lite (embedded vector search), and llama-cpp-python for local LLM inference, distributed as a Tauri desktop app or standalone server.
 
 ## What's in this repo
 
@@ -39,6 +39,17 @@ Developer workstation
 
 ### 1. Install and run
 
+To install the official desktop app release directly:
+* **macOS / Linux**:
+  ```bash
+  curl -fsSL https://github.com/hiimtrung/minder/releases/latest/download/install-minder-release.sh | bash
+  ```
+* **Windows 10/11**:
+  ```powershell
+  iwr -useb https://github.com/hiimtrung/minder/releases/latest/download/install-minder-release.ps1 | iex
+  ```
+
+For local source development:
 ```bash
 # Install dependencies and build the dashboard
 make native-install

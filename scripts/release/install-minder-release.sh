@@ -50,7 +50,10 @@ require_command curl
 install_macos() {
   case "$ARCH" in
     arm64)   ARCH_SUFFIX="aarch64" ;;
-    x86_64)  ARCH_SUFFIX="x64" ;;
+    x86_64)
+      echo "Error: Intel Macs (x86_64) are not supported by the official binaries. Please build from source." >&2
+      exit 1
+      ;;
     *)
       echo "Unsupported architecture: $ARCH" >&2
       exit 1

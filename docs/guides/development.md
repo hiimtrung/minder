@@ -22,7 +22,7 @@ This guide covers common development tasks for Minder using the provided `Makefi
 | `make test-all`       | Run the full test suite                                 |
 | `make bundle`         | Build PyInstaller binary for Tauri sidecar              |
 | `make app-dev`        | Run Tauri desktop app in dev mode                       |
-| `make app-build`      | Build distributable Tauri app (.dmg / .deb / .AppImage) |
+| `make app-build`      | Build distributable Tauri app (.dmg / .deb / .AppImage / .exe) |
 | `make clean`          | Remove build artifacts and caches                       |
 
 ## Dev Server

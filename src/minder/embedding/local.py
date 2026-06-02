@@ -13,7 +13,7 @@ import math
 from collections import OrderedDict
 from typing import Any
 
-from minder.infrastructure.runtime import get_writable_hf_cache_dir, llama_cpp_usable
+from minder.infrastructure.runtime import get_writable_hf_cache_dir, llama_cpp_usable, llama_cpp_lock
 
 logger = logging.getLogger(__name__)
 
@@ -83,12 +83,13 @@ class LocalEmbeddingProvider:
             }
             if hw.n_threads > 0:
                 init_kwargs["n_threads"] = hw.n_threads
-            self._model = Llama.from_pretrained(
-                repo_id=self._model_repo,
-                filename=self._model_file,
-                **init_kwargs,
-                **cache_kwargs,
-            )
+            with llama_cpp_lock:
+                self._model = Llama.from_pretrained(
+                    repo_id=self._model_repo,
+                    filename=self._model_file,
+                    **init_kwargs,
+                    **cache_kwargs,
+                )
             _MODEL_CACHE[cache_key] = self._model
         except Exception as e:
             error_msg = str(e)
@@ -125,7 +126,8 @@ class LocalEmbeddingProvider:
         if self.runtime == "llama_cpp" and self._model is not None:
             try:
                 # llama_cpp returns a dict with 'data'
-                result = self._model.create_embedding(safe_text)
+                with llama_cpp_lock:
+                    result = self._model.create_embedding(safe_text)
                 vector = result["data"][0]["embedding"]
                 embedding = vector[: self._dimensions]
             except Exception as e:
@@ -174,7 +176,8 @@ class LocalEmbeddingProvider:
         if self.runtime == "llama_cpp" and self._model is not None:
             try:
                 # pass list of strings directly
-                res = self._model.create_embedding(to_embed_texts)
+                with llama_cpp_lock:
+                    res = self._model.create_embedding(to_embed_texts)
                 embeddings = [data["embedding"] for data in res["data"]]
                 for i, emb in enumerate(embeddings):
                     idx = to_embed_indices[i]

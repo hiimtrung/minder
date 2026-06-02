@@ -835,9 +835,17 @@ let repositoryLandscape: RepositoryLandscapePayload | null = null;
 let repositoryQuery = "";
 
 function requestedRepositoryId(): string | null {
-  const value =
+  const fromAttr =
     getEl<HTMLElement>("repo-detail-context")?.dataset.repoId?.trim() ?? "";
-  return value || null;
+  if (fromAttr) return fromAttr;
+  // Fall back to URL when served as a static shell (no data-repo-id prop)
+  const segments = window.location.pathname.replace(/\/$/, "").split("/").filter(Boolean);
+  const repoIdx = segments.indexOf("repositories");
+  if (repoIdx !== -1 && segments.length > repoIdx + 1) {
+    const candidate = decodeURIComponent(segments[repoIdx + 1]);
+    return candidate && candidate !== "detail" ? candidate : null;
+  }
+  return null;
 }
 
 function closeRepositoryPicker(): void {

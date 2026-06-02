@@ -691,12 +691,15 @@ formEl?.addEventListener("submit", async (event) => {
     setWarning(message);
     if (typeof activeAssistantMessageIndex === "number") {
       const current = messages[activeAssistantMessageIndex];
+      // If the stream produced no content yet, use the error as the content so
+      // the user sees the real reason instead of a generic placeholder.
+      const hasPartialContent = Boolean(current.content?.trim());
       messages[activeAssistantMessageIndex] = {
         ...current,
-        content: current.content || "Unable to stream a response.",
+        content: hasPartialContent ? current.content : message,
         meta: {
           ...current.meta,
-          warning: message,
+          warning: hasPartialContent ? message : undefined,
         },
       };
       activeAssistantMessageIndex = null;

@@ -7,6 +7,7 @@ Supports filtering by scope and active flag.
 from __future__ import annotations
 
 import uuid
+from typing import Any
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 

@@ -20,7 +20,7 @@ native-run: dashboard-build
 #
 # Unlike Docker builds (which use -DGGML_NATIVE=OFF for portability), native
 # builds compile llama.cpp with full hardware acceleration:
-#   macOS:  Metal GPU + Accelerate framework (auto-detected)
+#   macOS:  Metal GPU + Accelerate framewhisork (auto-detected)
 #   Linux:  AVX2 / AVX-512 / FMA based on the build host CPU
 #
 # Override: CMAKE_ARGS="-DGGML_NATIVE=OFF" make bundle

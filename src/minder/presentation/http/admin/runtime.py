@@ -234,8 +234,8 @@ class RuntimeAgentExecutor:
                 parts: list[str] = []
                 for item in results[:10]:
                     hit_summary = str(item.get("hit_summary", "")).strip()
-                    content = str(item.get("content", "")).strip()
-                    snippet = hit_summary or content[:300].rstrip() + ("…" if len(content) > 300 else "")
+                    item_content = str(item.get("content", "")).strip()
+                    snippet = hit_summary or item_content[:300].rstrip() + ("…" if len(item_content) > 300 else "")
                     parts.append(
                         f"**{item['title']}** (score={item.get('score', 0):.2f})\n{snippet}"
                     )
@@ -261,8 +261,8 @@ class RuntimeAgentExecutor:
             if memories:
                 parts = []
                 for item in memories[:10]:
-                    content = str(item.get("content", "")).strip()
-                    snippet = content[:120].rstrip() + ("…" if len(content) > 120 else "")
+                    item_content = str(item.get("content", "")).strip()
+                    snippet = item_content[:120].rstrip() + ("…" if len(item_content) > 120 else "")
                     line = f"- **{item['title']}**"
                     if snippet:
                         line += f": {snippet}"
@@ -350,8 +350,8 @@ class RuntimeAgentExecutor:
             if results:
                 parts: list[str] = []
                 for item in results[:10]:
-                    content = str(item.get("content", "")).strip()
-                    snippet = content[:300].rstrip() + ("…" if len(content) > 300 else "")
+                    item_content = str(item.get("content", "")).strip()
+                    snippet = item_content[:300].rstrip() + ("…" if len(item_content) > 300 else "")
                     parts.append(
                         f"**{item['title']}** (score={item.get('score', 0):.2f})\n{snippet}"
                     )
@@ -901,30 +901,30 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 "path": repo_path,
             }
             yield json.dumps({"type": "meta", "repository": repository_payload}) + "\n"
-            agentic_result = await RuntimeAgentExecutor(context).execute(
-                query=query,
-                repository=repository_payload,
-                admin_user_id=admin_user.id,
-            )
-            if agentic_result is not None:
-                if session_id:
-                    try:
-                        await context.store.create_history(
-                            session_id=session_id,
-                            role="user",
-                            content=query,
-                        )
-                        await context.store.create_history(
-                            session_id=session_id,
-                            role="assistant",
-                            content=str(agentic_result.get("answer", "")),
-                        )
-                    except Exception:
-                        logger.debug("Failed to persist agentic stream history for session %s", session_id)
-                yield json.dumps({"type": "final", "payload": agentic_result}) + "\n"
-                return
-
             try:
+                agentic_result = await RuntimeAgentExecutor(context).execute(
+                    query=query,
+                    repository=repository_payload,
+                    admin_user_id=admin_user.id,
+                )
+                if agentic_result is not None:
+                    if session_id:
+                        try:
+                            await context.store.create_history(
+                                session_id=session_id,
+                                role="user",
+                                content=query,
+                            )
+                            await context.store.create_history(
+                                session_id=session_id,
+                                role="assistant",
+                                content=str(agentic_result.get("answer", "")),
+                            )
+                        except Exception:
+                            logger.debug("Failed to persist agentic stream history for session %s", session_id)
+                    yield json.dumps({"type": "final", "payload": agentic_result}) + "\n"
+                    return
+
                 async for event in _query_tools.minder_query_stream(
                     query=query,
                     repo_path=repo_path,

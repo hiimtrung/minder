@@ -146,7 +146,9 @@ async def stream_sync_generator(
                         "LLM stream timed out after %.0f s", effective_timeout
                     )
                     future.cancel()
-                    return
+                    raise TimeoutError(
+                        f"LLM stream timed out after {effective_timeout:.0f}s"
+                    ) from None
                 if item is _SENTINEL:
                     break
                 if isinstance(item, Exception):
@@ -161,7 +163,9 @@ async def stream_sync_generator(
                     break
             try:
                 await future
-            except Exception:
+            except BaseException:
+                # future.cancel() causes CancelledError (BaseException in 3.8+);
+                # swallow it so it does not shadow the real exception being raised.
                 pass
 
     sem = _get_semaphore()

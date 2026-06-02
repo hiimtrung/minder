@@ -6,6 +6,7 @@ import os
 import signal
 import subprocess
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -147,3 +148,10 @@ def get_effective_hf_cache_dir() -> str | None:
 
     # No env override — let HF resolve its default (~/.cache/huggingface/hub)
     return None
+
+
+# Global thread lock to serialize llama.cpp and llama-cpp-python native executions.
+# Prevents concurrent execution of native methods (like decode and embedding creation)
+# which are not thread-safe and can cause segfaults (SIGSEGV).
+llama_cpp_lock = threading.Lock()
+

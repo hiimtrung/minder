@@ -378,6 +378,25 @@ export async function queryRuntime(payload: {
   });
 }
 
+function _classifyFetchError(err: unknown): Error {
+  const raw = err instanceof Error ? err.message : String(err);
+  // Browser-native network failure messages (WebKit: "Load failed", Chromium: "Failed to fetch")
+  if (/load failed|failed to fetch|networkerror|network request failed/i.test(raw)) {
+    return new Error(
+      "Cannot reach the Minder server. Make sure the server is running on port 8800.",
+    );
+  }
+  return err instanceof Error ? err : new Error(raw);
+}
+
+function _parseStreamLine(line: string): RuntimeQueryStreamEvent {
+  try {
+    return JSON.parse(line) as RuntimeQueryStreamEvent;
+  } catch {
+    throw new Error(`Malformed response from server: ${line.slice(0, 120)}`);
+  }
+}
+
 export async function queryRuntimeStream(
   payload: {
     query: string;
@@ -388,31 +407,36 @@ export async function queryRuntimeStream(
   },
   onEvent: (event: RuntimeQueryStreamEvent) => void,
 ): Promise<void> {
-  const response = await fetch(apiUrl("/api/v1/runtime/query/stream"), {
-    method: "POST",
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(payload),
-  });
+  let response: Response;
+  try {
+    response = await fetch(apiUrl("/api/v1/runtime/query/stream"), {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (fetchError) {
+    throw _classifyFetchError(fetchError);
+  }
 
   if (!response.ok) {
-    let message = `Request failed: ${response.status}`;
+    let message = `Server error ${response.status}`;
     try {
-      const payload = (await response.json()) as { error?: string };
-      if (payload.error) {
-        message = payload.error;
+      const body = (await response.json()) as { error?: string };
+      if (body.error) {
+        message = body.error;
       }
     } catch {
-      // Ignore parse failures.
+      // Ignore parse failures — keep the status-code message.
     }
     throw new Error(message);
   }
 
   const reader = response.body?.getReader();
   if (!reader) {
-    throw new Error("Streaming is not available in this browser.");
+    throw new Error("Streaming is not supported in this browser.");
   }
 
   const decoder = new TextDecoder();
@@ -428,7 +452,7 @@ export async function queryRuntimeStream(
       const line = buffer.slice(0, newlineIndex).trim();
       buffer = buffer.slice(newlineIndex + 1);
       if (line) {
-        const event = JSON.parse(line) as RuntimeQueryStreamEvent;
+        const event = _parseStreamLine(line);
         onEvent(event);
         if (event.type === "final" || event.type === "error") {
           streamDone = true;
@@ -442,7 +466,7 @@ export async function queryRuntimeStream(
       if (done && !streamDone) {
         const finalLine = buffer.trim();
         if (finalLine) {
-          onEvent(JSON.parse(finalLine) as RuntimeQueryStreamEvent);
+          onEvent(_parseStreamLine(finalLine));
         }
       }
       reader.cancel().catch(() => undefined);

@@ -100,17 +100,19 @@ def _compute_settings(
       total_inference_memory
         ≈ model_weights
         + kv_cache      ← n_ctx × n_kv_heads × head_dim × n_layers × 2 × dtype
-        + attn_scratch  ← n_batch × n_ctx × n_heads × n_layers × dtype   (dominant!)
+        + output_logits ← n_ctx × n_vocab × sizeof(float)   ← DOMINANT on large-vocab models
+        + attn_scratch  ← n_batch × n_ctx × n_heads × n_layers × dtype
         + process       ← Python + libraries
 
-    With n_batch=512 (llama.cpp default) and n_ctx=16384 on a 4B model:
-      attn_scratch ≈ 512 × 16384 × 8 × 18 × 4 bytes ≈ 4.8 GB
-      + model (Q8_0): 4.5 GB + KV: 1.2 GB + process: 2 GB ≈ 12.5 GB
-      → approaches / exceeds 16 GB → heavy swap → "no response"
+    CRITICAL — output logit buffer (n_ctx × n_vocab × 4 bytes):
+      Qwen3/Gemma3 models have n_vocab ≈ 248 K–256 K tokens.
+      At n_ctx=8192: 8192 × 248320 × 4 ≈ 8.1 GB on Metal alone.
+      Combined with model weights (~2 GB) and KV cache (~0.6 GB) this
+      easily exceeds 16 GB of unified memory → SIGSEGV in output_reserve.
 
-    With n_batch=128 and n_ctx=8192 on 16 GB device (Q4_K_M):
-      attn_scratch ≈ 128 × 8192 × 8 × 18 × 4 ≈ 0.6 GB
-      + model (Q4_K_M): 2.5 GB + KV: 0.6 GB + process: 2 GB ≈ 5.7 GB ✓
+    Safe budgets for 16 GB Apple Silicon (Qwen3.5-2B-Q4_K_M + 248 K vocab):
+      n_ctx=4096 → logit buf 4.1 GB + model 1.8 GB + KV 0.3 GB + OS 3 GB ≈ 9 GB ✓
+      n_ctx=2048 → logit buf 2.0 GB + model 1.8 GB + KV 0.2 GB + OS 3 GB ≈ 7 GB ✓
     """
     # Approximate architecture constants (conservative for ~4B class models)
     _N_LAYERS = 18
@@ -154,13 +156,34 @@ def _compute_settings(
             n_ctx = min(bucket, max_ctx)
     n_ctx = max(1024, n_ctx)
 
+    # ── Output-logit buffer hard cap for large-vocabulary models ─────────────
+    # Modern chat models (Qwen3, Gemma3) have n_vocab ≈ 248 K–256 K.
+    # llama.cpp's output_reserve allocates n_ctx × n_vocab × 4 bytes on Metal.
+    # With n_ctx=8192 this is ~8 GB, which causes KERN_INVALID_ADDRESS SIGSEGV
+    # on 16 GB Apple Silicon even though malloc() "succeeds" (memory is virtual
+    # until zeroed, at which point Metal OOM kills the page backing).
+    # Scale the safe logit-buffer budget with available RAM.
+    if is_apple_silicon:
+        if total_ram_gb <= 16:
+            _safe_logit_gb = 2.0   # 16 GB: ~2097 token ctx
+        elif total_ram_gb <= 32:
+            _safe_logit_gb = 4.0   # 32 GB: ~4194 token ctx
+        else:
+            _safe_logit_gb = 8.0   # 64 GB+: ~8388 token ctx
+        _LARGE_VOCAB = 256_000          # conservative upper bound on n_vocab
+        max_ctx_for_logits = int(_safe_logit_gb * 1_073_741_824 / (_LARGE_VOCAB * 4))
+        n_ctx = min(n_ctx, max_ctx_for_logits)
+        n_ctx = max(1024, n_ctx)
+
     n_ubatch = max(32, n_batch // 2)
 
     # ── GPU / CPU settings ────────────────────────────────────────────────────
     if is_apple_silicon:
         n_gpu_layers = -1   # All layers on Metal (unified memory)
         n_threads = 0       # Metal manages parallelism
-        use_flash_attn = True
+        # Flash attention adds extra Metal scratch buffers; disable on ≤24 GB
+        # to leave headroom for the large logit buffer of big-vocab models.
+        use_flash_attn = total_ram_gb >= 32
     else:
         n_gpu_layers = 0
         n_threads = max(1, cpu_count // 2)

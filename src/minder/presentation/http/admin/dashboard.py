@@ -90,6 +90,16 @@ def build_dashboard_routes(context: AdminRouteContext) -> list[BaseRoute]:
             if clients_index.exists() and clients_index.is_file():
                 return FileResponse(clients_index)
 
+        for section in ("repositories", "agents", "workflows", "sessions"):
+            prefix = f"{section}/"
+            if asset_path.startswith(prefix) and not asset_path.startswith(f"{section}/detail"):
+                detail_shell = static_root / section / "detail" / "index.html"
+                if detail_shell.exists() and detail_shell.is_file():
+                    return FileResponse(detail_shell)
+                section_index = static_root / section / "index.html"
+                if section_index.exists() and section_index.is_file():
+                    return FileResponse(section_index)
+
         fallback = static_root / "index.html"
         if fallback.exists() and fallback.is_file():
             return FileResponse(fallback)

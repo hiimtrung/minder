@@ -20,6 +20,22 @@ jobs:
             exit 1
           fi
 
+  # Fast job: compute version from the git tag and expose it as outputs so
+  # build-tauri can start immediately without waiting for build-dist to finish.
+  compute-meta:
+    needs: check-branch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      release_tag: ${{ steps.meta.outputs.release_tag }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - name: Compute release metadata
+        id: meta
+        run: |
+          echo "release_tag=${GITHUB_REF_NAME}" >> "$GITHUB_OUTPUT"
+          echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
   build-dist:
     needs: check-branch
     runs-on: ubuntu-latest
@@ -41,8 +57,10 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v6
 
+      # Only the dev group (twine) is needed here — server extras pull in
+      # llama-cpp-python and slow down a job that only builds a whl/sdist.
       - name: Sync dependencies
-        run: uv sync --frozen --extra server
+        run: uv sync --frozen --only-group dev
 
       - name: Build Python distributions
         run: uv build
@@ -90,7 +108,9 @@ jobs:
   #   macOS:   Metal GPU acceleration (both Apple Silicon and Intel with discrete GPU)
   #   Linux:   Native CPU ISA (AVX2/AVX-512/FMA auto-detected by compiler)
   build-tauri:
-    needs: build-dist
+    # Depends on compute-meta (seconds), not build-dist (minutes), so all four
+    # platform builds start as soon as the version string is known.
+    needs: [check-branch, compute-meta]
     strategy:
       fail-fast: false
       matrix:
@@ -128,7 +148,8 @@ jobs:
             libayatana-appindicator3-dev \
             librsvg2-dev \
             patchelf \
-            xdg-utils
+            xdg-utils \
+            ccache
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -149,7 +170,45 @@ jobs:
         with:
           workspaces: ". -> src-tauri/target"
 
+      - name: Cache Bun dependencies
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: bun-${{ runner.os }}-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      # Cache the compiled sidecar binary. Key includes the Python lockfile and
+      # PyInstaller spec so a cache hit skips the entire llama.cpp + PyInstaller
+      # build (~50 min on Linux). Invalidated automatically on any dep change.
+      - name: Cache PyInstaller sidecar
+        id: cache-sidecar
+        uses: actions/cache@v4
+        with:
+          path: src-tauri/binaries
+          key: sidecar-${{ matrix.target }}-${{ hashFiles('uv.lock', 'minder-server.spec') }}
+
+      # Cache uv's download store. Speeds up `uv sync` on sidecar cache misses
+      # by avoiding re-downloading sdists/wheels (especially llama-cpp-python).
+      - name: Cache uv package store
+        if: steps.cache-sidecar.outputs.cache-hit != 'true'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/uv
+          key: uv-${{ matrix.target }}-${{ hashFiles('uv.lock') }}
+          restore-keys: uv-${{ matrix.target }}-
+
+      # Cache ccache directory to speed up llama.cpp C++ recompilation on
+      # sidecar cache misses (e.g. when only minder-server.spec changed).
+      - name: Cache ccache
+        if: steps.cache-sidecar.outputs.cache-hit != 'true' && runner.os == 'Linux'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ccache
+          key: ccache-${{ matrix.target }}-${{ hashFiles('uv.lock') }}
+          restore-keys: ccache-${{ matrix.target }}-
+
       - name: Sync Python dependencies
+        if: steps.cache-sidecar.outputs.cache-hit != 'true'
         run: uv sync --frozen --extra server
 
       - name: Build Astro dashboard
@@ -158,11 +217,15 @@ jobs:
           bun run build
 
       - name: Build PyInstaller sidecar
+        if: steps.cache-sidecar.outputs.cache-hit != 'true'
         env:
           CMAKE_ARGS: ${{ matrix.cmake_args }}
+          # Route C/C++ compilation through ccache on Linux to speed up
+          # llama.cpp rebuilds when only Python source files changed.
+          CMAKE_C_COMPILER_LAUNCHER: ${{ runner.os == 'Linux' && 'ccache' || '' }}
+          CMAKE_CXX_COMPILER_LAUNCHER: ${{ runner.os == 'Linux' && 'ccache' || '' }}
         run: |
           echo "Building sidecar with CMAKE_ARGS=${CMAKE_ARGS}"
-          uv add --dev pyinstaller
           uv run pyinstaller minder-server.spec --clean --noconfirm
           TARGET=$(rustc -Vv | grep host | cut -d' ' -f2)
           mkdir -p src-tauri/binaries
@@ -177,7 +240,7 @@ jobs:
 
       - name: Set version in tauri.conf.json
         run: |
-          VERSION="${{ needs.build-dist.outputs.version }}"
+          VERSION="${{ needs.compute-meta.outputs.version }}"
           python -c "
           import json, pathlib
           p = pathlib.Path('src-tauri/tauri.conf.json')

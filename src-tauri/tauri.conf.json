@@ -38,7 +38,15 @@
     ],
     "externalBin": [
       "binaries/minder-server"
-    ]
+    ],
+    "macOS": {
+      "dmg": {
+        "background": "icons/dmg-background.png",
+        "windowSize": { "width": 660, "height": 400 },
+        "appPosition": { "x": 175, "y": 185 },
+        "applicationFolderPosition": { "x": 485, "y": 185 }
+      }
+    }
   },
   "plugins": {
     "shell": {

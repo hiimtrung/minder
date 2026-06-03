@@ -76,6 +76,9 @@ install_macos() {
   echo "  Installing Minder.app → /Applications/"
   cp -r "${mount_point}/Minder.app" /Applications/
 
+  echo "  Removing macOS quarantine flag..."
+  xattr -cr /Applications/Minder.app
+
   echo "  Unmounting..."
   hdiutil detach "$mount_point" -quiet
   rm -rf "$tmp_dir"

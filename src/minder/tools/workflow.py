@@ -61,7 +61,12 @@ class WorkflowTools:
                 "name": workflow.name,
                 "steps": list(workflow.steps),
                 "policies": dict(workflow.policies),
-            }
+            },
+            "_next_steps": [
+                "Cache the workflow step list — the definition does not change during a session.",
+                "Call minder_workflow_step(repo_id=..., repo_path=...) for the current step and instruction_envelope.",
+                "Before starting any step: call minder_workflow_guard(repo_id=..., requested_step='<step>') — mandatory.",
+            ],
         }
 
     async def minder_workflow_step(
@@ -120,6 +125,13 @@ class WorkflowTools:
             "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
             "instruction_envelope": envelope,
+            "_next_steps": [
+                f"Cache current_step='{state.current_step}' — use in skill_recall and memory_recall.",
+                f"Call minder_workflow_guard(repo_id=..., requested_step='{state.current_step}') before starting work.",
+                f"Call minder_skill_recall(query='<task>', current_step='{state.current_step}') to load step conventions.",
+                "Call minder_memory_recall(query='<task>') to load project-specific decisions.",
+                "After completing step artifacts: call minder_workflow_update(repo_id=..., completed_step=...) to advance.",
+            ],
         }
 
     async def minder_workflow_update(

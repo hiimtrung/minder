@@ -17,19 +17,45 @@ _MINDER_INSTRUCTIONS = """\
 
 Read this guide at session start. It tells you WHEN and in WHAT ORDER to call each tool.
 
+## IMPORTANT — Deferred tool discovery
+
+In some MCP client environments (e.g. Claude Code with deferred tool loading), Minder tools appear
+as names only until a `ToolSearch` or equivalent lookup is performed. If you see only a partial list
+of Minder tools at first, do NOT fall back to generic file/bash tools.
+
+Rules for deferred environments:
+- Call `minder_session_boot` or `minder_auth_ping` first — these are always visible and their
+  responses contain `_next_steps` / `_startup_sequence` that guide you to the next tool.
+- Read `_next_steps` in EVERY tool response — these inline hints tell you exactly what to call next.
+- NEVER assume a Minder tool is unavailable without trying to call it. The server returns a clear
+  error if a tool is truly inaccessible.
+- The `.minder/agent.json` ledger file on disk is optional local metadata — its absence does NOT
+  mean sessions are unavailable. Sessions live server-side; use `minder_session_boot` to create one.
+
 ## Session state to preserve throughout the session
 
 After startup, cache and reuse these values in every subsequent call:
-- `session_id` (UUID string returned by `minder_session_find` or `minder_session_create`)
+- `session_id` (UUID string returned by `minder_session_boot`, `minder_session_find`, or `minder_session_create`)
 - `repo_id` (UUID string from the repository record — found in `minder://repos` resource or session project_context)
 - `current_step` (string: the workflow step name, e.g. `"implement"`, `"review"`, `"write_tests"`)
 
-## Session startup — core sequence (always do this)
+## Session startup — recommended sequence (always do this)
+
+### Option A — single call (preferred)
+
+1. `minder_session_boot(project_name="<project-slug>")` — find-or-create session in one call.
+   - Returns `session_id`, prior `state`, `active_skills`, `project_context`, and `_next_steps`.
+   - Cache `session_id`. Read `_next_steps` and follow them.
+2. `minder_auth_whoami()` — verify identity and available scopes.
+3. If `repo_id` is known: `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
+
+### Option B — explicit two-step
 
 1. `minder_session_find(name="<project-slug>")` — attempt to recover prior context.
-   - Found → cache `session_id` and any `repo_id` / `current_step` from the response. Go to step 2.
+   - Found → cache `session_id`. Read `_next_steps`. Go to step 3.
    - Not found → call `minder_session_create(name="<project-slug>")`, cache the returned `session_id`.
-2. If `repo_id` is known: `minder_workflow_step(repo_id=<repo_id>)` — get `current_step` and workflow position. If you need the full workflow definition (step list, transitions): call `minder_workflow_get(repo_id=<repo_id>, repo_path=<repo_path>)` once — cache the result for the rest of the session.
+2. `minder_auth_whoami()` — verify identity.
+3. If `repo_id` is known: `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
 
 Do NOT call `minder_session_create` if `minder_session_find` returns a result.
 Do NOT call `minder_workflow_get` more than once per session — it's expensive and the definition doesn't change.
@@ -108,14 +134,26 @@ Call `minder_session_summarize` proactively when the conversation exceeds ~20 ex
 
 ## Things to avoid
 
-- Do NOT call `minder_auth_ping` during normal work (connectivity test only).
+- Do NOT fall back to generic bash/file tools when Minder session/workflow tools appear missing — they
+  are deferred, not absent. Call them; the server will error only if truly inaccessible.
+- Do NOT call `minder_auth_ping` during normal work (connectivity test only). If you already called it,
+  read `_startup_sequence` in its response and execute the startup sequence immediately.
 - Do NOT call `minder_memory_compact` unless explicitly asked or `minder_memory_list` returns >10 overlapping entries.
-- Do NOT call `minder_session_list` when you know the project name — use `minder_session_find`.
+- Do NOT call `minder_session_list` when you know the project name — use `minder_session_boot` or `minder_session_find`.
 - Do NOT call `minder_workflow_get` more than once per session — call it during startup if you need the full workflow definition, then cache the result.
-- Do NOT call `minder_session_create` if `minder_session_find` already found the session.
+- Do NOT call `minder_session_create` if `minder_session_find` or `minder_session_boot` already found the session.
 - Do NOT skip `minder_workflow_guard` before starting any workflow step — no exceptions.
 - Do NOT call `minder_skill_import_git` during normal agent workflows — operator/admin use only.
 - Do NOT call `minder_memory_recall` AND `minder_skill_recall` with the same query — choose based on the table above.
+- Do NOT skip `minder_session_save` after significant work — session context is lost on /compact without it.
+
+## Recovery — if you deviated from the startup sequence
+
+If you realize mid-session that you never called `minder_session_boot` / `minder_session_find`:
+1. Call `minder_session_boot(project_name='<project-slug>')` now — it's never too late to establish session context.
+2. Call `minder_workflow_step(repo_id=..., repo_path=...)` to sync workflow position.
+3. Call `minder_skill_recall` and `minder_memory_recall` for the current task.
+4. Call `minder_session_save(session_id=..., state={...})` to checkpoint what you know so far.
 """
 
 

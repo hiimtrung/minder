@@ -119,6 +119,27 @@ def create_session_handlers(
         del user
         return await session_tools.minder_session_summarize(uuid.UUID(session_id))
 
+    async def minder_session_boot(
+        *,
+        user=None,
+        principal: Principal | None = None,
+        project_name: str,
+        repo_id: str | None = None,
+    ) -> dict[str, Any]:
+        resolved_repo_id = await resolve_repo_uuid(repo_id, store) if repo_id else None
+        if isinstance(principal, ClientPrincipal):
+            return await session_tools.minder_session_boot(
+                project_name=project_name,
+                client_id=principal.client_id,
+                repo_id=resolved_repo_id,
+            )
+        authenticated_user = require_authenticated_user(user)
+        return await session_tools.minder_session_boot(
+            project_name=project_name,
+            user_id=authenticated_user.id,
+            repo_id=resolved_repo_id,
+        )
+
     async def minder_session_cleanup(
         *,
         user=None,
@@ -132,6 +153,7 @@ def create_session_handlers(
         return await session_tools.minder_session_cleanup(user_id=authenticated_user.id)
 
     return {
+        "minder_session_boot": minder_session_boot,
         "minder_session_create": minder_session_create,
         "minder_session_find": minder_session_find,
         "minder_session_list": minder_session_list,

@@ -176,6 +176,18 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     # ── Session ───────────────────────────────────────────────────────────────
     ToolMeta(
+        name="minder_session_boot",
+        description=(
+            "RECOMMENDED STARTUP ENTRY POINT. "
+            "Find-or-create a session in one call: tries minder_session_find first; "
+            "if no session exists, creates one automatically. "
+            "Returns session_id, prior state, and a _next_steps guide for the full startup sequence. "
+            "Call this FIRST at every session start instead of calling session_find and session_create separately. "
+            "Example: minder_session_boot(project_name='api-refactor-v2')"
+        ),
+        always_available=True,
+    ),
+    ToolMeta(
         name="minder_session_create",
         description=(
             "Create a named session for this project. Pass a stable slug (e.g. 'api-refactor-v2'). "
@@ -338,6 +350,13 @@ DEFAULT_AGENT_TOOL_SCOPES: frozenset[str] = frozenset(
 
 TOOL_USAGE_PATTERNS: dict[str, str] = {
     # ── Session lifecycle ──────────────────────────────────────────────────────
+    "minder_session_boot": (
+        "CALL FIRST at every session start — replaces the minder_session_find → minder_session_create two-step. "
+        "Pass the stable project slug (e.g. 'api-refactor-v2'). "
+        "Cache the returned session_id immediately. "
+        "Read _next_steps in the response to continue the startup sequence. "
+        "Do NOT call minder_session_find or minder_session_create separately when using minder_session_boot."
+    ),
     "minder_session_find": (
         "FIRST call at every session start — use project name to recover context. "
         "If found: cache the session_id and use it for all subsequent calls. "
@@ -482,7 +501,9 @@ def tool_capability_manifest() -> str:
         "Other",
     ]
     lines = [
-        "Session startup sequence: minder_session_find → (if not found) minder_session_create → minder_workflow_step → minder_skill_recall → minder_memory_recall.",
+        "STARTUP (call minder_session_boot first): minder_session_boot → minder_auth_whoami → minder_workflow_step → minder_skill_recall → minder_memory_recall.",
+        "ALTERNATIVE startup: minder_session_find → (if not found) minder_session_create → then same sequence above.",
+        "Every tool response includes _next_steps — read and follow these hints to stay on the correct path.",
         "Repo-scoped tools (search_code, search_graph, find_impact, workflow_*) require repo_path or repo_id.",
         "Read minder://instructions for the complete sequencing guide before calling any tools.",
     ]

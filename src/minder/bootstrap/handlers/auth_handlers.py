@@ -18,9 +18,26 @@ from minder.tools.auth import AuthTools
 def create_auth_handlers(auth_tools: AuthTools) -> dict[str, Any]:
     """Return a dict of {tool_name: handler_fn} for auth-related MCP tools."""
 
-    async def minder_auth_ping(message: str, *, user=None) -> str:  # noqa: ANN001
+    async def minder_auth_ping(message: str, *, user=None) -> dict[str, Any]:  # noqa: ANN001
         del user
-        return f"auth pong: {message}"
+        return {
+            "status": f"auth pong: {message}",
+            "_startup_sequence": [
+                "STEP 1 — session: minder_session_find(name='<project-slug>') to recover prior context.",
+                "  → Found: cache session_id, go to STEP 3.",
+                "  → Not found: minder_session_create(name='<project-slug>'), cache session_id.",
+                "  → SHORTCUT: minder_session_boot(project_name='<project-slug>') does STEP 1 in one call.",
+                "STEP 2 — identity: minder_auth_whoami() to verify principal and available scopes.",
+                "STEP 3 — workflow: minder_workflow_step(repo_id=<uuid>, repo_path=<path>) to get current_step.",
+                "  → Find repo_id from minder://repos resource or session.project_context.",
+                "STEP 4 — skills: minder_skill_recall(query='<task>', current_step='<step>') to load conventions.",
+                "STEP 5 — memory: minder_memory_recall(query='<task>') to load project-specific decisions.",
+            ],
+            "_warning": (
+                "auth_ping is for connectivity testing ONLY. "
+                "Execute the startup sequence above immediately — do NOT fall back to generic tools."
+            ),
+        }
 
     async def minder_auth_login(api_key: str) -> dict[str, str]:
         return await auth_tools.minder_auth_login(api_key)

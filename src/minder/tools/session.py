@@ -155,6 +155,13 @@ class SessionTools:
         return {
             "session_id": str(session.id),
             "name": session.name,
+            "_next_steps": [
+                f"Cache session_id='{session.id}' — reuse in every subsequent call. Do NOT call minder_session_create again.",
+                "Call minder_auth_whoami() to verify identity and available scopes.",
+                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...).",
+                "Call minder_skill_recall(query='<task>', current_step='<step>') and minder_memory_recall(query='<task>').",
+                "Use minder_session_save(session_id=..., state={...}) after each significant action.",
+            ],
         }
 
     # ------------------------------------------------------------------
@@ -183,14 +190,34 @@ class SessionTools:
             client_id=client_id,
         )
         if session is not None and not self._is_expired(session):
+            repo_id_str = str(session.repo_id) if session.repo_id else None
+            next_steps = [
+                f"Cache session_id='{session.id}' — reuse in every subsequent call.",
+                "Call minder_auth_whoami() to verify identity and available scopes.",
+            ]
+            if repo_id_str:
+                next_steps.append(
+                    f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+                )
+                next_steps.append(
+                    "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+                )
+            else:
+                next_steps.append(
+                    "Find repo_id from minder://repos resource or project_context, then call minder_workflow_step(repo_id=...)."
+                )
+                next_steps.append(
+                    "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+                )
             return {
                 "session_id": str(session.id),
                 "name": session.name,
-                "repo_id": str(session.repo_id) if session.repo_id else None,
+                "repo_id": repo_id_str,
                 "state": session.state,
                 "active_skills": session.active_skills,
                 "project_context": session.project_context,
                 "last_active": _iso(session.last_active),
+                "_next_steps": next_steps,
             }
         raise ValueError(
             f"No session named '{name}' found for the current principal. "
@@ -430,6 +457,79 @@ class SessionTools:
         )
         record_continuity_packet("session_summarize")
         return {"session_id": str(session_id), "summary": summary}
+
+    async def minder_session_boot(
+        self,
+        *,
+        project_name: str,
+        user_id: uuid.UUID | None = None,
+        client_id: uuid.UUID | None = None,
+        repo_id: uuid.UUID | None = None,
+    ) -> dict[str, Any]:
+        """Find-or-create a session in one call — the recommended startup entry point.
+
+        Replaces the two-step minder_session_find → minder_session_create dance.
+        Returns the same payload as minder_session_find plus a ``_next_steps`` guide.
+
+        Usage:
+            result = minder_session_boot(project_name="my-project")
+            session_id = result["session_id"]   # cache this
+            session_found = result["session_found"]
+        """
+        if user_id is None and client_id is None:
+            raise ValueError("Either user_id or client_id must be provided")
+
+        session_found = False
+        try:
+            result = await self.minder_session_find(
+                name=project_name,
+                user_id=user_id,
+                client_id=client_id,
+            )
+            session_found = True
+        except ValueError:
+            result = await self.minder_session_create(
+                user_id=user_id,
+                client_id=client_id,
+                name=project_name,
+                repo_id=repo_id,
+            )
+
+        session_id = result["session_id"]
+        repo_id_str = result.get("repo_id") or (str(repo_id) if repo_id else None)
+
+        next_steps = [
+            f"Cache session_id='{session_id}' — reuse in every subsequent call.",
+            "Call minder_auth_whoami() to verify identity and available scopes.",
+        ]
+        if repo_id_str:
+            next_steps.append(
+                f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+            )
+            next_steps.append(
+                "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+            )
+        else:
+            next_steps.append(
+                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...)."
+            )
+            next_steps.append(
+                "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+            )
+        next_steps.append(
+            "Use minder_session_save(session_id=..., state={...}) after each significant action."
+        )
+
+        return {
+            "session_id": session_id,
+            "name": result.get("name", project_name),
+            "session_found": session_found,
+            "repo_id": repo_id_str,
+            "state": result.get("state", {}),
+            "active_skills": result.get("active_skills", {}),
+            "project_context": result.get("project_context", {}),
+            "_next_steps": next_steps,
+        }
 
     async def minder_session_cleanup(
         self,

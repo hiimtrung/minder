@@ -108,14 +108,14 @@ sudo systemctl enable --now minder
 
 ### launchd Service (macOS)
 
-Create `~/Library/LaunchAgents/asia.tastech.minder.plist`:
+Create `~/Library/LaunchAgents/io.github.hiimtrung.minder.plist`:
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>Label</key><string>asia.tastech.minder</string>
+  <key>Label</key><string>io.github.hiimtrung.minder</string>
   <key>ProgramArguments</key>
   <array>
     <string>/path/to/uv</string>
@@ -132,7 +132,7 @@ Create `~/Library/LaunchAgents/asia.tastech.minder.plist`:
 ```
 
 ```bash
-launchctl load ~/Library/LaunchAgents/asia.tastech.minder.plist
+launchctl load ~/Library/LaunchAgents/io.github.hiimtrung.minder.plist
 ```
 
 ---

@@ -470,6 +470,8 @@ class LangGraphExecutorAdapter:
 
     @staticmethod
     def _wrap_state_handler(handler, use_llm_semaphore: bool = False):  # noqa: ANN001
+        import contextvars
+
         is_async = inspect.iscoroutinefunction(handler)
 
         async def wrapped(state):  # noqa: ANN001
@@ -477,8 +479,12 @@ class LangGraphExecutorAdapter:
             if is_async:
                 result = await handler(graph_state)
             else:
+                # Propagate context vars (including LangGraph's var_child_runnable_config)
+                # into the thread so that interrupt() and get_config() work correctly
+                # when called from synchronous handlers.
+                ctx = contextvars.copy_context()
                 result = await run_in_thread(
-                    handler, graph_state, use_llm_semaphore=use_llm_semaphore
+                    ctx.run, handler, graph_state, use_llm_semaphore=use_llm_semaphore
                 )
             if isinstance(result, GraphState):
                 return dict(result)

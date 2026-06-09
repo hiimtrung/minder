@@ -49,6 +49,9 @@ class _LLMNode:
         }
         return state
 
+    async def arun(self, state: GraphState) -> GraphState:
+        return self.run(state)
+
 
 class _VerificationNode:
     def run(self, state: GraphState) -> GraphState:

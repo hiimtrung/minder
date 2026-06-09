@@ -26,8 +26,12 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_memory_store",
         description=(
-            "Persist a project-specific fact, decision, or constraint as a memory entry. "
-            "Use for information specific to this project or client — not for reusable patterns (use minder_skill_store for those)."
+            "Persist a project-specific fact, decision, or constraint. "
+            "ONLY for knowledge tied to THIS project or client — architectural choices, team conventions, "
+            "project constraints, or past decisions that are not reusable elsewhere. "
+            "If the content would be useful across other projects, use minder_skill_store instead. "
+            "WRONG: 'async SQLAlchemy session pattern' → use minder_skill_store. "
+            "RIGHT: 'this project uses raw SQL, no ORM' → use minder_memory_store."
         ),
     ),
     ToolMeta(
@@ -70,8 +74,11 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_skill_store",
         description=(
-            "Store a reusable workflow pattern, checklist, or code convention as a skill. "
-            "Use for cross-project reusable knowledge — not project-specific facts (use minder_memory_store for those)."
+            "Store a reusable workflow pattern, checklist, or code convention. "
+            "ONLY for knowledge that is useful across multiple projects and codebases. "
+            "If the content is specific to this project, client, or repo, use minder_memory_store instead. "
+            "WRONG: 'this project uses PostgreSQL' → use minder_memory_store. "
+            "RIGHT: 'async SQLAlchemy session management pattern' → use minder_skill_store."
         ),
     ),
     ToolMeta(
@@ -178,12 +185,13 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_session_boot",
         description=(
-            "RECOMMENDED STARTUP ENTRY POINT. "
-            "Find-or-create a session in one call: tries minder_session_find first; "
-            "if no session exists, creates one automatically. "
-            "Returns session_id, prior state, and a _next_steps guide for the full startup sequence. "
-            "Call this FIRST at every session start instead of calling session_find and session_create separately. "
-            "Example: minder_session_boot(project_name='api-refactor-v2')"
+            "MANDATORY FIRST CALL at every session start. "
+            "Find-or-create a session in one call — replaces the session_find → session_create two-step. "
+            "Returns session_id, session_found, prior state, session_summary, and _next_steps. "
+            "Pass project_context with repo_path to seed location even before repo_id is resolved. "
+            "Idempotent: safe to call even if a session already exists. "
+            "Example: minder_session_boot(project_name='api-refactor-v2', "
+            "project_context={'repo_path': '/home/dev/api-refactor'})"
         ),
         always_available=True,
     ),
@@ -412,7 +420,10 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     ),
     "minder_memory_store": (
         "Call when the user states a project-specific fact, decision, or constraint that should persist. "
-        "Do not use for reusable patterns or conventions — use minder_skill_store for those."
+        "Test before calling: 'Is this ONLY true for THIS project?' → Yes → memory_store. "
+        "Test before calling: 'Would this be useful in a different codebase?' → Yes → use minder_skill_store instead. "
+        "WRONG: 'JWT expiry handling checklist' (reusable → skill_store). "
+        "RIGHT: 'this service has non-configurable 15-min JWT expiry' (project fact → memory_store)."
     ),
     "minder_memory_update": (
         "Call only when an existing memory is known to be wrong or outdated. "
@@ -430,7 +441,10 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     ),
     "minder_skill_store": (
         "Call when a reusable workflow pattern, checklist, code template, or convention is identified. "
-        "Must be applicable across projects — project-specific knowledge belongs in memory."
+        "Must be applicable across projects — project-specific knowledge belongs in minder_memory_store. "
+        "Test before calling: 'Would another project team find this useful?' → Yes → skill_store. "
+        "WRONG: 'we use Redis for sessions in this project' (project fact → use minder_memory_store). "
+        "RIGHT: 'Redis session cache-aside pattern with TTL management' (reusable → skill_store)."
     ),
     "minder_skill_update": (
         "Call after observing a skill's effectiveness: "

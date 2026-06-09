@@ -125,6 +125,7 @@ def create_session_handlers(
         principal: Principal | None = None,
         project_name: str,
         repo_id: str | None = None,
+        project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         resolved_repo_id = await resolve_repo_uuid(repo_id, store) if repo_id else None
         if isinstance(principal, ClientPrincipal):
@@ -132,12 +133,14 @@ def create_session_handlers(
                 project_name=project_name,
                 client_id=principal.client_id,
                 repo_id=resolved_repo_id,
+                project_context=project_context,
             )
         authenticated_user = require_authenticated_user(user)
         return await session_tools.minder_session_boot(
             project_name=project_name,
             user_id=authenticated_user.id,
             repo_id=resolved_repo_id,
+            project_context=project_context,
         )
 
     async def minder_session_cleanup(

@@ -468,14 +468,22 @@ class SessionTools:
         user_id: uuid.UUID | None = None,
         client_id: uuid.UUID | None = None,
         repo_id: uuid.UUID | None = None,
+        project_context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """Find-or-create a session in one call — the recommended startup entry point.
 
         Replaces the two-step minder_session_find → minder_session_create dance.
         Returns the same payload as minder_session_find plus a ``_next_steps`` guide.
 
+        Pass ``project_context`` with at minimum ``{"repo_path": "<abs-path>"}`` when
+        starting fresh so the session is seeded with location info even before a
+        ``repo_id`` is resolved.
+
         Usage:
-            result = minder_session_boot(project_name="my-project")
+            result = minder_session_boot(
+                project_name="my-project",
+                project_context={"repo_path": "/abs/path/to/repo"},
+            )
             session_id = result["session_id"]   # cache this
             session_found = result["session_found"]
         """
@@ -496,6 +504,7 @@ class SessionTools:
                 client_id=client_id,
                 name=project_name,
                 repo_id=repo_id,
+                project_context=project_context,
             )
 
         session_id = result["session_id"]

@@ -13,7 +13,7 @@ from minder.store.interfaces import IGraphRepository, IOperationalStore
 from minder.domain.utils import _iso
 
 _MINDER_INSTRUCTIONS = """\
-# Minder MCP — Tool Usage Guide
+# Minder MCP — Tool Usage Guide (26 tools)
 
 Read this guide at session start. It tells you WHEN and in WHAT ORDER to call each tool.
 
@@ -31,8 +31,8 @@ Read this guide at session start. It tells you WHEN and in WHAT ORDER to call ea
   ```
 
   Derive `project_name` from the repository folder name (e.g. `/home/dev/my-api` → `"my-api"`).
-  Pass `project_context` with `repo_path` so the session is seeded even before `repo_id` is known.
-  `minder_session_boot` is idempotent — calling it when a session already exists returns the existing one safely.
+  `minder_session_boot` is idempotent — safe to call even if a session already exists.
+  To restore a specific session by UUID: `minder_session_boot(project_name=..., session_id="<uuid>")`.
 
 - **YES** → proceed with the cached `session_id`.
 
@@ -41,69 +41,59 @@ establishing a session.
 
 ## RULE 2 — Deferred tool discovery
 
-In some environments (e.g. Claude Code), Minder tools appear as names only until fetched.
-If you see only a partial list of tools, do NOT fall back to generic file/bash tools.
+In some environments (e.g. Claude Code), Minder tool **schemas** are deferred — you see tool names
+only. Calling a deferred tool without loading its schema first fails with `InputValidationError`.
 
-- `minder_session_boot` and `minder_auth_ping` are **always visible** — call one of them first.
+**In Claude Code — load schemas FIRST, before any other action:**
+
+```
+ToolSearch(query="select:mcp__minder__minder_session_boot")
+```
+
+Call `minder_session_boot` immediately after. Always use `select:` with exact names — keyword
+searches often miss the `mcp__minder__` prefix.
+
 - Read `_next_steps` in **every** tool response — these inline hints tell you what to call next.
-- NEVER assume a Minder tool is missing without trying to call it. The server returns a clear error
-  if a tool is truly inaccessible.
-- The `.minder/agent.json` file on disk is optional — its absence does NOT mean sessions are
-  unavailable. Sessions are server-side; `minder_session_boot` creates or recovers them.
+- NEVER fall back to generic file/bash tools because a Minder tool appears missing — load it first.
 
 ## Session state to cache throughout the session
 
-After startup, keep these values in your working context and reuse them in every subsequent call:
+After startup, keep these values in your working context:
 
 | Value | Source | Used in |
 |-------|--------|---------|
-| `session_id` | `minder_session_boot` / `minder_session_find` / `minder_session_create` | every session_save, summarize, context call |
+| `session_id` | `minder_session_boot` | every session_save, summarize call |
 | `repo_id` | `minder://repos` resource or `session.project_context` | workflow_*, search_code, search_graph, find_impact |
 | `repo_path` | `minder://repos` or `session.project_context.repo_path` | search_code, search_graph, find_impact |
 | `current_step` | `minder_workflow_step` response | workflow_guard, skill_recall, workflow_update |
 
-## Session startup — full sequence
-
-### Option A — single call (preferred for all new sessions)
+## Session startup — standard sequence
 
 1. `minder_session_boot(project_name="<slug>", project_context={"repo_path": "<path>"})`:
-   - Creates session if none exists; finds and returns existing session if one does.
+   - Find-or-create a session in one call.
    - Returns `session_id`, `session_found`, prior `state`, `session_summary`, and `_next_steps`.
-   - Cache `session_id`. If `session_found=true`, read `session_summary` first — it contains prior task, decisions, and next actions.
-   - Then follow `_next_steps` in the response — they replace the rest of this sequence.
+   - Cache `session_id`. If `session_found=true`, read `session_summary` — it has prior task and next actions.
+   - Follow `_next_steps` in the response.
 
 2. If boot response contains `repo_id` — **run in parallel**:
    - `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` → cache `current_step`
    - `minder_skill_recall(query=<task>, current_step=<step>)` → load step conventions
+   - Pass `include_definition=true` on the first call to also get the full workflow definition.
 
 3. If boot response has **no** `repo_id`:
    - `minder_skill_recall(query=<task>)` + `minder_memory_recall(query=<task>)` — no repo required.
    - Read `minder://repos` only if you need to link the session to a registered repository.
 
-### Option B — explicit two-step (fallback if boot is unavailable)
-
-1. `minder_session_find(name="<slug>")`:
-   - Found → cache `session_id`, read `_next_steps`, go to step 2.
-   - Not found → `minder_session_create(name="<slug>", project_context={"repo_path": "<path>"})`, cache `session_id`.
-2. If `repo_id` is known — **run in parallel**:
-   - `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` → cache `current_step`
-   - `minder_skill_recall(query=<task>)` → load step conventions
-
-Do NOT call `minder_session_create` if `minder_session_find` returned a result.
-Do NOT call `minder_workflow_get` more than once per session — the definition doesn't change.
-
 ## Per-step workflow sequence
 
 Before starting or switching to a new workflow step:
-1. `minder_workflow_guard(repo_id=<repo_id>, requested_step=<step-name>)` — **MANDATORY**. If `passed=false`, stop and surface the blocking reason. No exceptions.
+1. `minder_workflow_guard(repo_id=<repo_id>, requested_step=<step-name>)` — **MANDATORY**. If `allowed=false`, stop. No exceptions.
 2. `minder_skill_recall(query=<task>, current_step=<step-name>)` — load step conventions and checklists.
 3. Do the work (search, implement, review, etc.).
 4. `minder_workflow_update(repo_id=<repo_id>, completed_step=<step-name>, artifact_name=<artifact>, artifact_content=<content>)` — only when ALL required artifacts are complete.
 5. `minder_session_save(session_id=<session_id>, state={"task": ..., "step": ..., "next_steps": [...]})` — checkpoint.
 
 ## Memory vs Skills — reading AND writing
-
-**The same rule applies whether you are reading (recall) or writing (store).**
 
 Ask yourself one question:
 
@@ -118,14 +108,12 @@ Ask yourself one question:
 | "This project uses cursor-based pagination, not offset" | `memory_store` / `memory_recall` |
 | "Auth token TTL is 15 min — non-configurable in this service" | `memory_store` / `memory_recall` |
 | "We always deploy staging before prod in this repo" | `memory_store` / `memory_recall` |
-| "Prior architectural decision: no ORM, raw SQL only here" | `memory_store` / `memory_recall` |
 | Cursor-based pagination pattern for REST APIs (reusable) | `skill_store` / `skill_recall` |
 | JWT expiry handling checklist | `skill_store` / `skill_recall` |
 | Blue-green deployment checklist | `skill_store` / `skill_recall` |
-| SQLAlchemy async session management pattern | `skill_store` / `skill_recall` |
 
-**Wrong ✗**: storing `"this project uses PostgreSQL"` in `minder_skill_store` — that is a project fact.
-**Wrong ✗**: storing `"async SQLAlchemy session pattern"` in `minder_memory_store` — that is a reusable skill.
+To **update** an existing memory: `minder_memory_store(memory_id=<id>, title=..., content=...)`.
+To **update** an existing skill: `minder_skill_store(skill_id=<id>, ...)`. Pass `deprecated=True` to retire.
 
 Skills are project-agnostic — `minder_skill_recall` does NOT require `repo_path`.
 Do NOT call both recall tools with the same query — choose one based on the table above.
@@ -139,7 +127,7 @@ Do NOT call both recall tools with the same query — choose one based on the ta
 | "What depends on file / module Y?" | `minder_find_impact(target=..., repo_path=...)` |
 | "Has this error occurred before?" | `minder_search_errors(query=...)` — no repo_path needed |
 
-Call `minder_find_impact` before modifying any shared module, route, or service — not just when explicitly asked.
+Call `minder_find_impact` before modifying any shared module, route, or service.
 
 ## Tool dependency map — what you need before each call
 
@@ -153,13 +141,21 @@ Call `minder_find_impact` before modifying any shared module, route, or service 
 | `minder_workflow_guard` | `session_id` + `repo_id` + `current_step` from workflow_step |
 | `minder_workflow_update` | all of the above + completed artifacts |
 
-If a required value is missing, resolve it before proceeding — do not skip or substitute.
+## Session context — branch and file tracking
+
+When switching git branches or opening new files, pass them directly to `minder_session_save`:
+
+```
+minder_session_save(session_id=..., state={...}, branch="feature/my-branch", open_files=["src/foo.py"])
+```
+
+No separate context tool required.
 
 ## How to obtain repo_id and repo_path
 
-- Read `minder://repos` resource — returns a list with `id` (UUID) and `path` (absolute path) for every registered repository.
-- Or read `session.project_context` from `minder_session_find` / `minder_session_boot` — may contain `repo_id` and `repo_path` if set during boot.
-- If the repo is not yet registered, the LLM cannot obtain a `repo_id` — use `minder_session_save` to store `repo_path` in `project_context` and skip workflow tools until the repo is registered.
+- Read `minder://repos` resource — returns a list with `id` (UUID) and `path` for each registered repository.
+- Or read `session.project_context` from `minder_session_boot` — may contain `repo_id` and `repo_path`.
+- If the repo is not yet registered, skip workflow tools and store `repo_path` in `project_context` via `minder_session_save`.
 
 ## Session save frequency
 
@@ -174,7 +170,7 @@ Rule of thumb: every 5–10 user messages. Context is lost on `/compact` without
 ## Wrapping up / before /compact
 
 1. `minder_session_save(session_id=..., state={current progress snapshot})` — persist state.
-2. `minder_session_summarize(session_id=...)` — structured summary (task, steps done, blockers, next actions). This summary is returned by `minder_session_boot` / `minder_session_find` on the next session.
+2. `minder_session_summarize(session_id=...)` — structured summary (task, steps done, blockers, next actions). Recovered by `minder_session_boot` on next session.
 
 Call `minder_session_summarize` proactively when the conversation exceeds ~20 exchanges.
 
@@ -188,26 +184,21 @@ Call `minder_session_summarize` proactively when the conversation exceeds ~20 ex
 
 - Do NOT call any Minder tool before establishing a session (`minder_session_boot`). No exceptions.
 - Do NOT fall back to generic bash/file tools when Minder tools appear missing — they are deferred, not absent.
-- Do NOT call `minder_auth_ping` during normal work (connectivity test only). If you already called it, execute `_startup_sequence` from its response immediately.
-- Do NOT call `minder_auth_whoami()` during startup — `minder_session_boot` already confirms auth. Only call it to inspect available scopes explicitly.
-- Do NOT write project-specific facts (decisions, constraints, architecture choices) to `minder_skill_store` — use `minder_memory_store`.
-- Do NOT write reusable patterns or conventions to `minder_memory_store` — use `minder_skill_store`.
-- Do NOT call `minder_memory_recall` AND `minder_skill_recall` with the same query — choose based on the decision table above.
-- Do NOT call `minder_memory_compact` unless `minder_memory_list` returns >10 overlapping entries or the user explicitly asks.
-- Do NOT call `minder_session_list` when you know the project name — use `minder_session_boot` or `minder_session_find`.
-- Do NOT call `minder_workflow_get` more than once per session.
-- Do NOT call `minder_session_create` if `minder_session_find` or `minder_session_boot` already found the session.
+- Do NOT call `minder_auth_whoami()` during startup — `minder_session_boot` already confirms auth. Only call it to inspect available scopes.
+- Do NOT write project-specific facts to `minder_skill_store` — use `minder_memory_store`.
+- Do NOT write reusable patterns to `minder_memory_store` — use `minder_skill_store`.
+- Do NOT call `minder_memory_recall` AND `minder_skill_recall` with the same query — choose one.
+- Do NOT call `minder_session_list` when you know the project name — use `minder_session_boot`.
 - Do NOT skip `minder_workflow_guard` before starting any workflow step.
-- Do NOT call `minder_skill_import_git` during normal agent workflows — operator/admin use only.
 - Do NOT skip `minder_session_save` after significant work.
 
 ## Recovery — if you deviated from the startup sequence
 
-If you realise mid-session that you never called `minder_session_boot`:
-1. Call `minder_session_boot(project_name='<slug>', project_context={"repo_path": "<path>"})` — it's never too late.
+If you never called `minder_session_boot`:
+1. Call `minder_session_boot(project_name='<slug>', project_context={"repo_path": "<path>"})`.
 2. Call `minder_workflow_step(repo_id=..., repo_path=...)` to sync workflow position.
 3. Call `minder_skill_recall` and `minder_memory_recall` for the current task.
-4. Call `minder_session_save(session_id=..., state={...})` to checkpoint what you know so far.
+4. Call `minder_session_save(session_id=..., state={...})` to checkpoint.
 """
 
 

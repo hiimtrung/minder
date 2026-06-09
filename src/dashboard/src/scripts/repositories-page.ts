@@ -1157,6 +1157,7 @@ async function loadWorkflows(): Promise<void> {
 function populateWorkflowSelector(): void {
   const select = getEl<HTMLSelectElement>("repo-settings-workflow");
   if (!select) return;
+  const currentValue = activeRepository?.workflow_id ?? select.value ?? "";
   select.innerHTML = [
     `<option value="">No workflow assigned</option>`,
     ...workflows.map(
@@ -1164,6 +1165,9 @@ function populateWorkflowSelector(): void {
         `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`,
     ),
   ].join("");
+  if (currentValue) {
+    select.value = currentValue;
+  }
 }
 
 // ============================================================

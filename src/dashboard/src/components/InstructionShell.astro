@@ -19,6 +19,14 @@ Emit a \`[TRACE]\` line after every major action: \`[TRACE] <phase> | <action> |
 
 **1 — Boot Session (no agent.json required)**
 
+**In Claude Code (deferred tools):** Tool schemas are not loaded until fetched. Before calling any
+Minder tool, run this FIRST:
+\`\`\`
+ToolSearch(query="select:mcp__minder__minder_session_boot,mcp__minder__minder_auth_whoami")
+\`\`\`
+Do NOT use keyword searches — tools are prefixed \`mcp__minder__\` and keyword matching misses them.
+Always use \`select:\` with exact names.
+
 Derive \`project_name\` from the repository folder name (e.g. \`/home/dev/my-api\` → \`"my-api"\`).
 Get \`repo_path\` from the current working directory.
 
@@ -167,19 +175,17 @@ If nothing project-specific: \`[TRACE] PHASE-D | memory_store | skipped | reason
 Apply §2 decision check before each call — do NOT store project facts here.
 If nothing reusable: \`[TRACE] PHASE-D | skill_store | skipped | reason=<specific>\`
 
-**D5** — \`minder_session_save(session_id=..., state={task, step, next_steps, key_decisions})\`.
+**D5** — \`minder_session_save(session_id=..., state={task, step, next_steps, key_decisions}, branch=..., open_files=[...])\`.
+Pass \`branch\` and \`open_files\` here — no separate context call needed.
 \`[TRACE] PHASE-D | session_save | minder_session_save | ok\`
 
-**D6** — \`minder_session_context(session_id=..., branch=..., open_files=[...])\`.
-\`[TRACE] PHASE-D | session_context | minder_session_context | ok\`
-
-**D7** — Write \`.minder/agent.json\` with new \`current_step\`, \`repo_id\`, and \`updated_at\`.
+**D6** — Write \`.minder/agent.json\` with new \`current_step\`, \`repo_id\`, and \`updated_at\`.
 \`[TRACE] PHASE-D | update_ledger | none | current_step=<step>\`
 
-**D8 — Finalization Checklist** (output verbatim, YES/NO with reason if NO):
+**D7 — Finalization Checklist** (output verbatim, YES/NO with reason if NO):
 \`\`\`
 □ D1 artifact_submit  □ D2 advance_workflow  □ D3 memory_store (project facts only)
-□ D4 skill_store (reusable only)  □ D5 session_save  □ D6 session_context  □ D7 ledger_updated
+□ D4 skill_store (reusable only)  □ D5 session_save  □ D6 ledger_updated
 \`\`\`
 > No final response until this checklist is complete.
 
@@ -195,7 +201,7 @@ If nothing reusable: \`[TRACE] PHASE-D | skill_store | skipped | reason=<specifi
 - If search is empty/stale → tell user to run \`minder sync\`.
 - **Pass \`session_id\` to \`minder_skill_recall\` and \`minder_memory_recall\`** — writes context to session history so \`minder_query\` sees it without re-fetching. Without \`session_id\`, recalled data is lost after \`/compact\`.
 - **Do NOT call \`minder_auth_whoami\` during normal work** — \`minder_session_boot\` already confirms auth. Only call it to inspect available scopes explicitly.
-- **Do NOT call \`minder_workflow_get\` more than once per session** — use \`minder_workflow_step\` for current step queries.
+- **Use \`minder_workflow_step(include_definition=true)\` once at session start** to get the full workflow definition; subsequent calls omit \`include_definition\`.
 
 ### session_id continuity examples
 \`\`\`

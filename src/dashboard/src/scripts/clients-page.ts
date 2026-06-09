@@ -71,9 +71,7 @@ const presets: Record<string, string[]> = {
     "minder_search",
     "minder_memory_recall",
     "minder_memory_list",
-    "minder_workflow_get",
-    "minder_session_restore",
-    "minder_session_context",
+    "minder_workflow_step",
   ],
   full: [
     "minder_memory_store",
@@ -84,14 +82,11 @@ const presets: Record<string, string[]> = {
     "minder_search_code",
     "minder_search_errors",
     "minder_query",
-    "minder_workflow_get",
     "minder_workflow_step",
     "minder_workflow_update",
     "minder_workflow_guard",
-    "minder_session_create",
+    "minder_session_boot",
     "minder_session_save",
-    "minder_session_restore",
-    "minder_session_context",
   ],
 };
 
@@ -110,9 +105,7 @@ const editPresets: Record<string, string[]> = {
     "minder_search",
     "minder_memory_recall",
     "minder_memory_list",
-    "minder_workflow_get",
-    "minder_session_restore",
-    "minder_session_context",
+    "minder_workflow_step",
   ],
   full: [
     "minder_memory_store",
@@ -123,14 +116,11 @@ const editPresets: Record<string, string[]> = {
     "minder_search_code",
     "minder_search_errors",
     "minder_query",
-    "minder_workflow_get",
     "minder_workflow_step",
     "minder_workflow_update",
     "minder_workflow_guard",
-    "minder_session_create",
+    "minder_session_boot",
     "minder_session_save",
-    "minder_session_restore",
-    "minder_session_context",
   ],
 };
 

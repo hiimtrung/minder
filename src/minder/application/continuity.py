@@ -42,9 +42,8 @@ def required_artifacts_for_step(step_name: str | None) -> list[str]:
 def allowed_tools_for_step(step_name: str | None) -> list[str]:
     normalized = normalize_step_name(step_name)
     base_tools = [
-        "minder_session_restore",
+        "minder_session_boot",
         "minder_session_save",
-        "minder_session_context",
         "minder_memory_recall",
         "minder_workflow_step",
         "minder_workflow_guard",

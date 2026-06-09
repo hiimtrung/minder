@@ -148,7 +148,7 @@ def test_reasoning_node_describes_capabilities_without_repo_context() -> None:
         "STARTUP (call minder_session_boot first)"
         in reasoned.reasoning_output["prompt"]
     )
-    assert "minder_auth_manage" in reasoned.reasoning_output["prompt"]
+    assert "minder_auth_whoami" in reasoned.reasoning_output["prompt"]
 
 
 def test_guard_blocks_unsafe_output() -> None:

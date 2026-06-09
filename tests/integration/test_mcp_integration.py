@@ -186,8 +186,8 @@ async def test_mcp_auth_and_session_flow(
 
     # 4. Workflow tools report current step and next step.
     workflow_info = await transport.call_tool(
-        "minder_workflow_get",
-        arguments={"repo_id": str(repo.id), "repo_path": str(repo_path)},
+        "minder_workflow_step",
+        arguments={"repo_id": str(repo.id), "repo_path": str(repo_path), "include_definition": True},
         authorization=authorization,
     )
     assert workflow_info["workflow"]["name"] == "tdd"

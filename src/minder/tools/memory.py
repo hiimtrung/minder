@@ -83,7 +83,17 @@ class MemoryTools:
         language: str,
         owner_id: uuid.UUID | None = None,
         scope: str = "private",
+        memory_id: str | None = None,
     ) -> dict[str, Any]:
+        """Create a new memory entry, or update an existing one when ``memory_id`` is supplied."""
+        if memory_id is not None:
+            return await self._service.minder_memory_update(
+                memory_id,
+                title=title,
+                content=content,
+                tags=tags,
+                owner_id=owner_id,
+            )
         return await self._service.minder_memory_store(
             title=title,
             content=content,

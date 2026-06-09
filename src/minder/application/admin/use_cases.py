@@ -80,15 +80,15 @@ DASHBOARD_TOOL_SCOPE_PRESETS: dict[str, list[str]] = {
         "minder_search_errors",
         "minder_memory_recall",
         "minder_skill_recall",
-        "minder_workflow_get",
+        "minder_workflow_step",
     ],
     "Full Dev Assistant": [
         "minder_search_code",
         "minder_search_errors",
         "minder_memory_recall",
         "minder_skill_recall",
-        "minder_workflow_get",
         "minder_workflow_step",
+        "minder_workflow_guard",
     ],
 }
 

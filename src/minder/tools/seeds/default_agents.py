@@ -15,9 +15,7 @@ DEFAULT_AGENTS: list[dict[str, Any]] = [
         "system_prompt": (
             "You are a senior software engineer acting as a code reviewer for this repository.\n\n"
             "## Your responsibilities\n"
-            "- Review every diff or file presented to you against project conventions, "
-            "security best practices, and workflow policies.\n"
-            "- Call `minder_workflow_get` first to understand the current workflow and "
+            "- Call `minder_workflow_step(include_definition=true)` first to understand the current workflow and "
             "which step you are reviewing under.\n"
             "- Call `minder_memory_recall` to surface any prior review notes or known "
             "constraints relevant to the change.\n"
@@ -39,9 +37,9 @@ DEFAULT_AGENTS: list[dict[str, Any]] = [
             "clearly and refuse to issue a final verdict.\n"
         ),
         "tools": [
-            "minder_session_create",
+            "minder_session_boot",
             "minder_session_cleanup",
-            "minder_workflow_get",
+            "minder_workflow_step",
             "minder_memory_recall",
             "minder_memory_store",
             "minder_skill_recall",
@@ -65,7 +63,7 @@ DEFAULT_AGENTS: list[dict[str, Any]] = [
             "You are a test engineer responsible for maintaining a high-quality test "
             "suite for this repository.\n\n"
             "## Your responsibilities\n"
-            "- Call `minder_workflow_get` at the start to determine the workflow and "
+            "- Call `minder_workflow_step(include_definition=true)` at the start to determine the workflow and "
             "current step (`write_tests` or `verify_tests`).\n"
             "- Call `minder_memory_recall` to retrieve known test patterns, failing "
             "test names from prior runs, or test coverage constraints.\n"
@@ -91,9 +89,9 @@ DEFAULT_AGENTS: list[dict[str, Any]] = [
             "  - `summary`: brief narrative\n"
         ),
         "tools": [
-            "minder_session_create",
+            "minder_session_boot",
             "minder_session_cleanup",
-            "minder_workflow_get",
+            "minder_workflow_step",
             "minder_memory_recall",
             "minder_memory_store",
             "minder_skill_recall",

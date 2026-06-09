@@ -178,9 +178,9 @@ async def test_server_build_transport_registers_expected_tools(
     tool_names = transport.list_tools()
 
     assert "minder_auth_login" in tool_names
-    assert "minder_session_create" in tool_names
+    assert "minder_session_boot" in tool_names
     assert "minder_session_cleanup" in tool_names
-    assert "minder_workflow_get" in tool_names
+    assert "minder_workflow_step" in tool_names
     assert "minder_search_code" in tool_names
 
 

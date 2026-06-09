@@ -229,23 +229,23 @@ async def test_session_summarize_rejects_unknown_session(store: RelationalStore)
 
 def test_tool_usage_patterns_non_empty() -> None:
     assert len(TOOL_USAGE_PATTERNS) >= 10
-    assert "minder_memory_update" in TOOL_USAGE_PATTERNS
+    assert "minder_memory_store" in TOOL_USAGE_PATTERNS
     assert "minder_session_summarize" in TOOL_USAGE_PATTERNS
-    assert "minder_skill_update" in TOOL_USAGE_PATTERNS
+    assert "minder_skill_store" in TOOL_USAGE_PATTERNS
     assert "minder_workflow_guard" in TOOL_USAGE_PATTERNS
 
 
 def test_tool_capability_manifest_includes_patterns() -> None:
     manifest = tool_capability_manifest()
     assert "Key sequencing rules:" in manifest
-    assert "minder_memory_update" in manifest
+    assert "minder_memory_store" in manifest
     assert "minder_session_summarize" in manifest
     assert "deprecated" in manifest
 
 
 def test_tool_capability_manifest_includes_new_tools() -> None:
     manifest = tool_capability_manifest()
-    assert "minder_memory_update" in manifest
+    assert "minder_memory_store" in manifest
     assert "minder_session_summarize" in manifest
 
 

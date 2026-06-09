@@ -77,6 +77,7 @@ class WorkflowTools:
         session_id: uuid.UUID | None = None,
         decision: dict[str, Any] | None = None,
         branch: str = "main",
+        include_definition: bool = False,
     ) -> dict[str, Any]:
         if session_id is not None or decision is not None:
             if session_id is None or decision is None:
@@ -121,7 +122,7 @@ class WorkflowTools:
         )
         for _k in ("workflow_id", "workflow_version", "policies"):
             envelope.pop(_k, None)
-        return {
+        result: dict[str, Any] = {
             "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
             "instruction_envelope": envelope,
@@ -133,6 +134,19 @@ class WorkflowTools:
                 "After completing step artifacts: call minder_workflow_update(repo_id=..., completed_step=...) to advance.",
             ],
         }
+        if include_definition:
+            await self._repo_state.write_relationships(
+                repo_path,
+                dict(repo.relationships) if isinstance(repo.relationships, dict) else {},
+                branch=branch,
+            )
+            result["workflow"] = {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "steps": list(workflow.steps),
+                "policies": dict(workflow.policies),
+            }
+        return result
 
     async def minder_workflow_update(
         self,

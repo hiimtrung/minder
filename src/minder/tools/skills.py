@@ -36,7 +36,25 @@ class SkillTools:
         quality_score: float = 0.0,
         source_metadata: dict[str, Any] | None = None,
         excerpt_kind: str = "none",
+        skill_id: str | None = None,
+        deprecated: bool | None = None,
     ) -> dict[str, Any]:
+        """Create a new skill, or update an existing one when ``skill_id`` is supplied."""
+        if skill_id is not None:
+            return await self._service.minder_skill_update(
+                skill_id,
+                title=title,
+                content=content,
+                language=language,
+                tags=tags,
+                workflow_steps=workflow_steps,
+                artifact_types=artifact_types,
+                provenance=provenance,
+                quality_score=quality_score,
+                deprecated=deprecated,
+                source_metadata=source_metadata,
+                excerpt_kind=excerpt_kind,
+            )
         return await self._service.minder_skill_store(
             title=title,
             content=content,

@@ -3,7 +3,6 @@ import pytest_asyncio
 from datetime import UTC, datetime
 from httpx import ASGITransport
 from httpx import AsyncClient
-from pathlib import Path
 import uuid
 
 from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport

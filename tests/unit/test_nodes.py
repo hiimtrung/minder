@@ -144,10 +144,7 @@ def test_reasoning_node_describes_capabilities_without_repo_context() -> None:
     reasoned = ReasoningNode().run(state)
 
     assert "No repository is currently selected" in reasoned.reasoning_output["prompt"]
-    assert (
-        "STARTUP (call minder_session_boot first)"
-        in reasoned.reasoning_output["prompt"]
-    )
+    assert "STARTUP: minder_session_boot" in reasoned.reasoning_output["prompt"]
     assert "minder_auth_whoami" in reasoned.reasoning_output["prompt"]
 
 

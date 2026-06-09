@@ -2,8 +2,10 @@ import {
   addRepositoryBranch,
   deleteRepositoryBranchLink,
   deleteRepository,
+  getCliStatus,
   getRepositoryBranchLinks,
   getRepositoryBranches,
+  type CliStatusPayload,
   type RepositoryGraphImpactPayload,
   getRepositoryGraphImpact,
   getRepositoryGraphMap,
@@ -17,6 +19,7 @@ import {
   removeRepositoryBranch,
   searchAdminCatalog,
   searchRepositoryGraph,
+  triggerRepositorySync,
   upsertRepositoryBranchLink,
   updateRepository,
   type RepositoryBranchLinkPayload,
@@ -28,7 +31,7 @@ import {
   type RepositoryLandscapePayload,
   type RepositoryPayload,
 } from "../lib/api/admin";
-import { showDangerConfirm } from "./modal-controller";
+import { showConfirm, showDangerConfirm } from "./modal-controller";
 import { createDebouncedHandler } from "./catalog-controls";
 
 import {
@@ -865,6 +868,7 @@ let activeBranch: string | null = null; // currently selected branch for graph v
 let selectedNodeId: string | null = null;
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
 let repositoryQuery = "";
+let cliStatus: CliStatusPayload | null = null;
 
 function requestedRepositoryId(): string | null {
   const fromAttr =
@@ -1183,6 +1187,68 @@ async function loadWorkflows(): Promise<void> {
     populateWorkflowSelector();
   } catch (err) {
     console.error("Failed to load workflows:", err);
+  }
+}
+
+async function loadCliStatus(): Promise<void> {
+  try {
+    cliStatus = await getCliStatus();
+  } catch {
+    cliStatus = { installed: false, version: null, path: null };
+  }
+  const badge = getEl("cli-version-badge");
+  const badgeText = getEl("cli-version-text");
+  const dot = getEl("cli-version-dot");
+  if (!badge || !badgeText) return;
+  if (cliStatus.installed && cliStatus.version) {
+    badgeText.textContent = `minder v${cliStatus.version}`;
+    badge.classList.remove("hidden");
+  } else {
+    badgeText.textContent = "minder CLI not installed";
+    if (dot) (dot as HTMLElement).style.background = "#ef4444";
+    badge.classList.remove("hidden");
+  }
+}
+
+async function handleSyncNow(): Promise<void> {
+  if (!activeRepositoryId) {
+    setText(getEl("repo-sync-status"), "Select a repository first.");
+    return;
+  }
+
+  if (cliStatus && !cliStatus.installed) {
+    await showConfirm(
+      "The minder CLI is not installed on this machine.\n\n" +
+        "Install it with:\n  pip install minder-cli\n\nOr download from https://github.com/hiimtrung/minder/releases",
+      "Install minder CLI",
+      "OK",
+    );
+    return;
+  }
+
+  const btn = getEl<HTMLButtonElement>("repo-sync-btn");
+  if (btn) btn.disabled = true;
+  setText(getEl("repo-sync-status"), "Scanning…");
+
+  try {
+    const res = await triggerRepositorySync(activeRepositoryId);
+    setText(
+      getEl("repo-sync-status"),
+      `Synced: ${res.nodes_upserted} nodes, ${res.edges_upserted} edges (${res.branch ?? "main"})`,
+    );
+    await refreshActiveGraph();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Sync failed.";
+    if (msg.includes("not found on this machine") || msg.includes("path_not_found")) {
+      setText(
+        getEl("repo-sync-status"),
+        "⚠ Repository path not found on this machine — sync skipped.",
+      );
+    } else {
+      setText(getEl("repo-sync-status"), msg);
+    }
+  } finally {
+    if (btn) btn.disabled = false;
   }
 }
 
@@ -1951,6 +2017,10 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
   }
 });
 
+getEl("repo-sync-btn")?.addEventListener("click", () => {
+  void handleSyncNow();
+});
+
 // ============================================================
 // Init — default tab is "graph" (applied at page load)
 // ============================================================
@@ -1958,5 +2028,6 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
 // Overview is the default tab on page load.
 switchTab("overview");
 
+void loadCliStatus();
 void loadWorkflows();
 void loadRepositories();

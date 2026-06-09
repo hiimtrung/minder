@@ -15,74 +15,118 @@ Emit a \`[TRACE]\` line after every major action: \`[TRACE] <phase> | <action> |
 
 ## PRE-FLIGHT — Every Interaction (before any code or response)
 
-**1 — Recover Session**
-Read \`.minder/agent.json\`. Call \`minder_session_find(name=...)\` using the session name from the ledger.
-- Found → load \`session_id\` + \`workflow\`, verify vs ledger.
-- Not found → \`minder_session_create(name=...)\`, write ledger.
-\`[TRACE] PRE-FLIGHT:1 | recover_session | minder_session_find | <outcome>\`
+> **GATE**: No code, no proposals, no workflow actions until pre-flight 1–3 are done.
 
-**2 — Verify Identity**
-Call \`minder_auth_whoami\`. Stop if principal is unexpected.
-\`[TRACE] PRE-FLIGHT:2 | verify_identity | minder_auth_whoami | principal=<user>\`
+**1 — Boot Session (no agent.json required)**
 
-**3 — Load Workflow**
-Call \`minder_workflow_get\` then \`minder_workflow_step\`. Read \`instruction_envelope\`:
+Derive \`project_name\` from the repository folder name (e.g. \`/home/dev/my-api\` → \`"my-api"\`).
+Get \`repo_path\` from the current working directory.
+
+Call:
+\`\`\`
+minder_session_boot(
+  project_name="<repo-folder-name>",
+  project_context={"repo_path": "<absolute-cwd>"}
+)
+\`\`\`
+
+- \`session_found=true\` → session recovered. Cache \`session_id\`. Read \`session_summary\` for orientation. Verify \`repo_id\` and \`repo_path\`.
+- \`session_found=false\` → session created. Cache \`session_id\`. Write \`.minder/agent.json\` ledger (see §1).
+
+Read \`_next_steps\` in the response and follow it — it overrides the generic steps below when more specific.
+\`[TRACE] PRE-FLIGHT:1 | boot_session | minder_session_boot | session_found=<t/f>, session_id=<id>\`
+
+**2 — Sync Workflow and Load Context (run in parallel when repo_id available)**
+
+If boot response contains \`repo_id\`:
+- **Run simultaneously**:
+  - \`minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)\` → cache \`current_step\`, \`instruction_envelope\`
+  - \`minder_skill_recall(query=<task>, current_step=<step>, session_id=<sid>)\` → reusable patterns
+- Then: \`minder_memory_recall(query=<task>, session_id=<sid>)\` → project decisions, constraints
+
+If boot response has **no** \`repo_id\` (repo not yet registered):
+- \`minder_skill_recall(query=<task>, session_id=<sid>)\` + \`minder_memory_recall(query=<task>, session_id=<sid>)\`
+- Read \`minder://repos\` to find if the repo is registered under a different name.
+
+Read \`instruction_envelope\` from \`minder_workflow_step\` if returned:
 
 | Field | Meaning |
 |---|---|
 | \`current_step\` | Only step you may work on |
 | \`required_artifacts\` | Must produce all before step completes |
 | \`output_contract\` | Required output format |
-| \`allowed_tools\` | Minder tools in scope |
+| \`allowed_tools\` | Minder tools in scope for this step |
 | \`forbidden_actions\` | Hard STOPs |
 
-Update \`.minder/agent.json\` with \`workflow.id\`, \`workflow.name\`, \`workflow.current_step\`.
-\`[TRACE] PRE-FLIGHT:3 | load_workflow | minder_workflow_step | step=<step>\`
+Update \`.minder/agent.json\` with \`workflow.current_step\` after this step.
+\`[TRACE] PRE-FLIGHT:2 | workflow_step | minder_workflow_step | step=<step>\`
+\`[TRACE] PRE-FLIGHT:2 | recall_skills | minder_skill_recall | <summary>\`
+\`[TRACE] PRE-FLIGHT:2 | recall_memory | minder_memory_recall | <summary>\`
 
-**4 — Recall Context**
-Call all four — never skip. Pass \`session_id\` to recall tools so results are written to session history and visible to \`minder_query\`:
-1. \`minder_memory_recall(query=..., session_id=session_id)\` — past decisions, constraints
-2. \`minder_skill_recall(query=..., current_step=current_step, session_id=session_id)\` — reusable patterns
-3. \`minder_search_code\` — actual source nodes (never guess paths)
-4. \`minder_search_graph\` — dependency signals
+**3 — Code Context**
 
-\`[TRACE] PRE-FLIGHT:4 | <tool_purpose> | <tool> | <summary>\` (one per call)
-
-**5 — Index Freshness**
-If search returns empty/stale results, tell user to run \`minder sync\` before continuing.
-
-> **GATE**: No code, no proposals, no workflow tools until all 5 pre-flight steps are done.
+\`minder_search_code(query=<task>, repo_path=<path>)\` — locate relevant source files. Never guess paths.
+\`minder_search_graph(query=<task>, repo_path=<path>)\` — dependency signals.
+If results are empty or stale → tell user to run \`minder sync\` before continuing.
+\`[TRACE] PRE-FLIGHT:3 | search_code | minder_search_code | <summary>\`
+\`[TRACE] PRE-FLIGHT:3 | search_graph | minder_search_graph | <summary>\`
 
 ---
 
 ## 1. Session Ledger
 
-Maintain \`.minder/agent.json\` with exactly this schema at all times:
+\`.minder/agent.json\` is written AFTER boot, not read before it. The file is optional metadata — its absence does NOT block Minder; call \`minder_session_boot\` regardless.
+
+Maintain with exactly this schema:
 
 \`\`\`json
 {
   "repo_path": "/absolute/path/to/repo",
-  "session_name": "repo-slug--client-slug",
+  "session_name": "<repo-folder-name>",
   "session_id": "uuid-from-minder",
+  "repo_id": "uuid-or-null",
   "workflow": { "id": "", "name": "", "current_step": "" },
   "updated_at": "ISO-8601",
   "notes": ""
 }
 \`\`\`
 
-- \`session_name\` must be unique and stable.
+Rules:
+- \`session_name\` = repo folder name — stable and derivable without reading any file.
 - \`repo_path\` must match cwd before any tool call.
-- Use \`session_id\` from ledger — never hardcode.
+- Use \`session_id\` from boot — never hardcode.
 - Refresh \`workflow\` after every \`minder_workflow_*\` call.
-- \`minder_session_list\` only for diagnostics, never routine recovery.
 - Never mix sessions across repos.
+- \`minder_session_list\` only for diagnostics, never routine recovery.
 
 ---
 
-## 2. Lifecycle
+## 2. Memory vs Skills — WRITE the right store (mandatory check before every store call)
+
+Before calling \`minder_memory_store\` or \`minder_skill_store\`, ask:
+
+> **"Is this knowledge ONLY applicable to THIS specific project or client?"**
+> - YES → \`minder_memory_store\` (project fact, decision, constraint)
+> - NO  → \`minder_skill_store\`  (reusable pattern, checklist, convention)
+
+| Content | Correct tool |
+|---------|-------------|
+| "This project uses cursor-based pagination, not offset" | \`minder_memory_store\` |
+| "Auth token TTL is 15 min, non-configurable here" | \`minder_memory_store\` |
+| "Payment service only accepts idempotency keys in this repo" | \`minder_memory_store\` |
+| Cursor-based pagination pattern for REST APIs (any project) | \`minder_skill_store\` |
+| JWT expiry handling checklist | \`minder_skill_store\` |
+| SQLAlchemy async session management pattern | \`minder_skill_store\` |
+
+**WRONG ✗**: \`minder_skill_store("this project uses PostgreSQL")\` — that is a project fact → use \`minder_memory_store\`.
+**WRONG ✗**: \`minder_memory_store("async SQLAlchemy session pattern")\` — that is a reusable skill → use \`minder_skill_store\`.
+
+---
+
+## 3. Lifecycle
 
 ### Phase B — Context Discovery
-Call all of the following before any implementation. Always pass \`session_id\` to recall tools — it writes results to session history so \`minder_query\` sees them as context in the same conversation:
+Before any implementation, call the following. Always pass \`session_id\` — it writes results to session history so \`minder_query\` sees them as context:
 
 | Tool | Pass session_id | Skip when |
 |------|----------------|-----------|
@@ -99,11 +143,11 @@ Call all of the following before any implementation. Always pass \`session_id\` 
 ### Phase C — Implementation
 1. Every file path and symbol must be confirmed via \`minder_search_code\` / \`minder_search_graph\`. Never guess.
 2. Follow recalled skill patterns exactly. Deviations → emit \`[TRACE] PHASE-C | skill_deviation | none | reason=<why>\`.
-3. Workflow guard: call \`minder_workflow_guard(requested_step, action)\` before each significant action.
-   - \`allowed: true\` → proceed.
-   - \`allowed: false\` → **STOP**, surface \`reason\` + \`violations\`, wait for user.
+3. Workflow guard: call \`minder_workflow_guard(repo_id=<repo_id>, requested_step=<step>)\` before each significant action.
+   - \`passed=true\` → proceed.
+   - \`passed=false\` → **STOP**, surface \`reason\` + \`violations\`, wait for user.
    - Never call \`minder_workflow_update\` speculatively.
-   \`[TRACE] PHASE-C | guard_check | minder_workflow_guard | allowed=<t/f>\`
+   \`[TRACE] PHASE-C | guard_check | minder_workflow_guard | passed=<t/f>\`
 4. \`minder_session_save\` after each significant change (no batching).
 5. Confirm \`(repo_path, session_id, workflow.id)\` tuple before every write.
 
@@ -115,38 +159,50 @@ Call all of the following before any implementation. Always pass \`session_id\` 
 **D2** — \`minder_workflow_update\` to mark step complete.
 \`[TRACE] PHASE-D | advance_workflow | minder_workflow_update | new_step=<next>\`
 
-**D3** — \`minder_memory_store\` for each: decision made, constraint found, path/symbol verified, gotcha, wrong assumption, dependency mapped. If nothing: emit \`[TRACE] PHASE-D | memory_store | skipped | reason=<specific>\`.
+**D3 — memory_store** (project-specific facts ONLY): decisions made, constraints found, gotchas, wrong assumptions, and dependency discoveries that are SPECIFIC to this repo.
+Apply §2 decision check before each call — do NOT store reusable patterns here.
+If nothing project-specific: \`[TRACE] PHASE-D | memory_store | skipped | reason=<specific>\`
 
-**D4** — \`minder_skill_store\` / \`minder_skill_update\` for each reusable pattern written or modified. If nothing: emit \`[TRACE] PHASE-D | skill_store | skipped | reason=<specific>\`.
+**D4 — skill_store** (reusable patterns ONLY): patterns, checklists, or conventions written or discovered that would benefit other projects.
+Apply §2 decision check before each call — do NOT store project facts here.
+If nothing reusable: \`[TRACE] PHASE-D | skill_store | skipped | reason=<specific>\`
 
-**D5** — \`minder_session_save\`. \`[TRACE] PHASE-D | session_save | minder_session_save | ok\`
+**D5** — \`minder_session_save(session_id=..., state={task, step, next_steps, key_decisions})\`.
+\`[TRACE] PHASE-D | session_save | minder_session_save | ok\`
 
-**D6** — \`minder_session_context\`. \`[TRACE] PHASE-D | session_context | minder_session_context | ok\`
+**D6** — \`minder_session_context(session_id=..., branch=..., open_files=[...])\`.
+\`[TRACE] PHASE-D | session_context | minder_session_context | ok\`
 
-**D7** — Write \`.minder/agent.json\` with new \`current_step\` and \`updated_at\`.
+**D7** — Write \`.minder/agent.json\` with new \`current_step\`, \`repo_id\`, and \`updated_at\`.
 \`[TRACE] PHASE-D | update_ledger | none | current_step=<step>\`
 
 **D8 — Finalization Checklist** (output verbatim, YES/NO with reason if NO):
 \`\`\`
-□ D1 artifact_submit  □ D2 advance_workflow  □ D3 memory_store
-□ D4 skill_store      □ D5 session_save      □ D6 session_context  □ D7 ledger_updated
+□ D1 artifact_submit  □ D2 advance_workflow  □ D3 memory_store (project facts only)
+□ D4 skill_store (reusable only)  □ D5 session_save  □ D6 session_context  □ D7 ledger_updated
 \`\`\`
 > No final response until this checklist is complete.
 
 ---
 
-## 3. Tool Rules
+## 4. Tool Rules
 
+- **Never call any Minder tool without a cached \`session_id\`** — call \`minder_session_boot\` first, always.
 - Never guess paths/symbols — always verify via search tools.
-- Never use \`minder_session_list\` for routine recovery — use \`minder_session_find\`.
+- Never use \`minder_session_list\` for routine recovery — use \`minder_session_boot\`.
 - Always emit \`[TRACE]\` lines — they are the audit trail.
-- Always use full tool surface: memory + skills + search + graph + workflow + session.
 - **ALWAYS keep \`(repo_path, session_id, workflow.id)\` consistent** across all tool calls.
 - If search is empty/stale → tell user to run \`minder sync\`.
-- **Pass \`session_id\` to \`minder_skill_recall\` and \`minder_memory_recall\`** — this writes the recalled context into session history so \`minder_query\` sees it without re-fetching. Without \`session_id\`, recalled data exists only in your context window and is lost after a \`/compact\`.
+- **Pass \`session_id\` to \`minder_skill_recall\` and \`minder_memory_recall\`** — writes context to session history so \`minder_query\` sees it without re-fetching. Without \`session_id\`, recalled data is lost after \`/compact\`.
+- **Do NOT call \`minder_auth_whoami\` during normal work** — \`minder_session_boot\` already confirms auth. Only call it to inspect available scopes explicitly.
+- **Do NOT call \`minder_workflow_get\` more than once per session** — use \`minder_workflow_step\` for current step queries.
 
 ### session_id continuity examples
 \`\`\`
+# Boot (creates or recovers session — no agent.json needed):
+result = minder_session_boot(project_name="my-api", project_context={"repo_path": "/home/dev/my-api"})
+session_id = result["session_id"]
+
 # Recall and persist to session so minder_query sees it:
 minder_skill_recall(query="NestJS patterns", current_step="implementation", session_id=session_id)
 minder_memory_recall(query="auth decisions for this project", session_id=session_id)
@@ -157,7 +213,7 @@ minder_query(query="implement auth middleware", repo_path=repo_path, session_id=
 
 ---
 
-## 4. SubAgent Delegation (REQUIRED for review and test steps)
+## 5. SubAgent Delegation (REQUIRED for review and test steps)
 
 When \`current_step\` is \`review\`, \`write_tests\`, or \`verify_tests\`, delegate to a subagent — never do these steps yourself.
 

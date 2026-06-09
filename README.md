@@ -5,7 +5,7 @@
 
 **Minder** is a self-hosted MCP (Model Context Protocol) platform for repository-aware engineering intelligence.
 
-It runs **natively** on macOS, Linux, and Windows — no Docker, no external services. The stack is a Python FastAPI server with SQLite, Milvus Lite (embedded vector search), and llama-cpp-python for local LLM inference, distributed as a Tauri desktop app or standalone server.
+It runs **natively** on macOS, Linux, and Windows — no Docker, no external services. The stack is a Python FastAPI server with SQLite, Turbovec (embedded vector search), and llama-cpp-python for local LLM inference, distributed as a Tauri desktop app or standalone server.
 
 ## What's in this repo
 
@@ -24,14 +24,14 @@ Developer workstation
                               │
                   ┌───────────┼───────────────────┐
                   │           │                   │
-               SQLite    Milvus Lite        llama-cpp-python
+               SQLite    Turbovec           llama-cpp-python
           (users, sessions,  (embedded vector    (LLM, GGUF,
-           workflows, graph)  search, file-based)  Metal/CPU)
+           workflows, graph)  search, .tvim file)  Metal/CPU)
 ```
 
 - **Transport**: SSE (`/sse`), streamable HTTP (`/mcp`), stdio
 - **LLM inference**: llama-cpp-python with GGUF models auto-downloaded from HuggingFace (Metal on Mac, CPU elsewhere)
-- **Vector search**: Milvus Lite — embedded, file-based, no separate server
+- **Vector search**: Turbovec — embedded, file-based 4-bit quantized ANN index, no separate server
 - **Relational storage**: SQLite (default) or PostgreSQL
 - **Desktop**: optional Tauri v2 shell that bundles the Python server as a sidecar
 

@@ -22,4 +22,4 @@
 - [Product Scope](roadmap/01-product-scope.md) — vision, target users, deployment model
 - [Workflow Governance](roadmap/04-workflow-governance.md) — workflow state machine, step definitions
 - [Operations & Delivery](roadmap/06-operations-and-delivery.md) — CI/CD, infra, release process
-- [Native App Migration](roadmap/native-app-migration.md) — Tauri + Milvus Lite + SQLite migration plan
+- [Native App Migration](roadmap/native-app-migration.md) — Docker → Tauri + Turbovec + SQLite migration (completed)

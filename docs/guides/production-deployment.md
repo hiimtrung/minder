@@ -154,10 +154,10 @@ provider = "sqlite"
 db_path = "~/.minder/data/minder.db"
 
 [vector_store]
-provider = "milvus"
+provider = "turbovec"
 
-[milvus]
-db_path = "~/.minder/data/vectors.db"
+[turbovec]
+db_path = "~/.minder/data/vectors.tvim"
 
 [llm]
 provider = "llama_cpp"

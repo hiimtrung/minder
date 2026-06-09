@@ -962,7 +962,10 @@ class AdminConsoleUseCases:
             repo_path=normalized_path,
             repo_url=normalized_url,
         )
-        state_path = str(Path(normalized_path) / self._config.workflow.repo_state_dir)
+        _abs_path = str(Path(normalized_path).expanduser())
+        _home = str(Path.home())
+        _portable = ("~" + _abs_path[len(_home):]) if _abs_path.startswith(_home + "/") else _abs_path
+        state_path = _portable + "/" + self._config.workflow.repo_state_dir
         created = False
 
         if repository is None:
@@ -2039,7 +2042,7 @@ class AdminConsoleUseCases:
         state_path = str(getattr(repository, "state_path", "") or "")
         if not state_path:
             return None
-        state_root = Path(state_path)
+        state_root = Path(state_path).expanduser()
         if state_root.name == ".minder":
             return str(state_root.parent)
         return str(state_root)

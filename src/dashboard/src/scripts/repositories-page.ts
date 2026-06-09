@@ -430,34 +430,66 @@ function updateFsIcon(isFs: boolean): void {
   if (icon) icon.innerHTML = isFs ? FS_ICON_SHRINK : FS_ICON_EXPAND;
 }
 
+const GRAPH_FS_CLASS = "graph-pseudo-fullscreen";
+
+function enterPseudoFullscreen(wrap: HTMLElement): void {
+  wrap.classList.add(GRAPH_FS_CLASS);
+  updateFsIcon(true);
+  setTimeout(() => repoRenderer?.fitToScreen(), 120);
+}
+
+function exitPseudoFullscreen(wrap: HTMLElement): void {
+  wrap.classList.remove(GRAPH_FS_CLASS);
+  updateFsIcon(false);
+  setTimeout(() => repoRenderer?.fitToScreen(), 120);
+}
+
 getEl("repo-graph-fullscreen")?.addEventListener("click", () => {
   const wrap = getEl("repo-graph-wrap");
   if (!wrap) return;
 
-  if (!document.fullscreenElement) {
-    wrap
-      .requestFullscreen()
-      .then(() => {
-        updateFsIcon(true);
-        // Refit after fullscreen transition
-        setTimeout(() => repoRenderer?.fitToScreen(), 120);
-      })
-      .catch(() => {
-        /* fullscreen not supported */
-      });
-  } else {
+  // Exit pseudo-fullscreen
+  if (wrap.classList.contains(GRAPH_FS_CLASS)) {
+    exitPseudoFullscreen(wrap);
+    return;
+  }
+
+  // Exit native fullscreen
+  if (document.fullscreenElement) {
     document.exitFullscreen().then(() => {
       updateFsIcon(false);
       setTimeout(() => repoRenderer?.fitToScreen(), 120);
     });
+    return;
+  }
+
+  // Try native fullscreen; fall back to CSS pseudo-fullscreen (Tauri/WKWebView)
+  if (document.fullscreenEnabled) {
+    wrap
+      .requestFullscreen()
+      .then(() => {
+        updateFsIcon(true);
+        setTimeout(() => repoRenderer?.fitToScreen(), 120);
+      })
+      .catch(() => enterPseudoFullscreen(wrap));
+  } else {
+    enterPseudoFullscreen(wrap);
   }
 });
 
-// Sync icon when user exits fullscreen via Esc
+// Sync icon when user exits native fullscreen via Esc
 document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement) {
     updateFsIcon(false);
     setTimeout(() => repoRenderer?.fitToScreen(), 120);
+  }
+});
+
+// Exit pseudo-fullscreen on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const wrap = getEl("repo-graph-wrap");
+    if (wrap?.classList.contains(GRAPH_FS_CLASS)) exitPseudoFullscreen(wrap);
   }
 });
 

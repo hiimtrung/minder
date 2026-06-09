@@ -33,7 +33,7 @@ class RepoStateStore:
         (artifacts_dir / name).write_text(content, encoding="utf-8")
 
     def _ensure_state_dir(self, repo_path: str, branch: str = "main") -> Path:
-        base_dir = Path(repo_path) / self._state_dir_name
+        base_dir = Path(repo_path).expanduser() / self._state_dir_name
         
         # Phase 3: Auto-generate .gitignore in the base directory to prevent merge conflicts
         if not base_dir.exists():

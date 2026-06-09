@@ -1226,4 +1226,16 @@ const { repoId = "" } = Astro.props;
   <!-- end grid -->
 
   <script src="../scripts/repositories-page.ts"></script>
+
+  <style is:global>
+    /* CSS pseudo-fullscreen fallback for Tauri/WKWebView where requestFullscreen() is blocked */
+    .graph-pseudo-fullscreen {
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 9999 !important;
+      border-radius: 0 !important;
+    }
+  </style>
 </DashboardLayout>

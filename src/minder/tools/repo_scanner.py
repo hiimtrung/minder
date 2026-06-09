@@ -13,6 +13,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
+
+def _portable_path(p: str) -> str:
+    """Replace the current user's home directory prefix with ~."""
+    home = str(Path.home())
+    if p == home:
+        return "~"
+    if p.startswith(home + "/"):
+        return "~" + p[len(home):]
+    return p
+
 if TYPE_CHECKING:
     from minder.store.graph import KnowledgeGraphStore
 
@@ -432,7 +442,7 @@ class RepoScanner:
         res = {
             "payload_version": payload_version,
             "source": source,
-            "repo_path": str(builder._root),
+            "repo_path": _portable_path(str(builder._root)),
             "branch": branch,
             "diff_base": diff_base,
             "changed_files": [str(file_path.relative_to(builder._root)) for file_path in source_files],

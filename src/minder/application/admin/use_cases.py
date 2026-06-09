@@ -894,7 +894,7 @@ class AdminConsoleUseCases:
                 workflow = await self._store.get_workflow_by_id(wf_id)
                 if workflow is None:
                     raise LookupError(f"Workflow {wf_id} not found")
-                updates["workflow_id"] = str(wf_id)
+                updates["workflow_id"] = wf_id
                 new_workflow_id = wf_id
 
         updated = await self._store.update_repository(repo_id, **updates)

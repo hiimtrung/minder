@@ -1611,15 +1611,34 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         import subprocess
 
         def _check() -> dict:
-            path = shutil.which("minder")
+            import os
+            from pathlib import Path
+
+            # Augment PATH with common pipx / user-install locations
+            # (Tauri subprocess may not inherit the shell's full PATH)
+            extra_dirs = [
+                str(Path.home() / ".local" / "bin"),
+                str(Path.home() / "bin"),
+                str(Path.home() / ".local" / "pipx" / "venvs" / "minder-cli" / "bin"),
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+            ]
+            env = os.environ.copy()
+            existing = env.get("PATH", "")
+            extra = ":".join(d for d in extra_dirs if d not in existing)
+            if extra:
+                env["PATH"] = extra + (":" + existing if existing else "")
+
+            path = shutil.which("minder", path=env["PATH"])
             if not path:
                 return {"installed": False, "version": None, "path": None}
             try:
                 result = subprocess.run(
-                    ["minder", "--version"],
+                    [path, "--version"],
                     capture_output=True,
                     text=True,
                     timeout=5,
+                    env=env,
                 )
                 raw = (result.stdout or result.stderr or "").strip()
                 m = re.search(r"(\d+\.\d+\.\d+)", raw)

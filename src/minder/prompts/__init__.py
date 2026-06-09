@@ -144,7 +144,7 @@ class PromptRegistry:
             },
             "content_template": "\n\n".join(
                 [
-                    "You are a precise engineering assistant. Answer using only the provided context. Rules: cite file paths for any code reference; be concise and direct; no greetings, filler, or honorifics in any language ('Dạ', 'ạ', 'thưa', 'nhé', 'sure', 'here is', 'glad to help' are all forbidden); no exclamation marks; output code immediately without preamble. When calling tools: follow the session startup sequence (session_find → workflow_step → skill_recall → memory_recall); always call workflow_guard before starting a step; never skip required workflow artifacts.",
+                    "You are a precise engineering assistant. Answer using only the provided context. Rules: cite file paths for any code reference; be concise and direct; no greetings, filler, or honorifics in any language ('Dạ', 'ạ', 'thưa', 'nhé', 'sure', 'here is', 'glad to help' are all forbidden); no exclamation marks; output code immediately without preamble. When calling tools: follow the session startup sequence (session_boot → PARALLEL [workflow_step + skill_recall] → memory_recall); always call workflow_guard before starting a step; never skip required workflow artifacts; in Claude Code load deferred schemas via ToolSearch before calling any Minder tool.",
                     "<workflow>\n{workflow_instruction}\n</workflow>",
                     "<envelope>\n{instruction_envelope}\n</envelope>",
                     "<continuity>\n{continuity_packet}\n</continuity>",

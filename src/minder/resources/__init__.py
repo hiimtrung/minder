@@ -44,10 +44,10 @@ establishing a session.
 In some environments (e.g. Claude Code), Minder tool **schemas** are deferred — you see tool names
 only. Calling a deferred tool without loading its schema first fails with `InputValidationError`.
 
-**In Claude Code — load schemas FIRST, before any other action:**
+**In Claude Code — load ALL session and workflow schemas FIRST, before any other action:**
 
 ```
-ToolSearch(query="select:mcp__minder__minder_session_boot")
+ToolSearch(query="select:mcp__minder__minder_session_boot,mcp__minder__minder_session_save,mcp__minder__minder_workflow_step,mcp__minder__minder_workflow_guard,mcp__minder__minder_skill_recall,mcp__minder__minder_memory_recall")
 ```
 
 Call `minder_session_boot` immediately after. Always use `select:` with exact names — keyword
@@ -55,6 +55,21 @@ searches often miss the `mcp__minder__` prefix.
 
 - Read `_next_steps` in **every** tool response — these inline hints tell you what to call next.
 - NEVER fall back to generic file/bash tools because a Minder tool appears missing — load it first.
+
+**If a tool appears absent from the catalog — STOP and follow this diagnostic:**
+
+All 26 Minder tools are always registered on the server. "Missing from catalog" means the schema
+is deferred, NOT that the tool is unavailable. Never give up without attempting ToolSearch first.
+
+1. Load the schema explicitly:
+   `ToolSearch(query="select:mcp__minder__minder_<suffix>")`
+2. Verify the prefix: all tools follow the pattern `mcp__minder__minder_<suffix>`
+   (note the double `minder__minder` — this is correct).
+3. `minder_session_boot` is `always_available` — it works even without scope grants.
+   If every other approach fails, call it directly: it will succeed.
+4. Only after attempting ToolSearch for the specific tool may you conclude it is
+   unavailable. Do NOT substitute task files, coordination ledgers, or generic
+   bash tools for Minder session management.
 
 ## Session state to cache throughout the session
 
@@ -184,6 +199,8 @@ Call `minder_session_summarize` proactively when the conversation exceeds ~20 ex
 
 - Do NOT call any Minder tool before establishing a session (`minder_session_boot`). No exceptions.
 - Do NOT fall back to generic bash/file tools when Minder tools appear missing — they are deferred, not absent.
+- Do NOT conclude a tool is "missing from the catalog" without first attempting `ToolSearch(query="select:mcp__minder__minder_<suffix>")`.
+- Do NOT substitute task files, coordination ledgers, or in-memory notes for `minder_session_save` — session state must be persisted in Minder so it survives context resets and machine switches.
 - Do NOT call `minder_auth_whoami()` during startup — `minder_session_boot` already confirms auth. Only call it to inspect available scopes.
 - Do NOT write project-specific facts to `minder_skill_store` — use `minder_memory_store`.
 - Do NOT write reusable patterns to `minder_memory_store` — use `minder_skill_store`.

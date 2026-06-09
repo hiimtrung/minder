@@ -32,6 +32,12 @@ def create_auth_handlers(auth_tools: AuthTools) -> dict[str, Any]:
     async def minder_auth_whoami(
         *, user=None, principal: Principal | None = None
     ) -> dict[str, Any]:  # noqa: ANN001
+        _startup_sequence = [
+            "minder_session_boot is ALWAYS AVAILABLE — call it next regardless of scopes listed here.",
+            "minder_session_boot(project_name='<project-slug>', project_context={'repo_path': '<abs-path>'}) — find-or-create session in one call.",
+            "After boot: PARALLEL minder_workflow_step(repo_id=...) + minder_skill_recall(query='<task>').",
+            "Read minder://instructions for the complete sequencing guide.",
+        ]
         if user is not None:
             return {
                 "principal_type": "user",
@@ -41,6 +47,7 @@ def create_auth_handlers(auth_tools: AuthTools) -> dict[str, Any]:
                 "role": user.role,
                 "scopes": [],
                 "repo_scope": [],
+                "_startup_sequence": _startup_sequence,
             }
         if principal is None:
             raise AuthError("AUTH_MISSING_TOKEN", "Authenticated principal required")
@@ -51,6 +58,7 @@ def create_auth_handlers(auth_tools: AuthTools) -> dict[str, Any]:
             "scopes": list(principal.scopes),
             "repo_scope": list(principal.repo_scope),
             "client_slug": getattr(principal, "client_slug", None),
+            "_startup_sequence": _startup_sequence,
         }
 
     return {

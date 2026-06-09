@@ -98,7 +98,14 @@ def _serialize_agent_compact(agent: Any) -> dict[str, Any]:
 
 
 def _serialize_agent_full(agent: Any) -> dict[str, Any]:
+    tools = list(agent.tools or [])
     return {
         **_serialize_agent_compact(agent),
         "system_prompt": str(agent.system_prompt),
+        "_spawn_instructions": [
+            "In Claude Code: load tool schemas before spawning — "
+            "ToolSearch(query='select:" + ",".join(f"mcp__minder__{t}" for t in tools[:6]) + (",...'" if len(tools) > 6 else "'") + ").",
+            "Pass project_name and project_context.repo_path to the agent so it can call minder_session_boot.",
+            "The agent's system_prompt contains the mandatory startup sequence — do not override it.",
+        ],
     }

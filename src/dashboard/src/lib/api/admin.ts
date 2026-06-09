@@ -231,7 +231,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const payload = (await response.json()) as { error?: string };
       if (payload.error) {
-        message = payload.error;
+        message =
+          typeof payload.error === "string"
+            ? payload.error
+            : JSON.stringify(payload.error);
       }
     } catch {
       // Ignore JSON parse failures and fall back to status text.

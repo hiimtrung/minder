@@ -82,26 +82,26 @@ class WorkflowTools:
         if session_id is not None or decision is not None:
             if session_id is None or decision is None:
                 raise ValueError("session_id and decision are required to resume a workflow")
-            result = await self._get_graph().resume(session_id, decision)
+            resumed = await self._get_graph().resume(session_id, decision)
             approval_request = None
-            if result.metadata.get("waiting_for_approval"):
+            if resumed.metadata.get("waiting_for_approval"):
                 approval_request = list(
-                    result.metadata.get("interrupts", []) or [{}]
+                    resumed.metadata.get("interrupts", []) or [{}]
                 )[0].get("value")
             return {
                 "status": (
                     "waiting_approval"
-                    if result.metadata.get("waiting_for_approval")
+                    if resumed.metadata.get("waiting_for_approval")
                     else "resumed"
                 ),
-                "edge": result.metadata.get("edge"),
-                "guard_result": result.guard_result,
-                "verification_result": result.verification_result,
+                "edge": resumed.metadata.get("edge"),
+                "guard_result": resumed.guard_result,
+                "verification_result": resumed.verification_result,
                 "approval_request": approval_request,
                 "supervisor": {
-                    "used": bool(result.metadata.get("supervisor_used", False)),
-                    "selected_agent": result.metadata.get("supervisor_selected_agent"),
-                    "agents": list(result.metadata.get("supervisor_agents", []) or []),
+                    "used": bool(resumed.metadata.get("supervisor_used", False)),
+                    "selected_agent": resumed.metadata.get("supervisor_selected_agent"),
+                    "agents": list(resumed.metadata.get("supervisor_agents", []) or []),
                 },
             }
         if repo_id is None or repo_path is None:

@@ -1499,10 +1499,10 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
     const res = await updateRepository(activeRepositoryId, {
       name,
       remote_url:
-        getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() ?? "",
+        getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() || null,
       default_branch:
-        getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() ?? "",
-      path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ?? "",
+        getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() || null,
+      path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() || undefined,
       workflow_id:
         getEl<HTMLSelectElement>("repo-settings-workflow")?.value || null,
     });

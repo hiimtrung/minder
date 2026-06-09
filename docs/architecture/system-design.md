@@ -245,6 +245,16 @@ flowchart LR
     Brief --> Store["SQLite session snapshot + memory artifacts"]
 ```
 
+### Session Boot — Single Entry Point
+
+`minder_session_boot` is the unified entry point for all session flows. It handles create, find, and restore transparently:
+
+- Pass `project_name` (stable slug) → finds or creates
+- Pass `project_name` + `session_id` (UUID) → restores a specific session directly
+- Returns `session_found`, `session_summary`, and `_next_steps` hints for immediate orientation
+
+`minder_session_save` handles both state checkpointing and context updates (branch, open files) in one call, eliminating the need for a separate context update tool.
+
 ### Workflow Instruction Compiler (Strict Mode)
 
 When a repository has an active workflow, Minder compiles and enforces a deterministic instruction envelope before any primary LLM generation:
@@ -256,12 +266,15 @@ When a repository has an active workflow, Minder compiles and enforces a determi
 - `allowed_tools` for current step
 - `output_contract` expected from the primary LLM
 
+`minder_workflow_step(include_definition=true)` returns the full definition in one call. Subsequent calls without the flag are lightweight current-step checks.
+
 ## 9. Skill Registry and Graph Metadata Policy
 
-- The Dashboard exposes skill list, create, update, delete, and remote import flows
-- Remote import supports GitHub, GitLab, and generic Git repositories
-- Imported skills retain provenance metadata (provider, repo URL, ref, source path)
-- Skill retrieval is workflow-step aware
+- The Dashboard exposes skill list, create, update, and delete flows
+- Skill retrieval is workflow-step aware with step-compatibility scoring
+- `minder_skill_store` acts as upsert: pass `skill_id` to update, `deprecated=True` to retire without deleting
+- `minder_memory_store` acts as upsert: pass `memory_id` to update an existing entry
+- Memory stores **project-specific facts**; skills store **cross-project reusable patterns**
 
 Graph intelligence follows a metadata-first contract:
 - `GraphNode` persists structural metadata only (not full source bodies)
@@ -334,6 +347,7 @@ Serve behind nginx or Caddy for TLS termination. See [Production Deployment](../
 ## 12. Related Design Documents
 
 - [Minder Server Architecture](minder-server.md)
+- [MCP Tool Reference](../roadmap/03-data-model-and-tools.md)
 - [Local Dev Setup](../guides/local-setup.md)
 - [Production Deployment](../guides/production-deployment.md)
 - [Native App Migration](../roadmap/native-app-migration.md)

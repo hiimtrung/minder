@@ -90,21 +90,94 @@ minder install --target vscode --target claude-code
 minder sync
 ```
 
-## MCP Tools
+## MCP Tools (26 tools)
 
-When connected, Minder exposes these tools to your AI agents:
+Minder exposes a lean set of 26 tools organized into 7 groups. All session tools are always available; other tools require explicit `tool_scopes` on the client.
 
-| Tool                                                                       | Description                                             |
-| -------------------------------------------------------------------------- | ------------------------------------------------------- |
-| `minder_query`                                                             | Full RAG pipeline: retrieve → reason → verify → respond |
-| `minder_search_code`                                                       | Semantic code search across indexed repos               |
-| `minder_search_errors`                                                     | Look up past error patterns                             |
-| `minder_find_impact`                                                       | Find what a change might affect                         |
-| `minder_memory_store` / `minder_memory_recall`                             | Persistent engineering memory                           |
-| `minder_session_create` / `minder_session_save` / `minder_session_restore` | Cross-machine session continuity                        |
-| `minder_workflow_get` / `minder_workflow_step` / `minder_workflow_guard`   | Workflow governance                                     |
-| `minder_skill_store` / `minder_skill_recall`                               | Reusable pattern catalog                                |
-| `minder_agent_list` / `minder_agent_get`                                   | SubAgent registry                                       |
+### Auth
+
+| Tool | Description |
+|------|-------------|
+| `minder_auth_login` | Exchange an admin API key for a JWT bearer token |
+| `minder_auth_exchange_client_key` | Exchange a `mkc_...` client key for a scoped access token |
+| `minder_auth_whoami` | Return the current principal identity and active scopes |
+
+### Session (always available)
+
+`minder_session_boot` is the single entry point for every session flow — it creates, finds, or restores a session in one call.
+
+| Tool | Description |
+|------|-------------|
+| `minder_session_boot` | Create or recover a named session; pass `session_id` to restore by UUID |
+| `minder_session_list` | List sessions owned by the calling principal, newest first |
+| `minder_session_save` | Checkpoint state; pass `branch` and `open_files` to update context in one call |
+| `minder_session_summarize` | Generate a structured summary before `/compact` or long interruptions |
+| `minder_session_cleanup` | Delete expired sessions and their history |
+
+### Memory
+
+| Tool | Description |
+|------|-------------|
+| `minder_memory_store` | Store a project fact or decision; pass `memory_id` to update an existing entry |
+| `minder_memory_recall` | Retrieve memories by semantic similarity, optionally filtered by workflow step |
+| `minder_memory_list` | List all memories for the current principal |
+| `minder_memory_delete` | Delete a memory entry by ID |
+
+### Skills
+
+| Tool | Description |
+|------|-------------|
+| `minder_skill_store` | Store a reusable pattern; pass `skill_id` to update, `deprecated=True` to retire |
+| `minder_skill_recall` | Retrieve skills compatible with the current workflow step |
+| `minder_skill_list` | List skills by step, tags, or quality score |
+| `minder_skill_delete` | Remove a skill by ID |
+
+### Workflow
+
+| Tool | Description |
+|------|-------------|
+| `minder_workflow_step` | Return current step and instruction envelope; pass `include_definition=true` for full workflow definition |
+| `minder_workflow_update` | Mark a step complete or attach an artifact |
+| `minder_workflow_guard` | Validate whether an action is allowed in the current step |
+
+### Search & Graph
+
+| Tool | Description |
+|------|-------------|
+| `minder_search_code` | Semantic code search across indexed repositories |
+| `minder_search_errors` | Look up past error patterns and resolutions |
+| `minder_search_graph` | Structural graph queries: routes, imports, dependencies |
+| `minder_find_impact` | Find what a change to a symbol, file, or route might affect |
+
+### Agents
+
+| Tool | Description |
+|------|-------------|
+| `minder_agent_list` | List available subagents, optionally filtered by workflow step |
+| `minder_agent_get` | Load a subagent's system prompt and tool list |
+| `minder_agent_store` | Create or update a subagent definition |
+
+## Session Continuity
+
+`minder_session_boot` is the single session entry point for all agents. It handles create, find, and restore transparently:
+
+```
+# First run on a project — creates a new session
+minder_session_boot(project_name="my-api", project_context={"repo_path": "/dev/my-api"})
+→ { session_id: "a1b2...", session_found: false }
+
+# After /compact or machine switch — recovers by name
+minder_session_boot(project_name="my-api")
+→ { session_id: "a1b2...", session_found: true, session_summary: {...}, _next_steps: [...] }
+
+# Checkpoint work and update branch context in one call
+minder_session_save(
+  session_id="a1b2...",
+  state={"task": "...", "next_steps": [...]},
+  branch="feat/my-feature",
+  open_files=["src/service.py"]
+)
+```
 
 ## Dashboard Pages
 
@@ -129,6 +202,7 @@ When connected, Minder exposes these tools to your AI agents:
 - [System Design](docs/architecture/system-design.md)
 - [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md)
 - [Minder CLI](docs/guides/minder-cli.md)
+- [MCP Tool Reference](docs/roadmap/03-data-model-and-tools.md)
 
 ## License
 

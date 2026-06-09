@@ -44,18 +44,24 @@ After startup, cache and reuse these values in every subsequent call:
 ### Option A — single call (preferred)
 
 1. `minder_session_boot(project_name="<project-slug>")` — find-or-create session in one call.
-   - Returns `session_id`, prior `state`, `active_skills`, `project_context`, and `_next_steps`.
-   - Cache `session_id`. Read `_next_steps` and follow them.
-2. `minder_auth_whoami()` — verify identity and available scopes.
-3. If `repo_id` is known: `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
+   - Returns `session_id`, prior `state`, `session_summary` (quick orientation if prior session exists), and `_next_steps`.
+   - Cache `session_id`. If `session_found=true`, read `session_summary` first — it captures prior task, decisions, and next actions.
+   - Read `_next_steps` in the response and follow them — they are contextual and replace this generic sequence.
+2. If boot response contains `repo_id` — **run in parallel**:
+   - `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
+   - `minder_skill_recall(query=<task>, current_step=<step>)` — load step conventions.
+3. If boot response has no `repo_id`:
+   - `minder_skill_recall(query=<task>)` + `minder_memory_recall(query=<task>)` — no repo required.
+   - Read `minder://repos` only if you need to link the session to a repository.
 
 ### Option B — explicit two-step
 
 1. `minder_session_find(name="<project-slug>")` — attempt to recover prior context.
-   - Found → cache `session_id`. Read `_next_steps`. Go to step 3.
+   - Found → cache `session_id`. Read `_next_steps`. Go to step 2.
    - Not found → call `minder_session_create(name="<project-slug>")`, cache the returned `session_id`.
-2. `minder_auth_whoami()` — verify identity.
-3. If `repo_id` is known: `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
+2. If `repo_id` is known — **run in parallel**:
+   - `minder_workflow_step(repo_id=<repo_id>, repo_path=<path>)` — get `current_step`.
+   - `minder_skill_recall(query=<task>)` — load step conventions.
 
 Do NOT call `minder_session_create` if `minder_session_find` returns a result.
 Do NOT call `minder_workflow_get` more than once per session — it's expensive and the definition doesn't change.
@@ -138,6 +144,9 @@ Call `minder_session_summarize` proactively when the conversation exceeds ~20 ex
   are deferred, not absent. Call them; the server will error only if truly inaccessible.
 - Do NOT call `minder_auth_ping` during normal work (connectivity test only). If you already called it,
   read `_startup_sequence` in its response and execute the startup sequence immediately.
+- Do NOT call `minder_auth_whoami()` as part of the standard startup sequence — `minder_session_boot`
+  already confirms auth. Call `minder_auth_whoami()` only when you need to inspect available scopes or
+  verify principal type explicitly.
 - Do NOT call `minder_memory_compact` unless explicitly asked or `minder_memory_list` returns >10 overlapping entries.
 - Do NOT call `minder_session_list` when you know the project name — use `minder_session_boot` or `minder_session_find`.
 - Do NOT call `minder_workflow_get` more than once per session — call it during startup if you need the full workflow definition, then cache the result.

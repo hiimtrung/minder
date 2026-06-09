@@ -156,11 +156,10 @@ class SessionTools:
             "session_id": str(session.id),
             "name": session.name,
             "_next_steps": [
-                f"Cache session_id='{session.id}' — reuse in every subsequent call. Do NOT call minder_session_create again.",
-                "Call minder_auth_whoami() to verify identity and available scopes.",
-                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...).",
-                "Call minder_skill_recall(query='<task>', current_step='<step>') and minder_memory_recall(query='<task>').",
-                "Use minder_session_save(session_id=..., state={...}) after each significant action.",
+                f"session_id='{session.id}' is now active — include it in every subsequent call. Do NOT call minder_session_create again.",
+                "Find repo_id from minder://repos, then PARALLEL: minder_workflow_step(repo_id=..., repo_path=...) + minder_skill_recall(query='<task>').",
+                "minder_memory_recall(query='<task>') for project-specific context.",
+                "minder_session_save(session_id=..., state={...}) after each significant action.",
             ],
         }
 
@@ -192,28 +191,31 @@ class SessionTools:
         if session is not None and not self._is_expired(session):
             repo_id_str = str(session.repo_id) if session.repo_id else None
             next_steps = [
-                f"Cache session_id='{session.id}' — reuse in every subsequent call.",
-                "Call minder_auth_whoami() to verify identity and available scopes.",
+                f"session_id='{session.id}' is now active — include it in every subsequent call.",
             ]
             if repo_id_str:
                 next_steps.append(
-                    f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+                    f"PARALLEL: minder_workflow_step(repo_id='{repo_id_str}', repo_path='<abs-path>') "
+                    "+ minder_skill_recall(query='<task>') — run both in the same round-trip."
                 )
                 next_steps.append(
-                    "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+                    "minder_memory_recall(query='<task>') if the task involves project-specific decisions or constraints."
                 )
             else:
                 next_steps.append(
-                    "Find repo_id from minder://repos resource or project_context, then call minder_workflow_step(repo_id=...)."
+                    "minder_skill_recall(query='<task>') for conventions; "
+                    "minder_memory_recall(query='<task>') for project-specific decisions."
                 )
                 next_steps.append(
-                    "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+                    "Read minder://repos to find repo_id only if your task requires workflow tracking."
                 )
+            state_dict = session.state or {}
             return {
                 "session_id": str(session.id),
                 "name": session.name,
                 "repo_id": repo_id_str,
-                "state": session.state,
+                "state": state_dict,
+                "session_summary": state_dict.get("summary"),
                 "active_skills": session.active_skills,
                 "project_context": session.project_context,
                 "last_active": _iso(session.last_active),
@@ -221,7 +223,8 @@ class SessionTools:
             }
         raise ValueError(
             f"No session named '{name}' found for the current principal. "
-            "Use minder_session_list to see all sessions or minder_session_create to start one."
+            "Call minder_session_boot(project_name='<slug>') to find-or-create in one call, "
+            "or minder_session_create(name='<slug>') to start a new session."
         )
 
     async def minder_session_list(
@@ -499,35 +502,39 @@ class SessionTools:
         repo_id_str = result.get("repo_id") or (str(repo_id) if repo_id else None)
 
         next_steps = [
-            f"Cache session_id='{session_id}' — reuse in every subsequent call.",
-            "Call minder_auth_whoami() to verify identity and available scopes.",
+            f"session_id='{session_id}' is now active — include it in every subsequent call.",
         ]
         if repo_id_str:
             next_steps.append(
-                f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+                f"PARALLEL: minder_workflow_step(repo_id='{repo_id_str}', repo_path='<abs-path>') "
+                "+ minder_skill_recall(query='<task>') — run both in the same round-trip."
             )
             next_steps.append(
-                "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+                "minder_memory_recall(query='<task>') if the task involves project-specific decisions or constraints."
             )
         else:
             next_steps.append(
-                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...)."
+                "minder_skill_recall(query='<task>') for conventions; "
+                "minder_memory_recall(query='<task>') for project-specific decisions."
             )
             next_steps.append(
-                "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+                "Read minder://repos to find repo_id only if your task requires workflow tracking."
             )
         next_steps.append(
-            "Use minder_session_save(session_id=..., state={...}) after each significant action."
+            "minder_session_save(session_id=..., state={...}) after each significant action or decision."
         )
 
+        state_dict = result.get("state") or {}
         return {
             "session_id": session_id,
             "name": result.get("name", project_name),
             "session_found": session_found,
             "repo_id": repo_id_str,
-            "state": result.get("state", {}),
+            "state": state_dict,
+            "session_summary": state_dict.get("summary"),
             "active_skills": result.get("active_skills", {}),
             "project_context": result.get("project_context", {}),
+            "last_active": result.get("last_active"),
             "_next_steps": next_steps,
         }
 

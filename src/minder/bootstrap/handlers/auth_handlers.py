@@ -23,15 +23,14 @@ def create_auth_handlers(auth_tools: AuthTools) -> dict[str, Any]:
         return {
             "status": f"auth pong: {message}",
             "_startup_sequence": [
-                "STEP 1 — session: minder_session_find(name='<project-slug>') to recover prior context.",
-                "  → Found: cache session_id, go to STEP 3.",
-                "  → Not found: minder_session_create(name='<project-slug>'), cache session_id.",
-                "  → SHORTCUT: minder_session_boot(project_name='<project-slug>') does STEP 1 in one call.",
-                "STEP 2 — identity: minder_auth_whoami() to verify principal and available scopes.",
-                "STEP 3 — workflow: minder_workflow_step(repo_id=<uuid>, repo_path=<path>) to get current_step.",
-                "  → Find repo_id from minder://repos resource or session.project_context.",
-                "STEP 4 — skills: minder_skill_recall(query='<task>', current_step='<step>') to load conventions.",
-                "STEP 5 — memory: minder_memory_recall(query='<task>') to load project-specific decisions.",
+                "STEP 1 — minder_session_boot(project_name='<project-slug>') — find-or-create session in one call.",
+                "  → Cache session_id. If session_found=true, read session_summary for immediate orientation.",
+                "  → Fallback: minder_session_find(name='<slug>') or minder_session_create(name='<slug>').",
+                "STEP 2 — if boot response contains repo_id:",
+                "  → PARALLEL: minder_workflow_step(repo_id=..., repo_path=...) + minder_skill_recall(query='<task>').",
+                "  → No repo_id: minder_skill_recall(query='<task>') + minder_memory_recall(query='<task>') directly.",
+                "STEP 3 — minder_memory_recall(query='<task>') for project-specific decisions (if not run in STEP 2).",
+                "NOTE: minder_auth_whoami() is optional — call only if you need to inspect available scopes.",
             ],
             "_warning": (
                 "auth_ping is for connectivity testing ONLY. "

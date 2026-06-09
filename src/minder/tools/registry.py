@@ -501,8 +501,8 @@ def tool_capability_manifest() -> str:
         "Other",
     ]
     lines = [
-        "STARTUP (call minder_session_boot first): minder_session_boot → minder_auth_whoami → minder_workflow_step → minder_skill_recall → minder_memory_recall.",
-        "ALTERNATIVE startup: minder_session_find → (if not found) minder_session_create → then same sequence above.",
+        "STARTUP (call minder_session_boot first): minder_session_boot → [minder_workflow_step + minder_skill_recall in parallel] → minder_memory_recall.",
+        "ALTERNATIVE startup: minder_session_find → (if not found) minder_session_create → then same parallel sequence.",
         "Every tool response includes _next_steps — read and follow these hints to stay on the correct path.",
         "Repo-scoped tools (search_code, search_graph, find_impact, workflow_*) require repo_path or repo_id.",
         "Read minder://instructions for the complete sequencing guide before calling any tools.",

@@ -1,39 +1,12 @@
 # Admin and Client Onboarding Guide
 
-This guide covers the current onboarding flow for Minder running against local infrastructure or the production Docker stack.
+This guide covers the full onboarding flow for Minder running natively or as a headless server.
 
-System-level architecture lives in:
+Related references:
+- [System Design](../architecture/system-design.md)
+- [MCP Tool Reference](../roadmap/03-data-model-and-tools.md)
 
-- [System Design](../../docs/system-design.md)
-
-## Current Reality
-
-Today you can:
-
-- create an admin
-- sign into `/dashboard/login` in the browser with the admin API key
-- create MCP clients
-- generate client API keys
-- exchange a client key for an access token
-- onboard `Codex`, `GitHub Copilot CLI`, `Google Antigravity`, and `Claude Code`
-- authenticate SSE and stdio clients directly with the client API key
-
-Today you cannot yet:
-
-- manage broader workflow, repository, and observability screens from the dashboard
-
-The current admin bootstrap is still API-key based, but the operator experience is now browser-first:
-
-- fresh deployment: `/dashboard/setup`
-- returning admin: `/dashboard/login`
-- active browser session: `/dashboard`
-
-If the admin API key is lost later, recover it with:
-
-```bash
-PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py \
-  --username admin
-```
+---
 
 ## 1. Create the admin user
 
@@ -41,10 +14,12 @@ If this is a fresh deployment, open:
 
 - [http://localhost:8800/dashboard/setup](http://localhost:8800/dashboard/setup)
 
-Complete the setup form and save the returned admin API key:
+Complete the setup form and save the returned admin API key (`mk_...`). This is shown exactly once.
 
-```text
-mk_...
+If the admin API key is lost later, recover it with:
+
+```bash
+PYTHONPATH=src UV_CACHE_DIR=.uv-cache uv run python scripts/reset_admin_api_key.py --username admin
 ```
 
 ## 2. Sign into the browser dashboard
@@ -53,177 +28,114 @@ Open:
 
 - [http://localhost:8800/dashboard/login](http://localhost:8800/dashboard/login)
 
-Enter the admin API key:
+Enter the admin API key. The browser is redirected to `/dashboard` and a session cookie is set.
 
-```text
-mk_...
+For API clients (`curl`, Postman), use a bearer token:
+
+```bash
+# Via minder_auth_login MCP tool or:
+curl -X POST http://localhost:8800/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"api_key": "mk_..."}'
 ```
 
-After successful sign-in, the browser is redirected to:
+## 3. Create an MCP client
 
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
+Open `/dashboard/clients` → **Create Client**. Fill in:
 
-The dashboard session is stored in an `HttpOnly` cookie.
+- **name** — human-readable label
+- **slug** — stable URL-safe identifier (e.g. `my-ide-codex`)
+- **description** — optional
+- **tool scopes** — select from the multi-select, or use a preset (see below)
+- **repo scopes** — `*` for all repos, or specific repo paths
 
-## 3. Use the admin session or admin JWT against admin routes
+Use the preset buttons to prefill tool scopes:
+- **Query Only** — search and RAG tools only
+- **Read Only** — search + memory recall + workflow read
+- **Full Dev** — all tools needed for active development work
 
-For browser-based dashboard use, the login cookie is enough.
+After submission, the `mkc_...` client API key is shown **exactly once**. Save it.
 
-For API clients like `curl`, Postman, or Bruno, bearer auth is still useful.
-
-If you need an admin JWT through MCP, the current codebase still exposes `minder_auth_login`.
-
-Recommended split:
-
-- browser dashboard: cookie session
-- scripted admin API calls: bearer token
-- MCP clients: direct `mkc_...` client API key or token exchange
-
-## 4. Create an MCP client
-
-This step is now browser-native from the dashboard and backed by the same JSON APIs that external automation can call.
-
-Open:
-
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-
-Use the `Create Client` form to submit:
-
-- name
-- slug
-- description
-- tool scopes from the multi-select dropdown
-- repo scopes from the multi-select dropdown
-- optional custom repo scope paths in the extra input
-
-Quick UX notes:
-
-- use preset buttons like `Query Only`, `Read Only`, or `All` to prefill `Tool Scopes`
-- use `All Repos (*)` when the client should not be limited to one repository
-- use `Custom Repo Scopes` when the path you need is not already listed
-
-After submission, the Astro dashboard reveals the new `mkc_...` client API key exactly once.
-
-Save it before leaving that page.
-
-The same capability remains available through the admin API if you need scripted provisioning.
-
-Example:
+Via the admin API:
 
 ```bash
 curl -X POST http://localhost:8800/v1/admin/clients \
-  -H "Content-Type: application/json" \
   -H "Authorization: Bearer <jwt>" \
+  -H "Content-Type: application/json" \
   -d '{
-    "name": "Codex Local",
-    "slug": "codex-local",
-    "description": "Local Codex workstation",
-    "tool_scopes": ["minder_query", "minder_search_code", "minder_search_errors"],
+    "name": "Claude Code Local",
+    "slug": "claude-code-local",
+    "tool_scopes": [
+      "minder_memory_store", "minder_memory_recall", "minder_memory_list",
+      "minder_skill_store", "minder_skill_recall", "minder_skill_list",
+      "minder_workflow_step", "minder_workflow_update", "minder_workflow_guard",
+      "minder_search_code", "minder_search_errors", "minder_search_graph",
+      "minder_find_impact", "minder_agent_list", "minder_agent_get"
+    ],
     "repo_scopes": ["*"]
   }'
 ```
 
-The response includes:
+## 4. Choose a client auth mode
 
-- client metadata
-- a newly issued `client_api_key` starting with `mkc_`
+### Option A: Direct client key auth (recommended)
 
-Save the `mkc_...` value. That is what MCP clients should use.
+Pass the `mkc_...` key directly:
 
-## 5. Get onboarding templates for the client
-
-Run:
-
-```bash
-curl http://localhost:8800/v1/admin/onboarding/<client_id> \
-  -H "Authorization: Bearer <jwt>"
-```
-
-This returns templates for:
-
-- `codex`
-- `copilot`
-- `antigravity`
-- `cursor`
-- `claude_code`
-
-Remote templates default to the transport each client expects:
-
-```text
-Codex / Copilot / Claude Code -> http://localhost:8800/sse
-Antigravity / Cursor -> http://localhost:8800/mcp
-```
-
-## 6. Choose a client auth mode
-
-Minder now supports two first-class client auth modes.
-
-### Option A: Direct client key auth
-
-Use this when the MCP client can send either:
-
-- `X-Minder-Client-Key: mkc_...` over `SSE`
-- `MINDER_CLIENT_API_KEY=mkc_...` for `stdio`
-
-This is the lowest-friction path and is the default recommendation for local integrations. Use streamable HTTP for Antigravity and Cursor.
+| Transport | How to pass |
+|-----------|-------------|
+| SSE / HTTP | `X-Minder-Client-Key: mkc_...` header |
+| stdio | `MINDER_CLIENT_API_KEY=mkc_...` env var |
 
 ### Option B: Token exchange
 
-Use this when the client prefers short-lived bearer tokens or already has a token bootstrap flow.
-
-## 7. Exchange a client API key for an access token
-
-Run:
+Exchange the client key for a short-lived bearer token:
 
 ```bash
 curl -X POST http://localhost:8800/v1/auth/token-exchange \
   -H "Content-Type: application/json" \
-  -d '{
-    "client_api_key": "mkc_..."
-  }'
+  -d '{"client_api_key": "mkc_..."}'
 ```
 
-Expected response:
+Returns:
 
 ```json
 {
-  "access_token": "<token>",
+  "access_token": "...",
   "token_type": "bearer",
   "expires_in": 3600,
-  "client": {
-    "slug": "codex-local"
+  "client": { "slug": "claude-code-local" }
+}
+```
+
+## 5. Connect your IDE
+
+All snippets are also available in the dashboard at `/dashboard/clients` → client detail → **Copy-ready MCP snippets**.
+
+### Claude Code
+
+```json
+{
+  "mcpServers": {
+    "minder": {
+      "type": "sse",
+      "url": "http://localhost:8800/sse",
+      "headers": { "X-Minder-Client-Key": "mkc_..." }
+    }
   }
 }
 ```
 
-## 8. Connect an MCP client
+Place in `~/.claude/mcp.json` (global) or `.mcp.json` (project root).
 
-Minder currently exposes remote MCP over both `SSE` and streamable HTTP, plus local MCP over `stdio`. That means:
+Optional stdio fallback:
 
-- start with the remote endpoint first for every client snippet below
-- fall back to local `stdio` only when the client or your environment needs a local process
-
-The dashboard now renders these as remote-first tabs with optional local stdio fallback tabs for clients that support both shapes.
-
-### Codex config.toml snippet
-
-```toml
-[mcp_servers.minder]
-url = "http://localhost:8800/sse"
-http_headers = { "X-Minder-Client-Key" = "mkc_..." }
+```bash
+export MINDER_CLIENT_API_KEY="mkc_..."
+MINDER_SERVER__TRANSPORT=stdio uv run python -m minder.server
 ```
 
-Optional local stdio fallback:
-
-```toml
-[mcp_servers.minder]
-command = "uv"
-args = ["run", "python", "-m", "minder.server"]
-cwd = "/absolute/path/to/minder"
-env = { MINDER_SERVER__TRANSPORT = "stdio", MINDER_CLIENT_API_KEY = "mkc_..." }
-```
-
-### VS Code mcp.json snippet
+### VS Code / GitHub Copilot
 
 ```json
 {
@@ -231,333 +143,187 @@ env = { MINDER_SERVER__TRANSPORT = "stdio", MINDER_CLIENT_API_KEY = "mkc_..." }
     "minder": {
       "type": "sse",
       "url": "http://localhost:8800/sse",
-      "headers": {
-        "X-Minder-Client-Key": "mkc_..."
-      }
-    }
-  },
-  "inputs": []
-}
-```
-
-Open this from either:
-
-- workspace: `.vscode/mcp.json`
-- user profile: `MCP: Open User Configuration`
-
-For current VS Code builds, the user-level MCP file is `~/Library/Application Support/Code/User/mcp.json` on macOS. If you previously installed MCP servers into a legacy `globalStorage/mcp-servers.json` file, move or reinstall the `minder` entry into `mcp.json` so Copilot Chat reads the active config.
-
-Recommended flow based on the GitHub Copilot Chat MCP guide:
-
-1. Save the `mcp.json` file and start or restart the server from the inline action or `MCP: List Servers`.
-2. Open Copilot Chat in `Agent` mode.
-3. Open the tools picker and confirm the `minder` server is running and its tools are available.
-
-References:
-
-- [GitHub Copilot Chat with MCP](https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp/extend-copilot-chat-with-mcp)
-- [VS Code MCP configuration reference](https://code.visualstudio.com/docs/copilot/reference/mcp-configuration)
-
-### GitHub Copilot CLI mcp-config.json snippet
-
-```json
-{
-  "mcpServers": {
-    "minder": {
-      "type": "sse",
-      "url": "http://localhost:8800/sse",
-      "headers": {
-        "X-Minder-Client-Key": "mkc_..."
-      },
-      "tools": ["*"]
+      "headers": { "X-Minder-Client-Key": "mkc_..." }
     }
   }
 }
 ```
 
-Recommended flow based on the Copilot CLI MCP guide:
+Place in `.vscode/mcp.json` (workspace) or `~/Library/Application Support/Code/User/mcp.json` (global on macOS).
 
-1. Either edit `~/.copilot/mcp-config.json` directly or run `/mcp add`.
-2. If you use `/mcp add`, choose `HTTP or SSE`, paste the Minder URL, add the `X-Minder-Client-Key` header, and keep `Tools` as `*` unless you want to narrow it.
-3. Run `/mcp show` to confirm the server is listed and enabled.
-
-Reference:
-
-- [Adding MCP servers for GitHub Copilot CLI](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers)
-
-### Antigravity mcp_config.json snippet
-
-```json
-{
-  "mcpServers": {
-    "minder": {
-      "serverUrl": "http://localhost:8800/mcp",
-      "headers": {
-        "X-Minder-Client-Key": "mkc_..."
-      }
-    }
-  }
-}
-```
-
-Optional local stdio fallback:
-
-```json
-{
-  "mcpServers": {
-    "minder": {
-      "command": "uv",
-      "args": ["run", "python", "-m", "minder.server"],
-      "cwd": "/absolute/path/to/minder",
-      "env": {
-        "MINDER_SERVER__TRANSPORT": "stdio",
-        "MINDER_CLIENT_API_KEY": "mkc_..."
-      }
-    }
-  }
-}
-```
-
-### Cursor .cursor/mcp.json snippet
+### Cursor
 
 ```json
 {
   "mcpServers": {
     "minder": {
       "url": "http://localhost:8800/mcp",
-      "headers": {
-        "X-Minder-Client-Key": "mkc_..."
-      }
+      "headers": { "X-Minder-Client-Key": "mkc_..." }
     }
   }
 }
 ```
 
-You can place this in either:
+Place in `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global).
 
-- project config: `.cursor/mcp.json`
-- global config: `~/.cursor/mcp.json`
+### Codex
 
-Optional local stdio fallback:
+```toml
+[mcp_servers.minder]
+url = "http://localhost:8800/sse"
+http_headers = { "X-Minder-Client-Key" = "mkc_..." }
+```
+
+### Google Antigravity
 
 ```json
 {
   "mcpServers": {
     "minder": {
-      "type": "stdio",
-      "command": "uv",
-      "args": ["run", "python", "-m", "minder.server"],
-      "cwd": "/absolute/path/to/minder",
-      "env": {
-        "MINDER_SERVER__TRANSPORT": "stdio",
-        "MINDER_CLIENT_API_KEY": "mkc_..."
-      }
+      "serverUrl": "http://localhost:8800/mcp",
+      "headers": { "X-Minder-Client-Key": "mkc_..." }
     }
   }
 }
 ```
 
-### Claude Code .mcp.json snippet
-
-```json
-{
-  "mcpServers": {
-    "minder": {
-      "type": "sse",
-      "url": "http://localhost:8800/sse",
-      "headers": {
-        "X-Minder-Client-Key": "mkc_..."
-      }
-    }
-  }
-}
-```
-
-### Optional local stdio bootstrap
-
-For stdio-based local integrations, export:
-
-```bash
-export MINDER_CLIENT_API_KEY="mkc_..."
-```
-
-Then start the stdio transport with:
-
-```bash
-MINDER_SERVER__TRANSPORT=stdio UV_CACHE_DIR=.uv-cache uv run python -m minder.server
-```
-
-Protected tool calls will resolve the client principal from `MINDER_CLIENT_API_KEY` without calling `/v1/auth/token-exchange` first.
-
-## 9. Open the dashboard
-
-The dashboard is at:
-
-- [http://localhost:8800/dashboard](http://localhost:8800/dashboard)
-
-If you already signed in at `/dashboard/login`, the dashboard opens with the browser session cookie.
-
-From the dashboard you can:
-
-- create a client (API key shown once in a modal)
-- open a client detail page
-- issue a new client key (shown in a modal with a copy button)
-- revoke all client keys for that client
-- run a connection test
-- copy MCP config snippets for any IDE from the **Copy-ready MCP snippets** card
-- copy IDE instruction files from **Agent Instructions** or from `/dashboard/instruction`
-- inspect recent audit activity for that client
-
-### Agent Instructions
+## 6. Copy agent orchestration rules
 
 Open `/dashboard/instruction` to get the full Minder Agent Orchestration Rules prompt for your IDE:
 
-| IDE                  | Target file                           |
-| -------------------- | ------------------------------------- |
-| Claude Code          | `~/.claude/agents/minder.md`          |
-| Cursor               | `.cursor/rules/minder.mdc` (per-repo) |
-| VS Code / Copilot    | `~/.copilot/agents/minder.agent.md`   |
-| Google Antigravity | `~/.gemini/GEMINI.md`                 |
-| Codex                | `~/.codex/AGENTS.md`                  |
+| IDE | Target file |
+|-----|------------|
+| Claude Code | `~/.claude/agents/minder.md` |
+| Cursor | `.cursor/rules/minder.mdc` (per-repo) |
+| VS Code / Copilot | `~/.copilot/agents/minder.agent.md` |
+| Google Antigravity | `~/.gemini/GEMINI.md` |
+| Codex | `~/.codex/AGENTS.md` |
 
-Each card shows the exact content to paste (including any required front matter) and a one-click copy button.
+Each card shows the exact content to paste and a one-click copy button.
 
-## 10. Revoke a client key
+## 7. Install the CLI and sync a repository
 
-If a client key is leaked or rotated, open the client detail page in the dashboard and use the revoke action. The same capability also remains available on the admin API.
+```bash
+uv tool install minder-cli
 
-After revocation:
+# Log in
+minder login --client-key mkc_your_key --server-url http://localhost:8800/sse
 
-- SSE direct auth with the old `mkc_...` key fails
-- stdio direct auth with the old `mkc_...` key fails
-- token exchange with the old `mkc_...` key fails
+# Optional: write MCP config to your IDE
+minder install --target claude-code --target vscode
 
-## 11. LLM Session Management — Cross-Environment Context Continuity
+# Sync your repo
+cd /path/to/your/repo
+minder sync
+```
 
-Minder sessions are the server-side checkpoint for an LLM work context. Because
-sessions are stored in the shared server-side operational store (not in the client process), the same LLM can
-resume exactly where it left off from **any machine** using the same client API key.
+After `minder sync`, the repo appears in `/dashboard/repositories` and agents can search it.
 
-### Why this matters
+---
 
-Large LLM tasks often span multiple days, machines, and `/compact` cycles.
-Without a session checkpoint the LLM loses:
+## 8. Session Continuity — How It Works
 
-- the current task phase and decisions already made
-- files modified and open
-- planned next steps
-- architectural constraints and patterns discovered so far
+Minder sessions are the server-side checkpoint for LLM work context. Because sessions are stored server-side, the same agent can resume exactly where it left off from **any machine** using the same client API key.
 
-With Minder sessions, the LLM externalises all of this to the server and
-rehydrates it on demand.
+### `minder_session_boot` — single entry point
 
-### Session tool reference
-
-| Tool                     | Always available | Description                                  |
-| ------------------------ | ---------------- | -------------------------------------------- |
-| `minder_session_create`  | ✅               | Create a named session                       |
-| `minder_session_find`    | ✅               | Find session by name — primary recovery tool |
-| `minder_session_list`    | ✅               | List all sessions for the current client     |
-| `minder_session_save`    | ✅               | Checkpoint state after each wave             |
-| `minder_session_restore` | ✅               | Load session by UUID                         |
-| `minder_session_context` | ✅               | Update branch and open-file context          |
-
-All session tools are **always available** to any authenticated principal — no
-`tool_scopes` grant is needed.
-
-### Recommended LLM session workflow
-
-#### 1. Start of a new project
+`minder_session_boot` handles **create, find, and restore** in one call:
 
 ```
-minder_session_create(
-  name   = "my-project-phase3",   ← stable slug, memorable across machines
-  project_context = {
-    "task":        "Implement Phase 3 data pipeline",
-    "repo":        "/Users/dev/my-project",
-    "phase":       "design",
-  }
+# First run — creates session and returns session_found=false
+minder_session_boot(
+  project_name = "my-api--claude",          ← stable slug: "<repo>--<client>"
+  project_context = {"repo_path": "/dev/my-api", "repo_id": "<uuid>"}
 )
-→ { session_id: "a1b2c3d4-...", name: "my-project-phase3" }
+→ { session_id: "a1b2...", session_found: false, _next_steps: [...] }
+
+# After /compact or machine switch — finds session and returns session_found=true
+minder_session_boot(project_name="my-api--claude")
+→ {
+    session_id: "a1b2...",
+    session_found: true,
+    session_summary: { problem_framing: {...}, next_valid_actions: [...] },
+    _next_steps: [...]
+  }
+
+# Restore specific session by UUID (from .minder/agent.json)
+minder_session_boot(project_name="my-api--claude", session_id="a1b2c3d4-...")
 ```
 
-Save the `session_id` in your active context. The `name` is the durable key
-across environments.
+### Checkpoint with context
 
-#### 2. After each wave of work (before `/compact`)
+`minder_session_save` now handles both state checkpointing and context updates in one call:
 
 ```
 minder_session_save(
-  session_id = "a1b2c3d4-...",
+  session_id = "a1b2...",
   state = {
-    "current_task":    "Implement data model migration",
-    "completed":       ["schema design", "interface update"],
-    "in_progress":     ["Qdrant operational store implementation"],
-    "next_steps":      ["update relational store", "write tests"],
-    "key_decisions":   ["user_id nullable", "name field for cross-env"],
-    "open_questions":  ["how to handle TTL expiry in the operational store?"],
+    "task": "Implement data pipeline",
+    "completed": ["schema design"],
+    "next_steps": ["write tests", "implement service"],
+    "key_decisions": ["user_id nullable for client sessions"],
   },
-  active_skills = {
-    "pattern": "Qdrant payload upsert with stable UUID remapping",
-  }
+  branch = "feat/data-pipeline",
+  open_files = ["src/service.py", "src/models/session.py"]
 )
 ```
 
-#### 3. After `/compact` or machine switch
+### Session tool reference
+
+| Tool | Always available | Description |
+|------|:----------------:|-------------|
+| `minder_session_boot` | ✅ | Create, find, or restore a session — single entry point |
+| `minder_session_list` | ✅ | List all sessions for the calling principal |
+| `minder_session_save` | ✅ | Checkpoint state and update branch/file context |
+| `minder_session_summarize` | ✅ | Generate structured summary before `/compact` |
+| `minder_session_cleanup` | ✅ | Delete expired sessions and history |
+
+All session tools are **always available** — no `tool_scopes` grant is needed.
+
+---
+
+## 9. Memory vs Skills — What to store where
+
+| Concern | Use | When |
+|---------|-----|------|
+| Project-specific facts | `minder_memory_store` | "We use JWT for auth in this project" |
+| Architectural decisions | `minder_memory_store` | "user_id is nullable — supports client sessions" |
+| Confirmed file paths / symbols | `minder_memory_store` | "auth middleware is in `src/auth/middleware.py`" |
+| Reusable patterns | `minder_skill_store` | "How to write async SQLAlchemy migrations" |
+| Step checklists | `minder_skill_store` | "TDD step: write failing test first" |
+| Cross-project conventions | `minder_skill_store` | "Always use `uv` not `pip`" |
+
+Both tools act as upsert when an ID is provided:
 
 ```
-minder_session_find(name="my-project-phase3")
-→ {
-    session_id:      "a1b2c3d4-...",
-    state:           { current_task: "...", next_steps: [...], ... },
-    active_skills:   { pattern: "..." },
-    project_context: { task: "...", repo: "...", phase: "..." },
-  }
+# Update existing memory
+minder_memory_store(memory_id="uuid", title="Auth approach", content="Updated content")
+
+# Retire a skill (hidden from recall but preserved in history)
+minder_skill_store(skill_id="uuid", deprecated=True, ...)
 ```
 
-The LLM immediately knows:
+---
 
-- what was done
-- what is in progress
-- what to do next
-- key architectural decisions already taken
+## 10. Revoke a client key
 
-No need to re-read files or re-derive context from scratch.
+Open the client detail page in `/dashboard/clients` and use the revoke action. After revocation:
 
-#### 4. Branch or file context update
-
-```
-minder_session_context(
-  session_id = "a1b2c3d4-...",
-  branch     = "feat/phase3-data-model",
-  open_files = [
-    "src/minder/models/session.py",
-    "src/minder/store/qdrant/operational_store.py",
-    "src/minder/tools/session.py",
-  ]
-)
-```
-
-### Cross-machine guarantee
-
-The `mkc_...` client API key resolves to the same `client_id` UUID on any
-machine. Sessions owned by that `client_id` are stored in the shared server-side operational store.
-`minder_session_find(name=...)` filters by `client_id` automatically, so only
-sessions belonging to the calling client are returned.
-
-A different client with a different `mkc_...` key cannot access your sessions
-even if it knows the session name.
+- SSE direct auth with the old `mkc_...` key fails immediately
+- stdio `MINDER_CLIENT_API_KEY` auth fails immediately
+- existing short-lived tokens remain valid until they expire
 
 ---
 
 ## Recommended Operator Flow
 
-1. Start the Docker stack.
-2. Create the first admin.
-3. Sign in to `/dashboard/login`.
-4. Create one client per real MCP consumer from the dashboard.
+1. Deploy the server (`make native-run` or `uv run python -m minder.server`).
+2. Create the admin at `/dashboard/setup`.
+3. Sign in at `/dashboard/login`.
+4. Create one client per real MCP consumer from `/dashboard/clients`.
 5. Scope each client to the smallest needed tool set.
-6. Prefer direct client-key auth for local `SSE` and `stdio` integrations.
-7. Use onboarding templates from the admin API, not handwritten config.
-8. Rotate or revoke client keys when a workstation or integration changes ownership.
-9. LLM agents: always create a named session at project start and save state after each wave.
+6. Use direct client-key auth for local SSE and stdio integrations.
+7. Copy onboarding snippets from the dashboard — do not handwrite MCP config.
+8. Install the CLI (`uv tool install minder-cli`) and run `minder sync` for each repo.
+9. Copy agent orchestration rules from `/dashboard/instruction` to your IDE.
+10. Rotate or revoke client keys when a workstation or integration changes ownership.

@@ -3,8 +3,6 @@ import pytest_asyncio
 from datetime import UTC, datetime
 from httpx import ASGITransport
 from httpx import AsyncClient
-from pathlib import Path
-import subprocess
 import uuid
 
 from minder.bootstrap.transport import TOOL_DESCRIPTIONS, build_transport
@@ -267,7 +265,6 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
         tool_scopes=[
             "minder_memory_store",
             "minder_memory_list",
-            "minder_memory_compact",
         ],
     )
     transport = build_transport(
@@ -288,30 +285,21 @@ async def test_build_transport_allows_client_memory_store_when_scoped(
         "minder_memory_list",
         client_key=client_api_key,
     )
-    duplicate = await transport.call_tool(
+    updated = await transport.call_tool(
         "minder_memory_store",
         arguments={
+            "memory_id": stored["id"],
             "title": "Transport memory",
-            "content": "client principal can store memory",
-            "tags": ["transport", "memory", "duplicate"],
+            "content": "client principal can store and update memory",
+            "tags": ["transport", "memory", "updated"],
             "language": "markdown",
-        },
-        client_key=client_api_key,
-    )
-    compacted = await transport.call_tool(
-        "minder_memory_compact",
-        arguments={
-            "memory_ids": [stored["id"], duplicate["id"]],
-            "similarity_threshold": 0.8,
-            "dry_run": True,
         },
         client_key=client_api_key,
     )
 
     assert stored["title"] == "Transport memory"
     assert any(entry["title"] == "Transport memory" for entry in listed)
-    assert compacted["candidate_count"] == 2
-    assert compacted["duplicate_group_count"] == 1
+    assert updated["id"] == stored["id"]
 
 
 @pytest.mark.asyncio
@@ -401,63 +389,39 @@ async def test_build_transport_rejects_client_tool_outside_scope(
 
 
 @pytest.mark.asyncio
-async def test_build_transport_allows_client_skill_import_when_scoped(
+async def test_build_transport_allows_client_skill_store_when_scoped(
     store: RelationalStore,
     config: MinderConfig,
     cache: LRUCacheProvider,
-    tmp_path: Path,
 ) -> None:
-    repo_path = tmp_path / "skill-transport-pack"
-    repo_path.mkdir()
-    skills_dir = repo_path / "skills"
-    skills_dir.mkdir()
-    (skills_dir / "transport.md").write_text(
-        "# Transport Imported Skill\n\nUse transport import coverage.",
-        encoding="utf-8",
-    )
-    subprocess.run(["git", "init"], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "config", "user.email", "tests@example.com"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(
-        ["git", "config", "user.name", "Tests"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-    subprocess.run(["git", "add", "."], cwd=repo_path, check=True, capture_output=True)
-    subprocess.run(
-        ["git", "commit", "-m", "add transport skill pack"],
-        cwd=repo_path,
-        check=True,
-        capture_output=True,
-    )
-
     auth = AuthService(store, config, cache=cache)
     admin, _ = await auth.register_user(
-        email="skill-import-admin@example.com",
-        username="skill_import_admin",
-        display_name="Skill Import Admin",
+        email="skill-store-admin@example.com",
+        username="skill_store_admin",
+        display_name="Skill Store Admin",
         role=UserRole.ADMIN,
     )
     _, client_api_key = await auth.register_client(
-        name="Skill Import Client",
-        slug="skill-import-client",
+        name="Skill Store Client",
+        slug="skill-store-client",
         created_by_user_id=admin.id,
-        tool_scopes=["minder_skill_import_git", "minder_skill_list"],
+        tool_scopes=["minder_skill_store", "minder_skill_list"],
     )
     transport = build_transport(
         config=config, store=store, vector_store=store, cache=cache
     )
 
-    imported = await transport.call_tool(
-        "minder_skill_import_git",
+    stored = await transport.call_tool(
+        "minder_skill_store",
         arguments={
-            "repo_url": str(repo_path),
-            "source_path": "skills",
+            "title": "Transport Stored Skill",
+            "content": "Use transport store coverage.",
+            "language": "markdown",
+            "tags": ["transport"],
+            "workflow_steps": ["Test Writing"],
+            "artifact_types": ["test_plan"],
+            "provenance": "transport_test",
+            "quality_score": 0.9,
         },
         client_key=client_api_key,
     )
@@ -465,9 +429,25 @@ async def test_build_transport_allows_client_skill_import_when_scoped(
         "minder_skill_list",
         client_key=client_api_key,
     )
+    updated = await transport.call_tool(
+        "minder_skill_store",
+        arguments={
+            "skill_id": stored["id"],
+            "title": "Transport Stored Skill",
+            "content": "Use transport store coverage.",
+            "language": "markdown",
+            "tags": ["transport", "updated"],
+            "workflow_steps": ["Test Writing"],
+            "artifact_types": ["test_plan"],
+            "provenance": "transport_test",
+            "quality_score": 1.0,
+        },
+        client_key=client_api_key,
+    )
 
-    assert imported["imported_count"] == 1
-    assert any(item["title"] == "Transport Imported Skill" for item in listed)
+    assert stored["title"] == "Transport Stored Skill"
+    assert any(item["title"] == "Transport Stored Skill" for item in listed)
+    assert updated["id"] == stored["id"]
 
 
 @pytest.mark.asyncio

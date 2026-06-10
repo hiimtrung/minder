@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Minder",
-  "version": "0.7.4",
-  "identifier": "asia.tastech.minder",
+  "version": "0.7.5",
+  "identifier": "io.github.hiimtrung.minder",
   "build": {
     "beforeDevCommand": "make native-run",
     "devUrl": "http://localhost:8800/dashboard",
@@ -15,10 +15,10 @@
         "title": "Minder",
         "url": "splash/index.html",
         "visible": true,
-        "width": 1280,
-        "height": 800,
-        "minWidth": 960,
-        "minHeight": 600,
+        "width": 1600,
+        "height": 900,
+        "minWidth": 1080,
+        "minHeight": 720,
         "center": true
       }
     ],
@@ -41,7 +41,7 @@
     ],
     "macOS": {
       "dmg": {
-        "background": "icons/dmg-background.png",
+        "background": null,
         "windowSize": {
           "width": 660,
           "height": 400

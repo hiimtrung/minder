@@ -2,8 +2,10 @@ import {
   addRepositoryBranch,
   deleteRepositoryBranchLink,
   deleteRepository,
+  getCliStatus,
   getRepositoryBranchLinks,
   getRepositoryBranches,
+  type CliStatusPayload,
   type RepositoryGraphImpactPayload,
   getRepositoryGraphImpact,
   getRepositoryGraphMap,
@@ -17,6 +19,7 @@ import {
   removeRepositoryBranch,
   searchAdminCatalog,
   searchRepositoryGraph,
+  triggerRepositorySync,
   upsertRepositoryBranchLink,
   updateRepository,
   type RepositoryBranchLinkPayload,
@@ -28,7 +31,7 @@ import {
   type RepositoryLandscapePayload,
   type RepositoryPayload,
 } from "../lib/api/admin";
-import { showDangerConfirm } from "./modal-controller";
+import { showConfirm, showDangerConfirm } from "./modal-controller";
 import { createDebouncedHandler } from "./catalog-controls";
 
 import {
@@ -430,34 +433,66 @@ function updateFsIcon(isFs: boolean): void {
   if (icon) icon.innerHTML = isFs ? FS_ICON_SHRINK : FS_ICON_EXPAND;
 }
 
+const GRAPH_FS_CLASS = "graph-pseudo-fullscreen";
+
+function enterPseudoFullscreen(wrap: HTMLElement): void {
+  wrap.classList.add(GRAPH_FS_CLASS);
+  updateFsIcon(true);
+  setTimeout(() => repoRenderer?.fitToScreen(), 120);
+}
+
+function exitPseudoFullscreen(wrap: HTMLElement): void {
+  wrap.classList.remove(GRAPH_FS_CLASS);
+  updateFsIcon(false);
+  setTimeout(() => repoRenderer?.fitToScreen(), 120);
+}
+
 getEl("repo-graph-fullscreen")?.addEventListener("click", () => {
   const wrap = getEl("repo-graph-wrap");
   if (!wrap) return;
 
-  if (!document.fullscreenElement) {
-    wrap
-      .requestFullscreen()
-      .then(() => {
-        updateFsIcon(true);
-        // Refit after fullscreen transition
-        setTimeout(() => repoRenderer?.fitToScreen(), 120);
-      })
-      .catch(() => {
-        /* fullscreen not supported */
-      });
-  } else {
+  // Exit pseudo-fullscreen
+  if (wrap.classList.contains(GRAPH_FS_CLASS)) {
+    exitPseudoFullscreen(wrap);
+    return;
+  }
+
+  // Exit native fullscreen
+  if (document.fullscreenElement) {
     document.exitFullscreen().then(() => {
       updateFsIcon(false);
       setTimeout(() => repoRenderer?.fitToScreen(), 120);
     });
+    return;
+  }
+
+  // Try native fullscreen; fall back to CSS pseudo-fullscreen (Tauri/WKWebView)
+  if (document.fullscreenEnabled) {
+    wrap
+      .requestFullscreen()
+      .then(() => {
+        updateFsIcon(true);
+        setTimeout(() => repoRenderer?.fitToScreen(), 120);
+      })
+      .catch(() => enterPseudoFullscreen(wrap));
+  } else {
+    enterPseudoFullscreen(wrap);
   }
 });
 
-// Sync icon when user exits fullscreen via Esc
+// Sync icon when user exits native fullscreen via Esc
 document.addEventListener("fullscreenchange", () => {
   if (!document.fullscreenElement) {
     updateFsIcon(false);
     setTimeout(() => repoRenderer?.fitToScreen(), 120);
+  }
+});
+
+// Exit pseudo-fullscreen on Escape
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") {
+    const wrap = getEl("repo-graph-wrap");
+    if (wrap?.classList.contains(GRAPH_FS_CLASS)) exitPseudoFullscreen(wrap);
   }
 });
 
@@ -486,12 +521,7 @@ getEl("impact-graph-fit")?.addEventListener("click", () =>
 // ============================================================
 
 function renderSummary(s: RepositoryGraphSummaryPayload): void {
-  setText(getEl("repo-summary-title"), s.repository.name);
   const branchLabel = s.active_branch ? ` · ${s.active_branch}` : "";
-  setText(
-    getEl("repo-summary-meta"),
-    `${s.repository.remote_url ?? "No remote"} · ${s.repository.default_branch ?? "No branch"}${branchLabel}`,
-  );
   setText(getEl("repo-summary-sync"), lastSyncLabel(s));
 
   const cards = getEl("repo-summary-cards");
@@ -833,13 +863,17 @@ let activeBranch: string | null = null; // currently selected branch for graph v
 let selectedNodeId: string | null = null;
 let repositoryLandscape: RepositoryLandscapePayload | null = null;
 let repositoryQuery = "";
+let cliStatus: CliStatusPayload | null = null;
 
 function requestedRepositoryId(): string | null {
   const fromAttr =
     getEl<HTMLElement>("repo-detail-context")?.dataset.repoId?.trim() ?? "";
   if (fromAttr) return fromAttr;
   // Fall back to URL when served as a static shell (no data-repo-id prop)
-  const segments = window.location.pathname.replace(/\/$/, "").split("/").filter(Boolean);
+  const segments = window.location.pathname
+    .replace(/\/$/, "")
+    .split("/")
+    .filter(Boolean);
   const repoIdx = segments.indexOf("repositories");
   if (repoIdx !== -1 && segments.length > repoIdx + 1) {
     const candidate = decodeURIComponent(segments[repoIdx + 1]);
@@ -1060,8 +1094,6 @@ function renderMetricValue(value: number | Record<string, number>): string {
 }
 
 function resetPanels(msg: string): void {
-  setText(getEl("repo-summary-title"), "Select a repository");
-  setText(getEl("repo-summary-meta"), msg);
   setText(getEl("repo-summary-sync"), "Waiting");
 
   const cards = getEl("repo-summary-cards");
@@ -1154,9 +1186,75 @@ async function loadWorkflows(): Promise<void> {
   }
 }
 
+async function loadCliStatus(): Promise<void> {
+  try {
+    cliStatus = await getCliStatus();
+  } catch {
+    cliStatus = { installed: false, version: null, path: null };
+  }
+  const badge = getEl("cli-version-badge");
+  const badgeText = getEl("cli-version-text");
+  const dot = getEl("cli-version-dot");
+  if (!badge || !badgeText) return;
+  if (cliStatus.installed && cliStatus.version) {
+    badgeText.textContent = `minder v${cliStatus.version}`;
+    badge.classList.remove("hidden");
+  } else {
+    badgeText.textContent = "minder CLI not installed";
+    if (dot) (dot as HTMLElement).style.background = "#ef4444";
+    badge.classList.remove("hidden");
+  }
+}
+
+async function handleSyncNow(): Promise<void> {
+  if (!activeRepositoryId) {
+    setText(getEl("repo-sync-status"), "Select a repository first.");
+    return;
+  }
+
+  if (cliStatus && !cliStatus.installed) {
+    await showConfirm(
+      "The minder CLI is not installed on this machine.\n\n" +
+        "Install it with:\n  pip install minder-cli\n\nOr download from https://github.com/hiimtrung/minder/releases",
+      "Install minder CLI",
+      "OK",
+    );
+    return;
+  }
+
+  const btn = getEl<HTMLButtonElement>("repo-sync-btn");
+  if (btn) btn.disabled = true;
+  setText(getEl("repo-sync-status"), "Scanning…");
+
+  try {
+    const res = await triggerRepositorySync(activeRepositoryId);
+    setText(
+      getEl("repo-sync-status"),
+      `Synced: ${res.nodes_upserted} nodes, ${res.edges_upserted} edges (${res.branch ?? "main"})`,
+    );
+    await refreshActiveGraph();
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Sync failed.";
+    if (
+      msg.includes("not found on this machine") ||
+      msg.includes("path_not_found")
+    ) {
+      setText(
+        getEl("repo-sync-status"),
+        "⚠ Repository path not found on this machine — sync skipped.",
+      );
+    } else {
+      setText(getEl("repo-sync-status"), msg);
+    }
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
 function populateWorkflowSelector(): void {
   const select = getEl<HTMLSelectElement>("repo-settings-workflow");
   if (!select) return;
+  const currentValue = activeRepository?.workflow_id ?? select.value ?? "";
   select.innerHTML = [
     `<option value="">No workflow assigned</option>`,
     ...workflows.map(
@@ -1164,6 +1262,9 @@ function populateWorkflowSelector(): void {
         `<option value="${escapeHtml(w.id)}">${escapeHtml(w.name)}</option>`,
     ),
   ].join("");
+  if (currentValue) {
+    select.value = currentValue;
+  }
 }
 
 // ============================================================
@@ -1482,7 +1583,8 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
     return;
   }
 
-  const name = getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "";
+  const name =
+    getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "";
   clearFieldErrors("repo-settings-name");
 
   if (!name) {
@@ -1495,10 +1597,12 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
     const res = await updateRepository(activeRepositoryId, {
       name,
       remote_url:
-        getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() ?? "",
+        getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() || null,
       default_branch:
-        getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() ?? "",
-      path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ?? "",
+        getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() || null,
+      path:
+        getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ||
+        undefined,
       workflow_id:
         getEl<HTMLSelectElement>("repo-settings-workflow")?.value || null,
     });
@@ -1745,11 +1849,17 @@ async function handleBranchLinkSubmit(e: SubmitEvent): Promise<void> {
     hasError = true;
   }
   if (!targetRepo) {
-    setFieldError("repo-branch-link-target-repo", "Target repository is required.");
+    setFieldError(
+      "repo-branch-link-target-repo",
+      "Target repository is required.",
+    );
     hasError = true;
   }
   if (!targetBranch) {
-    setFieldError("repo-branch-link-target-branch", "Target branch is required.");
+    setFieldError(
+      "repo-branch-link-target-branch",
+      "Target branch is required.",
+    );
     hasError = true;
   }
   if (hasError) return;
@@ -1915,6 +2025,10 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
   }
 });
 
+getEl("repo-sync-btn")?.addEventListener("click", () => {
+  void handleSyncNow();
+});
+
 // ============================================================
 // Init — default tab is "graph" (applied at page load)
 // ============================================================
@@ -1922,5 +2036,6 @@ getEl("repo-branch-link-admin-list")?.addEventListener("click", (e) => {
 // Overview is the default tab on page load.
 switchTab("overview");
 
+void loadCliStatus();
 void loadWorkflows();
 void loadRepositories();

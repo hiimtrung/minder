@@ -231,7 +231,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       const payload = (await response.json()) as { error?: string };
       if (payload.error) {
-        message = payload.error;
+        message =
+          typeof payload.error === "string"
+            ? payload.error
+            : JSON.stringify(payload.error);
       }
     } catch {
       // Ignore JSON parse failures and fall back to status text.
@@ -1713,4 +1716,25 @@ export type CliStatusPayload = {
 
 export async function getCliStatus(): Promise<CliStatusPayload> {
   return requestJson<CliStatusPayload>("/v1/admin/cli-status");
+}
+
+export type TriggerSyncResultPayload = {
+  repo_id: string;
+  repository_name: string;
+  branch: string | null;
+  nodes_upserted: number;
+  edges_upserted: number;
+  deleted_nodes: number;
+  accepted_at: string;
+  path_not_found?: boolean;
+  path?: string | null;
+};
+
+export async function triggerRepositorySync(
+  repoId: string,
+): Promise<TriggerSyncResultPayload> {
+  return requestJson<TriggerSyncResultPayload>(
+    `/v1/admin/repositories/${repoId}/trigger-sync`,
+    { method: "POST" },
+  );
 }

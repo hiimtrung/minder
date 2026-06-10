@@ -80,11 +80,10 @@ class TestAlwaysAvailableSet:
 
     def test_session_tools_always_available(self) -> None:
         for tool in (
-            "minder_session_create",
+            "minder_session_boot",
             "minder_session_list",
             "minder_session_save",
-            "minder_session_restore",
-            "minder_session_context",
+            "minder_session_summarize",
             "minder_session_cleanup",
         ):
             assert (
@@ -93,8 +92,6 @@ class TestAlwaysAvailableSet:
 
     def test_admin_tools_not_always_available(self) -> None:
         for tool in (
-            "minder_auth_manage",
-            "minder_auth_create_client",
             "minder_memory_store",
         ):
             assert (

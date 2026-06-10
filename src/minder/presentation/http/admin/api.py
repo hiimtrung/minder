@@ -1491,6 +1491,116 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
                 status_code=500,
             )
 
+    async def repository_trigger_sync(request):
+        try:
+            user = await context.admin_user_from_request(request)
+        except PermissionError:
+            return JSONResponse({"error": "Admin role required"}, status_code=403)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=401)
+
+        if context.graph_store is None:
+            return JSONResponse(
+                {"error": "Graph sync store is not configured"}, status_code=503
+            )
+
+        repo_id = uuid.UUID(str(request.path_params["repo_id"]))
+        repository = await context.store.get_repository_by_id(repo_id)
+        if repository is None:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+
+        root_path_str = context.use_cases._repository_root_path(repository)
+        if not root_path_str:
+            return JSONResponse(
+                {"error": "Repository path not configured", "path_not_found": True, "path": None},
+                status_code=400,
+            )
+
+        import asyncio
+        from pathlib import Path
+
+        from minder.tools.repo_scanner import RepoScanner, _portable_path
+        from minder.presentation.cli.utils.git import (
+            git_branch,
+            git_file_delta,
+            detect_branch_relationships,
+            run_git,
+        )
+
+        root = Path(root_path_str).expanduser().resolve()
+        if not root.exists() or not root.is_dir():
+            return JSONResponse(
+                {
+                    "error": f"Repository not found on this machine: {_portable_path(str(root))}",
+                    "path_not_found": True,
+                    "path": _portable_path(str(root)),
+                },
+                status_code=404,
+            )
+
+        relationships = dict(getattr(repository, "relationships", {}) or {})
+        graph_sync = dict(relationships.get("graph_sync", {}) or {})
+        last_sync_meta = dict(graph_sync.get("last_sync", {}) or {})
+        last_commit = last_sync_meta.get("commit_hash")
+
+        def _build_payload() -> dict:
+            branch = git_branch(root) or "main"
+            try:
+                commit_hash = run_git(["rev-parse", "HEAD"], cwd=root).stdout.strip()
+            except Exception:
+                commit_hash = None
+            changed, deleted = git_file_delta(root, last_commit)
+            branch_rels = detect_branch_relationships(root, branch)
+            return RepoScanner.build_sync_payload(
+                str(root),
+                branch=branch,
+                diff_base=last_commit,
+                changed_files=changed,
+                deleted_files=deleted,
+                branch_relationships=branch_rels,
+                commit_hash=commit_hash,
+            )
+
+        try:
+            raw = await asyncio.to_thread(_build_payload)
+        except Exception as exc:
+            return JSONResponse({"error": f"Scan failed: {exc}"}, status_code=500)
+
+        from minder.application.admin.dto import GraphSyncNodeRequest, GraphSyncEdgeRequest
+
+        try:
+            sync_req = GraphSyncRequest(
+                payload_version=str(raw.get("payload_version", "1")),
+                source="admin-ui",
+                repo_path=raw.get("repo_path"),
+                branch=raw.get("branch"),
+                diff_base=raw.get("diff_base"),
+                changed_files=raw.get("changed_files") or [],
+                deleted_files=raw.get("deleted_files") or [],
+                commit_hash=raw.get("commit_hash"),
+                sync_metadata=raw.get("sync_metadata") or {},
+                nodes=[GraphSyncNodeRequest.model_validate(n) for n in raw.get("nodes", [])],
+                edges=[GraphSyncEdgeRequest.model_validate(e) for e in raw.get("edges", [])],
+            )
+        except Exception as exc:
+            return JSONResponse({"error": f"Invalid scan output: {exc}"}, status_code=500)
+
+        try:
+            result = await context.use_cases.sync_repository_graph(
+                repo_id=repo_id, payload=sync_req
+            )
+        except LookupError:
+            return JSONResponse({"error": "Repository not found"}, status_code=404)
+        except RuntimeError as exc:
+            return JSONResponse({"error": str(exc)}, status_code=503)
+        except Exception as exc:
+            return JSONResponse({"error": str(exc)}, status_code=500)
+
+        await record_admin_operation(
+            "repository_trigger_sync", "success", actor_id=str(user.id), store=context.store
+        )
+        return JSONResponse(result, status_code=202)
+
     async def admin_version(_request) -> JSONResponse:
         return JSONResponse({"version": context.config.server.version})
 
@@ -1501,15 +1611,34 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         import subprocess
 
         def _check() -> dict:
-            path = shutil.which("minder")
+            import os
+            from pathlib import Path
+
+            # Augment PATH with common pipx / user-install locations
+            # (Tauri subprocess may not inherit the shell's full PATH)
+            extra_dirs = [
+                str(Path.home() / ".local" / "bin"),
+                str(Path.home() / "bin"),
+                str(Path.home() / ".local" / "pipx" / "venvs" / "minder-cli" / "bin"),
+                "/usr/local/bin",
+                "/opt/homebrew/bin",
+            ]
+            env = os.environ.copy()
+            existing = env.get("PATH", "")
+            extra = ":".join(d for d in extra_dirs if d not in existing)
+            if extra:
+                env["PATH"] = extra + (":" + existing if existing else "")
+
+            path = shutil.which("minder", path=env["PATH"])
             if not path:
                 return {"installed": False, "version": None, "path": None}
             try:
                 result = subprocess.run(
-                    ["minder", "--version"],
+                    [path, "--version"],
                     capture_output=True,
                     text=True,
                     timeout=5,
+                    env=env,
                 )
                 raw = (result.stdout or result.stderr or "").strip()
                 m = re.search(r"(\d+\.\d+\.\d+)", raw)
@@ -1657,6 +1786,11 @@ def build_admin_api_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route(
             "/v1/admin/repositories/{repo_id:uuid}/graph-sync",
             repository_graph_sync,
+            methods=["POST"],
+        ),
+        Route(
+            "/v1/admin/repositories/{repo_id:uuid}/trigger-sync",
+            repository_trigger_sync,
             methods=["POST"],
         ),
         Route(

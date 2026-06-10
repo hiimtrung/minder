@@ -21,7 +21,7 @@ flowchart TB
     UseCases --> Services["Workflow · Memory · Session · Query"]
 
     Services --> SQLite["SQLite\n(relational + graph store)"]
-    Services --> Milvus["Milvus Lite\n(embedded vector search)"]
+    Services --> Turbovec["Turbovec\n(embedded vector search)"]
     Services -.->|"in-process"| LlamaCpp["llama-cpp-python\n(LLM, host-native)"]
 ```
 
@@ -32,7 +32,7 @@ flowchart TB
 | Language           | Python 3.14+                                | Native fit for LangGraph and ML tooling         |
 | MCP SDK            | Official Python `mcp` SDK                   | MCP protocol support                            |
 | Orchestrator       | LangGraph                                   | Graph-based agentic workflow engine             |
-| Vector DB          | Milvus Lite (`pymilvus>=2.5.0`)             | Embedded file-based vector search, no server    |
+| Vector DB          | Turbovec (`turbovec`)                       | Embedded 4-bit quantized ANN, file-based, no server |
 | Relational DB      | SQLite + aiosqlite + SQLAlchemy             | Zero-dependency, file-based, async-native       |
 | LLM                | llama-cpp-python (GGUF via HuggingFace)     | Hardware-accelerated, Metal/CPU, auto-downloaded |
 | Auth               | PyJWT, bcrypt, API keys                     | Team auth and role control                      |
@@ -48,7 +48,7 @@ Presentation   -> src/minder/presentation/http/admin   (HTTP routes, DTOs)
 Application    -> src/minder/application/admin         (use cases)
 Domain         -> src/minder/models                    (entities, value objects)
 Infrastructure -> src/minder/store/relational.py       (SQLite / PostgreSQL via SQLAlchemy)
-                 src/minder/store/milvus/              (Milvus Lite vector store)
+                 src/minder/store/turbovec/            (Turbovec vector store)
                  src/minder/graph/                     (knowledge graph — SQLite or PostgreSQL)
                  src/minder/auth                       (principals, middleware)
                  src/minder/llm                        (llama-cpp-python + OpenAI fallback)
@@ -80,8 +80,8 @@ All settings in `minder.toml` or environment variables (`MINDER_<SECTION>__<KEY>
 | `MINDER_LLM__LLAMA_CPP_MODEL_REPO` | `ggml-org/gemma-4-E2B-it-GGUF` | HuggingFace repo for LLM GGUF model             |
 | `MINDER_LLM__LLAMA_CPP_MODEL_FILE` | `gemma-4-E2B-it-Q8_0.gguf`    | GGUF filename                                   |
 | `MINDER_RELATIONAL_STORE__PROVIDER`| `sqlite`                       | Relational store (`sqlite` / `postgresql`)      |
-| `MINDER_VECTOR_STORE__PROVIDER`    | `milvus`                       | Vector store provider (`milvus` / `memory`)     |
-| `MINDER_MILVUS__DB_PATH`           | `~/.minder/data/vectors.db`    | Milvus Lite file path                           |
+| `MINDER_VECTOR_STORE__PROVIDER`    | `turbovec`                     | Vector store provider (`turbovec` / `memory`)   |
+| `MINDER_TURBOVEC__DB_PATH`         | `~/.minder/data/vectors.tvim`  | Turbovec index file path                        |
 
 ---
 
@@ -91,7 +91,7 @@ All settings in `minder.toml` or environment variables (`MINDER_<SECTION>__<KEY>
 flowchart LR
     App["Minder Server"] --> SQLiteRel["SQLite\n~/.minder/data/minder.db\n(users, sessions, workflows, repos)"]
     App --> SQLiteGraph["SQLite\n~/.minder/data/graph.db\n(knowledge graph)"]
-    App --> MilvusLite["Milvus Lite\n~/.minder/data/vectors.db\n(semantic index)"]
+    App --> Turbovec["Turbovec\n~/.minder/data/vectors.tvim\n(semantic index)"]
     App --> RepoState[".minder/\n(repo-local state)"]
 ```
 

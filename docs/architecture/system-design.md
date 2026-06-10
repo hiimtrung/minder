@@ -24,7 +24,7 @@ Components:
 - admin APIs for onboarding and client management
 - repository-aware retrieval, workflow, memory, and session tools
 - operational data in SQLite (default) or PostgreSQL
-- vector search via Milvus Lite (embedded, file-based)
+- vector search via Turbovec (embedded, 4-bit quantized ANN, file-based)
 - LLM inference via llama-cpp-python (Gemma 4 GGUF, auto-downloaded from HuggingFace)
 - optional Tauri desktop shell for native distribution
 
@@ -35,7 +35,7 @@ Components:
 | Language           | Python 3.14+                                   | Native fit for LangGraph and ML tooling            |
 | MCP SDK            | Official Python `mcp` SDK                      | MCP protocol support                              |
 | Orchestrator       | LangGraph                                      | Graph-based agentic workflow engine                |
-| Vector DB          | Milvus Lite (`pymilvus>=2.5.0`)                | Embedded file-based vector search, no server       |
+| Vector DB          | Turbovec (`turbovec`)                          | Embedded 4-bit quantized ANN, file-based, no server |
 | Relational DB      | SQLite + aiosqlite + SQLAlchemy                | Zero-dependency, async-native                      |
 | LLM                | llama-cpp-python (GGUF via HuggingFace)        | Hardware-accelerated (Metal/CPU), auto-downloaded  |
 | Auth               | PyJWT, bcrypt, API keys                        | Team auth and role control                         |
@@ -67,7 +67,7 @@ flowchart TB
   UseCases --> Services["Workflow / Memory / Session / Query Services"]
 
   Services --> SQLite["SQLite\nminder.db + graph.db"]
-  Services --> Milvus["Milvus Lite\nvectors.db"]
+  Services --> Turbovec["Turbovec\nvectors.tvim"]
   Services -.->|"in-process"| LlamaCpp["llama-cpp-python\n(LLM, host-native)"]
 ```
 
@@ -102,7 +102,7 @@ flowchart LR
     AstroDev["Astro dev :8808\nPUBLIC_API_URL=http://localhost:8800"] --> Browser["Browser /dashboard"]
     Browser --> Backend["Python server :8800"]
     Backend --> SQLite["SQLite\nminder.db"]
-    Backend --> Milvus["Milvus Lite\nvectors.db"]
+    Backend --> Turbovec["Turbovec\nvectors.tvim"]
 ```
 
 Start with `bun run dev` from `src/dashboard/`.
@@ -140,7 +140,7 @@ Minder uses a graph-based agentic engine (LangGraph) with the following nodes:
 
 - **Workflow Planner**: Determines the current workflow phase and next valid step
 - **Planning**: Classifies intent (gen, debug, search) and selects retrieval strategy
-- **Retriever**: Generates embeddings and searches Milvus Lite (semantic) and graph (structural)
+- **Retriever**: Generates embeddings and searches Turbovec (semantic) and graph (structural)
 - **Reranker**: Cross-encoder reranking and MMR diversity filtering
 - **Reasoning**: Builds final prompt with context and enforces workflow step constraints
 - **LLM**: Routes generation to local llama-cpp-python with optional OpenAI fallback
@@ -151,7 +151,7 @@ Minder uses a graph-based agentic engine (LangGraph) with the following nodes:
 ### Infrastructure
 
 - `src/minder/store/relational.py` — SQLite / PostgreSQL via SQLAlchemy async
-- `src/minder/store/milvus/` — Milvus Lite vector store
+- `src/minder/store/turbovec/` — Turbovec vector store
 - `src/minder/graph/` — knowledge graph store (SQLite or PostgreSQL)
 - `src/minder/auth/` — principals, middleware
 - `src/minder/transport/` — MCP transport (SSE, streamable HTTP, stdio)
@@ -162,7 +162,7 @@ Minder uses a graph-based agentic engine (LangGraph) with the following nodes:
 flowchart LR
     App["Minder Server"] --> SQLiteRel["SQLite\n~/.minder/data/minder.db\n(users, sessions, workflows, repos, audit)"]
     App --> SQLiteGraph["SQLite\n~/.minder/data/graph.db\n(knowledge graph)"]
-    App --> MilvusLite["Milvus Lite\n~/.minder/data/vectors.db\n(semantic index)"]
+    App --> Turbovec["Turbovec\n~/.minder/data/vectors.tvim\n(semantic index)"]
     App --> RepoState[".minder/\n(repo-local state)"]
 ```
 
@@ -176,14 +176,14 @@ Primary operational store for:
 - workflow definitions and state
 - audit events and repository registrations
 
-### Milvus Lite (Vector Store)
+### Turbovec (Vector Store)
 
 Used for:
 - document embeddings
 - semantic retrieval
 - vector-backed code/document search
 
-Milvus Lite runs embedded in-process via `pymilvus`. All blocking calls are wrapped with `asyncio.to_thread()` to avoid blocking the FastAPI event loop.
+Turbovec runs embedded in-process using `turbovec.IdMapIndex` (4-bit quantized ANN). The index is stored at `~/.minder/data/vectors.tvim` with a companion `.tvim.meta` JSON mapping. All blocking index operations are wrapped with `asyncio.to_thread()` to avoid blocking the FastAPI event loop.
 
 ### Knowledge Graph Store
 
@@ -238,12 +238,22 @@ Primary objective:
 ```mermaid
 flowchart LR
     ToolCalls["MCP tool calls\nworkflow/query/code ops"] --> EventLog["Session + memory events"]
-    EventLog --> Recall["Top-K memory recall\nembedding similarity (Milvus Lite)"]
+    EventLog --> Recall["Top-K memory recall\nembedding similarity (Turbovec)"]
     Recall --> Synth["llama.cpp synthesis\nissue framing + summary + next actions"]
     Synth --> Brief["Session brief / continuity packet"]
     Brief --> Primary["Primary LLM prompt context"]
     Brief --> Store["SQLite session snapshot + memory artifacts"]
 ```
+
+### Session Boot — Single Entry Point
+
+`minder_session_boot` is the unified entry point for all session flows. It handles create, find, and restore transparently:
+
+- Pass `project_name` (stable slug) → finds or creates
+- Pass `project_name` + `session_id` (UUID) → restores a specific session directly
+- Returns `session_found`, `session_summary`, and `_next_steps` hints for immediate orientation
+
+`minder_session_save` handles both state checkpointing and context updates (branch, open files) in one call, eliminating the need for a separate context update tool.
 
 ### Workflow Instruction Compiler (Strict Mode)
 
@@ -256,12 +266,15 @@ When a repository has an active workflow, Minder compiles and enforces a determi
 - `allowed_tools` for current step
 - `output_contract` expected from the primary LLM
 
+`minder_workflow_step(include_definition=true)` returns the full definition in one call. Subsequent calls without the flag are lightweight current-step checks.
+
 ## 9. Skill Registry and Graph Metadata Policy
 
-- The Dashboard exposes skill list, create, update, delete, and remote import flows
-- Remote import supports GitHub, GitLab, and generic Git repositories
-- Imported skills retain provenance metadata (provider, repo URL, ref, source path)
-- Skill retrieval is workflow-step aware
+- The Dashboard exposes skill list, create, update, and delete flows
+- Skill retrieval is workflow-step aware with step-compatibility scoring
+- `minder_skill_store` acts as upsert: pass `skill_id` to update, `deprecated=True` to retire without deleting
+- `minder_memory_store` acts as upsert: pass `memory_id` to update an existing entry
+- Memory stores **project-specific facts**; skills store **cross-project reusable patterns**
 
 Graph intelligence follows a metadata-first contract:
 - `GraphNode` persists structural metadata only (not full source bodies)
@@ -334,6 +347,7 @@ Serve behind nginx or Caddy for TLS termination. See [Production Deployment](../
 ## 12. Related Design Documents
 
 - [Minder Server Architecture](minder-server.md)
+- [MCP Tool Reference](../roadmap/03-data-model-and-tools.md)
 - [Local Dev Setup](../guides/local-setup.md)
 - [Production Deployment](../guides/production-deployment.md)
 - [Native App Migration](../roadmap/native-app-migration.md)

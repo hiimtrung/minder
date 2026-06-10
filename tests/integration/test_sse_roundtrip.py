@@ -199,12 +199,12 @@ async def test_sse_roundtrip(tmp_path, uv_path):
                                     "id": 2,
                                     "method": "tools/call",
                                     "params": {
-                                        "name": "minder_auth_ping",
-                                        "arguments": {"message": "hello"}
+                                        "name": "minder_auth_whoami",
+                                        "arguments": {}
                                     }
                                 })
-            
-                                # 4. Get a token via login first then call ping WITH HEADER
+
+                                # 4. Get a token via login first then call whoami WITH HEADER
                                 await client.post(endpoint_url, json={
                                     "jsonrpc": "2.0",
                                     "id": 3,
@@ -246,14 +246,14 @@ async def test_sse_roundtrip(tmp_path, uv_path):
                                             pytest.fail(f"Could not extract token from text: {text}")
                                         token = m.group(1)
                                     
-                                    await client.post(endpoint_url, 
+                                    await client.post(endpoint_url,
                                         json={
                                             "jsonrpc": "2.0",
                                             "id": 4,
                                             "method": "tools/call",
                                             "params": {
-                                                "name": "minder_auth_ping",
-                                                "arguments": {"message": "authed hello"}
+                                                "name": "minder_auth_whoami",
+                                                "arguments": {}
                                             }
                                         },
                                         headers={"Authorization": f"Bearer {token}"}
@@ -282,7 +282,7 @@ async def test_sse_roundtrip(tmp_path, uv_path):
                     data4 = responses[4]
                     assert data4.get("result", {}).get("isError") is not True  # Success: isError is False or absent
                     content_text4 = data4["result"]["content"][0]["text"]
-                    assert "auth pong: authed hello" in content_text4
+                    assert "admin@example.com" in content_text4
                     
             except Exception as e:
                 import traceback

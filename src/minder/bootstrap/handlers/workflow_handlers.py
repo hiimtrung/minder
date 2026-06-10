@@ -20,16 +20,6 @@ def create_workflow_handlers(
 ) -> dict[str, Any]:
     """Return a dict of {tool_name: handler_fn} for workflow-related MCP tools."""
 
-    async def minder_workflow_get(
-        *, user=None, repo_id: str, repo_path: str, branch: str = "main"
-    ) -> dict[str, Any]:  # noqa: ANN001
-        del user
-        return await workflow_tools.minder_workflow_get(
-            repo_id=await resolve_repo_uuid(repo_id, store),
-            repo_path=repo_path,
-            branch=branch,
-        )
-
     async def minder_workflow_step(
         *,
         user=None,
@@ -38,6 +28,7 @@ def create_workflow_handlers(
         session_id: str | None = None,
         decision: dict[str, Any] | None = None,
         branch: str = "main",
+        include_definition: bool = False,
     ) -> dict[str, Any]:  # noqa: ANN001
         del user
         return await workflow_tools.minder_workflow_step(
@@ -46,6 +37,7 @@ def create_workflow_handlers(
             session_id=uuid.UUID(session_id) if session_id else None,
             decision=decision,
             branch=branch,
+            include_definition=include_definition,
         )
 
     async def minder_workflow_update(
@@ -80,7 +72,6 @@ def create_workflow_handlers(
         )
 
     return {
-        "minder_workflow_get": minder_workflow_get,
         "minder_workflow_step": minder_workflow_step,
         "minder_workflow_update": minder_workflow_update,
         "minder_workflow_guard": minder_workflow_guard,

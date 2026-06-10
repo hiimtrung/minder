@@ -1,4 +1,4 @@
-# Native App Migration — Docker → Tauri + Milvus Lite
+# Native App Migration — Docker → Tauri + Turbovec
 
 **Status:** Phase 1–3 Complete (Phase 4 docs cleanup done inline)  
 **Started:** 2026-05-25  
@@ -30,7 +30,7 @@ Tauri Desktop App (macOS .app / Linux .AppImage)
     └── spawns & manages: minder-server (PyInstaller binary)
                           ├── FastAPI (serves dashboard + API)
                           ├── SQLite (operational/relational data)
-                          └── Milvus Lite (embedded vector search)
+                          └── Turbovec (embedded vector search)
 ```
 
 No Docker. No Caddy. No separate Qdrant process.  
@@ -49,18 +49,18 @@ Single `.dmg` / `.AppImage` to install.
 | ID | Task | Status |
 |----|------|--------|
 | T1.1 | Change `relational_store.provider` default to `sqlite` | ✅ Done |
-| T1.2 | Change `vector_store.provider` default to `milvus` | ✅ Done |
-| T1.3 | Implement Milvus Lite vector store (`src/minder/store/milvus/`) | ✅ Done |
-| T1.4 | Add `pymilvus>=2.5.0` to `server` extra; move `qdrant-client` to optional `qdrant` extra | ✅ Done |
-| T1.5 | Update `config.py`: add `MilvusConfig`, update defaults | ✅ Done |
-| T1.6 | Update `providers.py`: Milvus branch in `build_vector_store()` | ✅ Done |
+| T1.2 | Change `vector_store.provider` default to `turbovec` | ✅ Done |
+| T1.3 | Implement Turbovec vector store (`src/minder/store/turbovec/`) | ✅ Done |
+| T1.4 | Add `turbovec` to `server` extra; move `qdrant-client` to optional `qdrant` extra | ✅ Done |
+| T1.5 | Update `config.py`: add `TurbovecConfig`, update defaults | ✅ Done |
+| T1.6 | Update `providers.py`: Turbovec branch in `build_vector_store()` | ✅ Done |
 | T1.7 | Update `minder.toml` defaults | ✅ Done |
 | T1.8 | Guard Qdrant package imports; add `pytest.importorskip` to Qdrant tests | ✅ Done |
 | T1.9 | Add `native-install` and `native-run` Makefile targets | ✅ Done |
 
 **Result:** 506 tests pass, 2 Qdrant tests self-skip, mypy clean on 201 files.
 
-**Key implementation note:** Milvus Lite is sync-only. All blocking calls are wrapped with `asyncio.to_thread()` so the FastAPI event loop is never blocked.
+**Key implementation note:** Turbovec uses `IdMapIndex` (4-bit quantized ANN). All blocking index calls are wrapped with `asyncio.to_thread()` so the FastAPI event loop is never blocked. Index stored at `~/.minder/data/vectors.tvim`.
 
 ---
 
@@ -72,7 +72,7 @@ Single `.dmg` / `.AppImage` to install.
 
 | ID | Task | Status |
 |----|------|--------|
-| T2.1 | Auto-create `~/.minder/data/` on first run | ✅ Done (providers.py + MilvusClientWrapper) |
+| T2.1 | Auto-create `~/.minder/data/` on first run | ✅ Done (providers.py + TurbovecStore) |
 | T2.2 | Startup health check log (which stores are active) | ✅ Done (server.py already logs store/transport) |
 | T2.3 | PyInstaller spec file (`minder-server.spec`) | ✅ Done |
 | T2.4 | Add `make native-install`, `make native-run`, `make bundle` targets | ✅ Done |
@@ -115,12 +115,12 @@ to replace it with a PyInstaller binary (no uv/Python needed at runtime).
 
 | File / Directory | Role |
 |---|---|
-| `src/minder/store/milvus/` | Milvus Lite vector store (new, replaces Qdrant) |
+| `src/minder/store/turbovec/` | Turbovec vector store (new, replaces Qdrant) |
 | `src/minder/store/qdrant/` | Qdrant store (optional, `qdrant` extra, legacy) |
-| `src/minder/config.py` | Added `MilvusConfig`; `relational_store.provider=sqlite`, `vector_store.provider=milvus` |
-| `src/minder/bootstrap/providers.py` | Milvus + SQLite branches; Qdrant kept as optional |
-| `pyproject.toml` | `pymilvus>=2.5.0` in `server`; `qdrant-client` in optional `qdrant` extra |
-| `minder.toml` | Runtime defaults: milvus, sqlite |
+| `src/minder/config.py` | Added `TurbovecConfig`; `relational_store.provider=sqlite`, `vector_store.provider=turbovec` |
+| `src/minder/bootstrap/providers.py` | Turbovec + SQLite branches; Qdrant kept as optional |
+| `pyproject.toml` | `turbovec` in `server`; `qdrant-client` in optional `qdrant` extra |
+| `minder.toml` | Runtime defaults: turbovec, sqlite |
 | `minder-server.spec` | PyInstaller spec for `make bundle` |
 | `src-tauri/` | Tauri desktop app shell |
 | `src-tauri/src/lib.rs` | Rust: sidecar spawn, TCP health-wait, window navigation |
@@ -136,7 +136,7 @@ to replace it with a PyInstaller binary (no uv/Python needed at runtime).
 
 | Decision | Choice | Reason |
 |---|---|---|
-| Vector DB | Milvus Lite | Embedded, file-based, purpose-built ANN; same IVectorStore interface |
+| Vector DB | Turbovec | Embedded, file-based, 4-bit quantized ANN (`IdMapIndex`); same IVectorStore interface |
 | Operational store | SQLite | Already implemented (1386-line RelationalStore); zero new code |
 | Desktop shell | Tauri | System WebView (~5 MB binary) vs Electron (~120 MB + Chromium) |
 | Python packaging | PyInstaller | Single binary = clean Tauri `externalBin` sidecar; no uv/venv at runtime |

@@ -1,9 +1,8 @@
 # 03. Data Model and MCP Tool Surface
 
-> **Version**: 2.0 — 2026-04-15
-> Audited against the live codebase. Each tool table notes whether the tool is
-> **Implemented** (live in transport), **Partial** (code exists but not registered),
-> or **Planned** (spec only, not yet built).
+> **Version**: 3.0 — 2026-06-09
+> Audited against the live codebase. 26 tools are registered and active in transport.
+> Tools removed from MCP registration retain their underlying service methods for HTTP admin use.
 
 ---
 
@@ -11,115 +10,55 @@
 
 ### Skill Store
 
-| Field           | Type        | Description                                   |
-| --------------- | ----------- | --------------------------------------------- |
-| `id`            | UUID        | Primary key                                   |
-| `title`         | string      | Skill title                                   |
-| `content`       | text        | Code snippet, API usage, pattern, or guidance |
-| `language`      | string      | Programming language                          |
-| `tags`          | string[]    | Classification labels                         |
-| `embedding`     | vector(768) | Dedicated embedding-model vector              |
-| `usage_count`   | int         | Retrieval count                               |
-| `quality_score` | float       | Feedback-derived quality score                |
-| `created_at`    | timestamp   | Created time                                  |
-| `updated_at`    | timestamp   | Last updated time                             |
-
-### Planned Skill Catalog Extensions
-
-The live store is intentionally minimal today. The planned skill-catalog expansion adds provenance and workflow-aware curation fields without changing the core role of the skill store.
-
-| Field               | Type     | Description                                      |
-| ------------------- | -------- | ------------------------------------------------ |
-| `workflow_steps`    | string[] | Workflow steps where the skill is most relevant  |
-| `source.provider`   | string   | `github`, `gitlab`, or `generic_git`             |
-| `source.repo_url`   | string   | Remote repository URL                            |
-| `source.ref`        | string   | Imported branch, tag, or commit ref              |
-| `source.path`       | string   | Path within the repository                       |
-| `source.commit_sha` | string   | Commit imported from when available              |
-| `excerpt_kind`      | string   | `none` or `reusable_excerpt`                     |
-| `curation_status`   | string   | `draft`, `imported`, `reviewed`, or `deprecated` |
+| Field               | Type        | Description                                      |
+| ------------------- | ----------- | ------------------------------------------------ |
+| `id`                | UUID        | Primary key                                      |
+| `title`             | string      | Skill title                                      |
+| `content`           | text        | Code snippet, API usage, pattern, or guidance    |
+| `language`          | string      | Programming language                             |
+| `tags`              | string[]    | Classification labels                            |
+| `workflow_steps`    | string[]    | Workflow steps where the skill is most relevant  |
+| `artifact_types`    | string[]    | Artifact types the skill helps produce           |
+| `provenance`        | string      | Source identifier (e.g. `phase_4_4`, `git_import`) |
+| `quality_score`     | float       | Feedback-derived quality score (0.0–1.0)         |
+| `deprecated`        | boolean     | Whether this skill is retired from recall        |
+| `source.provider`   | string      | `github`, `gitlab`, or `generic_git`             |
+| `source.repo_url`   | string      | Remote repository URL                            |
+| `source.ref`        | string      | Imported branch, tag, or commit ref              |
+| `source.path`       | string      | Path within the repository                       |
+| `embedding`         | vector(768) | Dedicated embedding-model vector                 |
+| `usage_count`       | int         | Retrieval count                                  |
+| `created_at`        | timestamp   | Created time                                     |
+| `updated_at`        | timestamp   | Last updated time                                |
 
 ### Knowledge Graph Store
 
-`GraphNode` must remain metadata-first. The graph is intended to capture structure and relationships, not to duplicate raw source files.
+`GraphNode` is metadata-first. The graph captures structure and relationships, not source bodies.
 
 | Field        | Type      | Description                                                                                 |
 | ------------ | --------- | ------------------------------------------------------------------------------------------- |
 | `id`         | UUID      | Primary key                                                                                 |
-| `node_type`  | string    | repository, file, function, controller, route, mq_topic, mq_producer, mq_consumer           |
+| `node_type`  | string    | repository, file, function, controller, route, mq_topic, mq_producer, mq_consumer          |
 | `name`       | string    | Stable node name                                                                            |
-| `metadata`   | jsonb     | Structural metadata such as paths, signatures, route patterns, topics, owner, and framework |
+| `metadata`   | jsonb     | Structural metadata: paths, signatures, route patterns, topics, owner, framework            |
 | `created_at` | timestamp | Created time                                                                                |
 
 Graph metadata policy:
-
 - store file path, language, symbol names, signatures, route information, and queue flow
 - keep dependency and ownership edges explicit in `GraphEdge`
 - do not persist full source content in graph metadata by default
-- if a code fragment is retained, store a bounded reusable excerpt outside the default graph payload
-
-Planned ingestion direction:
-
-- prefer repo-local extraction through `minder-cli` over slow server-centric broad scans
-- use `git diff` to drive delta refresh by default
-- send structural JSON to the server sync API while keeping the server as the system of record
-
-### History Store
-
-| Field             | Type      | Description                         |
-| ----------------- | --------- | ----------------------------------- |
-| `id`              | UUID      | Primary key                         |
-| `session_id`      | UUID      | FK to session                       |
-| `role`            | enum      | user, assistant, system, tool       |
-| `content`         | text      | Message content                     |
-| `reasoning_trace` | text      | Reasoning summary or trace metadata |
-| `tool_calls`      | jsonb     | Tool invocation records             |
-| `tokens_used`     | int       | Token count                         |
-| `latency_ms`      | int       | Response time                       |
-| `created_at`      | timestamp | Created time                        |
-
-### Error Store
-
-| Field           | Type        | Description                           |
-| --------------- | ----------- | ------------------------------------- |
-| `id`            | UUID        | Primary key                           |
-| `error_code`    | string      | Standardized error code               |
-| `error_message` | text        | Original message                      |
-| `stack_trace`   | text        | Stack trace                           |
-| `context`       | jsonb       | Query, input, state, and tool context |
-| `resolution`    | text        | Known resolution if available         |
-| `embedding`     | vector(768) | Similar-error retrieval embedding     |
-| `resolved`      | boolean     | Resolution status                     |
-| `created_at`    | timestamp   | Created time                          |
-
-### User Store
-
-| Field          | Type      | Description                         |
-| -------------- | --------- | ----------------------------------- |
-| `id`           | UUID      | Primary key                         |
-| `email`        | string    | Unique email                        |
-| `username`     | string    | Git username or configured username |
-| `display_name` | string    | Display name                        |
-| `api_key_hash` | string    | Bcrypt hash of API key              |
-| `role`         | enum      | admin, member, readonly             |
-| `settings`     | jsonb     | User preferences                    |
-| `is_active`    | boolean   | Active status                       |
-| `created_at`   | timestamp | Created time                        |
-| `last_login`   | timestamp | Last login time                     |
+- bounded reusable excerpts only when a code fragment is worth keeping
 
 ### Session Store
 
-Sessions are the server-side LLM context checkpoint. A session is owned by
-either a **human admin** (`user_id`) or an **MCP client** (`client_id`). The
-`name` field enables **cross-environment recovery** — an LLM can find its session
-from any machine using the same client API key without remembering the UUID.
+Sessions are the server-side LLM context checkpoint. A session is owned by either a **human admin** (`user_id`) or an **MCP client** (`client_id`). The `name` field enables **cross-environment recovery** — an LLM can find its session from any machine using the same client API key.
 
 | Field             | Type      | Description                                                   |
 | ----------------- | --------- | ------------------------------------------------------------- |
 | `id`              | UUID      | Session ID (primary key)                                      |
 | `user_id`         | UUID?     | FK to user — set for human sessions, null for client sessions |
 | `client_id`       | UUID?     | FK to client — set for MCP client sessions, null for human    |
-| `name`            | string?   | Optional project label for cross-environment lookup           |
+| `name`            | string?   | Optional project slug for cross-environment lookup            |
 | `repo_id`         | UUID?     | FK to repository context                                      |
 | `project_context` | jsonb     | Repo, branch, open files, and environment                     |
 | `active_skills`   | jsonb     | Active skill set at save time                                 |
@@ -131,240 +70,169 @@ from any machine using the same client API key without remembering the UUID.
 #### Cross-environment session recovery flow
 
 ```
-Machine A (same client API key):
-  minder_session_create(name="omi-channel-phase5") → {session_id: "a1b2..."}
-  minder_session_save(session_id, state={task: "...", next_steps: [...]})
+Machine A — create or recover a session:
+  minder_session_boot(project_name="my-api", project_context={"repo_path": "/dev/my-api"})
+  → { session_id: "a1b2...", session_found: false }
+
+  minder_session_save(session_id="a1b2...", state={task: "...", next_steps: [...]},
+                      branch="feat/x", open_files=["src/service.py"])
 
 /compact or machine switch:
 
-Machine B (same client API key):
-  minder_session_find(name="omi-channel-phase5")
-  → {session_id: "a1b2...", state: {...}, project_context: {...}}
-  → LLM resumes with full context
+Machine B — same client API key:
+  minder_session_boot(project_name="my-api")
+  → { session_id: "a1b2...", session_found: true, session_summary: {...}, _next_steps: [...] }
 ```
 
-The `session_id` UUID is stable across environments for the same session.
-The `name` is the durable human-readable key that survives context resets.
+The `session_id` UUID is stable across environments for the same session. The `name` is the durable human-readable key that survives context resets. Pass `session_id` to `minder_session_boot` to restore a specific session by UUID.
 
-### Metadata Store
+### Other Stores
 
-| Field         | Type      | Description                                  |
-| ------------- | --------- | -------------------------------------------- |
-| `id`          | UUID      | Primary key                                  |
-| `entity_type` | string    | skill, history, error, document, or workflow |
-| `entity_id`   | UUID      | Related entity ID                            |
-| `key`         | string    | Metadata key                                 |
-| `value`       | jsonb     | Metadata value                               |
-| `source`      | string    | user, system, or import                      |
-| `version`     | int       | Schema version                               |
-| `created_at`  | timestamp | Created time                                 |
-
-### Document Store
-
-| Field         | Type        | Description                         |
-| ------------- | ----------- | ----------------------------------- |
-| `id`          | UUID        | Primary key                         |
-| `title`       | string      | Document title                      |
-| `content`     | text        | Raw content                         |
-| `doc_type`    | enum        | markdown, code, api_spec, or config |
-| `source_path` | string      | Original source path                |
-| `chunks`      | jsonb       | Chunked content with offsets        |
-| `embedding`   | vector(768) | Document-level embedding            |
-| `project`     | string      | Project or repository name          |
-| `created_at`  | timestamp   | Import time                         |
-| `updated_at`  | timestamp   | Last sync time                      |
-
-### Rule Store
-
-| Field         | Type      | Description                              |
-| ------------- | --------- | ---------------------------------------- |
-| `id`          | UUID      | Primary key                              |
-| `title`       | string    | Rule name                                |
-| `description` | text      | Description of the rule                  |
-| `pattern`     | string    | Glob or regex matcher                    |
-| `content`     | text      | Rule body                                |
-| `priority`    | int       | Execution priority                       |
-| `scope`       | enum      | global, project, language, or repository |
-| `active`      | boolean   | Enabled or disabled                      |
-| `created_at`  | timestamp | Created time                             |
-
-### Feedback Store
-
-| Field           | Type      | Description                             |
-| --------------- | --------- | --------------------------------------- |
-| `id`            | UUID      | Primary key                             |
-| `entity_type`   | string    | skill, response, retrieval, or workflow |
-| `entity_id`     | UUID      | Related entity ID                       |
-| `rating`        | int       | Rating from 1 to 5                      |
-| `feedback_text` | text      | Optional free-form feedback             |
-| `context`       | jsonb     | Query, task, or workflow context        |
-| `created_at`    | timestamp | Created time                            |
-
-### Workflow Store
-
-| Field              | Type      | Description                               |
-| ------------------ | --------- | ----------------------------------------- |
-| `id`               | UUID      | Primary key                               |
-| `name`             | string    | Workflow name                             |
-| `version`          | int       | Workflow version                          |
-| `steps`            | jsonb     | Ordered step definitions                  |
-| `policies`         | jsonb     | Required gates, blockers, and permissions |
-| `default_for_repo` | boolean   | Whether it is the default workflow        |
-| `created_at`       | timestamp | Created time                              |
-| `updated_at`       | timestamp | Last updated time                         |
-
-### Repository Context Store
-
-| Field              | Type      | Description                                    |
-| ------------------ | --------- | ---------------------------------------------- |
-| `id`               | UUID      | Primary key                                    |
-| `repo_name`        | string    | Repository name                                |
-| `repo_url`         | string    | Remote URL                                     |
-| `default_branch`   | string    | Default branch                                 |
-| `workflow_id`      | UUID      | FK to workflow                                 |
-| `state_path`       | string    | Path inside repo for local state files         |
-| `context_snapshot` | jsonb     | Latest repo summary and context                |
-| `relationships`    | jsonb     | Modules, services, ownership, and dependencies |
-| `created_at`       | timestamp | Created time                                   |
-| `updated_at`       | timestamp | Last updated time                              |
-
-### Repository Workflow State Store
-
-| Field             | Type      | Description                               |
-| ----------------- | --------- | ----------------------------------------- |
-| `id`              | UUID      | Primary key                               |
-| `repo_id`         | UUID      | FK to repository context                  |
-| `session_id`      | UUID      | FK to session                             |
-| `current_step`    | string    | Current workflow step                     |
-| `completed_steps` | jsonb     | Completed steps                           |
-| `blocked_by`      | jsonb     | Blocking conditions                       |
-| `artifacts`       | jsonb     | Use cases, tests, specs, and review notes |
-| `next_step`       | string    | Next valid step                           |
-| `updated_at`      | timestamp | Last updated time                         |
+| Store | Key fields | Purpose |
+|-------|-----------|---------|
+| **History Store** | `session_id`, `role`, `content`, `tool_calls`, `tokens_used` | Per-session message history |
+| **Error Store** | `error_code`, `error_message`, `stack_trace`, `resolution`, `embedding` | Similar-error retrieval |
+| **User Store** | `email`, `username`, `api_key_hash`, `role`, `is_active` | User identity and auth |
+| **Workflow Store** | `name`, `version`, `steps`, `policies`, `default_for_repo` | Workflow definitions |
+| **Repository Context Store** | `repo_name`, `repo_url`, `workflow_id`, `state_path`, `relationships` | Repository registry |
+| **Repository Workflow State** | `repo_id`, `session_id`, `current_step`, `completed_steps`, `artifacts` | Per-session workflow position |
+| **Document Store** | `title`, `content`, `doc_type`, `source_path`, `embedding` | Ingested documents |
 
 ---
 
-## MCP Tools and Resources
+## MCP Tools (26 registered)
 
-> Legend: ✅ Implemented · ⚠️ Partial (code exists, not registered) · 🗓️ Planned
+All tools listed here are registered in the MCP transport and available to authenticated principals. Underlying service methods for unregistered operations (e.g. `minder_session_create`, `minder_session_restore`) remain available via HTTP admin routes.
 
 ### Auth Tools
 
-These tools are **not grantable** to MCP client principals via `tool_scopes`.
-`minder_auth_whoami` is always available to all authenticated principals.
+Not grantable to MCP client principals via `tool_scopes`. `minder_auth_whoami` is always available to all authenticated principals; `minder_auth_login` and `minder_auth_exchange_client_key` are available without a principal (bootstrap path).
 
-| Tool                              | Status | Description                                                     |
-| --------------------------------- | ------ | --------------------------------------------------------------- |
-| `minder_auth_login`               | ✅     | Exchange a human admin API key for a JWT bearer token           |
-| `minder_auth_exchange_client_key` | ✅     | Exchange a client API key for a scoped short-lived access token |
-| `minder_auth_whoami`              | ✅     | Return the current principal identity, role, and active scopes  |
-| `minder_auth_manage`              | ✅     | Admin-only: list users and run auth management actions          |
-| `minder_auth_create_client`       | ✅     | Admin-only: create a new MCP client and issue its API key       |
-| `minder_auth_ping`                | ✅     | Verify auth is working and the current principal can call tools |
+| Tool | Description |
+|------|-------------|
+| `minder_auth_login` | Exchange a human admin API key (`mk_...`) for a JWT bearer token |
+| `minder_auth_exchange_client_key` | Exchange a client API key (`mkc_...`) for a scoped short-lived access token |
+| `minder_auth_whoami` | Return the current principal identity, role, and active scopes |
 
 ### Session Tools
 
-All session tools are **always available** to any authenticated principal
-(human or client) — no explicit `tool_scopes` grant is required.
+All session tools are **always available** to any authenticated principal — no explicit `tool_scopes` grant is required. `minder_session_boot` is the **single entry point** for all session flows; it handles create, find, and restore transparently.
 
-| Tool                     | Status | Description                                                             |
-| ------------------------ | ------ | ----------------------------------------------------------------------- |
-| `minder_session_create`  | ✅     | Create a named, persisted session; pass `name` for cross-env recovery   |
-| `minder_session_find`    | ✅     | Find a session by name — primary cross-environment recovery entry point |
-| `minder_session_list`    | ✅     | List all sessions owned by the calling principal, newest-first          |
-| `minder_session_save`    | ✅     | Persist task state and active skills; call after each wave of work      |
-| `minder_session_restore` | ✅     | Load saved state and context for an existing session by UUID            |
-| `minder_session_context` | ✅     | Update branch and open-file context for an existing session             |
-
-### Workflow Tools
-
-| Tool                     | Status | Description                                                        |
-| ------------------------ | ------ | ------------------------------------------------------------------ |
-| `minder_workflow_get`    | ✅     | Return the active workflow for a repository                        |
-| `minder_workflow_step`   | ✅     | Return the current step, blockers, and next step                   |
-| `minder_workflow_update` | ✅     | Mark a step complete or attach an artifact                         |
-| `minder_workflow_guard`  | ✅     | Validate whether a requested action is allowed in the current step |
-
-### Core Query and Search Tools
-
-| Tool                   | Status | Description                                      |
-| ---------------------- | ------ | ------------------------------------------------ |
-| `minder_query`         | ✅     | Run the full agentic RAG pipeline                |
-| `minder_search`        | ✅     | Run semantic search without LLM generation       |
-| `minder_search_code`   | ✅     | Search code snippets and patterns                |
-| `minder_search_errors` | ✅     | Search similar historical errors and resolutions |
+| Tool | Description |
+|------|-------------|
+| `minder_session_boot` | Create or recover a named session. Pass `project_name` (slug) and optional `project_context`. Pass `session_id` (UUID) to restore a specific session directly. Returns `session_found`, `session_summary`, and `_next_steps` hints. |
+| `minder_session_list` | List sessions owned by the calling principal, sorted newest-first |
+| `minder_session_save` | Checkpoint task state and active skills. Pass `branch` and `open_files` to update context in the same call — no separate context call needed. |
+| `minder_session_summarize` | Generate a structured summary of the current session. Call before `/compact`, long interruptions, or subagent handoff. |
+| `minder_session_cleanup` | Delete expired sessions and their history for the calling principal |
 
 ### Memory Tools
 
-Memory tools operate on the **Skill Store** (vector-backed) via the memory layer.
-The `minder_memory_compact` tool mentioned in earlier drafts is not implemented.
+Memory stores **project-specific facts**: decisions, constraints, confirmed paths/symbols, architectural choices, and past mistakes. For reusable cross-project patterns, use skill tools instead.
 
-| Tool                   | Status | Description                            |
-| ---------------------- | ------ | -------------------------------------- |
-| `minder_memory_store`  | ✅     | Store a skill, document, rule, or note |
-| `minder_memory_recall` | ✅     | Recall entries by semantic similarity  |
-| `minder_memory_list`   | ✅     | List stored entries                    |
-| `minder_memory_delete` | ✅     | Delete a memory entry by ID            |
+| Tool | Description |
+|------|-------------|
+| `minder_memory_store` | Store a project fact or decision. Pass `memory_id` to update an existing entry (upsert pattern). |
+| `minder_memory_recall` | Retrieve memories by semantic similarity. Pass `current_step` to bias results toward the active workflow step. |
+| `minder_memory_list` | List all memories for the calling principal |
+| `minder_memory_delete` | Delete a memory entry by ID |
 
-### Skill Tools (Planned — Phase 5 backlog)
+### Skill Tools
 
-Distinct from memory tools: skill tools expose workflow-step-aware retrieval
-and quality signal management. The backing store and embedding pipeline are
-already in place; the MCP surface layer has not been built yet.
+Skills store **reusable cross-project patterns**: checklists, code templates, workflow conventions, and engineering practices. For project-specific facts, use memory tools instead.
 
-| Tool                  | Status | Description                                                           |
-| --------------------- | ------ | --------------------------------------------------------------------- |
-| `minder_skill_store`  | 🗓️     | Store a reusable skill with workflow-step, provenance, and tag labels |
-| `minder_skill_recall` | 🗓️     | Retrieve skills compatible with the current workflow step             |
-| `minder_skill_list`   | 🗓️     | List skills by project, step, tags, or quality score                  |
-| `minder_skill_update` | 🗓️     | Update skill content, metadata, and quality signals                   |
-| `minder_skill_delete` | 🗓️     | Remove obsolete or invalid skills                                     |
+| Tool | Description |
+|------|-------------|
+| `minder_skill_store` | Store a reusable pattern. Pass `skill_id` to update an existing entry. Pass `deprecated=True` to retire a skill from recall without deleting it. |
+| `minder_skill_recall` | Retrieve skills compatible with the current workflow step. Pass `current_step` for step-aware ranking. |
+| `minder_skill_list` | List skills, optionally filtered by step, tags, or quality score |
+| `minder_skill_delete` | Permanently remove a skill by ID |
 
-Planned admin-surface expansion:
+### Workflow Tools
 
-- Dashboard skill CRUD uses the same underlying skill catalog
-- remote imports from GitHub, GitLab, and generic Git sources become auditable admin operations
-- manual curation can override imported content without losing provenance
+| Tool | Description |
+|------|-------------|
+| `minder_workflow_step` | Return current step, blockers, and instruction envelope. Pass `include_definition=true` to also return the full workflow definition (replaces the old `minder_workflow_get` — call once per session). |
+| `minder_workflow_update` | Mark a step complete or attach an artifact. Advances the workflow when all required artifacts are present. |
+| `minder_workflow_guard` | Validate whether a requested action is allowed in the current step. **Required before starting any significant action.** Returns `allowed`, `reason`, and `violations`. |
 
-### Ingestion Tools (Partial — not yet registered in transport)
+### Search and Graph Tools
 
-The tool class `IngestTools` is implemented in `src/minder/tools/ingest.py` but
-is not yet wired into the MCP transport. Registration is a Phase 5 task.
+| Tool | Description |
+|------|-------------|
+| `minder_search_code` | Semantic code search by symbol, concept, or pattern. Requires `repo_path`. |
+| `minder_search_errors` | Search similar historical errors and their resolutions. Does not require `repo_path`. |
+| `minder_search_graph` | Structural graph queries: routes, imports, dependencies, cross-module relationships. |
+| `minder_find_impact` | Blast-radius analysis. Pass a symbol, file, or route to find upstream and downstream impact. Call before modifying shared modules. |
 
-| Tool                      | Status | Description                                 |
-| ------------------------- | ------ | ------------------------------------------- |
-| `minder_ingest_file`      | ⚠️     | Ingest a local file into the document store |
-| `minder_ingest_directory` | ⚠️     | Batch-ingest a directory                    |
-| `minder_ingest_url`       | ⚠️     | Fetch and ingest a URL                      |
-| `minder_ingest_git`       | ⚠️     | Shallow-clone and ingest a Git repository   |
+### Agent Tools
 
-### Admin Tools (Planned — Phase 5 backlog)
-
-| Tool             | Status | Description                              |
-| ---------------- | ------ | ---------------------------------------- |
-| `minder_status`  | 🗓️     | Health check, stats, and active sessions |
-| `minder_config`  | 🗓️     | Get or update runtime configuration      |
-| `minder_reindex` | 🗓️     | Reindex vector collections               |
+| Tool | Description |
+|------|-------------|
+| `minder_agent_list` | List available subagents. Pass `workflow_step` to find agents scoped to the current step. |
+| `minder_agent_get` | Load a subagent's full `system_prompt` and `tools` list. Always call before spawning. |
+| `minder_agent_store` | Create or update a subagent definition |
 
 ---
 
 ## MCP Resources
 
-| Resource                 | Status | Description                          |
-| ------------------------ | ------ | ------------------------------------ |
-| `minder://skills`        | ✅     | List all skills with title and tags  |
-| `minder://repos`         | ✅     | List repos with workflow state       |
-| `minder://stats`         | ✅     | Query count, avg latency, error rate |
-| `minder://sessions/{id}` | 🗓️     | Session state by ID (planned)        |
+| Resource          | Description                              |
+| ----------------- | ---------------------------------------- |
+| `minder://skills` | List all skills with title and tags      |
+| `minder://repos`  | List repos with workflow state and IDs   |
+| `minder://stats`  | Query count, avg latency, error rate     |
 
 ## MCP Prompts
 
-| Prompt     | Status | Description                                          |
-| ---------- | ------ | ---------------------------------------------------- |
-| `debug`    | ✅     | Debugging prompt template with error-store context   |
-| `review`   | ✅     | Code review prompt template with skill-store context |
-| `explain`  | ✅     | Explanation prompt template with document context    |
-| `tdd_step` | ✅     | Prompt template for the current TDD workflow step    |
+| Prompt     | Description                                          |
+| ---------- | ---------------------------------------------------- |
+| `debug`    | Debugging prompt template with error-store context   |
+| `review`   | Code review prompt template with skill-store context |
+| `explain`  | Explanation prompt template with document context    |
+| `tdd_step` | Prompt template for the current TDD workflow step    |
+
+---
+
+## Tool Design Patterns
+
+### Upsert (create-or-update)
+
+`minder_memory_store` and `minder_skill_store` act as upsert operations:
+
+```python
+# Create new
+minder_memory_store(title="Auth decision", content="Use JWT for all endpoints", tags=["auth"])
+
+# Update existing (pass memory_id)
+minder_memory_store(memory_id="uuid-here", title="Auth decision", content="Updated content", tags=["auth"])
+
+# Retire a skill without deleting
+minder_skill_store(skill_id="uuid-here", deprecated=True, ...)
+```
+
+### Workflow definition lazy-load
+
+`minder_workflow_step` with `include_definition=true` returns the full workflow definition in one call. Call once at session start to populate the agent's context; subsequent calls without the flag are lightweight.
+
+```python
+# First call — get full definition
+step = minder_workflow_step(repo_id=..., repo_path=..., include_definition=True)
+# step["workflow"]["steps"], step["workflow"]["policies"] are populated
+
+# Subsequent calls — lightweight current-step check
+step = minder_workflow_step(repo_id=..., repo_path=...)
+```
+
+### Session boot options
+
+```python
+# Option A — find or create by project name
+minder_session_boot(project_name="my-api--claude", project_context={"repo_path": "/dev/my-api"})
+
+# Option B — restore specific session by UUID (from .minder/agent.json)
+minder_session_boot(project_name="my-api--claude", session_id="a1b2c3d4-...")
+```
 
 ---
 
@@ -372,20 +240,20 @@ is not yet wired into the MCP transport. Registration is a Phase 5 task.
 
 When workflow enforcement is enabled for a repository:
 
-- Every retrieval call must receive workflow context (`workflow_id`, `current_step`, `required_artifacts`)
-- Memory and skill ranking must include step-compatibility scoring
-- Session restore must include the latest validated instruction envelope
-- Gemma 3/4 local synthesis output must be scoped to the current step and blocked actions
+- Every retrieval call receives workflow context (`workflow_id`, `current_step`, `required_artifacts`)
+- Memory and skill ranking includes step-compatibility scoring
+- Session restore includes the latest validated instruction envelope
+- LLM synthesis is scoped to the current step and blocked actions
+- `minder_workflow_guard` must return `allowed=true` before any significant step action
 
 ---
 
-## Configuration Example
+## Configuration Reference
 
 ```toml
 [server]
 name = "minder"
-version = "0.1.0"
-transport = "sse"
+transport = "sse"          # "sse" | "stdio"
 host = "0.0.0.0"
 port = 8800
 log_level = "info"
@@ -395,16 +263,12 @@ enabled = true
 jwt_secret = "${MINDER_JWT_SECRET}"
 jwt_expiry_hours = 24
 api_key_prefix = "mk_"
-default_admin_email = "${MINDER_ADMIN_EMAIL}"
 
 [embedding]
 provider = "llama_cpp"
-runtime = "auto"
 llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
 llama_cpp_model_file = "*.gguf"
 dimensions = 768
-openai_api_key = "${OPENAI_API_KEY}"
-openai_model = "text-embedding-3-small"
 
 [llm]
 provider = "llama_cpp"
@@ -412,18 +276,9 @@ llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
 llama_cpp_model_file = "*.gguf"
 context_length = 32768
 temperature = 0.1
-openai_api_key = "${OPENAI_API_KEY}"
-openai_model = "gpt-4o-mini"
-
-[vector_store]
-provider = "milvus_standalone"
-host = "localhost"
-port = 19530
-
-[relational_store]
-provider = "mongodb"
-uri = "${MONGODB_URI}"
-db_name = "minder"
+# Optional OpenAI fallback:
+# openai_api_key = "${OPENAI_API_KEY}"
+# openai_model = "gpt-4o-mini"
 
 [retrieval]
 top_k = 10
@@ -431,28 +286,9 @@ rerank_top_n = 5
 similarity_threshold = 0.7
 hybrid_alpha = 0.7
 
-[cache]
-enabled = true
-provider = "redis"
-redis_url = "${REDIS_URL}"
-ttl_seconds = 3600
-
-[verification]
-enabled = true
-sandbox = "docker"
-timeout_seconds = 30
-docker_image = "minder-sandbox:latest"
-
 [workflow]
 enforcement = "strict"
 default_workflow = "tdd"
 repo_state_dir = ".minder"
 block_step_skips = true
-
-[seeding]
-skills_repo = ""
-skills_branch = "main"
-skills_path = "skills/"
 ```
-
-Current live configuration remains GitHub-oriented via generic Git clone settings. A future provider-aware admin import surface should extend this with provider and credential references rather than overloading the base seed path.

@@ -24,8 +24,9 @@ ALL_TOOLS: list[ToolMeta] = [
     ToolMeta(
         name="minder_memory_store",
         description=(
-            "Persist a project-specific fact, decision, or constraint as a memory entry. "
-            "Use for information specific to this project or client — not for reusable patterns (use minder_skill_store for those)."
+            "Create or update a project-specific memory entry. "
+            "Pass memory_id to update an existing entry; omit to create new. "
+            "Use for facts specific to this project — not reusable patterns (use minder_skill_store for those)."
         ),
     ),
     ToolMeta(
@@ -47,26 +48,12 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_memory_delete",
         description="Delete a stored memory entry by its ID. Only call when explicitly asked to remove a specific memory.",
     ),
-    ToolMeta(
-        name="minder_memory_update",
-        description=(
-            "Update an existing memory entry's title, content, or tags. "
-            "Call when a stored fact is known to be outdated or incorrect. Re-embeds automatically."
-        ),
-    ),
-    ToolMeta(
-        name="minder_memory_compact",
-        description=(
-            "Merge duplicate memory entries into a canonical entry. "
-            "Only call when minder_memory_list shows more than 10 entries with visible overlap, "
-            "or when the user explicitly asks to consolidate memories. Do not call proactively."
-        ),
-    ),
     # ── Skills ────────────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_skill_store",
         description=(
-            "Store a reusable workflow pattern, checklist, or code convention as a skill. "
+            "Create or update a reusable skill (workflow pattern, checklist, code convention). "
+            "Pass skill_id to update an existing skill; omit to create new. Pass deprecated=True to retire a skill. "
             "Use for cross-project reusable knowledge — not project-specific facts (use minder_memory_store for those)."
         ),
     ),
@@ -86,24 +73,8 @@ ALL_TOOLS: list[ToolMeta] = [
         ),
     ),
     ToolMeta(
-        name="minder_skill_update",
-        description=(
-            "Update skill content, metadata, quality score, or deprecated status. "
-            "Call after observing a skill's effectiveness: raise quality_score (0.0–1.0) when it works well, "
-            "set deprecated=True when it no longer applies."
-        ),
-    ),
-    ToolMeta(
         name="minder_skill_delete",
         description="Delete a stored skill by its ID. Only call when explicitly asked to remove a skill.",
-    ),
-    ToolMeta(
-        name="minder_skill_import_git",
-        description=(
-            "Admin: import skill documents from a remote Git repository and upsert them into the skill store. "
-            "Operator/admin use only — do not call during normal agent workflows."
-        ),
-        scopeable=False,
     ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(
@@ -138,18 +109,10 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     # ── Workflow ──────────────────────────────────────────────────────────────
     ToolMeta(
-        name="minder_workflow_get",
-        description=(
-            "Fetch the full workflow definition for a repository and sync repo-state files. "
-            "Call once at session start to understand the complete workflow structure. "
-            "For current step only, use minder_workflow_step (lighter)."
-        ),
-    ),
-    ToolMeta(
         name="minder_workflow_step",
         description=(
-            "Return the current workflow step and progress for a repository (lightweight). "
-            "Call whenever you need to know where the workflow is right now. "
+            "Return the current workflow step, progress, and instruction envelope for a repository. "
+            "Pass include_definition=true to also get the full workflow definition (steps, policies). "
             "Also used to submit an approval decision when resuming an interrupted workflow."
         ),
     ),
@@ -169,19 +132,13 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     # ── Session ───────────────────────────────────────────────────────────────
     ToolMeta(
-        name="minder_session_create",
+        name="minder_session_boot",
         description=(
-            "Create a named session for this project. Pass a stable slug (e.g. 'api-refactor-v2'). "
-            "Call once at project start. On any later machine or after /compact, use minder_session_find instead."
-        ),
-        always_available=True,
-    ),
-    ToolMeta(
-        name="minder_session_find",
-        description=(
-            "Find and load a session by name — the primary context-recovery tool. "
-            "Call at the start of every session to recover prior state and resume work. "
-            "Returns session_id, saved state, workflow position, and active skills."
+            "MANDATORY FIRST CALL at every session start. "
+            "Find-or-create a session in one call. Pass session_id to restore a known session by UUID. "
+            "Returns session_id, session_found, prior state, session_summary, and _next_steps. "
+            "Pass project_context with repo_path to seed location even before repo_id is resolved. "
+            "Idempotent: safe to call even if a session already exists."
         ),
         always_available=True,
     ),
@@ -189,33 +146,16 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_session_list",
         description=(
             "List all sessions owned by this principal (newest first). "
-            "Use only when you do not know the session name. If you know the name, use minder_session_find."
+            "Use only when you do not know the session name — prefer minder_session_boot when you know the name."
         ),
         always_available=True,
     ),
     ToolMeta(
         name="minder_session_save",
         description=(
-            "Checkpoint the current task state for an existing session. "
+            "Checkpoint the current task state. Pass branch and open_files to also update context. "
             "Call after each significant wave of work (decisions made, files changed, next steps planned). "
             "Do not wait until end of session — checkpoint frequently."
-        ),
-        always_available=True,
-    ),
-    ToolMeta(
-        name="minder_session_restore",
-        description=(
-            "Reload saved state for a session by UUID. "
-            "Use when you already have the session_id and need to reload state after a context loss. "
-            "If you only have the project name, use minder_session_find instead."
-        ),
-        always_available=True,
-    ),
-    ToolMeta(
-        name="minder_session_context",
-        description=(
-            "Update the active branch and open-file context for a session. "
-            "Call when you switch branches or open new files to keep the session context accurate."
         ),
         always_available=True,
     ),
@@ -224,7 +164,7 @@ ALL_TOOLS: list[ToolMeta] = [
         description=(
             "Generate and persist a structured work summary for the session (task, steps completed, blockers, next actions). "
             "Call before /compact, before long gaps, or when the conversation grows long. "
-            "This summary is recovered by minder_session_find on the next session."
+            "This summary is recovered by minder_session_boot on the next session."
         ),
         always_available=True,
     ),
@@ -237,15 +177,6 @@ ALL_TOOLS: list[ToolMeta] = [
         always_available=True,
     ),
     # ── Auth (internal — not grantable to client principals) ─────────────────
-    ToolMeta(
-        name="minder_auth_ping",
-        description=(
-            "Test MCP connectivity: returns 'auth pong'. "
-            "Only call to verify authentication is working — not during normal workflows."
-        ),
-        scopeable=False,
-        always_available=True,
-    ),
     ToolMeta(
         name="minder_auth_login",
         description="Exchange an admin API key for a JWT bearer token. One-time auth step — do not call repeatedly.",
@@ -260,20 +191,10 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_auth_whoami",
         description=(
             "Return the current principal's identity, role, and granted scopes. "
-            "Call once at session start to verify auth and understand available permissions."
+            "Call only when you need to inspect available permissions explicitly."
         ),
         scopeable=False,
         always_available=True,
-    ),
-    ToolMeta(
-        name="minder_auth_manage",
-        description="Admin: list users and manage authentication records. Admin role required.",
-        scopeable=False,
-    ),
-    ToolMeta(
-        name="minder_auth_create_client",
-        description="Admin: create a new MCP client and issue its initial API key. Admin role required.",
-        scopeable=False,
     ),
     # ── SubAgents ─────────────────────────────────────────────────────────────
     ToolMeta(
@@ -296,18 +217,11 @@ ALL_TOOLS: list[ToolMeta] = [
     ),
     ToolMeta(
         name="minder_agent_store",
-        description="Create or update (upsert) a SubAgent definition by name. Admin/operator use.",
+        description=(
+            "Create or update (upsert) a SubAgent definition by name. "
+            "All fields are required on create; on update, omit unchanged fields."
+        ),
         scopeable=True,
-    ),
-    ToolMeta(
-        name="minder_agent_update",
-        description="Partially update an existing SubAgent definition (title, description, system_prompt, tools, steps, tags).",
-        scopeable=True,
-    ),
-    ToolMeta(
-        name="minder_agent_delete",
-        description="Delete a SubAgent definition by name. Admin use only.",
-        scopeable=False,
     ),
 ]
 
@@ -323,7 +237,6 @@ ALWAYS_AVAILABLE_FOR_CLIENTS: frozenset[str] = frozenset(
 )
 
 # Default tool_scopes for new agent clients — all scopeable tools.
-# Admin-only non-scopeable tools (auth_login, auth_manage, skill_import_git) are excluded by design.
 DEFAULT_AGENT_TOOL_SCOPES: frozenset[str] = frozenset(
     tool.name for tool in SCOPEABLE_TOOLS
 )
@@ -331,31 +244,19 @@ DEFAULT_AGENT_TOOL_SCOPES: frozenset[str] = frozenset(
 
 TOOL_USAGE_PATTERNS: dict[str, str] = {
     # ── Session lifecycle ──────────────────────────────────────────────────────
-    "minder_session_find": (
-        "FIRST call at every session start — use project name to recover context. "
-        "If found: cache the session_id and use it for all subsequent calls. "
-        "If not found: call minder_session_create, then immediately save initial state."
-    ),
-    "minder_session_create": (
-        "Call ONLY when minder_session_find returns no result. "
-        "Pass a stable slug that won't change between machines (e.g. 'api-refactor-v2'). "
-        "Do not create a new session if one already exists for the project."
+    "minder_session_boot": (
+        "CALL FIRST at every session start. Pass project_name (stable slug) and project_context with repo_path. "
+        "Cache session_id immediately. If session_found=true, read session_summary for orientation. "
+        "Pass session_id to restore a specific session by UUID. Follow _next_steps in the response."
     ),
     "minder_session_save": (
         "Call after EACH significant wave of work: after decisions, after changing files, after completing a step. "
-        "Do not wait until end of session. Frequency: at minimum once per major action."
+        "Pass branch and open_files when switching context to keep session state accurate. "
+        "Do not wait until end of session — checkpoint frequently."
     ),
     "minder_session_summarize": (
         "Call proactively when the conversation exceeds ~20 exchanges, before any /compact, "
-        "or before a long interruption. This summary is recovered on next session start."
-    ),
-    "minder_session_restore": (
-        "Use only when you have the UUID from a previous response and need to reload state. "
-        "If you only know the project name, use minder_session_find instead."
-    ),
-    "minder_session_context": (
-        "Call whenever you switch git branches or open new files. "
-        "Keeps the session context current so minder_session_summarize captures accurate state."
+        "or before a long interruption. This summary is recovered on next session start via minder_session_boot."
     ),
     "minder_session_cleanup": (
         "Only call when the user explicitly asks to purge old sessions. "
@@ -364,15 +265,12 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     # ── Workflow ───────────────────────────────────────────────────────────────
     "minder_workflow_guard": (
         "MANDATORY before starting or switching to ANY workflow step. "
-        "If guard returns passed=false, do not proceed — surface the blocking reason to the user."
+        "If guard returns allowed=false, do not proceed — surface the blocking reason to the user."
     ),
     "minder_workflow_step": (
-        "Call when you need to know the current workflow position (lightweight). "
-        "Prefer this over minder_workflow_get for simple 'what step am I on?' queries."
-    ),
-    "minder_workflow_get": (
-        "Call once at session start to load the full workflow definition and sync repo-state files. "
-        "Do not call repeatedly — the definition does not change during a session."
+        "Call to get current workflow position and instruction_envelope. "
+        "Pass include_definition=true once at session start to get the full workflow definition. "
+        "Cache current_step and use it in skill_recall and memory_recall."
     ),
     "minder_workflow_update": (
         "Call after completing ALL required artifacts for the current step to advance the workflow. "
@@ -386,15 +284,8 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     ),
     "minder_memory_store": (
         "Call when the user states a project-specific fact, decision, or constraint that should persist. "
+        "Pass memory_id to update an existing entry. "
         "Do not use for reusable patterns or conventions — use minder_skill_store for those."
-    ),
-    "minder_memory_update": (
-        "Call only when an existing memory is known to be wrong or outdated. "
-        "Use minder_memory_list first to find the ID, then update."
-    ),
-    "minder_memory_compact": (
-        "Only call when minder_memory_list returns more than 10 entries with visible overlap, "
-        "or when the user explicitly asks to consolidate memories. Never call proactively."
     ),
     # ── Skills ────────────────────────────────────────────────────────────────
     "minder_skill_recall": (
@@ -404,12 +295,8 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     ),
     "minder_skill_store": (
         "Call when a reusable workflow pattern, checklist, code template, or convention is identified. "
-        "Must be applicable across projects — project-specific knowledge belongs in memory."
-    ),
-    "minder_skill_update": (
-        "Call after observing a skill's effectiveness: "
-        "raise quality_score (0.0–1.0) when it produces good outcomes, lower it when it misleads. "
-        "Set deprecated=True when a skill is no longer applicable."
+        "Pass skill_id to update an existing skill; pass deprecated=True to retire it. "
+        "Must be applicable across projects — project-specific knowledge belongs in minder_memory_store."
     ),
     # ── Code search ───────────────────────────────────────────────────────────
     "minder_search_code": (
@@ -475,9 +362,10 @@ def tool_capability_manifest() -> str:
         "Other",
     ]
     lines = [
-        "Session startup sequence: minder_session_find → (if not found) minder_session_create → minder_workflow_step → minder_skill_recall → minder_memory_recall.",
+        "STARTUP: minder_session_boot(project_name, project_context) → PARALLEL [minder_workflow_step + minder_skill_recall] → minder_memory_recall.",
         "Repo-scoped tools (search_code, search_graph, find_impact, workflow_*) require repo_path or repo_id.",
         "Read minder://instructions for the complete sequencing guide before calling any tools.",
+        "Every tool response includes _next_steps — read and follow these hints.",
     ]
     for category in ordered_categories:
         tools = grouped.get(category, [])
@@ -501,7 +389,7 @@ def tool_data_access_policy() -> str:
     return "\n".join(
         [
             "Minder may read and update its own operational data where matching tools exist, including memories, skills, workflow state, sessions, client credentials, and repository metadata.",
-            "User account records are read-only. Minder may inspect identity information through read-only auth tools such as whoami or list_users, but it must not claim it can create, edit, rotate, deactivate, or delete users.",
+            "User account records are read-only. Minder may inspect identity information through read-only auth tools such as whoami, but it must not claim it can create, edit, rotate, deactivate, or delete users.",
             "Repository-aware search, graph traversal, and query actions require repository context before they can inspect code or graph state.",
             "If a request asks what Minder can do, answer from the tool capability manifest instead of saying no tools are available.",
         ]

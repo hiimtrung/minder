@@ -77,30 +77,31 @@ class WorkflowTools:
         session_id: uuid.UUID | None = None,
         decision: dict[str, Any] | None = None,
         branch: str = "main",
+        include_definition: bool = False,
     ) -> dict[str, Any]:
         if session_id is not None or decision is not None:
             if session_id is None or decision is None:
                 raise ValueError("session_id and decision are required to resume a workflow")
-            result = await self._get_graph().resume(session_id, decision)
+            resumed = await self._get_graph().resume(session_id, decision)
             approval_request = None
-            if result.metadata.get("waiting_for_approval"):
+            if resumed.metadata.get("waiting_for_approval"):
                 approval_request = list(
-                    result.metadata.get("interrupts", []) or [{}]
+                    resumed.metadata.get("interrupts", []) or [{}]
                 )[0].get("value")
             return {
                 "status": (
                     "waiting_approval"
-                    if result.metadata.get("waiting_for_approval")
+                    if resumed.metadata.get("waiting_for_approval")
                     else "resumed"
                 ),
-                "edge": result.metadata.get("edge"),
-                "guard_result": result.guard_result,
-                "verification_result": result.verification_result,
+                "edge": resumed.metadata.get("edge"),
+                "guard_result": resumed.guard_result,
+                "verification_result": resumed.verification_result,
                 "approval_request": approval_request,
                 "supervisor": {
-                    "used": bool(result.metadata.get("supervisor_used", False)),
-                    "selected_agent": result.metadata.get("supervisor_selected_agent"),
-                    "agents": list(result.metadata.get("supervisor_agents", []) or []),
+                    "used": bool(resumed.metadata.get("supervisor_used", False)),
+                    "selected_agent": resumed.metadata.get("supervisor_selected_agent"),
+                    "agents": list(resumed.metadata.get("supervisor_agents", []) or []),
                 },
             }
         if repo_id is None or repo_path is None:
@@ -121,7 +122,7 @@ class WorkflowTools:
         )
         for _k in ("workflow_id", "workflow_version", "policies"):
             envelope.pop(_k, None)
-        return {
+        result: dict[str, Any] = {
             "current_step": state.current_step,
             "completed_steps": list(state.completed_steps),
             "instruction_envelope": envelope,
@@ -133,6 +134,19 @@ class WorkflowTools:
                 "After completing step artifacts: call minder_workflow_update(repo_id=..., completed_step=...) to advance.",
             ],
         }
+        if include_definition:
+            await self._repo_state.write_relationships(
+                repo_path,
+                dict(repo.relationships) if isinstance(repo.relationships, dict) else {},
+                branch=branch,
+            )
+            result["workflow"] = {
+                "id": str(workflow.id),
+                "name": workflow.name,
+                "steps": list(workflow.steps),
+                "policies": dict(workflow.policies),
+            }
+        return result
 
     async def minder_workflow_update(
         self,

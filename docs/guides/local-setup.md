@@ -1,7 +1,7 @@
 # Local Development Guide
 
 Minder runs **natively** on macOS, Linux, and Windows — no Docker, no external services.
-The stack is: Python FastAPI server + Astro dashboard + SQLite (relational) + Milvus Lite (vector search).
+The stack is: Python FastAPI server + Astro dashboard + SQLite (relational) + Turbovec (vector search).
 
 ---
 
@@ -38,7 +38,7 @@ All persistent state lives under `~/.minder/` (created automatically):
 | Path | Contents |
 |------|----------|
 | `~/.minder/data/minder.db` | SQLite — users, sessions, workflows, repos |
-| `~/.minder/data/vectors.db` | Milvus Lite — document embeddings |
+| `~/.minder/data/vectors.tvim` | Turbovec — document embeddings (4-bit quantized ANN) |
 | `~/.minder/data/graph.db` | SQLite — knowledge graph |
 | `~/.minder/models/` | GGUF model cache |
 
@@ -88,10 +88,10 @@ provider = "sqlite"
 db_path = "~/.minder/data/minder.db"
 
 [vector_store]
-provider = "milvus"
+provider = "turbovec"
 
-[milvus]
-db_path = "~/.minder/data/vectors.db"
+[turbovec]
+db_path = "~/.minder/data/vectors.tvim"
 
 [llm]
 provider = "llama_cpp"

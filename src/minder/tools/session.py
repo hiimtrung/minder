@@ -5,25 +5,26 @@ Design rationale
 A session is the server-side checkpoint for a single LLM work context.  It is
 keyed by a **server-assigned UUID** but is *also* addressable by a human-readable
 **name** so the same LLM can resume the exact session from any machine using the
-same client API key:
+same client API key.
 
-  Machine A:  minder_session_create(name="omi-channel-phase5")
-              → {session_id: "a1b2..."}
-  Machine B:  minder_session_find(name="omi-channel-phase5")
-              → {session_id: "a1b2...", state: {...}, ...}
+``minder_session_boot`` is the single MCP entry point for create / find / restore:
 
-The `session_id` UUID is returned in every response so the LLM can cache it in
-its context for faster subsequent calls while the session is active.  After a
-``/compact`` or machine switch the LLM calls ``minder_session_find`` with the
-project name and immediately regains full context.
+  Machine A:  minder_session_boot(project_name="omi-channel-phase5", project_context={...})
+              → {session_id: "a1b2...", session_found: false}
+  Machine B:  minder_session_boot(project_name="omi-channel-phase5")
+              → {session_id: "a1b2...", session_found: true, session_summary: {...}}
+
+Pass ``session_id`` to ``minder_session_boot`` to restore a specific session by UUID.
+Pass ``branch`` and ``open_files`` to ``minder_session_save`` to update context in one call.
+
+The underlying ``minder_session_create``, ``minder_session_find``, ``minder_session_restore``,
+and ``minder_session_context`` methods remain available for HTTP admin routes and internal use.
 
 Access control
 --------------
 Sessions are owned by the creating principal (user or client).  The ``session_id``
-UUID acts as a bearer token for ``save``/``restore``/``context`` operations — the
-server validates existence but does not re-check ownership on every call.
-``minder_session_find`` enforces ownership by filtering on the caller's
-principal_id automatically.
+UUID acts as a bearer token for ``save`` operations — the server validates existence
+but does not re-check ownership on every call.
 """
 
 from __future__ import annotations
@@ -156,11 +157,10 @@ class SessionTools:
             "session_id": str(session.id),
             "name": session.name,
             "_next_steps": [
-                f"Cache session_id='{session.id}' — reuse in every subsequent call. Do NOT call minder_session_create again.",
-                "Call minder_auth_whoami() to verify identity and available scopes.",
-                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...).",
-                "Call minder_skill_recall(query='<task>', current_step='<step>') and minder_memory_recall(query='<task>').",
-                "Use minder_session_save(session_id=..., state={...}) after each significant action.",
+                f"session_id='{session.id}' is now active — include it in every subsequent call. Do NOT call minder_session_create again.",
+                "Find repo_id from minder://repos, then PARALLEL: minder_workflow_step(repo_id=..., repo_path=...) + minder_skill_recall(query='<task>').",
+                "minder_memory_recall(query='<task>') for project-specific context.",
+                "minder_session_save(session_id=..., state={...}) after each significant action.",
             ],
         }
 
@@ -192,28 +192,31 @@ class SessionTools:
         if session is not None and not self._is_expired(session):
             repo_id_str = str(session.repo_id) if session.repo_id else None
             next_steps = [
-                f"Cache session_id='{session.id}' — reuse in every subsequent call.",
-                "Call minder_auth_whoami() to verify identity and available scopes.",
+                f"session_id='{session.id}' is now active — include it in every subsequent call.",
             ]
             if repo_id_str:
                 next_steps.append(
-                    f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+                    f"PARALLEL: minder_workflow_step(repo_id='{repo_id_str}', repo_path='<abs-path>') "
+                    "+ minder_skill_recall(query='<task>') — run both in the same round-trip."
                 )
                 next_steps.append(
-                    "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+                    "minder_memory_recall(query='<task>') if the task involves project-specific decisions or constraints."
                 )
             else:
                 next_steps.append(
-                    "Find repo_id from minder://repos resource or project_context, then call minder_workflow_step(repo_id=...)."
+                    "minder_skill_recall(query='<task>') for conventions; "
+                    "minder_memory_recall(query='<task>') for project-specific decisions."
                 )
                 next_steps.append(
-                    "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+                    "Read minder://repos to find repo_id only if your task requires workflow tracking."
                 )
+            state_dict = session.state or {}
             return {
                 "session_id": str(session.id),
                 "name": session.name,
                 "repo_id": repo_id_str,
-                "state": session.state,
+                "state": state_dict,
+                "session_summary": state_dict.get("summary"),
                 "active_skills": session.active_skills,
                 "project_context": session.project_context,
                 "last_active": _iso(session.last_active),
@@ -221,7 +224,8 @@ class SessionTools:
             }
         raise ValueError(
             f"No session named '{name}' found for the current principal. "
-            "Use minder_session_list to see all sessions or minder_session_create to start one."
+            "Call minder_session_boot(project_name='<slug>') to find-or-create in one call, "
+            "or minder_session_create(name='<slug>') to start a new session."
         )
 
     async def minder_session_list(
@@ -271,6 +275,8 @@ class SessionTools:
         state: dict[str, Any] | None = None,
         active_skills: dict[str, Any] | None = None,
         repo_id: uuid.UUID | None = None,
+        branch: str | None = None,
+        open_files: list[str] | None = None,
     ) -> dict[str, Any]:
         """Persist the LLM's current task state and active skill set.
 
@@ -287,7 +293,7 @@ class SessionTools:
         Pass ``repo_id`` to permanently link this session to a repository when
         the session was created without one (e.g. during Branch B init).
         """
-        await self._require_active_session(session_id)
+        session = await self._require_active_session(session_id)
         updates: dict[str, Any] = {
             "state": state or {},
             "active_skills": active_skills or {},
@@ -295,16 +301,27 @@ class SessionTools:
         }
         if repo_id is not None:
             updates["repo_id"] = repo_id
+        if branch is not None or open_files is not None:
+            project_context = dict(session.project_context or {})
+            if branch is not None:
+                project_context["branch"] = branch
+            if open_files is not None:
+                project_context["open_files"] = open_files
+            updates["project_context"] = project_context
         session = await self._store.update_session(session_id, **updates)
         if session is None:
             raise ValueError(f"Session not found: {session_id}")
-        return {
+        payload: dict[str, Any] = {
             "session_id": str(session.id),
             "name": session.name,
             "repo_id": str(session.repo_id) if session.repo_id else None,
             "state": session.state,
             "active_skills": session.active_skills,
         }
+        if branch is not None or open_files is not None:
+            payload["branch"] = branch
+            payload["open_files"] = open_files
+        return payload
 
     async def minder_session_restore(self, session_id: uuid.UUID) -> dict[str, Any]:
         """Restore a session checkpoint by UUID.
@@ -465,19 +482,64 @@ class SessionTools:
         user_id: uuid.UUID | None = None,
         client_id: uuid.UUID | None = None,
         repo_id: uuid.UUID | None = None,
+        project_context: dict[str, Any] | None = None,
+        session_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
-        """Find-or-create a session in one call — the recommended startup entry point.
+        """Find-or-create a session in one call — the mandatory startup entry point.
 
-        Replaces the two-step minder_session_find → minder_session_create dance.
-        Returns the same payload as minder_session_find plus a ``_next_steps`` guide.
+        Also handles restore by UUID when ``session_id`` is provided (skips find/create).
+
+        Pass ``project_context`` with at minimum ``{"repo_path": "<abs-path>"}`` when
+        starting fresh so the session is seeded with location info even before a
+        ``repo_id`` is resolved.
 
         Usage:
-            result = minder_session_boot(project_name="my-project")
+            result = minder_session_boot(
+                project_name="my-project",
+                project_context={"repo_path": "/abs/path/to/repo"},
+            )
             session_id = result["session_id"]   # cache this
             session_found = result["session_found"]
         """
         if user_id is None and client_id is None:
             raise ValueError("Either user_id or client_id must be provided")
+
+        # Fast path: restore by UUID when session_id is already known
+        if session_id is not None:
+            try:
+                session = await self._require_active_session(session_id)
+                repo_id_str = str(session.repo_id) if session.repo_id else None
+                next_steps = [
+                    f"session_id='{session_id}' restored — include it in every subsequent call.",
+                ]
+                if repo_id_str:
+                    next_steps.append(
+                        f"PARALLEL: minder_workflow_step(repo_id='{repo_id_str}', repo_path='<abs-path>') "
+                        "+ minder_skill_recall(query='<task>') — run both in the same round-trip."
+                    )
+                else:
+                    next_steps.append("minder_skill_recall + minder_memory_recall for context.")
+                next_steps.append(
+                    "minder_session_save(session_id=..., state={...}) after each significant action."
+                )
+                state_dict = session.state or {}
+                return {
+                    "session_id": str(session_id),
+                    "name": session.name,
+                    "session_found": True,
+                    "repo_id": repo_id_str,
+                    "state": state_dict,
+                    "session_summary": state_dict.get("summary"),
+                    "active_skills": session.active_skills,
+                    "project_context": session.project_context,
+                    "last_active": _iso(session.last_active),
+                    "_next_steps": next_steps,
+                }
+            except ValueError as exc:
+                raise ValueError(
+                    f"Session '{session_id}' not found or expired. "
+                    "Call minder_session_boot(project_name='<slug>') without session_id to find or create one."
+                ) from exc
 
         session_found = False
         try:
@@ -493,41 +555,46 @@ class SessionTools:
                 client_id=client_id,
                 name=project_name,
                 repo_id=repo_id,
+                project_context=project_context,
             )
 
         session_id = result["session_id"]
         repo_id_str = result.get("repo_id") or (str(repo_id) if repo_id else None)
 
         next_steps = [
-            f"Cache session_id='{session_id}' — reuse in every subsequent call.",
-            "Call minder_auth_whoami() to verify identity and available scopes.",
+            f"session_id='{session_id}' is now active — include it in every subsequent call.",
         ]
         if repo_id_str:
             next_steps.append(
-                f"Call minder_workflow_step(repo_id='{repo_id_str}', repo_path='<path>') to get current_step."
+                f"PARALLEL: minder_workflow_step(repo_id='{repo_id_str}', repo_path='<abs-path>') "
+                "+ minder_skill_recall(query='<task>') — run both in the same round-trip."
             )
             next_steps.append(
-                "Call minder_skill_recall(query='<task>', current_step='<step>') then minder_memory_recall(query='<task>')."
+                "minder_memory_recall(query='<task>') if the task involves project-specific decisions or constraints."
             )
         else:
             next_steps.append(
-                "Find repo_id from minder://repos resource, then call minder_workflow_step(repo_id=..., repo_path=...)."
+                "minder_skill_recall(query='<task>') for conventions; "
+                "minder_memory_recall(query='<task>') for project-specific decisions."
             )
             next_steps.append(
-                "Then call minder_skill_recall(query='<task>') and minder_memory_recall(query='<task>')."
+                "Read minder://repos to find repo_id only if your task requires workflow tracking."
             )
         next_steps.append(
-            "Use minder_session_save(session_id=..., state={...}) after each significant action."
+            "minder_session_save(session_id=..., state={...}) after each significant action or decision."
         )
 
+        state_dict = result.get("state") or {}
         return {
             "session_id": session_id,
             "name": result.get("name", project_name),
             "session_found": session_found,
             "repo_id": repo_id_str,
-            "state": result.get("state", {}),
+            "state": state_dict,
+            "session_summary": state_dict.get("summary"),
             "active_skills": result.get("active_skills", {}),
             "project_context": result.get("project_context", {}),
+            "last_active": result.get("last_active"),
             "_next_steps": next_steps,
         }
 

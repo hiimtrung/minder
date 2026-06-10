@@ -8,6 +8,8 @@ from typing import Any
 
 import httpx
 
+from minder.tools.repo_scanner import _portable_path
+
 from ..utils.git import (
     repo_root,
     git_branch,
@@ -41,7 +43,7 @@ def _resolve_repo_id(
         headers={"X-Minder-Client-Key": client_key},
         json={
             "repo_name": repo_name_from_remote(remote_url) or repo_root_path.name,
-            "repo_path": str(repo_root_path),
+            "repo_path": _portable_path(str(repo_root_path)),
             "repo_url": remote_url,
             "default_branch": default_branch,
         },

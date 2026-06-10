@@ -73,9 +73,9 @@ class ClarificationNode:
                     "label": "Sửa nội dung memory",
                     "description": (
                         "Cập nhật title, content, hoặc tags của memory hiện tại "
-                        "bằng cách dùng minder_memory_update với memory_id."
+                        "bằng cách dùng minder_memory_store với memory_id."
                     ),
-                    "tool_hint": "minder_memory_recall → minder_memory_update",
+                    "tool_hint": "minder_memory_recall → minder_memory_store(memory_id=...)",
                 },
                 {
                     "id": "delete_and_recreate",
@@ -86,12 +86,10 @@ class ClarificationNode:
                     "tool_hint": "minder_memory_recall → minder_memory_delete → minder_memory_store",
                 },
                 {
-                    "id": "compact_memories",
-                    "label": "Compact các memory trùng lặp",
-                    "description": (
-                        "Nếu có nhiều memory tương tự, gộp lại thành một entry chuẩn."
-                    ),
-                    "tool_hint": "minder_memory_list → minder_memory_compact",
+                    "id": "list_memories",
+                    "label": "Liệt kê các memory",
+                    "description": "Xem danh sách tất cả memory để tìm entry cần sửa.",
+                    "tool_hint": "minder_memory_list",
                 },
             ]
         elif any(k in q for k in ("skill", "kỹ năng")):
@@ -100,9 +98,9 @@ class ClarificationNode:
                     "id": "update_skill",
                     "label": "Cập nhật nội dung skill",
                     "description": (
-                        "Sửa content, tags, quality_score của skill bằng minder_skill_update."
+                        "Sửa content, tags, quality_score của skill bằng minder_skill_store với skill_id."
                     ),
-                    "tool_hint": "minder_skill_list → minder_skill_update",
+                    "tool_hint": "minder_skill_list → minder_skill_store(skill_id=...)",
                 },
                 {
                     "id": "deprecate_skill",
@@ -111,7 +109,7 @@ class ClarificationNode:
                         "Skill không còn phù hợp — đánh dấu deprecated=True để "
                         "ẩn khỏi recall, nhưng vẫn giữ trong lịch sử."
                     ),
-                    "tool_hint": "minder_skill_list → minder_skill_update(deprecated=True)",
+                    "tool_hint": "minder_skill_list → minder_skill_store(skill_id=..., deprecated=True)",
                 },
                 {
                     "id": "delete_skill",
@@ -126,13 +124,13 @@ class ClarificationNode:
                     "id": "update_memory",
                     "label": "Sửa memory liên quan",
                     "description": "Tìm và cập nhật memory có nội dung sai.",
-                    "tool_hint": "minder_memory_recall → minder_memory_update",
+                    "tool_hint": "minder_memory_recall → minder_memory_store(memory_id=...)",
                 },
                 {
                     "id": "update_skill",
                     "label": "Cập nhật skill liên quan",
                     "description": "Tìm và cập nhật skill không còn phù hợp.",
-                    "tool_hint": "minder_skill_recall → minder_skill_update",
+                    "tool_hint": "minder_skill_recall → minder_skill_store(skill_id=...)",
                 },
                 {
                     "id": "workflow_correction",

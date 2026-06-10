@@ -414,6 +414,8 @@ function getIconSvg(label: string) {
       document.addEventListener("click", async (e) => {
         const anchor = (e.target as Element).closest("a[href]");
         if (!(anchor instanceof HTMLAnchorElement)) return;
+        // Skip links that have their own dedicated handler (e.g. footer links)
+        if (anchor.hasAttribute("data-external-link")) return;
         const href = anchor.getAttribute("href") ?? "";
         if (!/^https?:\/\//i.test(href)) return;
         try {

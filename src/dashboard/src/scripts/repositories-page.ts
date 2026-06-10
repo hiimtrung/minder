@@ -521,12 +521,7 @@ getEl("impact-graph-fit")?.addEventListener("click", () =>
 // ============================================================
 
 function renderSummary(s: RepositoryGraphSummaryPayload): void {
-  setText(getEl("repo-summary-title"), s.repository.name);
   const branchLabel = s.active_branch ? ` · ${s.active_branch}` : "";
-  setText(
-    getEl("repo-summary-meta"),
-    `${s.repository.remote_url ?? "No remote"} · ${s.repository.default_branch ?? "No branch"}${branchLabel}`,
-  );
   setText(getEl("repo-summary-sync"), lastSyncLabel(s));
 
   const cards = getEl("repo-summary-cards");
@@ -875,7 +870,10 @@ function requestedRepositoryId(): string | null {
     getEl<HTMLElement>("repo-detail-context")?.dataset.repoId?.trim() ?? "";
   if (fromAttr) return fromAttr;
   // Fall back to URL when served as a static shell (no data-repo-id prop)
-  const segments = window.location.pathname.replace(/\/$/, "").split("/").filter(Boolean);
+  const segments = window.location.pathname
+    .replace(/\/$/, "")
+    .split("/")
+    .filter(Boolean);
   const repoIdx = segments.indexOf("repositories");
   if (repoIdx !== -1 && segments.length > repoIdx + 1) {
     const candidate = decodeURIComponent(segments[repoIdx + 1]);
@@ -1096,8 +1094,6 @@ function renderMetricValue(value: number | Record<string, number>): string {
 }
 
 function resetPanels(msg: string): void {
-  setText(getEl("repo-summary-title"), "Select a repository");
-  setText(getEl("repo-summary-meta"), msg);
   setText(getEl("repo-summary-sync"), "Waiting");
 
   const cards = getEl("repo-summary-cards");
@@ -1239,7 +1235,10 @@ async function handleSyncNow(): Promise<void> {
     await refreshActiveGraph();
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Sync failed.";
-    if (msg.includes("not found on this machine") || msg.includes("path_not_found")) {
+    if (
+      msg.includes("not found on this machine") ||
+      msg.includes("path_not_found")
+    ) {
       setText(
         getEl("repo-sync-status"),
         "⚠ Repository path not found on this machine — sync skipped.",
@@ -1584,7 +1583,8 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
     return;
   }
 
-  const name = getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "";
+  const name =
+    getEl<HTMLInputElement>("repo-settings-name")?.value.trim() ?? "";
   clearFieldErrors("repo-settings-name");
 
   if (!name) {
@@ -1600,7 +1600,9 @@ async function handleSettingsSave(e: SubmitEvent): Promise<void> {
         getEl<HTMLInputElement>("repo-settings-remote")?.value.trim() || null,
       default_branch:
         getEl<HTMLInputElement>("repo-settings-branch")?.value.trim() || null,
-      path: getEl<HTMLInputElement>("repo-settings-path")?.value.trim() || undefined,
+      path:
+        getEl<HTMLInputElement>("repo-settings-path")?.value.trim() ||
+        undefined,
       workflow_id:
         getEl<HTMLSelectElement>("repo-settings-workflow")?.value || null,
     });
@@ -1847,11 +1849,17 @@ async function handleBranchLinkSubmit(e: SubmitEvent): Promise<void> {
     hasError = true;
   }
   if (!targetRepo) {
-    setFieldError("repo-branch-link-target-repo", "Target repository is required.");
+    setFieldError(
+      "repo-branch-link-target-repo",
+      "Target repository is required.",
+    );
     hasError = true;
   }
   if (!targetBranch) {
-    setFieldError("repo-branch-link-target-branch", "Target branch is required.");
+    setFieldError(
+      "repo-branch-link-target-branch",
+      "Target branch is required.",
+    );
     hasError = true;
   }
   if (hasError) return;

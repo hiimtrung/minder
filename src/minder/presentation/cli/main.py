@@ -9,6 +9,7 @@ from .commands.mcp import install_mcp_command, uninstall_mcp_command, remove_mcp
 from .commands.update import version_command, check_update_command, update_command
 from .commands.sync import sync_command
 from .commands.admin import reset_password_command, list_users_command
+from .commands.swarm import register_swarm_parser
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -125,6 +126,9 @@ def build_parser() -> argparse.ArgumentParser:
     reset_pw.add_argument("password", help="New password (min 8 characters).")
     reset_pw.add_argument("--username", help="Target username. Defaults to the first admin.")
     reset_pw.set_defaults(func=reset_password_command)
+
+    # ── Swarm coordination ────────────────────────────────────────────────────
+    register_swarm_parser(subparsers, client_config_path)
 
     return parser
 

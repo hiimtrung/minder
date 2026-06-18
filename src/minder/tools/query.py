@@ -183,22 +183,33 @@ class QueryTools:
             max_attempts=max_attempts,
             allowed_repo_scopes=allowed_repo_scopes,
         )
-        result = await self._graph.run(state)
-        record_continuity_packet("query")
-        record_query_prompt_render(
-            str(
-                result.metadata.get(
-                    "query_prompt_source",
-                    state.metadata.get("query_prompt_source", "unknown"),
-                )
-            ),
-            correction_retries=sum(
-                1
-                for item in result.transition_log
-                if str(item.get("edge")) == "guard_failed"
-            ),
-        )
-        return self._result_from_state(result)
+        if session_id:
+            from minder.application.maintenance.scheduler import register_active_session
+            register_active_session(session_id)
+        try:
+            result = await self._graph.run(state)
+            if session_id:
+                from minder.application.curator.service import register_session_state
+                register_session_state(session_id, result)
+            record_continuity_packet("query")
+            record_query_prompt_render(
+                str(
+                    result.metadata.get(
+                        "query_prompt_source",
+                        state.metadata.get("query_prompt_source", "unknown"),
+                    )
+                ),
+                correction_retries=sum(
+                    1
+                    for item in result.transition_log
+                    if str(item.get("edge")) == "guard_failed"
+                ),
+            )
+            return self._result_from_state(result)
+        finally:
+            if session_id:
+                from minder.application.maintenance.scheduler import unregister_active_session
+                unregister_active_session(session_id)
 
     async def minder_query_stream(
         self,
@@ -213,91 +224,105 @@ class QueryTools:
         max_attempts: int = 2,
         allowed_repo_scopes: list[str] | None = None,
     ) -> AsyncGenerator[dict[str, Any], None]:
-        state = await self._build_query_state(
-            query,
-            repo_path=repo_path,
-            session_id=session_id,
-            user_id=user_id,
-            repo_id=repo_id,
-            workflow_name=workflow_name,
-            verification_payload=verification_payload,
-            max_attempts=max_attempts,
-            allowed_repo_scopes=allowed_repo_scopes,
-        )
-        use_langgraph = (
-            graph_runtime_name() == "langgraph"
-            and self._config.workflow.orchestration_runtime == "langgraph"
-        )
-        if use_langgraph:
-            config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
-            async for event in self._graph.astream_events(state, config, version="v2"):
-                event_name = event.get("event")
-                name = event.get("name", "")
-                
-                if event_name == "on_chain_start" and name == "reasoning":
-                    yield {"type": "attempt", "attempt": 1}
-                
-                elif event_name == "on_chat_model_stream":
-                    chunk = event.get("data", {}).get("chunk")
-                    if chunk and hasattr(chunk, "content"):
-                        yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
+        if session_id:
+            from minder.application.maintenance.scheduler import register_active_session
+            register_active_session(session_id)
+        try:
+            state = await self._build_query_state(
+                query,
+                repo_path=repo_path,
+                session_id=session_id,
+                user_id=user_id,
+                repo_id=repo_id,
+                workflow_name=workflow_name,
+                verification_payload=verification_payload,
+                max_attempts=max_attempts,
+                allowed_repo_scopes=allowed_repo_scopes,
+            )
+            use_langgraph = (
+                graph_runtime_name() == "langgraph"
+                and self._config.workflow.orchestration_runtime == "langgraph"
+            )
+            if use_langgraph:
+                config = {"configurable": {"thread_id": str(session_id) if session_id else "default"}}
+                async for event in self._graph.astream_events(state, config, version="v2"):
+                    event_name = event.get("event")
+                    name = event.get("name", "")
+                    
+                    if event_name == "on_chain_start" and name == "reasoning":
+                        yield {"type": "attempt", "attempt": 1}
+                    
+                    elif event_name == "on_chat_model_stream":
+                        chunk = event.get("data", {}).get("chunk")
+                        if chunk and hasattr(chunk, "content"):
+                            yield {"type": "chunk", "attempt": 1, "delta": chunk.content}
 
-                elif event_name == "on_custom_event" and name == "llm_token":
-                    delta = str(event.get("data", {}).get("delta", ""))
-                    if delta:
-                        yield {"type": "chunk", "attempt": 1, "delta": delta}
-                
-                elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
-                    output = event.get("data", {}).get("output", {})
-                    docs = output.get("reranked_docs", []) or output.get("retrieved_docs", [])
-                    if docs:
-                        yield {"type": "sources", "sources": [{"path": d["path"], "score": d.get("score", 0.0)} for d in docs[:5]]}
-                
-                elif event_name == "on_chain_end" and name == "LangGraph":
-                    final_data = event.get("data", {}).get("output", {})
-                    if final_data:
-                        final_state = GraphState.model_validate(final_data) if hasattr(GraphState, "model_validate") else GraphState(**final_data)
-                        result = self._result_from_state(final_state)
+                    elif event_name == "on_custom_event" and name == "llm_token":
+                        delta = str(event.get("data", {}).get("delta", ""))
+                        if delta:
+                            yield {"type": "chunk", "attempt": 1, "delta": delta}
+                    
+                    elif event_name == "on_chain_end" and name in {"merge_retrieved", "retriever"}:
+                        output = event.get("data", {}).get("output", {})
+                        docs = output.get("reranked_docs", []) or output.get("retrieved_docs", [])
+                        if docs:
+                            yield {"type": "sources", "sources": [{"path": d["path"], "score": d.get("score", 0.0)} for d in docs[:5]]}
+                    
+                    elif event_name == "on_chain_end" and name == "LangGraph":
+                        final_data = event.get("data", {}).get("output", {})
+                        if final_data:
+                            final_state = GraphState.model_validate(final_data) if hasattr(GraphState, "model_validate") else GraphState(**final_data)
+                            result = self._result_from_state(final_state)
 
-                        await self._graph._finalize_state(final_state)
-                        record_continuity_packet("query")
-                        record_query_prompt_render(
-                            str(
-                                final_state.metadata.get(
-                                    "query_prompt_source",
-                                    state.metadata.get("query_prompt_source", "unknown"),
-                                )
-                            ),
-                            correction_retries=sum(
-                                1
-                                for item in final_state.transition_log
-                                if str(item.get("edge")) == "guard_failed"
-                            ),
-                        )
-                        yield {"type": "final", "payload": result}
-        else:  # internal runtime
-            async for event in self._graph.stream(state):
-                if str(event.get("type")) == "final":
-                    final_state = event.get("state")
-                    if isinstance(final_state, GraphState):
-                        result = self._result_from_state(final_state)
-                        record_continuity_packet("query")
-                        record_query_prompt_render(
-                            str(
-                                final_state.metadata.get(
-                                    "query_prompt_source",
-                                    state.metadata.get("query_prompt_source", "unknown"),
-                                )
-                            ),
-                            correction_retries=sum(
-                                1
-                                for item in final_state.transition_log
-                                if str(item.get("edge")) == "guard_failed"
-                            ),
-                        )
-                        yield {"type": "final", "payload": result}
-                    continue
-                yield event
+                            await self._graph._finalize_state(final_state)
+                            if session_id:
+                                from minder.application.curator.service import register_session_state
+                                register_session_state(session_id, final_state)
+                            record_continuity_packet("query")
+                            record_query_prompt_render(
+                                str(
+                                    final_state.metadata.get(
+                                        "query_prompt_source",
+                                        state.metadata.get("query_prompt_source", "unknown"),
+                                    )
+                                ),
+                                correction_retries=sum(
+                                    1
+                                    for item in final_state.transition_log
+                                    if str(item.get("edge")) == "guard_failed"
+                                ),
+                            )
+                            yield {"type": "final", "payload": result}
+            else:  # internal runtime
+                async for event in self._graph.stream(state):
+                    if str(event.get("type")) == "final":
+                        final_state = event.get("state")
+                        if isinstance(final_state, GraphState):
+                            result = self._result_from_state(final_state)
+                            if session_id:
+                                from minder.application.curator.service import register_session_state
+                                register_session_state(session_id, final_state)
+                            record_continuity_packet("query")
+                            record_query_prompt_render(
+                                str(
+                                    final_state.metadata.get(
+                                        "query_prompt_source",
+                                        state.metadata.get("query_prompt_source", "unknown"),
+                                    )
+                                ),
+                                correction_retries=sum(
+                                    1
+                                    for item in final_state.transition_log
+                                    if str(item.get("edge")) == "guard_failed"
+                                ),
+                            )
+                            yield {"type": "final", "payload": result}
+                        continue
+                    yield event
+        finally:
+            if session_id:
+                from minder.application.maintenance.scheduler import unregister_active_session
+                unregister_active_session(session_id)
 
     def _result_from_state(self, result: GraphState) -> dict[str, Any]:
         approval_request = None

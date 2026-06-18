@@ -76,6 +76,14 @@ ALL_TOOLS: list[ToolMeta] = [
         name="minder_skill_delete",
         description="Delete a stored skill by its ID. Only call when explicitly asked to remove a skill.",
     ),
+    ToolMeta(
+        name="minder_skill_curate",
+        description="Manually trigger curation loop for a finished session.",
+    ),
+    ToolMeta(
+        name="minder_skill_review",
+        description="Approve, reject, or edit a pending_review skill.",
+    ),
     # ── Search & Query ────────────────────────────────────────────────────────
     ToolMeta(
         name="minder_search_code",
@@ -223,6 +231,83 @@ ALL_TOOLS: list[ToolMeta] = [
         ),
         scopeable=True,
     ),
+    # ── Swarm coordination (multi-agent substrate) ─────────────────────────────
+    ToolMeta(
+        name="minder_swarm_create",
+        description=(
+            "Open a multi-agent swarm for a goal (optionally bound to a workflow_id). "
+            "First step of orchestration: returns swarm_id. Then plan → propose → (human) approve → spawn."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_plan",
+        description=(
+            "Break a swarm goal into board tasks. Pass tasks=[{title, description, runtime_hint, depends_on}]. "
+            "depends_on accepts task indices or ids; tasks with deps start 'blocked' until deps are done (DAG)."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_propose",
+        description=(
+            "Generate the Swarm Manifest (one worker spec per task: runtime, function, workspace, toolsets, budget) "
+            "for HUMAN approval. MANDATORY before any worker can be spawned (approval gate)."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_approve",
+        description=(
+            "Human approval gate: action='approve'|'edit'|'reject' on a swarm's manifest. "
+            "Pass workers=[...] with action='edit' to adjust runtimes/toolsets/budgets before approving. "
+            "Spawning stays blocked until status is approved."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_join",
+        description=(
+            "Worker announces presence: registers a node (runtime, role, workspace, session) and returns node_id. "
+            "Call once on startup before claiming tasks."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_heartbeat",
+        description=(
+            "Worker liveness ping (optionally set status: idle|working|blocked|done). "
+            "Send regularly — nodes that stop heartbeating are reaped as 'dead' and their claims released."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_who",
+        description=(
+            "Read the live coordination snapshot — who is active, on what task, where, and the board state. "
+            "Call BEFORE acting to avoid duplicate work or hallucinated assumptions about others."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_claim",
+        description=(
+            "Atomically claim a 'ready' task for a node. Fails if already claimed or dependencies aren't done. "
+            "Prevents two workers doing the same task."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_report",
+        description=(
+            "Report task outcome (status='done'|'failed'). Write your actual results to the operational store FIRST "
+            "(memory/graph/document), then pass result_ref/artifact_refs/facts so others can read the truth. "
+            "Repeated failures auto-block the task."
+        ),
+    ),
+    ToolMeta(
+        name="minder_swarm_block",
+        description="Mark a task blocked with a reason (e.g. missing dependency, needs human input).",
+    ),
+    ToolMeta(
+        name="minder_swarm_collect",
+        description=(
+            "Orchestrator: aggregate the swarm outcome — task status summary + all handoffs (with artifact refs). "
+            "Closes the loop and marks the swarm 'done' when every task is done."
+        ),
+    ),
 ]
 
 # Flat dict for fast lookup by name (used in bootstrap/transport.py)
@@ -324,6 +409,27 @@ TOOL_USAGE_PATTERNS: dict[str, str] = {
     "minder_agent_get": (
         "Call after minder_agent_list to load the full system_prompt and tool list "
         "before spawning the agent. Do not spawn without reading the prompt first."
+    ),
+    # ── Swarm coordination ──────────────────────────────────────────────────────
+    "minder_swarm_create": (
+        "ORCHESTRATOR entry point for multi-agent work. Open a swarm for the goal, then follow the pipeline: "
+        "plan → propose → (human) approve → spawn workers → collect. Returns swarm_id (thread it through every call)."
+    ),
+    "minder_swarm_propose": (
+        "MANDATORY gate before spawning any worker. Generates a manifest of workers (runtime, function, workspace) "
+        "for a human to approve/edit. Spawning stays blocked until minder_swarm_approve marks it approved."
+    ),
+    "minder_swarm_who": (
+        "WORKERS: call BEFORE acting and periodically. Shows who is active, on what task, where, and board state. "
+        "This is the anti-hallucination read — never assume what other agents are doing, read it here."
+    ),
+    "minder_swarm_claim": (
+        "WORKERS: after joining, claim a 'ready' task before working on it. If claim fails, the task is taken or its "
+        "dependencies aren't done — pick another. Never work a task you didn't successfully claim (prevents duplicates)."
+    ),
+    "minder_swarm_report": (
+        "WORKERS: write your real results to the operational store FIRST (memory/graph/document), then report with "
+        "result_ref/artifact_refs/facts so others read the truth, not your summary. Use status='failed' if blocked."
     ),
 }
 

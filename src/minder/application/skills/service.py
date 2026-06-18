@@ -129,6 +129,11 @@ class SkillService:
         query_embedding = self._embedder.embed(query)
         ranked: list[dict[str, Any]] = []
         for skill in await self._store.list_skills_by_kind(is_memory=False):
+            status = getattr(skill, "status", "active")
+            if status is None:
+                status = "active"
+            if status != "active":
+                continue
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue
@@ -299,6 +304,7 @@ class SkillService:
         current_step: str | None = None,
         tag: str | None = None,
         min_quality_score: float = 0.0,
+        status: str | None = "active",
     ) -> list[dict[str, Any]]:
         required_tags = {
             str(tag).strip().lower()
@@ -309,6 +315,11 @@ class SkillService:
             required_tags.update(step_keywords(current_step))
         items: list[dict[str, Any]] = []
         for skill in await self._store.list_skills_by_kind(is_memory=False):
+            skill_status = getattr(skill, "status", "active")
+            if skill_status is None:
+                skill_status = "active"
+            if status is not None and status != "all" and skill_status != status:
+                continue
             quality_score = float(getattr(skill, "quality_score", 0.0) or 0.0)
             if quality_score < min_quality_score:
                 continue

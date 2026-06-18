@@ -15,6 +15,13 @@ It runs **natively** on macOS, Linux, and Windows — no Docker, no external ser
 | **Minder Dashboard**                  | Astro admin console — client management, onboarding snippets, agent instructions, skill catalog, chat |
 | **Minder CLI** (`minder-cli` on PyPI) | Edge CLI — repo sync, MCP config install, login, self-update                                          |
 
+## Key Features
+
+- **Repository-Aware RAG**: Deep context extraction with structural code graph sync.
+- **Workflow Governance**: Guide agents through structured engineering gates (TDD, review steps).
+- **Multi-Agent Swarm Coordination**: Orchestrate heterogeneous agent swarms (Claude Code, Codex, Antigravity) via a centralized SQLite task board (Blackboard Pattern). Features a strict human-in-the-loop manifest approval gate and concurrent worker execution.
+- **Autonomous Maintenance**: Run background scheduler jobs (SQLite vacuuming, Turbovec index optimization, context compaction, and skill curation) during user idle times (e.g., system idle > 10 mins).
+
 ## Architecture
 
 ```
@@ -90,9 +97,9 @@ minder install --target vscode --target claude-code
 minder sync
 ```
 
-## MCP Tools (26 tools)
+## MCP Tools (37 tools)
 
-Minder exposes a lean set of 26 tools organized into 7 groups. All session tools are always available; other tools require explicit `tool_scopes` on the client.
+Minder exposes a set of 37 tools organized into 8 groups. All session tools are always available; other tools require explicit `tool_scopes` on the client.
 
 ### Auth
 
@@ -157,6 +164,24 @@ Minder exposes a lean set of 26 tools organized into 7 groups. All session tools
 | `minder_agent_get` | Load a subagent's system prompt and tool list |
 | `minder_agent_store` | Create or update a subagent definition |
 
+### Swarm
+
+Coordinate heterogeneous agent swarms, claim tasks atomically, and report handoffs.
+
+| Tool | Description |
+|------|-------------|
+| `minder_swarm_create` | Start a new swarm and associate it with a workflow |
+| `minder_swarm_plan` | Break down a workflow into a DAG of tasks |
+| `minder_swarm_propose` | Propose a worker manifest for human review |
+| `minder_swarm_approve` | Approve, reject, or edit a proposed worker manifest |
+| `minder_swarm_join` | Register an agent node's presence in a swarm |
+| `minder_swarm_heartbeat` | Send status pings to keep agent presence alive |
+| `minder_swarm_who` | Query all active workers, their tasks, and progress |
+| `minder_swarm_claim` | Claim a task from the board atomically |
+| `minder_swarm_report` | Report task completion and create a handoff pointer |
+| `minder_swarm_block` | Block a task and notify the dispatcher |
+| `minder_swarm_collect` | Collect all handoffs and summaries for the swarm |
+
 ## Session Continuity
 
 `minder_session_boot` is the single session entry point for all agents. It handles create, find, and restore transparently:
@@ -193,7 +218,9 @@ minder_session_save(
 | `/dashboard/chat`          | Browser-based runtime chat                                             |
 | `/dashboard/repositories`  | Repo graph explorer                                                    |
 | `/dashboard/workflows`     | Workflow definitions                                                   |
-| `/dashboard/observability` | Audit and trace                                                        |
+| `/dashboard/swarm`         | Multi-agent swarm monitoring and manifest approval dashboard           |
+| `/dashboard/maintenance`   | Background maintenance jobs scheduler and history                      |
+| `/dashboard/observability` | Audit and trace |                                                       |
 
 ## Documentation
 
@@ -202,7 +229,10 @@ minder_session_save(
 - [System Design](docs/architecture/system-design.md)
 - [Admin & Client Onboarding](docs/guides/admin-client-onboarding.md)
 - [Minder CLI](docs/guides/minder-cli.md)
+- [Swarm Setup (Claude Code + Antigravity)](docs/guides/swarm-setup-claude-antigravity.md)
 - [MCP Tool Reference](docs/roadmap/03-data-model-and-tools.md)
+- [Autonomous Maintenance & Tool/Skill Auto-Discovery (Roadmap)](docs/roadmap/07-autonomous-maintenance-and-discovery.md)
+- [Multi-Agent Swarm Coordination Substrate (Roadmap)](docs/roadmap/08-swarm-coordination-substrate.md)
 
 ## License
 

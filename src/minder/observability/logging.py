@@ -202,6 +202,9 @@ class AccessLogMiddleware:
             await self.app(scope, receive, send)
             return
 
+        from minder.application.maintenance.scheduler import touch_activity
+        touch_activity()
+
         start = time.perf_counter()
         status_code = [0]
 

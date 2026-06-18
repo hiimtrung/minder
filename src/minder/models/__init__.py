@@ -30,6 +30,11 @@ from minder.domain.entities.graph import (
     GraphNodeSchema as GraphNodeSchema,
 )
 from minder.domain.entities.agent import SubAgentSchema as SubAgentSchema
+from minder.domain.entities.prompt import PromptSchema as PromptSchema
+from minder.domain.entities.maintenance import (
+    MaintenanceJobSchema as MaintenanceJobSchema,
+    MaintenanceRunSchema as MaintenanceRunSchema,
+)
 
 # User
 from .user import User as User
@@ -84,6 +89,12 @@ from .graph import (
 # SubAgent
 from .agent import SubAgent as SubAgent
 
+# Maintenance
+from .maintenance import (
+    MaintenanceJob as MaintenanceJob,
+    MaintenanceRun as MaintenanceRun,
+)
+
 __all__ = [
     "Base",
     "AuditLog",
@@ -127,6 +138,10 @@ __all__ = [
     "UserSchema",
     "Workflow",
     "WorkflowSchema",
+    "MaintenanceJob",
+    "MaintenanceJobSchema",
+    "MaintenanceRun",
+    "MaintenanceRunSchema",
 ]
 
 # Prompts

@@ -24,6 +24,8 @@ from .prompts import build_prompts_routes
 from .runtime import build_runtime_routes
 from .search import build_search_routes
 from .skills import build_skills_routes
+from .maintenance import build_maintenance_routes
+from .swarm import build_swarm_routes
 
 
 DEFAULT_DASHBOARD_DEV_ORIGIN = "http://localhost:8808"
@@ -58,6 +60,7 @@ def build_http_routes(
     graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
     prompt_sync_hook=None,
+    swarm_store=None,
 ) -> list[BaseRoute]:
     context = AdminRouteContext.build(
         config=config,
@@ -65,6 +68,7 @@ def build_http_routes(
         graph_store=graph_store,
         cache=cache,
         prompt_sync_hook=prompt_sync_hook,
+        swarm_store=swarm_store,
     )
 
     async def health(_request) -> PlainTextResponse:
@@ -92,6 +96,8 @@ def build_http_routes(
         *build_prompts_routes(context),
         *build_jobs_routes(context),
         *build_skills_routes(context),
+        *build_maintenance_routes(context),
+        *build_swarm_routes(context),
         *build_memories_routes(context),
         *build_runtime_routes(context),
         *build_search_routes(context),

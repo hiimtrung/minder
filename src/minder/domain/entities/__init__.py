@@ -28,3 +28,7 @@ from minder.domain.entities.graph import (
 )
 from minder.domain.entities.agent import SubAgentSchema as SubAgentSchema
 from minder.domain.entities.prompt import PromptSchema as PromptSchema
+from minder.domain.entities.maintenance import (
+    MaintenanceJobSchema as MaintenanceJobSchema,
+    MaintenanceRunSchema as MaintenanceRunSchema,
+)

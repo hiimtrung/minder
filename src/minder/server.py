@@ -118,6 +118,14 @@ async def _async_run() -> None:
     if hasattr(vector_store, "setup"):
         await vector_store.setup()
 
+    # Swarm coordination store — dedicated swarm.db (decision Q3)
+    swarm_store = None
+    if config.swarm.enabled:
+        from minder.store.swarm import SwarmStore
+
+        swarm_store = SwarmStore(db_path=config.swarm.db_path)
+        await swarm_store.init_db()
+
     cache = build_cache(config)
     admin = await store.get_user_by_username("admin")
     print(f"MINDER ADMIN EXISTS: {admin is not None}", file=sys.stderr, flush=True)
@@ -128,6 +136,7 @@ async def _async_run() -> None:
         vector_store=vector_store,
         graph_store=graph_store,
         cache=cache,
+        swarm_store=swarm_store,
     )
 
     from minder.prompts import PromptRegistry
@@ -144,6 +153,42 @@ async def _async_run() -> None:
         "Minder runtime summary:", runtime_summary(config), file=sys.stderr, flush=True
     )
 
+    from minder.embedding.local import LocalEmbeddingProvider
+    from minder.application.memory.service import MemoryService
+    from minder.application.curator.service import SkillCurator
+    from minder.learning.error_learner import ErrorLearner
+    from minder.application.maintenance.scheduler import MaintenanceScheduler
+
+    embedder = LocalEmbeddingProvider(
+        llama_cpp_model_repo=config.embedding.llama_cpp_model_repo,
+        llama_cpp_model_file=config.embedding.llama_cpp_model_file,
+        dimensions=config.embedding.dimensions,
+        runtime=config.embedding.runtime,
+    )
+    memory_service = MemoryService(store=store, config=config, embedder=embedder)
+    curator = SkillCurator(store=store, config=config, embedder=embedder)
+    error_learner = ErrorLearner(store=store, embedder=embedder)
+    scheduler = MaintenanceScheduler(
+        store=store,
+        config=config,
+        vector_store=vector_store,
+        memory_service=memory_service,
+        curator=curator,
+        error_learner=error_learner,
+    )
+    scheduler.start()
+
+    # Swarm dispatcher (S-4) — Minder-spawn model, off by default (pull-spawn first).
+    swarm_dispatcher = None
+    if swarm_store is not None and config.swarm.enabled and config.swarm.dispatcher_enabled:
+        from minder.application.swarm.dispatcher import SwarmDispatcher
+        from minder.application.swarm.service import SwarmService
+
+        swarm_dispatcher = SwarmDispatcher(
+            swarm_store, SwarmService(swarm_store, config), config
+        )
+        swarm_dispatcher.start()
+
     try:
         if transport.transport_name == "stdio":
             await transport.app.run_stdio_async()
@@ -158,6 +203,8 @@ async def _async_run() -> None:
             else:
                 await transport.app.run_sse_async()
     finally:
+        if "scheduler" in locals() and scheduler is not None:
+            await scheduler.stop()
         await store.dispose()
         if graph_store is not None and hasattr(graph_store, "dispose"):
             await graph_store.dispose()

@@ -148,6 +148,9 @@ class BaseTransport:
         authorization: str | None = None,
         client_key: str | None = None,
     ) -> Any:
+        from minder.application.maintenance.scheduler import touch_activity
+        touch_activity()
+
         if name not in self._tools:
             raise KeyError(f"Unknown tool: {name}")
 

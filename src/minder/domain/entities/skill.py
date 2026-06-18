@@ -16,6 +16,8 @@ class SkillSchema(BaseModelMeta):
     deprecated: bool = False
     source_metadata: Optional[Dict[str, Any]] = None
     excerpt_kind: str = "none"
+    status: str = "active"
+    review_proposal: Optional[Dict[str, Any]] = None
     owner_id: Optional[uuid.UUID] = None
     scope: str = "private"
     created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

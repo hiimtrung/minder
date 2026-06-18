@@ -1,0 +1,175 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
+import Button from "./ui/atoms/Button.astro";
+---
+
+<DashboardLayout
+  title="Swarm · Minder"
+  description="Observe multi-agent swarms: presence, board state, and approve worker manifests."
+  navTitle="Minder Dashboard"
+  navDescription="Coordinate heterogeneous agent swarms — see who is doing what, where, and approve spawns."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="Multi-Agent Coordination"
+    title="Swarm Control Room"
+    description="See live presence (who/where/what), the task board, and approve worker manifests before any agent is spawned."
+  />
+
+  <div class="flex flex-col gap-6">
+    <section class="shell-card p-6">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-4">
+        <div>
+          <h2 class="text-xl font-semibold tracking-tight text-stone-950">Swarms</h2>
+          <p class="text-sm text-stone-500 mt-1">Active and recent agent swarms.</p>
+        </div>
+        <Button id="swarm-refresh" size="sm">Refresh</Button>
+      </div>
+      <div id="swarm-list" class="grid gap-3">
+        <div class="skeleton h-16 rounded-2xl"></div>
+      </div>
+    </section>
+
+    <section id="swarm-detail-section" class="shell-card p-6 hidden">
+      <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-4">
+        <div>
+          <h2 id="swarm-detail-title" class="text-xl font-semibold tracking-tight text-stone-950">Swarm</h2>
+          <p id="swarm-detail-goal" class="text-sm text-stone-500 mt-1"></p>
+        </div>
+        <div id="swarm-manifest-actions" class="flex items-center gap-2"></div>
+      </div>
+
+      <div class="grid gap-6 lg:grid-cols-2">
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-3">Presence — who / where / what</h3>
+          <div id="swarm-nodes" class="flex flex-col gap-2 text-sm"></div>
+        </div>
+        <div>
+          <h3 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-3">Board — tasks</h3>
+          <div id="swarm-tasks" class="flex flex-col gap-2 text-sm"></div>
+        </div>
+      </div>
+
+      <div class="mt-6">
+        <h3 class="text-sm font-semibold uppercase tracking-wide text-stone-500 mb-3">Handoffs</h3>
+        <div id="swarm-handoffs" class="flex flex-col gap-2 text-sm"></div>
+      </div>
+    </section>
+  </div>
+</DashboardLayout>
+
+<script>
+  const api = (p: string) => fetch(p, { credentials: "include" });
+
+  function badge(status: string): string {
+    const map: Record<string, string> = {
+      ready: "bg-stone-100 text-stone-700",
+      in_progress: "bg-blue-100 text-blue-700",
+      working: "bg-blue-100 text-blue-700",
+      done: "bg-green-100 text-green-700",
+      blocked: "bg-amber-100 text-amber-700",
+      failed: "bg-red-100 text-red-700",
+      dead: "bg-red-100 text-red-700",
+      pending_approval: "bg-amber-100 text-amber-700",
+      approved: "bg-green-100 text-green-700",
+    };
+    const cls = map[status] || "bg-stone-100 text-stone-700";
+    return `<span class="inline-block px-2 py-0.5 rounded-full text-xs font-medium ${cls}">${status}</span>`;
+  }
+
+  async function loadList() {
+    const el = document.getElementById("swarm-list")!;
+    try {
+      const res = await api("/api/v1/swarms");
+      const data = await res.json();
+      const swarms = data.swarms || [];
+      if (!swarms.length) {
+        el.innerHTML = `<p class="text-sm text-stone-500 italic">No swarms yet.</p>`;
+        return;
+      }
+      el.innerHTML = swarms
+        .map(
+          (s: any) => `
+        <button data-id="${s.swarm_id}" class="swarm-row text-left p-3 rounded-xl border border-stone-100 hover:bg-stone-50 flex items-center justify-between">
+          <span class="font-medium text-stone-900">${s.goal}</span>
+          ${badge(s.status)}
+        </button>`
+        )
+        .join("");
+      el.querySelectorAll<HTMLElement>(".swarm-row").forEach((row) =>
+        row.addEventListener("click", () => loadDetail(row.dataset.id!))
+      );
+    } catch {
+      el.innerHTML = `<p class="text-sm text-red-600">Failed to load swarms.</p>`;
+    }
+  }
+
+  async function approve(swarmId: string, action: string) {
+    await api2(`/api/v1/swarms/${swarmId}/approve`, action);
+    loadDetail(swarmId);
+  }
+
+  function api2(p: string, action: string) {
+    return fetch(p, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, approved_by: "dashboard" }),
+    });
+  }
+
+  async function loadDetail(swarmId: string) {
+    const section = document.getElementById("swarm-detail-section")!;
+    section.classList.remove("hidden");
+    const res = await api(`/api/v1/swarms/${swarmId}`);
+    const d = await res.json();
+    document.getElementById("swarm-detail-title")!.innerHTML = `Swarm ${badge(d.status)}`;
+    document.getElementById("swarm-detail-goal")!.textContent = d.goal;
+
+    document.getElementById("swarm-nodes")!.innerHTML =
+      (d.nodes || [])
+        .map(
+          (n: any) =>
+            `<div class="flex items-center justify-between p-2 rounded-lg bg-stone-50">
+               <span><b>${n.runtime}</b> ${n.workspace || ""}</span>${badge(n.status)}</div>`
+        )
+        .join("") || `<p class="text-stone-400 italic">No active nodes.</p>`;
+
+    document.getElementById("swarm-tasks")!.innerHTML =
+      (d.tasks || [])
+        .map(
+          (t: any) =>
+            `<div class="flex items-center justify-between p-2 rounded-lg bg-stone-50">
+               <span>${t.title} <span class="text-xs text-stone-400">${t.runtime_hint || ""}</span></span>${badge(t.status)}</div>`
+        )
+        .join("") || `<p class="text-stone-400 italic">No tasks.</p>`;
+
+    document.getElementById("swarm-handoffs")!.innerHTML =
+      (d.handoffs || [])
+        .map(
+          (h: any) =>
+            `<div class="p-2 rounded-lg bg-stone-50"><div>${h.summary || "(no summary)"}</div>
+               <div class="text-xs text-stone-400">refs: ${(h.artifact_refs || []).join(", ") || "—"}</div></div>`
+        )
+        .join("") || `<p class="text-stone-400 italic">No handoffs yet.</p>`;
+
+    const actions = document.getElementById("swarm-manifest-actions")!;
+    if (d.manifest && d.manifest.status === "pending_approval") {
+      actions.innerHTML = `
+        <span class="text-xs text-amber-700 mr-2">${d.manifest.estimated_cost_note || ""}</span>
+        <button id="approve-btn" class="px-3 py-1.5 rounded-lg bg-green-600 text-white text-sm">Approve manifest</button>
+        <button id="reject-btn" class="px-3 py-1.5 rounded-lg bg-stone-200 text-stone-700 text-sm">Reject</button>`;
+      document.getElementById("approve-btn")!.addEventListener("click", () => approve(swarmId, "approve"));
+      document.getElementById("reject-btn")!.addEventListener("click", () => approve(swarmId, "reject"));
+    } else if (d.manifest) {
+      actions.innerHTML = `Manifest ${badge(d.manifest.status)}`;
+    } else {
+      actions.innerHTML = `<span class="text-xs text-stone-400">No manifest proposed yet.</span>`;
+    }
+  }
+
+  document.getElementById("swarm-refresh")?.addEventListener("click", loadList);
+  loadList();
+</script>

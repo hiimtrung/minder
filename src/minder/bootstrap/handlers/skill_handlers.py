@@ -99,9 +99,35 @@ def create_skill_handlers(
         del user
         return await skill_tools.minder_skill_delete(skill_id)
 
+    async def minder_skill_curate(
+        *,
+        user=None,
+        session_id: str,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_curate(session_id=session_id)
+
+    async def minder_skill_review(
+        *,
+        user=None,
+        action: str,
+        skill_id: str,
+        title: str | None = None,
+        content: str | None = None,
+    ) -> dict[str, Any]:  # noqa: ANN001
+        del user
+        return await skill_tools.minder_skill_review(
+            action=action,
+            skill_id=skill_id,
+            title=title,
+            content=content,
+        )
+
     return {
         "minder_skill_store": minder_skill_store,
         "minder_skill_recall": minder_skill_recall,
         "minder_skill_list": minder_skill_list,
         "minder_skill_delete": minder_skill_delete,
+        "minder_skill_curate": minder_skill_curate,
+        "minder_skill_review": minder_skill_review,
     }

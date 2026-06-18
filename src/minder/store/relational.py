@@ -45,6 +45,8 @@ from minder.models import (
     User,
     Workflow,
     Checkpoint,
+    MaintenanceJob,
+    MaintenanceRun,
 )
 
 from minder.domain.entities import (
@@ -66,6 +68,8 @@ from minder.domain.entities import (
     RuleSchema,
     FeedbackSchema,
     SubAgentSchema,
+    MaintenanceJobSchema,
+    MaintenanceRunSchema,
 )
 
 _REGISTERED_MODELS = (
@@ -88,6 +92,8 @@ _REGISTERED_MODELS = (
     User,
     Workflow,
     Checkpoint,
+    MaintenanceJob,
+    MaintenanceRun,
 )
 
 
@@ -207,6 +213,14 @@ class RelationalStore:
             if "excerpt_kind" not in existing:
                 sync_conn.execute(
                     text("ALTER TABLE skills ADD COLUMN excerpt_kind VARCHAR NOT NULL DEFAULT 'none'")
+                )
+            if "status" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN status VARCHAR NOT NULL DEFAULT 'active'")
+                )
+            if "review_proposal" not in existing:
+                sync_conn.execute(
+                    text("ALTER TABLE skills ADD COLUMN review_proposal JSON DEFAULT NULL")
                 )
 
         if "workflows" in inspector.get_table_names():
@@ -1250,6 +1264,17 @@ class RelationalStore:
             items = list(result.scalars().all())
             return [ErrorSchema.model_validate(item) for item in items]
 
+    async def update_error(self, error_id: uuid.UUID, **kwargs: Any) -> Optional[ErrorSchema]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(Error).where(Error.id == error_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(Error).where(Error.id == error_id)
+            )
+            item = result.scalar_one_or_none()
+            return ErrorSchema.model_validate(item) if item else None
+
     async def search_errors(self, query: str, limit: int = 5) -> list[dict[str, Any]]:
         rows = await self.list_errors()
         query_vector = self._text_vector(query)
@@ -1473,3 +1498,107 @@ class RelationalStore:
     async def delete_agent(self, agent_id: uuid.UUID) -> None:
         async with self._session() as sess:
             await sess.execute(delete(SubAgent).where(SubAgent.id == agent_id))
+
+    # ------------------------------------------------------------------
+    # Maintenance
+    # ------------------------------------------------------------------
+
+    async def create_maintenance_job(self, **kwargs: Any) -> MaintenanceJobSchema:
+        async with self._session() as sess:
+            job = MaintenanceJob(**kwargs)
+            sess.add(job)
+            await sess.flush()
+            await sess.refresh(job)
+            return MaintenanceJobSchema.model_validate(job)
+
+    async def get_maintenance_job_by_id(self, job_id: uuid.UUID) -> Optional[MaintenanceJobSchema]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(MaintenanceJob).where(MaintenanceJob.id == job_id)
+            )
+            item = result.scalar_one_or_none()
+            return MaintenanceJobSchema.model_validate(item) if item else None
+
+    async def get_maintenance_job_by_name(self, name: str) -> Optional[MaintenanceJobSchema]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(MaintenanceJob).where(MaintenanceJob.name == name)
+            )
+            item = result.scalar_one_or_none()
+            return MaintenanceJobSchema.model_validate(item) if item else None
+
+    async def list_maintenance_jobs(self) -> List[MaintenanceJobSchema]:
+        async with self._session() as sess:
+            result = await sess.execute(select(MaintenanceJob))
+            items = list(result.scalars().all())
+            return [MaintenanceJobSchema.model_validate(item) for item in items]
+
+    async def update_maintenance_job(
+        self, job_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[MaintenanceJobSchema]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(MaintenanceJob).where(MaintenanceJob.id == job_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(MaintenanceJob).where(MaintenanceJob.id == job_id)
+            )
+            item = result.scalar_one_or_none()
+            return MaintenanceJobSchema.model_validate(item) if item else None
+
+    async def delete_maintenance_job(self, job_id: uuid.UUID) -> None:
+        async with self._session() as sess:
+            await sess.execute(delete(MaintenanceJob).where(MaintenanceJob.id == job_id))
+
+    async def create_maintenance_run(self, **kwargs: Any) -> MaintenanceRunSchema:
+        async with self._session() as sess:
+            run = MaintenanceRun(**kwargs)
+            sess.add(run)
+            await sess.flush()
+            await sess.refresh(run)
+            return MaintenanceRunSchema.model_validate(run)
+
+    async def get_maintenance_run_by_id(self, run_id: uuid.UUID) -> Optional[MaintenanceRunSchema]:
+        async with self._session() as sess:
+            result = await sess.execute(
+                select(MaintenanceRun).where(MaintenanceRun.id == run_id)
+            )
+            item = result.scalar_one_or_none()
+            return MaintenanceRunSchema.model_validate(item) if item else None
+
+    async def list_maintenance_runs(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> List[MaintenanceRunSchema]:
+        async with self._session() as sess:
+            stmt = select(MaintenanceRun).order_by(MaintenanceRun.started_at.desc())
+            if offset:
+                stmt = stmt.offset(offset)
+            if limit is not None:
+                stmt = stmt.limit(limit)
+            result = await sess.execute(stmt)
+            items = list(result.scalars().all())
+            return [MaintenanceRunSchema.model_validate(item) for item in items]
+
+    async def update_maintenance_run(
+        self, run_id: uuid.UUID, **kwargs: Any
+    ) -> Optional[MaintenanceRunSchema]:
+        async with self._session() as sess:
+            await sess.execute(
+                update(MaintenanceRun).where(MaintenanceRun.id == run_id).values(**kwargs)
+            )
+            result = await sess.execute(
+                select(MaintenanceRun).where(MaintenanceRun.id == run_id)
+            )
+            item = result.scalar_one_or_none()
+            return MaintenanceRunSchema.model_validate(item) if item else None
+
+    async def vacuum(self) -> None:
+        """Run VACUUM on SQLite database to reclaim space."""
+        async with self._engine.connect() as conn:
+            if conn.dialect.name == "sqlite":
+                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                from sqlalchemy import text
+                await conn.execute(text("VACUUM"))

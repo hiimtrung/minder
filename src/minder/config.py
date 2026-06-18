@@ -180,6 +180,38 @@ class SeedingConfig(BaseModel):
     skills_path: str = "skills/"
 
 
+class MaintenanceJobConfig(BaseModel):
+    name: str
+    schedule: str
+    require_idle: bool = True
+    max_runtime_s: int = 120
+
+
+class MaintenanceConfig(BaseModel):
+    enabled: bool = True
+    mode: str = "report"  # "report" | "active"
+    tick_seconds: int = 60
+    idle_threshold_seconds: int = 600
+    auto_active_after_idle_hours: float = 3.0
+    dashboard_editable: bool = True
+    jobs: list[MaintenanceJobConfig] = Field(default_factory=list)
+
+
+class SwarmConfig(BaseModel):
+    """Multi-agent swarm coordination (docs/roadmap/08-swarm-coordination-substrate.md)."""
+
+    enabled: bool = True
+    db_path: str = "~/.minder/data/swarm.db"  # decision Q3 — separate DB
+    heartbeat_ttl_seconds: int = 120  # node considered dead after this without heartbeat
+    claim_ttl_seconds: int = 600  # a claimed task is reclaimable after this
+    failure_limit: int = 2  # auto-block a task after N consecutive failures
+    require_manifest_approval: bool = True  # decision Q5 — gate before spawning workers
+    dispatcher_enabled: bool = False  # S-4: Minder-spawn (off by default; pull-spawn first)
+    dispatcher_tick_seconds: int = 60  # how often the dispatcher sweeps the board
+    max_concurrent_spawns: int = 3  # cap on dispatcher-launched workers per sweep
+    mcp_endpoint: str = ""  # SSE endpoint spawned workers connect to; empty → derive from server
+
+
 class Settings(BaseSettings):
     server: ServerConfig = Field(default_factory=ServerConfig)
     dashboard: DashboardConfig = Field(default_factory=DashboardConfig)
@@ -201,6 +233,8 @@ class Settings(BaseSettings):
     verification: VerificationConfig = Field(default_factory=VerificationConfig)
     workflow: WorkflowConfig = Field(default_factory=WorkflowConfig)
     seeding: SeedingConfig = Field(default_factory=SeedingConfig)
+    maintenance: MaintenanceConfig = Field(default_factory=MaintenanceConfig)
+    swarm: SwarmConfig = Field(default_factory=SwarmConfig)
 
     model_config = SettingsConfigDict(
         env_prefix="MINDER_",

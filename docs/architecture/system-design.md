@@ -162,6 +162,7 @@ Minder uses a graph-based agentic engine (LangGraph) with the following nodes:
 flowchart LR
     App["Minder Server"] --> SQLiteRel["SQLite\n~/.minder/data/minder.db\n(users, sessions, workflows, repos, audit)"]
     App --> SQLiteGraph["SQLite\n~/.minder/data/graph.db\n(knowledge graph)"]
+    App --> SQLiteSwarm["SQLite\n~/.minder/data/swarm.db\n(swarm presence, tasks)"]
     App --> Turbovec["Turbovec\n~/.minder/data/vectors.tvim\n(semantic index)"]
     App --> RepoState[".minder/\n(repo-local state)"]
 ```
@@ -344,7 +345,60 @@ uv run python -m minder.server
 
 Serve behind nginx or Caddy for TLS termination. See [Production Deployment](../guides/production-deployment.md).
 
-## 12. Related Design Documents
+## 12. Multi-Agent Swarm & Idle Maintenance Dataflow
+
+### Swarm Execution & Manifest Approval Gate Dataflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Orchestrator as Orchestrator Agent (IDE)
+    participant Server as Minder Server
+    participant SwarmDB as Swarm DB (swarm.db)
+    participant Operator as Human Operator
+    participant Dispatcher as Swarm Dispatcher (Loop)
+    participant Runner as Runner Adapter (Subprocess/ACP)
+    participant Worker as Worker Instance
+
+    Orchestrator->>Server: minder_swarm_create(goal)
+    Orchestrator->>Server: minder_swarm_plan(tasks)
+    Orchestrator->>Server: minder_swarm_propose()
+    Server->>SwarmDB: Save SwarmManifest (pending_approval)
+    Note over Operator: Checks Dashboard / CLI
+    Operator->>Server: minder_swarm_approve()
+    Server->>SwarmDB: Update status to approved
+    
+    loop Every 60s
+        Dispatcher->>SwarmDB: Query approved + ready tasks
+        SwarmDB-->>Dispatcher: Ready tasks (codex / claude)
+        Dispatcher->>Runner: spawn(task)
+        Runner->>Worker: Spawn process with MCP env
+    end
+
+    Worker->>Server: minder_swarm_join() & minder_swarm_claim()
+    Worker->>Server: minder_swarm_report(status="done")
+```
+
+### Idle Maintenance Jobs Lifecycle
+
+```mermaid
+flowchart TB
+    API[FastAPI Endpoint / MCP Tool] --> Middleware[Activity Middleware]
+    Middleware -->|touch()| Sched[Maintenance Scheduler]
+    
+    subgraph Jobs Loop
+        direction TB
+        sqlite_vacuum[sqlite_vacuum]
+        vector_optimize[vector_optimize]
+        chat_history_compact[chat_history_compact]
+        skill_curate[skill_curate]
+    end
+
+    Sched -->|Checks System Idle > 10m| sqlite_vacuum & vector_optimize & chat_history_compact & skill_curate
+    skill_curate -->|Synthesize| SkillStore[Skill Store (minder.db)]
+```
+
+## 13. Related Design Documents
 
 - [Minder Server Architecture](minder-server.md)
 - [MCP Tool Reference](../roadmap/03-data-model-and-tools.md)

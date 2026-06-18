@@ -44,6 +44,14 @@ class SkillUpdateRequest(BaseModel):
     deprecated: bool | None = None
     source: dict[str, Any] | None = None
     excerpt_kind: str | None = None
+    status: str | None = None
+
+
+class SkillReviewRequest(BaseModel):
+    action: str
+    title: str | None = None
+    content: str | None = None
+
 
 
 class SkillImportRequest(BaseModel):
@@ -87,6 +95,8 @@ def _serialize_skill(skill: Any) -> dict[str, Any]:
         ),
         "source": dict(source_metadata) if isinstance(source_metadata, dict) else None,
         "excerpt_kind": str(getattr(skill, "excerpt_kind", "none") or "none"),
+        "status": str(getattr(skill, "status", "active") or "active"),
+        "review_proposal": getattr(skill, "review_proposal", None),
         "created_at": _iso(skill.created_at),
         "updated_at": _iso(skill.updated_at),
     }
@@ -94,7 +104,7 @@ def _serialize_skill(skill: Any) -> dict[str, Any]:
 
 def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
     async def list_skills(request: Request) -> JSONResponse:
-        del request
+        status = request.query_params.get("status", "all")
         await record_admin_operation(
             operation="list_skills",
             outcome="success",
@@ -103,8 +113,13 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
         )
         try:
             all_skills = await context.store.list_skills_by_kind(is_memory=False)
+            filtered = []
+            for skill in all_skills:
+                if status != "all" and getattr(skill, "status", "active") != status:
+                    continue
+                filtered.append(skill)
             skills = sorted(
-                all_skills,
+                filtered,
                 key=lambda skill: (
                     -float(getattr(skill, "quality_score", 0.0) or 0.0),
                     str(getattr(skill, "title", "")).lower(),
@@ -223,6 +238,28 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
             logger.exception("Failed to delete skill", exc_info=exc)
             return JSONResponse({"error": str(exc)}, status_code=500)
 
+    async def review_skill(request: Request) -> JSONResponse:
+        skill_id = request.path_params["skill_id"]
+        await record_admin_operation(
+            operation="review_skill",
+            outcome="success",
+            actor_id="system",
+            store=context.store,
+        )
+        try:
+            payload = SkillReviewRequest(**(await request.json()))
+            tools = SkillTools(context.store, _config_from_request(request))
+            res = await tools.minder_skill_review(
+                action=payload.action,
+                skill_id=skill_id,
+                title=payload.title,
+                content=payload.content,
+            )
+            return JSONResponse(res)
+        except Exception as exc:
+            logger.exception("Failed to review skill", exc_info=exc)
+            return JSONResponse({"error": str(exc)}, status_code=400)
+
     return [
         Route("/api/v1/skills", list_skills, methods=["GET"]),
         Route("/api/v1/skills", create_skill, methods=["POST"]),
@@ -230,4 +267,5 @@ def build_skills_routes(context: AdminRouteContext) -> list[BaseRoute]:
         Route("/api/v1/skills/{skill_id}", get_skill, methods=["GET"]),
         Route("/api/v1/skills/{skill_id}", update_skill, methods=["PATCH", "PUT"]),
         Route("/api/v1/skills/{skill_id}", delete_skill, methods=["DELETE"]),
+        Route("/api/v1/skills/{skill_id}/review", review_skill, methods=["POST"]),
     ]

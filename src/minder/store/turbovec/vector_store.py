@@ -247,3 +247,17 @@ class TurbovecVectorStore:
                 break
 
         return ranked
+
+    def _optimize_sync(self) -> None:
+        if self._index is None:
+            return
+        try:
+            if hasattr(self._index, "prepare"):
+                self._index.prepare()
+            self._save_sync()
+        except Exception as e:
+            logger.error("Failed to optimize Turbovec database: %s", e)
+
+    async def optimize(self) -> None:
+        await self.setup()
+        await asyncio.to_thread(self._optimize_sync)

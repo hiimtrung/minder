@@ -1,4 +1,6 @@
 import {
+  listSkills,
+  reviewSkill,
   createAdminJob,
   createSkill,
   deleteSkill,
@@ -99,6 +101,9 @@ const importProgressLogEl = document.querySelector(
 );
 const importJobListEl = document.querySelector("#skill-import-job-list");
 const importJobSummaryEl = document.querySelector("#skill-import-job-summary");
+const reviewQueueContainer = document.querySelector("#skill-review-queue-container");
+const reviewCardsList = document.querySelector("#skill-review-cards-list");
+const reviewCountEl = document.querySelector("#skill-review-count");
 
 const PAGE_SIZE = 20;
 
@@ -599,10 +604,119 @@ const renderRegistry = () => {
     });
 };
 
+const refreshReviewQueue = async () => {
+  if (!reviewQueueContainer || !reviewCardsList) return;
+  try {
+    const pending = await listSkills("pending_review");
+    if (!pending.length) {
+      reviewQueueContainer.classList.add("hidden");
+      reviewCardsList.innerHTML = "";
+      return;
+    }
+
+    if (reviewCountEl) {
+      reviewCountEl.textContent = `${pending.length} Pending`;
+    }
+
+    reviewCardsList.innerHTML = pending
+      .map((skill) => {
+        const prop = skill.review_proposal;
+        const potential = prop?.scores?.reuse_potential ?? 0.5;
+        const novelty = prop?.scores?.novelty ?? 0.5;
+        const risk = prop?.scores?.risk ?? 0.1;
+        const rec = prop?.recommendation ?? "approve";
+
+        return `
+          <div class="rounded-2xl border border-violet-150 bg-white p-4 shadow-sm flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between gap-2 border-b border-violet-50 pb-2 mb-2">
+                <h3 class="font-semibold text-violet-950 text-sm leading-tight">${escapeHtml(skill.title)}</h3>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-violet-700 bg-violet-50 border border-violet-100 px-1.5 py-0.5 rounded">Proposal</span>
+              </div>
+
+              <!-- Recommendation/Reason -->
+              <p class="text-xs text-stone-600 italic mb-3">"${escapeHtml(rec)}"</p>
+
+              <!-- Scores -->
+              <div class="grid grid-cols-3 gap-2 bg-stone-50 border border-stone-100 rounded-xl p-2.5 mb-3 text-[11px] text-stone-500 font-medium">
+                <div>
+                  <span class="block text-stone-400 text-[9px] uppercase tracking-wider">Potential</span>
+                  <span class="text-stone-800 font-bold">${potential.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span class="block text-stone-400 text-[9px] uppercase tracking-wider">Novelty</span>
+                  <span class="text-stone-800 font-bold">${novelty.toFixed(2)}</span>
+                </div>
+                <div>
+                  <span class="block text-stone-400 text-[9px] uppercase tracking-wider">Risk</span>
+                  <span class="text-stone-800 font-bold">${risk.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <!-- Proposed Content Excerpt -->
+              <div class="bg-violet-50/20 border border-violet-100/50 rounded-xl p-2.5 text-xs text-stone-700 max-h-24 overflow-y-auto mb-4 font-mono whitespace-pre-wrap">${escapeHtml(skill.content)}</div>
+            </div>
+
+            <!-- Review Actions -->
+            <div class="flex gap-2 border-t border-stone-100 pt-3">
+              <button
+                type="button"
+                class="flex-1 rounded-xl bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs py-1.5 transition text-center"
+                data-review-approve="${escapeHtml(skill.id)}"
+              >
+                Approve
+              </button>
+              <button
+                type="button"
+                class="flex-1 rounded-xl border border-stone-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-stone-700 font-semibold text-xs py-1.5 transition text-center"
+                data-review-reject="${escapeHtml(skill.id)}"
+              >
+                Reject
+              </button>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+
+    reviewQueueContainer.classList.remove("hidden");
+
+    // Bind actions
+    reviewCardsList.querySelectorAll("[data-review-approve]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = (btn as HTMLElement).dataset.reviewApprove;
+        if (id) await performReview(id, "approve");
+      });
+    });
+
+    reviewCardsList.querySelectorAll("[data-review-reject]").forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const id = (btn as HTMLElement).dataset.reviewReject;
+        if (id) await performReview(id, "reject");
+      });
+    });
+  } catch (error) {
+    console.error("Failed to load skills review queue:", error);
+  }
+};
+
+const performReview = async (skillId: string, action: "approve" | "reject") => {
+  try {
+    showToast(`${action === "approve" ? "Approving" : "Rejecting"} skill proposal...`);
+    await reviewSkill(skillId, { action });
+    showToast(`Skill proposal successfully ${action === "approve" ? "approved and activated" : "rejected"}.`, "success");
+    await refreshReviewQueue();
+    await syncVisibleSkills();
+  } catch (error) {
+    showToast(error instanceof Error ? error.message : "Failed to submit review", "danger");
+  }
+};
+
 const syncVisibleSkills = async () => {
   if (registryEl instanceof HTMLElement) {
     registryEl.innerHTML = `<article class="shell-card p-6 text-sm text-stone-600">Loading skills...</article>`;
   }
+  void refreshReviewQueue();
   try {
     const result = await searchAdminCatalog<SkillPayload>(
       "skills",

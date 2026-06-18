@@ -1,0 +1,198 @@
+---
+import DashboardLayout from "../layouts/DashboardLayout.astro";
+import PageHero from "./ui/molecules/PageHero.astro";
+import Field from "./ui/atoms/Field.astro";
+import Input from "./ui/atoms/Input.astro";
+import Select from "./ui/atoms/Select.astro";
+import Button from "./ui/atoms/Button.astro";
+import FormStatus from "./ui/atoms/FormStatus.astro";
+---
+
+<DashboardLayout
+  title="Maintenance · Minder"
+  description="Monitor and manage background maintenance jobs, auto-curation logs, and database optimization tasks."
+  navTitle="Minder Dashboard"
+  navDescription="Maintain, optimize, and clean up database files, chat history budgets, and vector store indices."
+  sessionControls={true}
+  showPageIntro={false}
+>
+  <PageHero
+    eyebrow="System Administration"
+    title="Background Maintenance Center"
+    description="Manage cron schedules, observe background jobs, trigger database cleanup, and configure self-healing/curation modes."
+  />
+
+  <div class="grid gap-6 lg:grid-cols-[1fr_360px]">
+    <!-- Main Left: Jobs List and Logs -->
+    <div class="flex flex-col gap-6">
+      <!-- Jobs Catalog -->
+      <section class="shell-card p-6">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-4">
+          <div>
+            <h2 class="text-xl font-semibold tracking-tight text-stone-950">Registered Maintenance Jobs</h2>
+            <p class="text-sm text-stone-500 mt-1">Configure individual cron schedules or manually run maintenance tasks.</p>
+          </div>
+          <Button id="maint-refresh-button" size="sm">Refresh Status</Button>
+        </div>
+
+        <div id="maint-jobs-container" class="grid gap-4 sm:grid-cols-2">
+          <!-- Jobs rendered via JS -->
+          <div class="skeleton h-32 rounded-2xl"></div>
+          <div class="skeleton h-32 rounded-2xl"></div>
+        </div>
+      </section>
+
+      <!-- Historical Logs -->
+      <section class="shell-card p-6">
+        <div class="flex items-center justify-between border-b border-stone-100 pb-4 mb-4">
+          <div>
+            <h2 class="text-xl font-semibold tracking-tight text-stone-950">Execution History Logs</h2>
+            <p class="text-sm text-stone-500 mt-1">Audit log of previously executed maintenance runs.</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <Button id="maint-logs-prev" size="sm" variant="ghost" disabled>Prev</Button>
+            <span id="maint-logs-pager-status" class="text-xs text-stone-500 font-medium">Page 1</span>
+            <Button id="maint-logs-next" size="sm" variant="ghost" disabled>Next</Button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="border-b border-stone-100 text-stone-500 font-medium">
+                <th class="py-2.5 px-3">Job Name</th>
+                <th class="py-2.5 px-3">Started</th>
+                <th class="py-2.5 px-3">Duration</th>
+                <th class="py-2.5 px-3">Mode</th>
+                <th class="py-2.5 px-3">Status</th>
+                <th class="py-2.5 px-3">Result Summary</th>
+              </tr>
+            </thead>
+            <tbody id="maint-runs-tbody">
+              <!-- Logs rendered via JS -->
+              <tr>
+                <td colspan="6" class="py-4 text-center text-stone-400">Loading execution history...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
+    <!-- Sidebar Right: Global Config & State -->
+    <div class="flex flex-col gap-6">
+      <section class="shell-card p-6">
+        <h2 class="text-lg font-semibold tracking-tight text-stone-950 border-b border-stone-100 pb-3 mb-4">Scheduler Status</h2>
+        
+        <div class="flex flex-col gap-4">
+          <div class="flex justify-between items-center bg-stone-50 rounded-2xl px-4 py-3 border border-stone-100">
+            <span class="text-sm text-stone-600 font-medium">Scheduler Task</span>
+            <span id="scheduler-task-badge" class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider">Checking...</span>
+          </div>
+
+          <div class="flex justify-between items-center bg-stone-50 rounded-2xl px-4 py-3 border border-stone-100">
+            <span class="text-sm text-stone-600 font-medium">Active Mode</span>
+            <span id="scheduler-mode-badge" class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider">Checking...</span>
+          </div>
+
+          <div class="flex justify-between items-center bg-stone-50 rounded-2xl px-4 py-3 border border-stone-100">
+            <span class="text-sm text-stone-600 font-medium">Idle State</span>
+            <span id="scheduler-idle-badge" class="rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider">Checking...</span>
+          </div>
+
+          <div class="text-xs text-stone-500 flex flex-col gap-1.5 px-1 mt-1 border-t border-stone-100 pt-3">
+            <div class="flex justify-between">
+              <span>Last active:</span>
+              <span id="scheduler-last-active" class="font-medium text-stone-700">Never</span>
+            </div>
+            <div class="flex justify-between">
+              <span>Active queries:</span>
+              <span id="scheduler-active-queries" class="font-medium text-stone-700">0</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="shell-card p-6">
+        <h2 class="text-lg font-semibold tracking-tight text-stone-950 border-b border-stone-100 pb-3 mb-4">Global Configuration</h2>
+        
+        <form id="global-config-form" class="flex flex-col gap-4">
+          <Field label="Enable Scheduler" htmlFor="global-enabled">
+            <Select id="global-enabled">
+              <option value="true">Enabled (Background tick)</option>
+              <option value="false">Disabled (Pause scheduling)</option>
+            </Select>
+          </Field>
+
+          <Field label="Execution Mode" htmlFor="global-mode">
+            <Select id="global-mode">
+              <option value="report">Report (Dry run / audit log only)</option>
+              <option value="active">Active (Read/Write updates enabled)</option>
+            </Select>
+          </Field>
+
+          <Field label="Idle Threshold" htmlFor="global-idle-threshold" tooltip="Continuous seconds of inactivity required for scheduler to consider system idle.">
+            <Input id="global-idle-threshold" type="number" min="60" value="180" />
+          </Field>
+
+          <Field label="Auto-Active Idle Mode" htmlFor="global-auto-active-hours" tooltip="If system is idle for >= this many hours, promote mode to Active for scheduled runs. Put 0 to disable.">
+            <Input id="global-auto-active-hours" type="number" min="0" step="0.5" value="3" />
+          </Field>
+
+          <FormStatus id="global-config-status" />
+          
+          <Button type="submit" variant="primary" size="md">Save Global Settings</Button>
+        </form>
+      </section>
+    </div>
+  </div>
+
+  <!-- Job Edit Configuration Dialog -->
+  <dialog id="job-config-dialog" class="u-modal-dialog">
+    <div class="u-modal-inner max-w-md">
+      <header class="u-modal-header">
+        <div>
+          <p class="eyebrow" id="job-dialog-eyebrow">Job Configuration</p>
+          <h2 class="u-modal-title" id="job-dialog-title">Job settings</h2>
+        </div>
+        <button id="job-close-dialog" type="button" class="u-modal-close-btn" aria-label="Close">✕</button>
+      </header>
+
+      <div class="u-modal-body">
+        <form id="job-config-form" class="grid gap-4">
+          <input id="job-name-hidden" type="hidden" />
+          
+          <Field label="Cron Schedule" htmlFor="job-schedule" tooltip="Standard 5-field cron format (e.g. '0 0 * * *' for midnight daily)">
+            <Input id="job-schedule" placeholder="*/30 * * * *" required />
+          </Field>
+
+          <Field label="Enable Job" htmlFor="job-enabled">
+            <Select id="job-enabled">
+              <option value="true">Enabled</option>
+              <option value="false">Disabled</option>
+            </Select>
+          </Field>
+
+          <Field label="Require Idle State" htmlFor="job-require-idle" tooltip="Wait for idle state before running this task. Highly recommended for DB optimizations.">
+            <Select id="job-require-idle">
+              <option value="true">Yes</option>
+              <option value="false">No</option>
+            </Select>
+          </Field>
+
+          <Field label="Max Execution Runtime" htmlFor="job-max-runtime" tooltip="Max timeout (in seconds) allowed before the job is forcefully cancelled.">
+            <Input id="job-max-runtime" type="number" min="10" max="3600" value="300" required />
+          </Field>
+
+          <FormStatus id="job-config-status" />
+        </form>
+      </div>
+
+      <div class="u-modal-footer">
+        <Button type="submit" form="job-config-form" variant="primary" class="flex-1">Save Job Settings</Button>
+      </div>
+    </div>
+  </dialog>
+
+  <script src="../../scripts/maintenance-page.ts"></script>
+</DashboardLayout>

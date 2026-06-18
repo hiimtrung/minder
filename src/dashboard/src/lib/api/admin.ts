@@ -817,6 +817,20 @@ export type SkillPayload = {
   provenance: string | null;
   source: SkillSourcePayload | null;
   excerpt_kind: "none" | "reusable_excerpt";
+  status?: string;
+  review_proposal?: {
+    title: string;
+    proposed_content: string;
+    source_pattern: string;
+    evidence: string[];
+    scores: {
+      reuse_potential: number;
+      novelty: number;
+      risk: number;
+    };
+    near_duplicates?: string[];
+    recommendation?: string;
+  } | null;
   created_at: string | null;
   updated_at: string | null;
 };
@@ -903,8 +917,9 @@ export type MemoryPayload = {
   updated_at: string | null;
 };
 
-export async function listSkills(): Promise<SkillPayload[]> {
-  return requestJson<SkillPayload[]>("/api/v1/skills");
+export async function listSkills(status?: string): Promise<SkillPayload[]> {
+  const query = status ? `?status=${status}` : "";
+  return requestJson<SkillPayload[]>(`/api/v1/skills${query}`);
 }
 
 export async function createSkill(payload: {
@@ -1738,3 +1753,97 @@ export async function triggerRepositorySync(
     { method: "POST" },
   );
 }
+
+export async function reviewSkill(
+  skillId: string,
+  payload: {
+    action: "approve" | "reject" | "edit";
+    title?: string;
+    content?: string;
+  }
+): Promise<{ status: string; skill_id: string; action: string; title: string; new_status: string }> {
+  return requestJson(`/api/v1/skills/${skillId}/review`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export type MaintenanceJobPayload = {
+  id: string;
+  name: string;
+  schedule: string;
+  enabled: boolean;
+  require_idle: boolean;
+  max_runtime_s: number;
+  last_run_at: string | null;
+  last_status: string | null;
+  last_summary: string | null;
+};
+
+export type MaintenanceRunPayload = {
+  id: string;
+  job_name: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  duration_s: number;
+  mode: string;
+  summary: string | null;
+  error_message: string | null;
+};
+
+export type MaintenanceStatusPayload = {
+  enabled: boolean;
+  mode: string;
+  configured_mode: string;
+  idle_threshold_seconds: number;
+  auto_active_after_idle_hours: number;
+  is_idle: boolean;
+  last_activity_time: string | null;
+  active_session_count: number;
+  jobs: MaintenanceJobPayload[];
+};
+
+export async function getMaintenanceStatus(): Promise<MaintenanceStatusPayload> {
+  return requestJson<MaintenanceStatusPayload>("/api/v1/maintenance/status");
+}
+
+export async function getMaintenanceRuns(limit = 50, offset = 0): Promise<MaintenanceRunPayload[]> {
+  return requestJson<MaintenanceRunPayload[]>(`/api/v1/maintenance/runs?limit=${limit}&offset=${offset}`);
+}
+
+export async function triggerMaintenanceJob(jobName: string): Promise<{ status: string; message: string }> {
+  return requestJson<{ status: string; message: string }>(`/api/v1/maintenance/jobs/${jobName}/trigger`, {
+    method: "POST",
+  });
+}
+
+export async function updateMaintenanceJobConfig(
+  jobName: string,
+  payload: {
+    schedule?: string;
+    enabled?: boolean;
+    require_idle?: boolean;
+    max_runtime_s?: number;
+  }
+): Promise<{ status: string; job: Partial<MaintenanceJobPayload> }> {
+  return requestJson(`/api/v1/maintenance/jobs/${jobName}/config`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function updateMaintenanceGlobalConfig(
+  payload: {
+    mode?: "report" | "active";
+    enabled?: boolean;
+    idle_threshold_seconds?: number;
+    auto_active_after_idle_hours?: number;
+  }
+): Promise<{ status: string; config: Partial<MaintenanceStatusPayload> }> {
+  return requestJson(`/api/v1/maintenance/config`, {
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
+

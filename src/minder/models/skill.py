@@ -31,6 +31,8 @@ class Skill(Base):
         JSON, nullable=True
     )
     excerpt_kind: Mapped[str] = mapped_column(String, default="none")
+    status: Mapped[str] = mapped_column(String, default="active", server_default="active")
+    review_proposal: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     # Multi-developer isolation: owner_id is the principal who created this entry.
     # None means team/legacy (visible to all). Indexed for efficient filtering.
     owner_id: Mapped[Optional[uuid.UUID]] = mapped_column(

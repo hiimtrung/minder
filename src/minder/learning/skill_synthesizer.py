@@ -25,7 +25,12 @@ class SkillSynthesizer:
         self._store = store
         self._embedder = embedder
 
-    async def synthesize(self, pattern: dict[str, Any]) -> dict[str, Any] | None:
+    async def synthesize(
+        self,
+        pattern: dict[str, Any],
+        status: str = "active",
+        review_proposal: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
         title = f"Workflow pattern: {pattern['query'][:80]}"
         content = _render_pattern(pattern)
         embedding = self._embedder.embed(f"{title}\n{content}")
@@ -51,6 +56,8 @@ class SkillSynthesizer:
             quality_score=round(float(pattern.get("quality_score", 0.0) or 0.0), 4),
             source_metadata={"synthesized_from": "workflow_execution"},
             excerpt_kind="reusable_excerpt",
+            status=status,
+            review_proposal=review_proposal,
         )
         return {"id": str(skill.id), "title": str(skill.title)}
 

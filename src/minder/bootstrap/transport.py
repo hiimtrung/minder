@@ -50,6 +50,7 @@ from minder.bootstrap.handlers.workflow_handlers import create_workflow_handlers
 from minder.bootstrap.handlers.skill_handlers import create_skill_handlers
 from minder.bootstrap.handlers.search_handlers import create_search_handlers
 from minder.bootstrap.handlers.agent_handlers import create_agent_handlers
+from minder.bootstrap.handlers.swarm_handlers import create_swarm_handlers
 
 
 def build_transport(
@@ -59,6 +60,7 @@ def build_transport(
     vector_store: IVectorStore,
     graph_store: IGraphRepository | None = None,
     cache: ICacheProvider | None = None,
+    swarm_store: Any = None,
 ) -> SSETransport | StdioTransport:
     """
     Composition Root — wires all dependencies and registers MCP tools.
@@ -95,6 +97,13 @@ def build_transport(
         graph_tools=graph_tools,
     )
 
+    # ── Swarm store (shared by MCP handlers + HTTP routes) ───────────
+    effective_swarm_store = None
+    if config.swarm.enabled:
+        from minder.store.swarm import SwarmStore
+
+        effective_swarm_store = swarm_store or SwarmStore(db_path=config.swarm.db_path)
+
     # ── Transport Selection ──────────────────────────────────────────
     transport: SSETransport | StdioTransport
     if config.server.transport == "stdio":
@@ -123,6 +132,7 @@ def build_transport(
                 graph_store=graph_store,
                 cache=cache,
                 prompt_sync_hook=sync_prompts,
+                swarm_store=effective_swarm_store,
             )
         )
 
@@ -158,6 +168,18 @@ def build_transport(
     # Agent handlers
     agent_handlers_map = create_agent_handlers(agent_tools)
     all_handlers.update(agent_handlers_map)
+
+    # Swarm coordination handlers. Swarm tools are part of the canonical tool set,
+    # so they are always registered when the feature is enabled. server.py passes an
+    # already-initialised store; if absent we construct one from config (init_db is
+    # idempotent and runs in the lifespan / on first use).
+    if config.swarm.enabled and effective_swarm_store is not None:
+        from minder.application.swarm.service import SwarmService
+        from minder.tools.swarm import SwarmTools
+
+        swarm_service = SwarmService(effective_swarm_store, config)
+        swarm_tools = SwarmTools(swarm_service)
+        all_handlers.update(create_swarm_handlers(swarm_tools))
 
     # ── Register All Tools ───────────────────────────────────────────
     for tool_name, handler in all_handlers.items():

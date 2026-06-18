@@ -146,6 +146,67 @@ minder sync --dry-run
 
 The `sync_metadata.branch_relationship_count` and `branch_relationships` keys in the dry-run output are what the server will persist under `repository.relationships.cross_repo_branches`.
 
+## Swarm Coordination
+
+Observe and control multi-agent swarms directly from the terminal.
+
+### List Swarms
+
+List all active and past swarms on the server:
+
+```bash
+minder swarm list
+```
+
+Example output:
+```
+sw-001  [working       ]  Refactor authentication module
+sw-002  [pending_appr  ]  Optimize database queries
+```
+
+### Inspect Swarm Presence & Tasks
+
+View who is doing what, where (presence + board status) for a specific swarm:
+
+```bash
+minder swarm who sw-001
+```
+
+This dumps:
+- **NODES**: active agents, their statuses, workspaces, and current task IDs.
+- **TASKS**: all tasks on the board, their execution status, runtime hints, and DAG dependencies.
+- **MANIFEST**: the manifest status and cost estimates.
+
+To get the raw JSON representation for custom scripts or dashboards:
+
+```bash
+minder swarm board sw-001
+```
+
+### Approve Swarm Manifests (Human Gate)
+
+Before the server-side dispatcher or orchestrators can spawn workers, a human must approve the swarm manifest.
+
+Approve a manifest:
+
+```bash
+minder swarm approve sw-001
+```
+
+Reject a manifest:
+
+```bash
+minder swarm approve sw-001 --action reject
+```
+
+Edit worker specifications and approve (useful to swap runtimes, modify tool permissions, or update max execution budgets):
+1. Save the modified worker specifications as a JSON file (e.g., `specs.json`).
+2. Run the approval command:
+
+```bash
+minder swarm approve sw-001 --action edit --workers-file specs.json
+```
+
 ## Check Updates
 
 Check both the installed CLI and the local server deployment at once:

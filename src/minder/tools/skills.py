@@ -108,11 +108,13 @@ class SkillTools:
         current_step: str | None = None,
         tag: str | None = None,
         min_quality_score: float = 0.0,
+        status: str | None = "active",
     ) -> list[dict[str, Any]]:
         return await self._service.minder_skill_list(
             current_step=current_step,
             tag=tag,
             min_quality_score=min_quality_score,
+            status=status,
         )
 
     async def minder_skill_update(
@@ -167,3 +169,54 @@ class SkillTools:
 
     async def minder_skill_delete(self, skill_id: str) -> dict[str, bool]:
         return await self._service.minder_skill_delete(skill_id=skill_id)
+
+    async def minder_skill_curate(self, *, session_id: str) -> dict[str, Any]:
+        """Manually trigger curation loop for a finished session."""
+        import uuid
+        from minder.application.curator.service import SkillCurator
+        curator = SkillCurator(self._store, self._config, embedder=self._service._embedder)
+        res = await curator.curate_after_session(uuid.UUID(session_id))
+        return res or {"status": "skipped", "message": "No patterns met quality threshold or no session state found"}
+
+    async def minder_skill_review(
+        self,
+        *,
+        action: str,  # "approve" | "reject" | "edit"
+        skill_id: str,
+        title: str | None = None,
+        content: str | None = None,
+    ) -> dict[str, Any]:
+        """Approve, reject, or edit a pending_review skill."""
+        import uuid
+        skill_uuid = uuid.UUID(skill_id)
+        
+        skill = await self._store.get_skill_by_id(skill_uuid)
+        if not skill:
+            raise ValueError(f"Skill not found: {skill_id}")
+            
+        kwargs: dict[str, Any] = {}
+        if action == "approve":
+            kwargs["status"] = "active"
+        elif action == "reject":
+            kwargs["status"] = "rejected"
+        elif action == "edit":
+            kwargs["status"] = "active"
+            if title is not None:
+                kwargs["title"] = title
+            if content is not None:
+                kwargs["content"] = content
+                kwargs["embedding"] = self._service._embedder.embed(f"{title or skill.title}\n{content}")
+        else:
+            raise ValueError(f"Invalid review action: {action}")
+            
+        updated = await self._store.update_skill(skill_uuid, **kwargs)
+        if not updated:
+            raise ValueError(f"Failed to update skill: {skill_id}")
+            
+        return {
+            "status": "success",
+            "skill_id": skill_id,
+            "action": action,
+            "title": updated.title,
+            "new_status": updated.status,
+        }

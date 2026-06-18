@@ -91,11 +91,62 @@ All settings in `minder.toml` or environment variables (`MINDER_<SECTION>__<KEY>
 flowchart LR
     App["Minder Server"] --> SQLiteRel["SQLite\n~/.minder/data/minder.db\n(users, sessions, workflows, repos)"]
     App --> SQLiteGraph["SQLite\n~/.minder/data/graph.db\n(knowledge graph)"]
+    App --> SQLiteSwarm["SQLite\n~/.minder/data/swarm.db\n(swarm presence, tasks)"]
     App --> Turbovec["Turbovec\n~/.minder/data/vectors.tvim\n(semantic index)"]
     App --> RepoState[".minder/\n(repo-local state)"]
 ```
 
-All data lives in `~/.minder/data/` (created automatically). No external database processes required.
+All data lives in `~/.minder/data/` (created automatically). Presence and board queue states are isolated in `swarm.db` to prevent database locks on the main `minder.db` during high-frequency worker pinging.
+
+---
+
+## Swarm & Maintenance System Connections & Dataflow
+
+### Multi-Agent Swarm Connection Architecture
+
+```mermaid
+flowchart TB
+    Orchestrator["Orchestrator Agent\n(Claude Code / IDE)"] -- "MCP: plan/propose" --> Server["Minder Server :8800"]
+    Human["Human Operator"] -- "CLI / Web Dashboard\n(Approve manifest)" --> Server
+    Server -- "asyncio.create_task" --> Dispatcher["Swarm Dispatcher"]
+    
+    subgraph Swarm DB (swarm.db)
+        Presence["SwarmNode Table\n(heartbeats)"]
+        Board["SwarmTask Table\n(DAG tasks queue)"]
+    end
+    
+    Server <--> SwarmDB["swarm.db"]
+    Dispatcher <--> SwarmDB
+    
+    Dispatcher -- "Spawn (Subprocess / ACP)" --> Worker["Worker Instances\n(Codex / Antigravity)"]
+    Worker -- "MCP: join/claim/report" --> Server
+    Worker -- "MCP: save facts" --> OperationalDB["Operational DB\n(minder.db / graph.db)"]
+```
+
+### Idle Maintenance Lifecycle & Dataflow
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as Human / Agent
+    participant Web as HTTP / MCP Middleware
+    participant Sched as Maintenance Scheduler
+    participant DBs as Storage (Relational / Vector / Graph)
+    participant Curator as Skill Curator (LLM)
+
+    User->>Web: API Requests (Touch activity)
+    Web->>Sched: touch() (Reset idle timer)
+    Note over Sched: System ticks every 60s<br/>Checks if Idle duration > threshold (10 min)
+    
+    alt Idle Threshold Reached (System is Idle)
+        Sched->>DBs: Run jobs (sqlite_vacuum, vector_optimize, chat_history_compact)
+        DBs-->>Sched: Job completed & size reclaimed
+        Sched->>Curator: Run skill_curate job (deferred LLM task)
+        Curator->>DBs: Synthesize patterns into pending_review skills
+    end
+
+    Note over Sched: Log result in sqlite run history (maintenance_runs)
+```
 
 ---
 

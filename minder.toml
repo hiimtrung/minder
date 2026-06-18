@@ -65,3 +65,62 @@ enforcement = "strict"
 default_workflow = "tdd"
 repo_state_dir = ".minder"
 block_step_skips = true
+
+[maintenance]
+enabled = true
+mode = "report"
+tick_seconds = 60
+idle_threshold_seconds = 600
+auto_active_after_idle_hours = 3.0
+dashboard_editable = true
+
+[[maintenance.jobs]]
+name = "memory_dedupe"
+schedule = "0 2 * * *"
+require_idle = true
+max_runtime_s = 300
+
+[[maintenance.jobs]]
+name = "chat_history_compact"
+schedule = "0 3 * * *"
+require_idle = true
+max_runtime_s = 180
+
+[[maintenance.jobs]]
+name = "vector_optimize"
+schedule = "0 4 * * 0"
+require_idle = true
+max_runtime_s = 600
+
+[[maintenance.jobs]]
+name = "sqlite_vacuum"
+schedule = "0 1 * * *"
+require_idle = true
+max_runtime_s = 120
+
+[[maintenance.jobs]]
+name = "graph_prune"
+schedule = "0 5 * * *"
+require_idle = true
+max_runtime_s = 120
+
+[[maintenance.jobs]]
+name = "skill_curate"
+schedule = "0 * * * *"
+require_idle = true
+max_runtime_s = 300
+
+[[maintenance.jobs]]
+name = "error_rules_refresh"
+schedule = "30 * * * *"
+require_idle = true
+max_runtime_s = 120
+
+[swarm]
+enabled = true
+db_path = "~/.minder/data/swarm.db"
+heartbeat_ttl_seconds = 120
+claim_ttl_seconds = 600
+failure_limit = 2
+require_manifest_approval = true
+dispatcher_enabled = false

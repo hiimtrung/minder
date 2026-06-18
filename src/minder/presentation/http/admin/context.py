@@ -26,6 +26,7 @@ class AdminRouteContext:
     use_cases: AdminConsoleUseCases
     embedder: LocalEmbeddingProvider
     prompt_sync_hook: Callable[[], Awaitable[None]] | None = None
+    swarm_store: Any = None
 
     @classmethod
     def build(
@@ -36,6 +37,7 @@ class AdminRouteContext:
         graph_store: IGraphRepository | None = None,
         cache: ICacheProvider | None = None,
         prompt_sync_hook: Callable[[], Awaitable[None]] | None = None,
+        swarm_store: Any = None,
     ) -> "AdminRouteContext":
         auth_service = AuthService(store, config, cache=cache)
         middleware = AuthMiddleware(auth_service)
@@ -61,6 +63,7 @@ class AdminRouteContext:
             use_cases=use_cases,
             embedder=embedder,
             prompt_sync_hook=prompt_sync_hook,
+            swarm_store=swarm_store,
         )
 
     def request_token(self, request: Request) -> str | None:

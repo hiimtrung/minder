@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import datetime, UTC, timedelta
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from minder.application.maintenance.scheduler import MaintenanceScheduler

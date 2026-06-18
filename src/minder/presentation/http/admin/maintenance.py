@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
 import logging
-import uuid
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from starlette.requests import Request
 from starlette.responses import JSONResponse
 from starlette.routing import BaseRoute, Route
@@ -113,7 +111,7 @@ def build_maintenance_routes(context: AdminRouteContext) -> list[BaseRoute]:
             return JSONResponse({"error": f"Job not found: {job_name}"}, status_code=404)
             
         if payload.schedule is not None:
-            from croniter import croniter
+            from croniter import croniter  # type: ignore[import-untyped]
             try:
                 croniter(payload.schedule)
             except Exception as e:
@@ -130,6 +128,9 @@ def build_maintenance_routes(context: AdminRouteContext) -> list[BaseRoute]:
             kwargs["max_runtime_s"] = payload.max_runtime_s
             
         updated = await context.store.update_maintenance_job(job.id, **kwargs)
+        if updated is None:
+            return JSONResponse({"error": "Failed to update job"}, status_code=500)
+
         scheduler = get_scheduler()
         if scheduler:
             for j_cfg in scheduler._config.maintenance.jobs:

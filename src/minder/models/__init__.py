@@ -146,7 +146,6 @@ __all__ = [
 
 # Prompts
 from .prompt import Prompt as Prompt
-from minder.domain.entities.prompt import PromptSchema as PromptSchema
 
 # Checkpoint
 from .checkpoint import Checkpoint as Checkpoint

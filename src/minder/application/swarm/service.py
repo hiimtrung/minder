@@ -20,12 +20,18 @@ class ManifestNotApprovedError(Exception):
     """Raised when a spawn is attempted before the swarm manifest is approved (Q5)."""
 
 
-def _uuid(value: Any) -> uuid.UUID | None:
+def _uuid(value: Any) -> uuid.UUID:
     if value is None:
-        return None
+        raise ValueError("UUID is required")
     if isinstance(value, uuid.UUID):
         return value
     return uuid.UUID(str(value))
+
+
+def _uuid_opt(value: Any) -> uuid.UUID | None:
+    if value is None:
+        return None
+    return _uuid(value)
 
 
 class SwarmService:
@@ -35,7 +41,7 @@ class SwarmService:
 
     # ── Orchestrator: create / plan ─────────────────────────────────────────
     async def create_swarm(self, *, goal: str, workflow_id: str | None = None) -> dict[str, Any]:
-        swarm = await self._store.create_swarm(goal=goal, workflow_id=_uuid(workflow_id))
+        swarm = await self._store.create_swarm(goal=goal, workflow_id=_uuid_opt(workflow_id))
         return {
             "swarm_id": str(swarm.id),
             "status": swarm.status,
@@ -60,7 +66,7 @@ class SwarmService:
                 title=spec.get("title", f"task-{i}"),
                 description=spec.get("description", ""),
                 runtime_hint=spec.get("runtime_hint"),
-                workflow_id=_uuid(spec.get("workflow_id")),
+                workflow_id=_uuid_opt(spec.get("workflow_id")),
             )
             index_to_id[i] = str(t.id)
             created.append({"index": i, "task_id": str(t.id), "title": t.title})
@@ -234,7 +240,7 @@ class SwarmService:
             runtime=runtime,
             role=role,
             workspace=workspace,
-            session_id=_uuid(session_id),
+            session_id=_uuid_opt(session_id),
             capabilities=capabilities or [],
             status="idle",
         )
@@ -353,7 +359,7 @@ class SwarmService:
         handoff = await self._store.create_handoff(
             swarm_id=task.swarm_id,
             from_task_id=tid,
-            to_task_id=_uuid(to_task_id),
+            to_task_id=_uuid_opt(to_task_id),
             from_node_id=_uuid(node_id),
             summary=summary,
             artifact_refs=artifact_refs or ([result_ref] if result_ref else []),

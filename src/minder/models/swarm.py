@@ -8,7 +8,7 @@ with the operational store.
 import uuid
 from datetime import datetime
 
-from sqlalchemy import JSON, Boolean, DateTime, Integer, String, UUID, func
+from sqlalchemy import JSON, DateTime, Integer, String, UUID, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 

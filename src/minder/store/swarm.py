@@ -10,9 +10,10 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, AsyncGenerator
+from typing import Any, AsyncGenerator, cast
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import select, update
+from sqlalchemy.engine import CursorResult
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -225,7 +226,8 @@ class SwarmStore:
                     claim_expires_at=expires,
                 )
             )
-            if res.rowcount == 0:
+            cursor = cast(CursorResult[Any], res)
+            if cursor.rowcount == 0:
                 return None
             got = await sess.execute(select(SwarmTask).where(SwarmTask.id == task_id))
             item = got.scalar_one_or_none()

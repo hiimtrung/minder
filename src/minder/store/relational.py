@@ -1599,6 +1599,6 @@ class RelationalStore:
         """Run VACUUM on SQLite database to reclaim space."""
         async with self._engine.connect() as conn:
             if conn.dialect.name == "sqlite":
-                conn = conn.execution_options(isolation_level="AUTOCOMMIT")
+                conn = await conn.execution_options(isolation_level="AUTOCOMMIT")
                 from sqlalchemy import text
                 await conn.execute(text("VACUUM"))

@@ -36,6 +36,8 @@ from minder.domain.entities import (
     AuditLogSchema,
     AdminJobSchema,
     SubAgentSchema,
+    MaintenanceJobSchema,
+    MaintenanceRunSchema,
 )
 
 
@@ -262,6 +264,7 @@ class IErrorRepository(Protocol):
     ) -> ErrorSchema: ...
 
     async def list_errors(self) -> list[ErrorSchema]: ...
+    async def update_error(self, error_id: uuid.UUID, **kwargs: Any) -> ErrorSchema | None: ...
     async def search_errors(
         self, query: str, limit: int = 5
     ) -> list[dict[str, Any]]: ...
@@ -533,6 +536,35 @@ class ICheckpointRepository(Protocol):
 
 
 # ---------------------------------------------------------------------------
+# Maintenance Repository
+# ---------------------------------------------------------------------------
+
+
+@runtime_checkable
+class IMaintenanceRepository(Protocol):
+    async def create_maintenance_job(self, **kwargs: Any) -> MaintenanceJobSchema: ...
+    async def get_maintenance_job_by_id(self, job_id: uuid.UUID) -> MaintenanceJobSchema | None: ...
+    async def get_maintenance_job_by_name(self, name: str) -> MaintenanceJobSchema | None: ...
+    async def list_maintenance_jobs(self) -> list[MaintenanceJobSchema]: ...
+    async def update_maintenance_job(
+        self, job_id: uuid.UUID, **kwargs: Any
+    ) -> MaintenanceJobSchema | None: ...
+    async def delete_maintenance_job(self, job_id: uuid.UUID) -> None: ...
+    async def create_maintenance_run(self, **kwargs: Any) -> MaintenanceRunSchema: ...
+    async def get_maintenance_run_by_id(self, run_id: uuid.UUID) -> MaintenanceRunSchema | None: ...
+    async def list_maintenance_runs(
+        self,
+        *,
+        limit: int | None = None,
+        offset: int = 0,
+    ) -> list[MaintenanceRunSchema]: ...
+    async def update_maintenance_run(
+        self, run_id: uuid.UUID, **kwargs: Any
+    ) -> MaintenanceRunSchema | None: ...
+    async def vacuum(self) -> None: ...
+
+
+# ---------------------------------------------------------------------------
 # Vector Store
 # ---------------------------------------------------------------------------
 
@@ -584,6 +616,7 @@ class IOperationalStore(
     IAdminJobRepository,
     IAgentRepository,
     ICheckpointRepository,
+    IMaintenanceRepository,
     Protocol,
 ):
     """

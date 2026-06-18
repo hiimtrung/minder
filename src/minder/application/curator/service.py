@@ -3,10 +3,9 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Any, Dict, Optional, List
+from typing import Any
 
 from minder.config import MinderConfig
-from minder.domain.entities.skill import SkillSchema
 from minder.graph.state import GraphState
 from minder.learning.pattern_extractor import PatternExtractor
 from minder.learning.skill_synthesizer import SkillSynthesizer
@@ -72,7 +71,6 @@ class SkillCurator:
             content = f"Query: {pattern['query']}\nWorkflow: {pattern.get('workflow_name')}"
             temp_emb = self._embedder.embed(f"{title}\n{content}")
             for skill in await self._store.list_skills_by_kind(is_memory=False):
-                tags = list(getattr(skill, "tags", []) or [])
                 if getattr(skill, "deprecated", False):
                     continue
                 existing_emb = skill.embedding if isinstance(skill.embedding, list) else None

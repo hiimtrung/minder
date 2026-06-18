@@ -5,13 +5,13 @@ from datetime import datetime, UTC
 import logging
 from pathlib import Path
 import uuid
-from typing import Any, Callable
+from typing import Any
 
-from croniter import croniter
+from croniter import croniter  # type: ignore[import-untyped]
 
 from minder.config import MinderConfig
 from minder.store.interfaces import IOperationalStore
-from minder.domain.entities.maintenance import MaintenanceJobSchema, MaintenanceRunSchema
+from minder.domain.entities.maintenance import MaintenanceJobSchema
 
 logger = logging.getLogger(__name__)
 
@@ -329,7 +329,7 @@ class MaintenanceScheduler:
             repos_by_id = {str(repo.id): repo for repo in repos}
             pruned_count = 0
             
-            graph_store = getattr(self._store, "_graph_store", None)
+            graph_store: Any = getattr(self._store, "_graph_store", None)
             if not graph_store:
                 if hasattr(self._store, "list_nodes") and hasattr(self._store, "delete_node"):
                     graph_store = self._store

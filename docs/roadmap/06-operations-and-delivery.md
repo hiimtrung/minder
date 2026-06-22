@@ -158,7 +158,7 @@ minder/
 | Risk                                                                     | Impact | Mitigation                                                                   |
 | ------------------------------------------------------------------------ | ------ | ---------------------------------------------------------------------------- |
 | `ggml-org/embeddinggemma-300M-GGUF` is too heavy for some local machines | High   | Optimize quantization, document hardware requirements, allow OpenAI fallback |
-| `ggml-org/gemma-4-E2B-it-GGUF` quality is insufficient for complex tasks | Medium | Route allowed complex queries to OpenAI                                      |
+| `google/gemma-4-E2B-it-qat-q4_0-gguf` quality is insufficient for complex tasks | Medium | Route allowed complex queries to OpenAI                                      |
 | Turbovec performance is not enough for very large team scale             | Medium | Evaluate distributed vector store options (e.g. Qdrant Standalone) for Phase 4 |
 | Workflow enforcement becomes too rigid                                   | Medium | Support strict and advisory modes                                            |
 | Repository-local state drifts from centralized state                     | High   | Add sync and conflict detection between repo and server                      |

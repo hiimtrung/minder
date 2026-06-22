@@ -624,7 +624,153 @@ def _sanitize_answer(
     )
 
 
+async def system_download_status(request) -> JSONResponse:
+    try:
+        from minder.infrastructure.model_bootstrap import DOWNLOAD_PROGRESS
+        return JSONResponse(DOWNLOAD_PROGRESS)
+    except Exception as e:
+        return JSONResponse({"status": "error", "error": str(e)}, status_code=500)
+
+
+# Curated list of recommended small GGUF models (under 10B params)
+_RECOMMENDED_MODELS = [
+    {
+        "id": "google/gemma-4-E2B-it-qat-q4_0-gguf",
+        "filename": "gemma-4-E2B_q4_0-it.gguf",
+        "name": "Gemma 4 2B (Google)",
+        "description": "Google's efficient 2B model, quantized Q4. Fast and smart.",
+        "size_gb": 1.6,
+        "params": "2B",
+        "recommended": True,
+        "default": True,
+    },
+    {
+        "id": "ggml-org/gemma-4-E2B-it-GGUF",
+        "filename": "gemma-4-E2B-it-Q4_K_M.gguf",
+        "name": "Gemma 4 2B IT Q4_K_M",
+        "description": "Community Q4_K_M quantization of Gemma 4 2B.",
+        "size_gb": 1.6,
+        "params": "2B",
+        "recommended": True,
+        "default": False,
+    },
+    {
+        "id": "ggml-org/Qwen3-1.7B-GGUF",
+        "filename": "Qwen3-1.7B-Q4_K_M.gguf",
+        "name": "Qwen3 1.7B",
+        "description": "Alibaba's Qwen3 1.7B — fast for code and reasoning.",
+        "size_gb": 1.1,
+        "params": "1.7B",
+        "recommended": True,
+        "default": False,
+    },
+    {
+        "id": "unsloth/Qwen3.5-2B-GGUF",
+        "filename": "Qwen3.5-2B-Q4_K_M.gguf",
+        "name": "Qwen3.5 2B",
+        "description": "Qwen3.5 2B — great balance of speed and quality.",
+        "size_gb": 1.5,
+        "params": "2B",
+        "recommended": True,
+        "default": False,
+    },
+    {
+        "id": "ggml-org/Llama-3.2-3B-Instruct-GGUF",
+        "filename": "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        "name": "Llama 3.2 3B Instruct",
+        "description": "Meta's compact 3B instruction-tuned model.",
+        "size_gb": 2.0,
+        "params": "3B",
+        "recommended": True,
+        "default": False,
+    },
+    {
+        "id": "ggml-org/Phi-4-mini-instruct-GGUF",
+        "filename": "Phi-4-mini-instruct-Q4_K_M.gguf",
+        "name": "Phi-4 Mini (Microsoft)",
+        "description": "Microsoft's Phi-4 mini — excellent reasoning per FLOP.",
+        "size_gb": 2.5,
+        "params": "3.8B",
+        "recommended": True,
+        "default": False,
+    },
+    {
+        "id": "ggml-org/gemma-3-4b-it-GGUF",
+        "filename": "gemma-3-4b-it-Q4_K_M.gguf",
+        "name": "Gemma 3 4B IT",
+        "description": "Google Gemma 3 4B instruction tuned — strong multilingual support.",
+        "size_gb": 2.8,
+        "params": "4B",
+        "recommended": False,
+        "default": False,
+    },
+    {
+        "id": "ggml-org/Qwen3-8B-GGUF",
+        "filename": "Qwen3-8B-Q4_K_M.gguf",
+        "name": "Qwen3 8B",
+        "description": "Alibaba's Qwen3 8B — best quality under 10B.",
+        "size_gb": 5.2,
+        "params": "8B",
+        "recommended": False,
+        "default": False,
+    },
+]
+
+
+async def system_model_list(request) -> JSONResponse:
+    """Return curated list of recommended models plus the currently selected one."""
+    import json
+    import pathlib
+
+    config_path = pathlib.Path.home() / ".minder" / "model_config.json"
+    current = None
+    if config_path.exists():
+        try:
+            data = json.loads(config_path.read_text())
+            current = data.get("llm_model_repo")
+        except Exception:
+            pass
+
+    return JSONResponse({
+        "models": _RECOMMENDED_MODELS,
+        "current_repo": current,
+    })
+
+
+async def system_select_model(request) -> JSONResponse:
+    """Persist a user's model selection to ~/.minder/model_config.json."""
+    import json
+    import pathlib
+
+    try:
+        body = await request.json()
+        repo_id = body.get("repo_id", "").strip()
+        filename = body.get("filename", "").strip()
+        if not repo_id or not filename:
+            return JSONResponse({"error": "repo_id and filename are required"}, status_code=400)
+
+        config_dir = pathlib.Path.home() / ".minder"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        config_path = config_dir / "model_config.json"
+
+        existing: dict = {}
+        if config_path.exists():
+            try:
+                existing = json.loads(config_path.read_text())
+            except Exception:
+                pass
+
+        existing["llm_model_repo"] = repo_id
+        existing["llm_model_file"] = filename
+        config_path.write_text(json.dumps(existing, indent=2))
+
+        return JSONResponse({"ok": True, "repo_id": repo_id, "filename": filename})
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
 def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
+
     _query_tools = QueryTools(context.store, context.config)
     _session_tools = SessionTools(context.store, context.config)
 
@@ -998,4 +1144,7 @@ def build_runtime_routes(context: AdminRouteContext) -> list[BaseRoute]:
         ),
         Route("/api/v1/runtime/query", runtime_query, methods=["POST"]),
         Route("/api/v1/runtime/query/stream", runtime_query_stream, methods=["POST"]),
+        Route("/api/v1/system/download-status", system_download_status, methods=["GET"]),
+        Route("/api/v1/system/model-list", system_model_list, methods=["GET"]),
+        Route("/api/v1/system/select-model", system_select_model, methods=["POST"]),
     ]

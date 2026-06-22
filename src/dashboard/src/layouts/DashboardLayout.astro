@@ -168,6 +168,19 @@ function getIconSvg(label: string) {
   </head>
   <body>
     <div class="dashboard-root">
+      <!-- Model Download Progress Banner -->
+      <div id="model-download-banner" class="model-download-banner" style="display: none;">
+        <div class="model-download-content">
+          <div class="model-download-text">
+            <strong>Downloading Model:</strong> <span id="model-download-filename">...</span> 
+            (<span id="model-download-percent">0</span>%)
+          </div>
+          <div class="model-download-bar-bg">
+            <div id="model-download-bar-fill" class="model-download-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Mobile Backdrop Overlay -->
       <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
 
@@ -1050,4 +1063,84 @@ function getIconSvg(label: string) {
     from { opacity: 0; transform: translateY(8px); }
     to   { opacity: 1; transform: translateY(0); }
   }
+
+  /* ── Model Download Banner Styles ── */
+  .model-download-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    background: #2563eb; /* Tailwin blue-600 */
+    color: white;
+    z-index: 9999;
+    padding: 8px 16px;
+    font-size: 0.875rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  }
+  .model-download-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .model-download-text {
+    font-family: 'Inter', sans-serif;
+  }
+  .model-download-bar-bg {
+    background: rgba(255,255,255,0.3);
+    height: 4px;
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .model-download-bar-fill {
+    background: white;
+    height: 100%;
+    width: 0%;
+    transition: width 0.3s ease;
+  }
 </style>
+
+    <script>
+      (function() {
+        let isPolling = true;
+        let errors = 0;
+        
+        async function checkDownloadStatus() {
+          if (!isPolling) return;
+          try {
+            const res = await fetch('/api/v1/system/download-status');
+            if (!res.ok) {
+              errors++;
+              if (errors > 5) isPolling = false;
+              return;
+            }
+            const data = await res.json();
+            const banner = document.getElementById('model-download-banner');
+            
+            if (data && data.status === 'downloading') {
+              banner.style.display = 'block';
+              document.getElementById('model-download-filename').textContent = data.filename || 'model';
+              const percent = data.percent ? data.percent.toFixed(1) : '0.0';
+              document.getElementById('model-download-percent').textContent = percent;
+              document.getElementById('model-download-bar-fill').style.width = percent + '%';
+            } else if (data && data.status === 'complete') {
+              if (banner.style.display !== 'none') {
+                 banner.style.display = 'none';
+                 isPolling = false; // Stop polling when complete
+              }
+            } else {
+              banner.style.display = 'none';
+            }
+          } catch (e) {
+            errors++;
+            if (errors > 5) isPolling = false;
+          }
+        }
+        
+        // Poll every 2 seconds
+        setInterval(checkDownloadStatus, 2000);
+        // Initial check
+        checkDownloadStatus();
+      })();
+    </script>

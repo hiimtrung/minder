@@ -161,8 +161,8 @@ db_path = "~/.minder/data/vectors.tvim"
 
 [llm]
 provider = "llama_cpp"
-llama_cpp_model_repo = "ggml-org/gemma-4-E2B-it-GGUF"
-llama_cpp_model_file = "gemma-4-E2B-it-Q8_0.gguf"
+llama_cpp_model_repo = "google/gemma-4-E2B-it-qat-q4_0-gguf"
+llama_cpp_model_file = "gemma-4-E2B_q4_0-it.gguf"
 ```
 
 For PostgreSQL (larger deployments):

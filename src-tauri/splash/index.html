@@ -31,14 +31,14 @@
       border-radius: 26px;
       padding: 2.5rem 2rem;
       box-shadow: 0 30px 90px rgba(28, 25, 23, 0.08);
-      max-width: 520px;
+      max-width: 560px;
       width: 90%;
       display: flex;
       flex-direction: column;
       align-items: center;
       gap: 1.5rem;
       text-align: center;
-      transition: all 0.3s ease;
+      transition: max-width 0.3s ease;
     }
 
     /* Glowing Loader Logo in Gold/Amber gradient */
@@ -310,6 +310,184 @@
       0%, 80%, 100% { opacity: 0; }
       40% { opacity: 1; }
     }
+
+    /* ── Model Picker ── */
+    .model-picker {
+      display: none;
+      flex-direction: column;
+      gap: 1rem;
+      width: 100%;
+      text-align: left;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .model-picker-title {
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: rgb(87, 83, 78);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .model-picker-title span.badge {
+      background: rgb(234, 88, 12);
+      color: white;
+      font-size: 0.6rem;
+      padding: 0.1rem 0.5rem;
+      border-radius: 99px;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+    }
+
+    .model-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      max-height: 280px;
+      overflow-y: auto;
+      padding-right: 2px;
+    }
+
+    .model-card {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.9rem;
+      background: rgb(254, 252, 248);
+      border: 1.5px solid rgb(231, 229, 228);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.18s ease;
+      position: relative;
+    }
+
+    .model-card:hover {
+      border-color: rgb(180, 83, 9);
+      background: rgba(254, 243, 199, 0.3);
+    }
+
+    .model-card.selected {
+      border-color: rgb(146, 64, 14);
+      background: rgba(254, 243, 199, 0.5);
+      box-shadow: 0 0 0 3px rgba(146, 64, 14, 0.1);
+    }
+
+    .model-radio {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 2px solid rgb(214, 211, 209);
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .model-card.selected .model-radio {
+      border-color: rgb(146, 64, 14);
+      background: rgb(146, 64, 14);
+    }
+
+    .model-card.selected .model-radio::after {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: white;
+    }
+
+    .model-info { flex: 1; min-width: 0; }
+
+    .model-name {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: rgb(28, 25, 23);
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .model-name .tag {
+      font-size: 0.6rem;
+      background: rgb(220, 252, 231);
+      color: rgb(21, 128, 61);
+      border: 1px solid rgb(187, 247, 208);
+      padding: 0.05rem 0.4rem;
+      border-radius: 99px;
+      font-weight: 600;
+    }
+
+    .model-desc {
+      font-size: 0.7rem;
+      color: rgb(120, 113, 108);
+      margin-top: 0.15rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .model-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 0.2rem;
+      flex-shrink: 0;
+    }
+
+    .model-size {
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: rgb(87, 83, 78);
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .model-params {
+      font-size: 0.65rem;
+      color: rgb(168, 162, 158);
+      font-family: "JetBrains Mono", monospace;
+    }
+
+    .picker-actions {
+      display: flex;
+      gap: 0.75rem;
+      width: 100%;
+    }
+
+    .btn-confirm {
+      background: linear-gradient(135deg, rgb(146, 64, 14), rgb(180, 83, 9));
+      color: white;
+      flex: 1;
+      padding: 0.7rem 1.5rem;
+      border-radius: 12px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 14px rgba(146, 64, 14, 0.25);
+      transition: all 0.2s;
+    }
+
+    .btn-confirm:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(146, 64, 14, 0.3);
+    }
+
+    .btn-confirm:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .picker-note {
+      font-size: 0.7rem;
+      color: rgb(168, 162, 158);
+      text-align: center;
+      line-height: 1.5;
+    }
   </style>
 </head>
 <body>
@@ -321,8 +499,28 @@
     
     <div class="brand-title">Minder</div>
 
+    <!-- ── Model Picker (shown when model not yet downloaded) ── -->
+    <div class="model-picker" id="model-picker-sect">
+      <div class="model-picker-title">
+        Choose AI Model
+        <span class="badge">Required</span>
+      </div>
+      <div class="model-grid" id="model-grid">
+        <!-- Populated by JS -->
+      </div>
+      <div class="picker-actions">
+        <button class="btn-confirm" id="btn-confirm-model" disabled>
+          Download & Start →
+        </button>
+      </div>
+      <p class="picker-note">
+        Model will be saved to ~/.cache/huggingface and reused on next launch.<br/>
+        You can change this later in Dashboard → Settings.
+      </p>
+    </div>
+
     <!-- Status loading details -->
-    <div class="status-section" id="status-sect">
+    <div class="status-section" id="status-sect" style="display: none;">
       <div class="status-text" id="status-title">Starting Minder Engine<span class="dots"><span>.</span><span>.</span><span>.</span></span></div>
       <div class="step-text" id="status-step">Checking system environment...</div>
       <div class="progress-bar-track">
@@ -375,12 +573,94 @@
   </div>
 
   <script>
-    // System callback on server success
+    // ── Curated model list (mirrors Python _RECOMMENDED_MODELS) ──
+    const MODELS = [
+      {
+        id: "google/gemma-4-E2B-it-qat-q4_0-gguf",
+        filename: "gemma-4-E2B_q4_0-it.gguf",
+        name: "Gemma 4 2B",
+        org: "Google",
+        desc: "Efficient 2B model, quantized Q4. Fast & smart.",
+        size_gb: 1.6,
+        params: "2B",
+        recommended: true,
+        isDefault: true,
+      },
+      {
+        id: "ggml-org/Qwen3-1.7B-GGUF",
+        filename: "Qwen3-1.7B-Q4_K_M.gguf",
+        name: "Qwen3 1.7B",
+        org: "Alibaba",
+        desc: "Very fast, great for code and reasoning.",
+        size_gb: 1.1,
+        params: "1.7B",
+        recommended: true,
+        isDefault: false,
+      },
+      {
+        id: "unsloth/Qwen3.5-2B-GGUF",
+        filename: "Qwen3.5-2B-Q4_K_M.gguf",
+        name: "Qwen3.5 2B",
+        org: "Alibaba",
+        desc: "Great balance of speed and quality.",
+        size_gb: 1.5,
+        params: "2B",
+        recommended: true,
+        isDefault: false,
+      },
+      {
+        id: "ggml-org/Llama-3.2-3B-Instruct-GGUF",
+        filename: "Llama-3.2-3B-Instruct-Q4_K_M.gguf",
+        name: "Llama 3.2 3B Instruct",
+        org: "Meta",
+        desc: "Compact 3B instruction-tuned model.",
+        size_gb: 2.0,
+        params: "3B",
+        recommended: true,
+        isDefault: false,
+      },
+      {
+        id: "ggml-org/Phi-4-mini-instruct-GGUF",
+        filename: "Phi-4-mini-instruct-Q4_K_M.gguf",
+        name: "Phi-4 Mini",
+        org: "Microsoft",
+        desc: "Excellent reasoning per FLOP.",
+        size_gb: 2.5,
+        params: "3.8B",
+        recommended: true,
+        isDefault: false,
+      },
+      {
+        id: "ggml-org/gemma-3-4b-it-GGUF",
+        filename: "gemma-3-4b-it-Q4_K_M.gguf",
+        name: "Gemma 3 4B IT",
+        org: "Google",
+        desc: "Strong multilingual support.",
+        size_gb: 2.8,
+        params: "4B",
+        recommended: false,
+        isDefault: false,
+      },
+      {
+        id: "ggml-org/Qwen3-8B-GGUF",
+        filename: "Qwen3-8B-Q4_K_M.gguf",
+        name: "Qwen3 8B",
+        org: "Alibaba",
+        desc: "Best quality under 10B.",
+        size_gb: 5.2,
+        params: "8B",
+        recommended: false,
+        isDefault: false,
+      },
+    ];
+
+    let selectedModelId = null;
+
+    // ── System callbacks ──
     window.__minderReady = function(url) {
       window.location.replace(url);
     };
 
-    // System callback for status update
     window.__minderStatus = function(title, step) {
       if (title) {
         document.getElementById('status-title').innerHTML = title + '<span class="dots"><span>.</span><span>.</span><span>.</span></span>';
@@ -390,20 +670,135 @@
       }
     };
 
-    // System callback for startup failure
     window.__minderError = function(errorMsg) {
       document.getElementById('status-sect').style.display = 'none';
+      document.getElementById('model-picker-sect').style.display = 'none';
       document.getElementById('error-sect').style.display = 'flex';
       document.getElementById('error-details').textContent = errorMsg;
       
-      // Auto-expand diagnostics logs inside the error view
       const logsBox = document.getElementById('diagnostics-logs');
       if (logsBox && logsBox.textContent !== "Awaiting log streams...") {
         document.getElementById('error-details').textContent = errorMsg + "\n\n=== Diagnostics Captured Logs ===\n" + logsBox.textContent;
       }
     };
 
-    // Diagnostics drawer toggling
+    // ── Build model picker UI ──
+    function buildModelGrid(currentRepoId) {
+      const grid = document.getElementById('model-grid');
+      grid.innerHTML = '';
+
+      MODELS.forEach(m => {
+        const card = document.createElement('div');
+        card.className = 'model-card' + (m.id === currentRepoId ? ' selected' : '');
+        card.dataset.id = m.id;
+        card.dataset.filename = m.filename;
+
+        if (m.id === currentRepoId) {
+          selectedModelId = m.id;
+        }
+
+        card.innerHTML = `
+          <div class="model-radio"></div>
+          <div class="model-info">
+            <div class="model-name">
+              ${m.name}
+              ${m.recommended ? '<span class="tag">★ Recommended</span>' : ''}
+            </div>
+            <div class="model-desc">${m.org} · ${m.desc}</div>
+          </div>
+          <div class="model-meta">
+            <span class="model-size">~${m.size_gb}GB</span>
+            <span class="model-params">${m.params}</span>
+          </div>
+        `;
+
+        card.addEventListener('click', () => {
+          document.querySelectorAll('.model-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedModelId = m.id;
+          document.getElementById('btn-confirm-model').disabled = false;
+        });
+
+        grid.appendChild(card);
+      });
+
+      // If a current model is set, enable the confirm button
+      if (currentRepoId) {
+        document.getElementById('btn-confirm-model').disabled = false;
+      }
+    }
+
+    // ── Check if model already chosen, decide whether to show picker ──
+    async function initSplash() {
+      let currentRepo = null;
+
+      if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+        try {
+          const cfg = await window.__TAURI__.core.invoke('get_model_config');
+          currentRepo = cfg && cfg.llm_model_repo ? cfg.llm_model_repo : null;
+        } catch (e) {
+          console.warn('Could not read model config via Tauri IPC:', e);
+        }
+      }
+
+      // If model is already configured, skip the picker and start immediately
+      if (currentRepo) {
+        showStarting();
+      } else {
+        // Show the model picker
+        document.getElementById('model-picker-sect').style.display = 'flex';
+        document.getElementById('main-card').style.maxWidth = '560px';
+        // Default select the first model
+        selectedModelId = MODELS[0].id;
+        buildModelGrid(MODELS[0].id);
+        document.getElementById('btn-confirm-model').disabled = false;
+      }
+    }
+
+    function showStarting() {
+      document.getElementById('model-picker-sect').style.display = 'none';
+      document.getElementById('status-sect').style.display = 'flex';
+    }
+
+    // ── Confirm model selection and persist ──
+    document.getElementById('btn-confirm-model').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-confirm-model');
+      const model = MODELS.find(m => m.id === selectedModelId);
+      if (!model) return;
+
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+
+      if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+        try {
+          await window.__TAURI__.core.invoke('save_model_choice', {
+            repoId: model.id,
+            filename: model.filename,
+          });
+        } catch (e) {
+          console.error('Failed to save model choice:', e);
+          btn.textContent = 'Error — try again';
+          btn.disabled = false;
+          return;
+        }
+      } else {
+        // Fallback: save via fetch to running server (for web-only mode)
+        try {
+          await fetch('/api/v1/system/select-model', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ repo_id: model.id, filename: model.filename }),
+          });
+        } catch (e) {
+          console.warn('Could not save via API, proceeding anyway:', e);
+        }
+      }
+
+      btn.textContent = '✓ Saved — Starting...';
+      showStarting();
+    });
+
+    // ── Diagnostics drawer toggling ──
     let isDrawerOpen = false;
     const toggleBtn = document.getElementById('toggle-diagnostics');
     const drawer = document.getElementById('diagnostics-drawer');
@@ -422,7 +817,7 @@
       }
     });
 
-    // Wire log clipboard copying
+    // ── Clipboard copy ──
     document.getElementById('btn-logs-copy').addEventListener('click', function() {
       const logText = document.getElementById('error-details').textContent;
       navigator.clipboard.writeText(logText).then(() => {
@@ -433,18 +828,16 @@
       });
     });
 
-    // Real-time log tailing and configs querying via Tauri IPC
+    // ── Real-time log tailing via Tauri IPC ──
     async function queryTauriDiagnostics() {
       try {
         if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-          // Query current configuration
           const config = await window.__TAURI__.core.invoke('get_bootstrap_config');
           if (config) {
             document.getElementById('diag-port').textContent = config.port;
             document.getElementById('diag-host').textContent = config.host;
           }
 
-          // Query logs buffer
           const logs = await window.__TAURI__.core.invoke('get_bootstrap_logs');
           if (logs && logs.length > 0) {
             const logsBox = document.getElementById('diagnostics-logs');
@@ -456,7 +849,6 @@
               logsBox.scrollTop = logsBox.scrollHeight;
             }
 
-            // Update connection state text if uvicorn logs are seen
             const logContent = logs.join('\n');
             if (logContent.includes("Uvicorn running on") || logContent.includes("server ready")) {
               document.getElementById('diag-status').textContent = 'Ready';
@@ -475,7 +867,8 @@
       }
     }
 
-    // Set polling interval
+    // Init on load
+    initSplash();
     setInterval(queryTauriDiagnostics, 500);
   </script>
 </body>

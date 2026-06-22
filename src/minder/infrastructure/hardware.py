@@ -110,17 +110,19 @@ def _compute_settings(
       Combined with model weights (~2 GB) and KV cache (~0.6 GB) this
       easily exceeds 16 GB of unified memory → SIGSEGV in output_reserve.
 
-    Safe budgets for 16 GB Apple Silicon (Qwen3.5-2B-Q4_K_M + 248 K vocab):
-      n_ctx=4096 → logit buf 4.1 GB + model 1.8 GB + KV 0.3 GB + OS 3 GB ≈ 9 GB ✓
-      n_ctx=2048 → logit buf 2.0 GB + model 1.8 GB + KV 0.2 GB + OS 3 GB ≈ 7 GB ✓
-    """
-    # Approximate architecture constants (conservative for ~4B class models)
-    _N_LAYERS = 18
-    _N_HEADS = 8
-    _N_KV_HEADS = 4
-    _HEAD_DIM = 256
-    _DTYPE_BYTES = 2  # float16
+    CRITICAL — Gemma 4 / SWA cache padding:
+      Gemma 4 uses Sliding Window Attention with head_dim=512 (4-8× larger
+      than typical models). Without Flash Attention enabled, llama.cpp pads
+      the SWA V-cache to the full context length which can allocate 30-40 GB
+      of KV cache even for a 2B model.
+      FIX: Enable Flash Attention on Apple Silicon for any RAM >= 16 GB.
+      Flash Attention eliminates the SWA padding issue and reduces KV cache
+      memory by ~80% for Gemma 4 class models.
 
+    Safe budgets for 16 GB Apple Silicon (Gemma 4 2B + head_dim=512):
+      Without FA: KV cache alone > 30 GB even at n_ctx=2048 → OOM
+      With FA:    n_ctx=2048 → KV ~0.4 GB + model 1.8 GB + logit ~2 GB ≈ 7 GB ✓
+    """
     # ── Batch size — determined first as it's the biggest lever ───────────────
     # Single-user app: n_batch=128 gives fast prefill without large scratch bufs.
     if total_ram_gb >= 48:
@@ -132,18 +134,40 @@ def _compute_settings(
     else:
         n_batch = 64
 
+    # ── GPU / CPU settings — set BEFORE context calculation ──────────────────
+    # Flash Attention is critical for Gemma 4 and similar SWA models:
+    # without it llama.cpp pads V-cache to full context → 30-40 GB RAM usage.
+    # Enable FA on Apple Silicon from 16 GB upward (safe as of llama-cpp-python ≥0.3).
+    if is_apple_silicon:
+        n_gpu_layers = -1   # All layers on Metal (unified memory)
+        n_threads = 0       # Metal manages parallelism
+        # Flash attention removes the SWA cache padding problem on Gemma 4.
+        # It also reduces the attention scratch buffer by n_ctx on Metal.
+        use_flash_attn = total_ram_gb >= 16
+    else:
+        n_gpu_layers = 0
+        n_threads = max(1, cpu_count // 2)
+        use_flash_attn = False
+
     # ── Context length — derived from remaining RAM budget ────────────────────
     # Reserve for model weights (Q4_K_M ~2.5 GB; Q8_0 ~4.5 GB) + process (~2 GB).
-    # Use 4 GB as a safe model-weights estimate so the formula works for either.
+    # Use a conservative model-weights estimate so the formula works for either.
     _MODEL_OVERHEAD_GB = 6.0  # model weights + Python + system overhead
     budget_gb = max(0.5, total_ram_gb * 0.55 - _MODEL_OVERHEAD_GB)
     budget_bytes = int(budget_gb * 1_073_741_824)
 
-    # Per-token cost = KV contribution + attention-scratch contribution
+    # Per-token KV cache cost — use Gemma 4 worst-case head_dim=512.
+    # For standard models (head_dim=64-128) this is conservative but safe.
+    # With Flash Attention the SWA padding is gone, so actual usage is lower.
+    _N_LAYERS = 35       # Gemma 4 2B layer count (safe upper bound for 2-4B)
+    _N_KV_HEADS = 1      # Gemma 4 uses GQA with 1 KV head
+    _HEAD_DIM = 512      # Gemma 4 attention.key_length (worst case)
+    _N_HEADS = 8
+    _DTYPE_BYTES = 2     # float16
+
     #   kv_per_token = n_kv_heads * head_dim * n_layers * 2 (K+V) * dtype_bytes
     kv_per_token = _N_KV_HEADS * _HEAD_DIM * _N_LAYERS * 2 * _DTYPE_BYTES
     #   attn_per_token = n_batch * n_heads * n_layers * dtype_bytes
-    #   (attention matrix is n_batch × n_ctx, scaled per head and layer)
     attn_per_token = n_batch * _N_HEADS * _N_LAYERS * _DTYPE_BYTES
     bytes_per_token = kv_per_token + attn_per_token
 
@@ -157,11 +181,8 @@ def _compute_settings(
     n_ctx = max(1024, n_ctx)
 
     # ── Output-logit buffer hard cap for large-vocabulary models ─────────────
-    # Modern chat models (Qwen3, Gemma3) have n_vocab ≈ 248 K–256 K.
+    # Modern chat models (Qwen3, Gemma4) have n_vocab ≈ 248 K–256 K.
     # llama.cpp's output_reserve allocates n_ctx × n_vocab × 4 bytes on Metal.
-    # With n_ctx=8192 this is ~8 GB, which causes KERN_INVALID_ADDRESS SIGSEGV
-    # on 16 GB Apple Silicon even though malloc() "succeeds" (memory is virtual
-    # until zeroed, at which point Metal OOM kills the page backing).
     # Scale the safe logit-buffer budget with available RAM.
     if is_apple_silicon:
         if total_ram_gb <= 16:
@@ -176,18 +197,6 @@ def _compute_settings(
         n_ctx = max(1024, n_ctx)
 
     n_ubatch = max(32, n_batch // 2)
-
-    # ── GPU / CPU settings ────────────────────────────────────────────────────
-    if is_apple_silicon:
-        n_gpu_layers = -1   # All layers on Metal (unified memory)
-        n_threads = 0       # Metal manages parallelism
-        # Flash attention adds extra Metal scratch buffers; disable on ≤24 GB
-        # to leave headroom for the large logit buffer of big-vocab models.
-        use_flash_attn = total_ram_gb >= 32
-    else:
-        n_gpu_layers = 0
-        n_threads = max(1, cpu_count // 2)
-        use_flash_attn = False
 
     return n_ctx, n_batch, n_ubatch, n_gpu_layers, n_threads, use_flash_attn
 

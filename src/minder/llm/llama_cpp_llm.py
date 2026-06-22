@@ -27,26 +27,12 @@ _CHARS_PER_TOKEN = 3
 _THINK_RE = _re.compile(r"<think>.*?</think>", _re.DOTALL)
 
 
-class LockedIterator:
-    """Wrapper to synchronize each next() call of an iterator using a Lock."""
-    def __init__(self, iterator: Any, lock: Any) -> None:
-        self._iterator = iterator
-        self._lock = lock
-
-    def __iter__(self) -> LockedIterator:
-        return self
-
-    def __next__(self) -> Any:
-        with self._lock:
-            return next(self._iterator)
-
-
 class LlamaCppLLM:
     """LLM provider backed by llama-cpp-python (GGUF inference)."""
 
     def __init__(
         self,
-        model_repo: str = "ggml-org/gemma-4-E2B-it-GGUF",
+        model_repo: str = "google/gemma-4-E2B-it-qat-q4_0-gguf",
         model_file: str = "*.gguf",
         context_length: int = 16384,
         temperature: float = 0.1,
@@ -88,60 +74,64 @@ class LlamaCppLLM:
             f"{self._model_repo}:{self._model_file}"
             f":ctx{hw.n_ctx}:batch{hw.n_batch}"
         )
-        if cache_key in _ENGINE_CACHE:
-            self._engine = _ENGINE_CACHE[cache_key]
-            return
 
-        try:
-            from llama_cpp import Llama
+        with llama_cpp_lock:
+            if cache_key in _ENGINE_CACHE:
+                self._engine = _ENGINE_CACHE[cache_key]
+                # Store the effective context length so truncation uses the real value.
+                self._context_length = hw.n_ctx
+                return
 
-            logger.info(
-                "Initializing Llama.cpp engine for %s "
-                "[n_ctx=%d n_batch=%d n_ubatch=%d n_gpu_layers=%d flash_attn=%s ram=%.0fGB]",
-                self._model_repo,
-                hw.n_ctx, hw.n_batch, hw.n_ubatch, hw.n_gpu_layers,
-                hw.use_flash_attn, hw.total_ram_gb,
-            )
+            try:
+                from llama_cpp import Llama
 
-            init_kwargs: dict[str, Any] = {
-                "n_ctx": hw.n_ctx,
-                "n_gpu_layers": hw.n_gpu_layers,
-                "n_batch": hw.n_batch,
-                "flash_attn": hw.use_flash_attn,
-                "verbose": False,
-            }
-            # n_ubatch: intentionally NOT set — llama.cpp's batch-split logic
-            # in ubatch_add has a heap-corruption bug (POINTER_BEING_FREED_WAS_
-            # NOT_ALLOCATED) when n_ubatch < n_batch in the bundled llama.cpp
-            # version, causing SIGABRT on the first inference call.
-            # Omitting n_ubatch lets llama.cpp use its own safe default (=n_batch).
-            if hw.n_threads > 0:
-                init_kwargs["n_threads"] = hw.n_threads
+                logger.info(
+                    "Initializing Llama.cpp engine for %s "
+                    "[n_ctx=%d n_batch=%d n_ubatch=%d n_gpu_layers=%d flash_attn=%s ram=%.0fGB]",
+                    self._model_repo,
+                    hw.n_ctx, hw.n_batch, hw.n_ubatch, hw.n_gpu_layers,
+                    hw.use_flash_attn, hw.total_ram_gb,
+                )
 
-            cache_dir = get_writable_hf_cache_dir()
-            cache_kwargs: dict[str, Any] = (
-                {} if cache_dir is None else {"cache_dir": cache_dir}
-            )
-            with llama_cpp_lock:
+                init_kwargs: dict[str, Any] = {
+                    "n_ctx": hw.n_ctx,
+                    "n_gpu_layers": hw.n_gpu_layers,
+                    "n_batch": hw.n_batch,
+                    "flash_attn": hw.use_flash_attn,
+                    "use_mmap": True,
+                    "verbose": False,
+                }
+                # n_ubatch: intentionally NOT set — llama.cpp's batch-split logic
+                # in ubatch_add has a heap-corruption bug (POINTER_BEING_FREED_WAS_
+                # NOT_ALLOCATED) when n_ubatch < n_batch in the bundled llama.cpp
+                # version, causing SIGABRT on the first inference call.
+                # Omitting n_ubatch lets llama.cpp use its own safe default (=n_batch).
+                if hw.n_threads > 0:
+                    init_kwargs["n_threads"] = hw.n_threads
+
+                cache_dir = get_writable_hf_cache_dir()
+                cache_kwargs: dict[str, Any] = (
+                    {} if cache_dir is None else {"cache_dir": cache_dir}
+                )
                 self._engine = Llama.from_pretrained(
                     repo_id=self._model_repo,
                     filename=self._model_file,
                     **init_kwargs,
                     **cache_kwargs,
                 )
-            # Store the effective context length so truncation uses the real value.
-            self._context_length = hw.n_ctx
-            _ENGINE_CACHE[cache_key] = self._engine
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(
-                "Llama.cpp engine failed to initialize for %s/%s: %s",
-                self._model_repo, self._model_file, error_msg,
-                exc_info=True,
-            )
-            self._engine = None
-            self._init_error = error_msg
-            _INIT_ERRORS[cache_key] = error_msg
+                # Store the effective context length so truncation uses the real value.
+                self._context_length = hw.n_ctx
+                _ENGINE_CACHE[cache_key] = self._engine
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(
+                    "Llama.cpp engine failed to initialize for %s/%s: %s",
+                    self._model_repo, self._model_file, error_msg,
+                    exc_info=True,
+                )
+                self._engine = None
+                self._init_error = error_msg
+                _INIT_ERRORS[cache_key] = error_msg
 
     # ------------------------------------------------------------------
     # Runtime detection
@@ -247,12 +237,11 @@ class LlamaCppLLM:
                         temperature=self._temperature,
                         stream=True,
                     )
-                locked_response = LockedIterator(response, llama_cpp_lock)
-                for chunk in locked_response:
-                    delta = chunk["choices"][0]["delta"].get("content", "")
-                    if delta:
-                        deltas.append(delta)
-                        yield {"type": "chunk", "delta": delta}
+                    for chunk in response:
+                        delta = chunk["choices"][0]["delta"].get("content", "")
+                        if delta:
+                            deltas.append(delta)
+                            yield {"type": "chunk", "delta": delta}
             else:
                 prompt = self._truncate_prompt(
                     str(reasoning_output.get("prompt") or state.query)
@@ -264,12 +253,11 @@ class LlamaCppLLM:
                         temperature=self._temperature,
                         stream=True,
                     )
-                locked_response = LockedIterator(response, llama_cpp_lock)
-                for chunk in locked_response:
-                    delta = chunk["choices"][0]["text"]
-                    if delta:
-                        deltas.append(delta)
-                        yield {"type": "chunk", "delta": delta}
+                    for chunk in response:
+                        delta = chunk["choices"][0]["text"]
+                        if delta:
+                            deltas.append(delta)
+                            yield {"type": "chunk", "delta": delta}
         except Exception as e:
             logger.warning("Llama.cpp stream failed: %s", e)
             if fallback:

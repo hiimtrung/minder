@@ -90,6 +90,10 @@ async def _async_run() -> None:
     asyncio.create_task(_watch_parent_process())
     config = Settings()
 
+    # Interactive LLM setup at boot up
+    from minder.infrastructure.interactive_setup import run_interactive_model_setup
+    run_interactive_model_setup(config)
+
     # Initialise structured JSON logging and tracing before anything else
     from minder.observability import configure_json_logging, configure_tracing
 
@@ -100,10 +104,9 @@ async def _async_run() -> None:
     )
 
     # Pre-download GGUF files so they are present in the HF cache when the
-    # providers initialise below.  Runs in a thread to avoid blocking the
-    # event loop; build_transport() is called only after this completes so
-    # the LLM and embedding models load from the local cache on first use.
-    await asyncio.to_thread(ensure_models_available, config)
+    # providers initialise below.  Runs in a background thread to avoid blocking the
+    # event loop and server startup.
+    asyncio.create_task(asyncio.to_thread(ensure_models_available, config))
 
     store = build_store(config)
     await store.init_db()

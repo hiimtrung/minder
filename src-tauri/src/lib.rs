@@ -10,7 +10,7 @@ use tauri_plugin_shell::process::CommandEvent;
 const SERVER_HOST: &str = "127.0.0.1";
 const SERVER_PORT: u16 = 8800;
 const DASHBOARD_URL: &str = "http://localhost:8800/dashboard";
-const READY_TIMEOUT_SECS: u64 = 120;
+const READY_TIMEOUT_SECS: u64 = 600; // Allow up to 10 min for large model downloads
 
 // Holds the sidecar child process so we can kill it on exit.
 struct ServerProcess(Mutex<Option<tauri_plugin_shell::process::CommandChild>>);
@@ -33,6 +33,42 @@ fn get_bootstrap_config() -> serde_json::Value {
     })
 }
 
+/// Read the current model selection from ~/.minder/model_config.json
+#[tauri::command]
+fn get_model_config() -> serde_json::Value {
+    use std::fs;
+    let home = std::env::var("HOME").unwrap_or_default();
+    let path = format!("{}/.minder/model_config.json", home);
+    match fs::read_to_string(&path) {
+        Ok(content) => {
+            serde_json::from_str(&content).unwrap_or(serde_json::json!({}))
+        }
+        Err(_) => serde_json::json!({})
+    }
+}
+
+/// Write user's model selection into ~/.minder/model_config.json
+#[tauri::command]
+fn save_model_choice(repo_id: String, filename: String) -> Result<bool, String> {
+    use std::fs;
+    let home = std::env::var("HOME").map_err(|e| e.to_string())?;
+    let dir = format!("{}/.minder", home);
+    fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let path = format!("{}/model_config.json", dir);
+    // Read existing config so we don't clobber other keys
+    let mut existing: serde_json::Value = match fs::read_to_string(&path) {
+        Ok(content) => serde_json::from_str(&content).unwrap_or(serde_json::json!({})),
+        Err(_) => serde_json::json!({}),
+    };
+    if let Some(obj) = existing.as_object_mut() {
+        obj.insert("llm_model_repo".to_string(), serde_json::Value::String(repo_id));
+        obj.insert("llm_model_file".to_string(), serde_json::Value::String(filename));
+    }
+    let content = serde_json::to_string_pretty(&existing).map_err(|e| e.to_string())?;
+    fs::write(&path, content).map_err(|e| e.to_string())?;
+    Ok(true)
+}
+
 pub fn run() {
     let log_buffer = Arc::new(Mutex::new(Vec::<String>::new()));
     let log_buffer_for_state = log_buffer.clone();
@@ -42,7 +78,7 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .manage(ServerProcess(Mutex::new(None)))
         .manage(BootstrapLogs(log_buffer_for_state))
-        .invoke_handler(tauri::generate_handler![get_bootstrap_logs, get_bootstrap_config])
+        .invoke_handler(tauri::generate_handler![get_bootstrap_logs, get_bootstrap_config, get_model_config, save_model_choice])
         .setup(|app| {
             let handle = app.handle().clone();
             // Spawn the server management in a background thread so setup() returns

@@ -75,8 +75,8 @@ class EmbeddingConfig(BaseModel):
 class LLMConfig(BaseModel):
     provider: str = "llama_cpp"  # "llama_cpp" | "openai"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
-    llama_cpp_model_repo: str = "ggml-org/gemma-4-E2B-it-GGUF"
-    llama_cpp_model_file: str = "gemma-4-E2B-it-Q4_K_M.gguf"
+    llama_cpp_model_repo: str = "google/gemma-4-E2B-it-qat-q4_0-gguf"
+    llama_cpp_model_file: str = "gemma-4-E2B_q4_0-it.gguf"
     # context_length is the UPPER BOUND requested.  The actual value used by the
     # engine is further capped by hardware detection (see hardware.py) to keep
     # KV-cache + Metal compute buffers within safe limits for the current device.
@@ -88,6 +88,23 @@ class LLMConfig(BaseModel):
     openai_model: str = "gpt-4o-mini"
     timeout_seconds: float = 120.0
     max_concurrent: int = 1
+
+    @model_validator(mode="after")
+    def _load_user_model_config(self) -> "LLMConfig":
+        import json
+        from pathlib import Path
+        config_path = Path.home() / ".minder" / "model_config.json"
+        if config_path.exists():
+            try:
+                with open(config_path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                if "llama_cpp_model_repo" in data:
+                    self.llama_cpp_model_repo = data["llama_cpp_model_repo"]
+                if "llama_cpp_model_file" in data:
+                    self.llama_cpp_model_file = data["llama_cpp_model_file"]
+            except Exception:
+                pass
+        return self
 
 
 class VectorStoreConfig(BaseModel):

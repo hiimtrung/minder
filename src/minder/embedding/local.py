@@ -52,54 +52,57 @@ class LocalEmbeddingProvider:
             return
 
         cache_key = f"{self._model_repo}:{self._model_file}"
-        if cache_key in _MODEL_CACHE:
-            self._model = _MODEL_CACHE[cache_key]
-            return
 
         if not llama_cpp_usable():
             logger.warning("llama.cpp not usable on this host; embedding running in mock mode.")
             return
 
-        try:
-            from llama_cpp import Llama
-            from minder.infrastructure.hardware import get_hardware_profile
+        with llama_cpp_lock:
+            if cache_key in _MODEL_CACHE:
+                self._model = _MODEL_CACHE[cache_key]
+                return
 
-            hw = get_hardware_profile()
-            logger.info(
-                "Initializing Llama.cpp embedding engine for %s "
-                "[n_gpu_layers=%d flash_attn=%s]",
-                self._model_repo, hw.n_gpu_layers, hw.use_flash_attn,
-            )
-            cache_dir = get_writable_hf_cache_dir()
-            cache_kwargs: dict[str, Any] = (
-                {} if cache_dir is None else {"cache_dir": cache_dir}
-            )
-            init_kwargs: dict[str, Any] = {
-                "embedding": True,
-                "n_ctx": 512,   # Embeddings need small context — fixed
-                "n_gpu_layers": hw.n_gpu_layers,
-                "flash_attn": hw.use_flash_attn,
-                "verbose": False,
-            }
-            if hw.n_threads > 0:
-                init_kwargs["n_threads"] = hw.n_threads
-            with llama_cpp_lock:
+            try:
+                from llama_cpp import Llama
+                from minder.infrastructure.hardware import get_hardware_profile
+
+                hw = get_hardware_profile()
+                logger.info(
+                    "Initializing Llama.cpp embedding engine for %s "
+                    "[n_gpu_layers=%d flash_attn=%s]",
+                    self._model_repo, hw.n_gpu_layers, hw.use_flash_attn,
+                )
+                cache_dir = get_writable_hf_cache_dir()
+                cache_kwargs: dict[str, Any] = (
+                    {} if cache_dir is None else {"cache_dir": cache_dir}
+                )
+                init_kwargs: dict[str, Any] = {
+                    "embedding": True,
+                    "n_ctx": 512,   # Embeddings need small context — fixed
+                    "n_gpu_layers": hw.n_gpu_layers,
+                    "flash_attn": hw.use_flash_attn,
+                    "use_mmap": True,
+                    "verbose": False,
+                }
+                if hw.n_threads > 0:
+                    init_kwargs["n_threads"] = hw.n_threads
+
                 self._model = Llama.from_pretrained(
                     repo_id=self._model_repo,
                     filename=self._model_file,
                     **init_kwargs,
                     **cache_kwargs,
                 )
-            _MODEL_CACHE[cache_key] = self._model
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(
-                "Embedding engine failed to initialize for %s/%s: %s",
-                self._model_repo, self._model_file, error_msg,
-                exc_info=True,
-            )
-            self._model = None
-            _EMBED_INIT_ERRORS[f"{self._model_repo}:{self._model_file}"] = error_msg
+                _MODEL_CACHE[cache_key] = self._model
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(
+                    "Embedding engine failed to initialize for %s/%s: %s",
+                    self._model_repo, self._model_file, error_msg,
+                    exc_info=True,
+                )
+                self._model = None
+                _EMBED_INIT_ERRORS[f"{self._model_repo}:{self._model_file}"] = error_msg
 
     @property
     def runtime(self) -> str:

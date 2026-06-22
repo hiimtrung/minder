@@ -1,0 +1,46 @@
+/Users/trungtran/ai-agents/minder/.venv/lib/python3.14/site-packages/huggingface_hub/utils/_validators.py:206: UserWarning: The `local_dir_use_symlinks` argument is deprecated and ignored in `hf_hub_download`. Downloading to a local directory does not use symlinks anymore.
+  warnings.warn(
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+llama_context: n_ctx_seq (512) < n_ctx_train (2048) -- the full capacity of the model will not be utilized
+llama_context: n_ctx_seq (2304) < n_ctx_train (131072) -- the full capacity of the model will not be utilized
+llama_kv_cache_iswa: using full-size SWA cache (ref: https://github.com/ggml-org/llama.cpp/pull/13194#issuecomment-2868343055)
+Ignoring unknown node name agent_code_reviewer in pending sends
+Ignoring unknown node name agent_tester in pending sends
+Ignoring unknown node name agent_developer in pending sends
+Ignoring unknown node name agent_project_manager in pending sends
+Ignoring unknown node name agent_code_reviewer in pending sends
+Ignoring unknown node name agent_tester in pending sends
+Ignoring unknown node name agent_developer in pending sends
+Ignoring unknown node name agent_project_manager in pending sends
+Ignoring unknown node name agent_code_reviewer in pending sends
+Ignoring unknown node name agent_tester in pending sends
+Ignoring unknown node name agent_developer in pending sends
+Ignoring unknown node name agent_project_manager in pending sends
+Loading config...
+Building stores...
+Running query...
+{'type': 'attempt', 'attempt': 1}
+{'type': 'attempt', 'attempt': 1}
+{'type': 'attempt', 'attempt': 1}
+{'type': 'attempt', 'attempt': 1}
+{'type': 'chunk', 'attempt': 1, 'delta': 'No'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' question'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' provided'}
+{'type': 'chunk', 'attempt': 1, 'delta': '.'}
+{'type': 'final', 'payload': {'answer': 'No question provided.', 'sources': [], 'workflow_name': 'tdd', 'provider': 'llama_cpp', 'model': 'gemma-4-E2B-it-qat-q4_0-gguf', 'runtime': 'llama_cpp', 'orchestration_runtime': None, 'edge': None, 'guard_result': {}, 'verification_result': {}, 'transition_log': [], 'history_message_count': 0, 'cross_repo_graph': None, 'status': 'completed', 'approval_request': None, 'session_id': None, 'supervisor': {'used': False, 'selected_agent': None, 'agents': []}}}
+{'type': 'chunk', 'attempt': 1, 'delta': 'No'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' question'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' provided'}
+{'type': 'chunk', 'attempt': 1, 'delta': '.'}
+{'type': 'final', 'payload': {'answer': 'No question provided.', 'sources': [], 'workflow_name': 'tdd', 'provider': 'llama_cpp', 'model': 'gemma-4-E2B-it-qat-q4_0-gguf', 'runtime': 'llama_cpp', 'orchestration_runtime': None, 'edge': None, 'guard_result': {}, 'verification_result': {}, 'transition_log': [], 'history_message_count': 0, 'cross_repo_graph': None, 'status': 'completed', 'approval_request': None, 'session_id': None, 'supervisor': {'used': False, 'selected_agent': None, 'agents': []}}}
+{'type': 'chunk', 'attempt': 1, 'delta': 'No'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' question'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' provided'}
+{'type': 'chunk', 'attempt': 1, 'delta': '.'}
+{'type': 'final', 'payload': {'answer': 'No question provided.', 'sources': [], 'workflow_name': 'tdd', 'provider': 'llama_cpp', 'model': 'gemma-4-E2B-it-qat-q4_0-gguf', 'runtime': 'llama_cpp', 'orchestration_runtime': None, 'edge': None, 'guard_result': {}, 'verification_result': {}, 'transition_log': [], 'history_message_count': 0, 'cross_repo_graph': None, 'status': 'completed', 'approval_request': None, 'session_id': None, 'supervisor': {'used': False, 'selected_agent': None, 'agents': []}}}
+{'type': 'chunk', 'attempt': 1, 'delta': 'No'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' question'}
+{'type': 'chunk', 'attempt': 1, 'delta': ' provided'}
+{'type': 'chunk', 'attempt': 1, 'delta': '.'}
+{'type': 'final', 'payload': {'answer': 'No question provided.', 'sources': [], 'workflow_name': 'tdd', 'provider': 'llama_cpp', 'model': 'gemma-4-E2B-it-qat-q4_0-gguf', 'runtime': 'llama_cpp', 'orchestration_runtime': None, 'edge': None, 'guard_result': {}, 'verification_result': {}, 'transition_log': [], 'history_message_count': 0, 'cross_repo_graph': None, 'status': 'completed', 'approval_request': None, 'session_id': None, 'supervisor': {'used': False, 'selected_agent': None, 'agents': []}}}
+{'type': 'final', 'payload': {'answer': 'No question provided.', 'sources': [], 'workflow_name': 'tdd', 'provider': 'llama_cpp', 'model': 'gemma-4-E2B-it-qat-q4_0-gguf', 'runtime': 'llama_cpp', 'orchestration_runtime': None, 'edge': None, 'guard_result': {'passed': True, 'reasons': [], 'severity': 'normal', 'requires_human_approval': False}, 'verification_result': {'passed': True, 'returncode': 0, 'stdout': '', 'stderr': '', 'runner': 'subprocess', 'skipped': True, 'timeout_seconds': 30, 'failure_kind': None, 'retryable': False}, 'transition_log': [{'attempt': 1, 'edge': 'complete', 'provider': 'llama_cpp', 'fallback_used': False}, {'attempt': 1, 'edge': 'complete', 'provider': 'llama_cpp', 'fallback_used': False}], 'history_message_count': 0, 'cross_repo_graph': None, 'status': 'completed', 'approval_request': None, 'session_id': None, 'supervisor': {'used': True, 'selected_agent': 'code_reviewer', 'agents': ['code_reviewer', 'tester', 'developer', 'project_manager']}}}

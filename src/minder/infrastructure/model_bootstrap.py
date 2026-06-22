@@ -97,12 +97,50 @@ def _fix_permissions(local_path: str) -> None:
             logger.debug("Could not fix permissions on %s", item)
 
 
+DOWNLOAD_PROGRESS = {
+    "status": "idle",
+    "filename": "",
+    "downloaded_bytes": 0,
+    "total_bytes": 0,
+    "percent": 0.0
+}
+
 def _download_one(repo_id: str, filename: str, cache_dir: str | None) -> bool:
     """Download *filename* from *repo_id* into *cache_dir*.
 
     Returns True on success, False on failure.  Errors are logged as warnings
     so callers can decide whether to continue or abort.
     """
+    import huggingface_hub.file_download as _hf_fd
+    from tqdm.auto import tqdm as _original_tqdm
+
+    class _ProgressTqdm(_original_tqdm):
+        """Thin wrapper that pipes download progress into DOWNLOAD_PROGRESS."""
+
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+            self._last_logged_pct = 0
+            DOWNLOAD_PROGRESS["status"] = "downloading"
+            DOWNLOAD_PROGRESS["filename"] = filename
+
+        def update(self, n=1):
+            super().update(n)
+            DOWNLOAD_PROGRESS["downloaded_bytes"] = self.n
+            DOWNLOAD_PROGRESS["total_bytes"] = self.total or 0
+            if self.total:
+                pct = (self.n / self.total) * 100
+                DOWNLOAD_PROGRESS["percent"] = pct
+                # Log a clean line every 10 %
+                if pct - self._last_logged_pct >= 10:
+                    logger.info(
+                        "[model-bootstrap] Download progress: %.1f%% (%s)", pct, filename
+                    )
+                    self._last_logged_pct = pct
+
+    # Monkeypatch huggingface_hub so it uses our progress class.
+    # hf_hub_download imports tqdm at the module level via `tqdm.auto.tqdm`.
+    _original_cls = _hf_fd.tqdm
+    _hf_fd.tqdm = _ProgressTqdm
     try:
         from huggingface_hub import hf_hub_download
 
@@ -117,10 +155,15 @@ def _download_one(repo_id: str, filename: str, cache_dir: str | None) -> bool:
             filename=filename,
             cache_dir=cache_dir,
         )
+
+        DOWNLOAD_PROGRESS["status"] = "complete"
+        DOWNLOAD_PROGRESS["percent"] = 100.0
+
         _fix_permissions(local_path)
         logger.info("[model-bootstrap] Ready: %s", local_path)
         return True
     except Exception as exc:
+        DOWNLOAD_PROGRESS["status"] = "error"
         logger.warning(
             "[model-bootstrap] Download failed for %s / %s: %s"
             " — server will continue in mock mode until the model is available",
@@ -129,6 +172,11 @@ def _download_one(repo_id: str, filename: str, cache_dir: str | None) -> bool:
             exc,
         )
         return False
+    finally:
+        # Always restore the original tqdm class.
+        _hf_fd.tqdm = _original_cls
+
+
 
 
 # ---------------------------------------------------------------------------

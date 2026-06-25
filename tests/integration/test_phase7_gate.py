@@ -372,8 +372,8 @@ class TestSkillUsageIncrement:
         store.update_skill = AsyncMock(return_value=None)
 
         config = MagicMock()
-        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
+        config.embedding.llama_cpp_model_repo = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+        config.embedding.llama_cpp_model_file = "nomic-embed-text-v1.5.Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
 
@@ -402,8 +402,8 @@ class TestRuntimeAgentWorkflow:
         context.store = AsyncMock()
         context.store.list_workflows = AsyncMock(return_value=[wf])
         context.config = MagicMock()
-        context.config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-        context.config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
+        context.config.embedding.llama_cpp_model_repo = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+        context.config.embedding.llama_cpp_model_file = "nomic-embed-text-v1.5.Q4_K_M.gguf"
         context.config.embedding.dimensions = 16
         context.config.embedding.runtime = "cpu"
 
@@ -447,8 +447,8 @@ class TestHistorySourceTracking:
         store.create_history = AsyncMock()
 
         config = MagicMock()
-        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
+        config.embedding.llama_cpp_model_repo = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+        config.embedding.llama_cpp_model_file = "nomic-embed-text-v1.5.Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
         config.llm.context_length = 4096
@@ -490,8 +490,8 @@ class TestHistorySourceTracking:
         store.create_history = AsyncMock()
 
         config = MagicMock()
-        config.embedding.llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-        config.embedding.llama_cpp_model_file = "embeddinggemma-300m-Q4_K_M.gguf"
+        config.embedding.llama_cpp_model_repo = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+        config.embedding.llama_cpp_model_file = "nomic-embed-text-v1.5.Q4_K_M.gguf"
         config.embedding.dimensions = 16
         config.embedding.runtime = "cpu"
         config.llm.context_length = 4096

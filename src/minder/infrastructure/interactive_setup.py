@@ -33,11 +33,11 @@ def run_interactive_model_setup(config: "Settings") -> None:
 
     if not sys.stdin.isatty():
         # Headless mode fallback
-        logger.info("Headless mode detected. Setting default LLM model to google/gemma-4-E2B-it-qat-q4_0-gguf")
+        logger.info("Headless mode detected. Setting default LLM model to unsloth/Qwen3.5-2B-GGUF")
         minder_dir.mkdir(parents=True, exist_ok=True)
         config_data = {
-            "llama_cpp_model_repo": "google/gemma-4-E2B-it-qat-q4_0-gguf",
-            "llama_cpp_model_file": "gemma-4-E2B_q4_0-it.gguf"
+            "llama_cpp_model_repo": "unsloth/Qwen3.5-2B-GGUF",
+            "llama_cpp_model_file": "Qwen3.5-2B-Q4_K_M.gguf"
         }
         with open(config_file, "w", encoding="utf-8") as file_out:
             json.dump(config_data, file_out, indent=2)

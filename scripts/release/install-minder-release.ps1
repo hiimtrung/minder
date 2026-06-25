@@ -41,8 +41,8 @@ function Require-Command {
     }
 }
 
-$LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'  -Default 'google/gemma-4-E2B-it-qat-q4_0-gguf'
-$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'ggml-org/embeddinggemma-300M-GGUF'
+$LlmModelRepo  = Get-EnvOrDefault -Name 'MINDER_LLM_MODEL_REPO'  -Default 'unsloth/Qwen3.5-2B-GGUF'
+$EmbedModel    = Get-EnvOrDefault -Name 'MINDER_EMBEDDING_MODEL' -Default 'nomic-ai/nomic-embed-text-v1.5-GGUF'
 
 # ------------------------------------------------------------------
 # Save release metadata helper

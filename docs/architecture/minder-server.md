@@ -76,9 +76,8 @@ All settings in `minder.toml` or environment variables (`MINDER_<SECTION>__<KEY>
 | Variable                           | Default                        | Purpose                                         |
 | ---------------------------------- | ------------------------------ | ----------------------------------------------- |
 | `MINDER_SERVER__PORT`              | `8800`                         | HTTP listen port                                |
-| `MINDER_LLM__PROVIDER`             | `llama_cpp`                    | LLM provider (`llama_cpp` / `openai`)           |
-| `MINDER_LLM__LLAMA_CPP_MODEL_REPO` | `google/gemma-4-E2B-it-qat-q4_0-gguf` | HuggingFace repo for LLM GGUF model             |
-| `MINDER_LLM__LLAMA_CPP_MODEL_FILE` | `gemma-4-E2B_q4_0-it.gguf`    | GGUF filename                                   |
+| `MINDER_LLM__LLAMA_CPP_MODEL_REPO` | `unsloth/Qwen3.5-2B-GGUF` | HuggingFace repo for LLM GGUF model             |
+| `MINDER_LLM__LLAMA_CPP_MODEL_FILE` | `Qwen3.5-2B-Q4_K_M.gguf`    | GGUF filename                                   |
 | `MINDER_RELATIONAL_STORE__PROVIDER`| `sqlite`                       | Relational store (`sqlite` / `postgresql`)      |
 | `MINDER_VECTOR_STORE__PROVIDER`    | `turbovec`                     | Vector store provider (`turbovec` / `memory`)   |
 | `MINDER_TURBOVEC__DB_PATH`         | `~/.minder/data/vectors.tvim`  | Turbovec index file path                        |

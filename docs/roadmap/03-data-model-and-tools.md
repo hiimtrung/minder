@@ -266,14 +266,14 @@ api_key_prefix = "mk_"
 
 [embedding]
 provider = "llama_cpp"
-llama_cpp_model_repo = "ggml-org/embeddinggemma-300M-GGUF"
-llama_cpp_model_file = "*.gguf"
+llama_cpp_model_repo = "nomic-ai/nomic-embed-text-v1.5-GGUF"
+llama_cpp_model_file = "nomic-embed-text-v1.5.Q4_K_M.gguf"
 dimensions = 768
 
 [llm]
 provider = "llama_cpp"
-llama_cpp_model_repo = "google/gemma-4-E2B-it-qat-q4_0-gguf"
-llama_cpp_model_file = "gemma-4-E2B_q4_0-it.gguf"
+llama_cpp_model_repo = "unsloth/Qwen3.5-2B-GGUF"
+llama_cpp_model_file = "Qwen3.5-2B-Q4_K_M.gguf"
 context_length = 32768
 temperature = 0.1
 # Optional OpenAI fallback:

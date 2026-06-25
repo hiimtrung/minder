@@ -29,8 +29,8 @@ MAX_TEXT_LENGTH = 8000  # Safety truncation to avoid over-context (~2000 tokens)
 class LocalEmbeddingProvider:
     def __init__(
         self,
-        llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF",
-        llama_cpp_model_file: str = "*Q4_K_M.gguf",
+        llama_cpp_model_repo: str = "nomic-ai/nomic-embed-text-v1.5-GGUF",
+        llama_cpp_model_file: str = "nomic-embed-text-v1.5.Q4_K_M.gguf",
         dimensions: int = 768,
         runtime: str = "auto",
     ) -> None:

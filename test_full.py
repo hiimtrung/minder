@@ -11,8 +11,8 @@ from llama_cpp import Llama
 
 print("Loading model...")
 llm = Llama.from_pretrained(
-    repo_id="google/gemma-4-E2B-it-qat-q4_0-gguf",
-    filename="gemma-4-E2B_q4_0-it.gguf",
+    repo_id="unsloth/Qwen3.5-2B-GGUF",
+    filename="Qwen3.5-2B-Q4_K_M.gguf",
     n_ctx=hw.n_ctx,
     n_batch=hw.n_batch,
     n_ubatch=hw.n_ubatch,

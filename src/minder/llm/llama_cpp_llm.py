@@ -32,8 +32,8 @@ class LlamaCppLLM:
 
     def __init__(
         self,
-        model_repo: str = "google/gemma-4-E2B-it-qat-q4_0-gguf",
-        model_file: str = "*.gguf",
+        model_repo: str = "unsloth/Qwen3.5-2B-GGUF",
+        model_file: str = "Qwen3.5-2B-Q4_K_M.gguf",
         context_length: int = 16384,
         temperature: float = 0.1,
         runtime: str = "auto",

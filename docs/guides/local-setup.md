@@ -95,8 +95,8 @@ db_path = "~/.minder/data/vectors.tvim"
 
 [llm]
 provider = "llama_cpp"
-llama_cpp_model_repo = "google/gemma-4-E2B-it-qat-q4_0-gguf"
-llama_cpp_model_file = "gemma-4-E2B_q4_0-it.gguf"
+llama_cpp_model_repo = "unsloth/Qwen3.5-2B-GGUF"
+llama_cpp_model_file = "Qwen3.5-2B-Q4_K_M.gguf"
 ```
 
 To use OpenAI instead of llama-cpp:

@@ -65,7 +65,7 @@ make native-install
 make native-run
 ```
 
-GGUF models (`google/gemma-4-E2B-it-qat-q4_0-gguf`) are downloaded automatically on first startup. No manual setup required.
+GGUF models (`unsloth/Qwen3.5-2B-GGUF`) are downloaded automatically on first startup. No manual setup required.
 
 ### 2. Open the dashboard
 

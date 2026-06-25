@@ -29,10 +29,12 @@ services:
       - minder-data:/root/.minder/data
     environment:
       MINDER_SERVER__PORT: 8801
-      MINDER_LLM__PROVIDER: llama_cpp
+      MINDER_LLM__PROVIDER: openai
+      MINDER_LLM__OPENAI_MODEL: "qwen3.5:2b"
+      MINDER_LLM__OPENAI_API_BASE: "http://host.docker.internal:11434/v1"
+      MINDER_LLM__OPENAI_API_KEY: "ollama"
       MINDER_VECTOR_STORE__PROVIDER: milvus
       HUGGINGFACE_HUB_CACHE: /models
-      MINDER_LLM__OPENAI_API_KEY: ${OPENAI_API_KEY:-}
 
   dashboard:
     container_name: minder-dashboard

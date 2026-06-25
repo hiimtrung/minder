@@ -66,17 +66,17 @@ class AuthConfig(BaseModel):
 
 class EmbeddingConfig(BaseModel):
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
-    llama_cpp_model_repo: str = "ggml-org/embeddinggemma-300M-GGUF"
+    llama_cpp_model_repo: str = "nomic-ai/nomic-embed-text-v1.5-GGUF"
     # Q4_K_M uses ~45% less RAM than Q8_0 with negligible embedding quality loss.
-    llama_cpp_model_file: str = "embeddinggemma-300M-Q4_K_M.gguf"
+    llama_cpp_model_file: str = "nomic-embed-text-v1.5.Q4_K_M.gguf"
     dimensions: int = 768
 
 
 class LLMConfig(BaseModel):
     provider: str = "llama_cpp"  # "llama_cpp" | "openai"
     runtime: str = "auto"  # "auto" | "llama_cpp" | "mock"
-    llama_cpp_model_repo: str = "google/gemma-4-E2B-it-qat-q4_0-gguf"
-    llama_cpp_model_file: str = "gemma-4-E2B_q4_0-it.gguf"
+    llama_cpp_model_repo: str = "unsloth/Qwen3.5-2B-GGUF"
+    llama_cpp_model_file: str = "Qwen3.5-2B-Q4_K_M.gguf"
     # context_length is the UPPER BOUND requested.  The actual value used by the
     # engine is further capped by hardware detection (see hardware.py) to keep
     # KV-cache + Metal compute buffers within safe limits for the current device.

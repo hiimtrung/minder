@@ -371,25 +371,16 @@ class MemoryService:
             "updated": True,
         }
 
-    async def minder_memory_delete(self, skill_id: str, *, owner_id: uuid.UUID | None = None) -> dict[str, bool]:
-        if owner_id is not None:
-            existing = await self._store.get_skill_by_id(uuid.UUID(skill_id))
-            if existing is None or not is_memory_record(existing):
-                raise ValueError(f"Memory not found: {skill_id}")
-            existing_owner = getattr(existing, "owner_id", None)
-            if existing_owner is not None and str(existing_owner) != str(owner_id):
-                raise ValueError(f"Access denied: you do not own memory {skill_id}")
-                
-        await self._store.delete_skill(uuid.UUID(skill_id))
+    async def minder_memory_delete(self, memory_id: str, *, owner_id: uuid.UUID | None = None) -> dict[str, bool]:
+            existing = await self._store.get_skill_by_id(target_uuid)
+            if existing is None:
+                return {"deleted": False}
+            if getattr(existing, "owner_id", None) != owner_id:
+                raise PermissionError("Access denied: cannot delete other users' memory")
+        await self._store.delete_skill(target_uuid)
 
         # Record persistent audit event
         try:
-            await self._store.create_audit_log(
-                actor_type="system",
-                actor_id="minder",
-                event_type="skill.deleted",
-                resource_type="skill",
-                resource_id=skill_id,
                 outcome="success",
             )
         except Exception:

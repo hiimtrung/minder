@@ -148,14 +148,12 @@ class MemoryTools:
 
     async def minder_memory_delete(
         self,
-        skill_id: str,
-        *,
+        memory_id: str,
         owner_id: uuid.UUID | None = None,
     ) -> dict[str, bool]:
         return await self._service.minder_memory_delete(
-            skill_id=skill_id,
+            memory_id=memory_id,
             owner_id=owner_id,
-        )
 
     async def minder_memory_compact(
         self,

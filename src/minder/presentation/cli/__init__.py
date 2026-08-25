@@ -1,3 +1,7 @@
-from .main import main
+"""
+Minder CLI Package
+"""
 
-__all__ = ["main"]
+from minder.presentation.cli.connect import generate_mcp_config, write_ide_configs
+
+__all__ = ["generate_mcp_config", "write_ide_configs"]

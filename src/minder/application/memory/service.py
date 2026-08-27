@@ -293,6 +293,7 @@ class MemoryService:
             }
         for item in limited:
             item["hit_summary"] = synthesis["hit_summaries"].get(str(item["id"]), "")
+            item["recall_summary"] = item["hit_summary"]
             record_continuity_recall(
                 provider=str(synthesis_meta.get("provider", "unknown")),
                 step_compatibility=float(item.get("_step_compat", 0.0)),
@@ -371,16 +372,18 @@ class MemoryService:
             "updated": True,
         }
 
-    async def minder_memory_delete(self, skill_id: str, *, owner_id: uuid.UUID | None = None) -> dict[str, bool]:
+    async def minder_memory_delete(
+        self, memory_id: str, *, owner_id: uuid.UUID | None = None
+    ) -> dict[str, bool]:
+        target_uuid = uuid.UUID(memory_id)
         if owner_id is not None:
-            existing = await self._store.get_skill_by_id(uuid.UUID(skill_id))
+            existing = await self._store.get_skill_by_id(target_uuid)
             if existing is None or not is_memory_record(existing):
-                raise ValueError(f"Memory not found: {skill_id}")
+                raise ValueError(f"Memory not found: {memory_id}")
             existing_owner = getattr(existing, "owner_id", None)
             if existing_owner is not None and str(existing_owner) != str(owner_id):
-                raise ValueError(f"Access denied: you do not own memory {skill_id}")
-                
-        await self._store.delete_skill(uuid.UUID(skill_id))
+                raise ValueError(f"Access denied: you do not own memory {memory_id}")
+        await self._store.delete_skill(target_uuid)
 
         # Record persistent audit event
         try:
@@ -389,7 +392,7 @@ class MemoryService:
                 actor_id="minder",
                 event_type="skill.deleted",
                 resource_type="skill",
-                resource_id=skill_id,
+                resource_id=memory_id,
                 outcome="success",
             )
         except Exception:

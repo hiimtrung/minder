@@ -21,7 +21,7 @@ milvus_d, milvus_b, milvus_h = collect_all("pymilvus")
 turbovec_d, turbovec_b, turbovec_h = collect_all("turbovec")
 langgraph_d, langgraph_b, langgraph_h = collect_all("langgraph")
 litellm_d, litellm_b, litellm_h = collect_all("litellm")
-mcp_d, mcp_b, mcp_h = collect_all("mcp")
+mcp_d, mcp_b, mcp_h = collect_all("mcp", filter_submodules=lambda name: not name.startswith("mcp.cli"))
 llama_d, llama_b, llama_h = collect_all("llama_cpp")
 
 # ---------------------------------------------------------------------------

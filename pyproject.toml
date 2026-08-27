@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "minder-cli"
-version = "0.7.5"
+version = "0.7.6"
 description = "Minder is a self-hosted Engineering Intelligence and Lean MCP Platform for AI Coding Agents."
 readme = "README.md"
 requires-python = ">=3.11, <3.15"

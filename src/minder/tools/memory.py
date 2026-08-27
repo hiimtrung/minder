@@ -154,6 +154,7 @@ class MemoryTools:
         return await self._service.minder_memory_delete(
             memory_id=memory_id,
             owner_id=owner_id,
+        )
 
     async def minder_memory_compact(
         self,

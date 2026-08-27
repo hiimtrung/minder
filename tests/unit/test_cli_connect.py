@@ -2,8 +2,7 @@ import unittest
 import tempfile
 import json
 from pathlib import Path
-from src.minder.presentation.cli.connect import generate_mcp_config, write_ide_configs
-
+from minder.presentation.cli.connect import generate_mcp_config, write_ide_configs
 class TestCliConnect(unittest.TestCase):
     def test_generate_mcp_config(self):
         config = generate_mcp_config(

@@ -2,9 +2,8 @@ import unittest
 import uuid
 import tempfile
 import os
-from pathlib import Path
-from src.minder.domain.models import Workspace, Repository, Contract
-from src.minder.store.workspace_store import WorkspaceSqliteStore
+from minder.domain.models import Workspace, Repository, Contract
+from minder.store.workspace_store import WorkspaceSqliteStore
 
 class TestWorkspaceSqliteStore(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

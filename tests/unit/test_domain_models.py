@@ -1,14 +1,11 @@
 import unittest
 import uuid
-from datetime import datetime, UTC
-from src.minder.domain.models import (
+from datetime import datetime
+from minder.domain.models import (
     Workspace,
     Repository,
     Contract,
     CodeChunk,
-    Memory,
-    Skill,
-    SessionState,
 )
 
 class TestDomainModels(unittest.TestCase):

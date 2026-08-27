@@ -3,9 +3,9 @@ import uuid
 import tempfile
 import os
 import time
-from src.minder.domain.models import Workspace, Repository, Contract, CodeChunk
-from src.minder.store.workspace_store import WorkspaceSqliteStore
-from src.minder.tools.lean_query import LeanQueryTools
+from minder.domain.models import Workspace, Repository, Contract, CodeChunk
+from minder.store.workspace_store import WorkspaceSqliteStore
+from minder.tools.lean_query import LeanQueryTools
 
 class MockVectorStore:
     def __init__(self):

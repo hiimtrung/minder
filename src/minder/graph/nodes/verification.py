@@ -84,13 +84,25 @@ class DockerSandboxRunner:
             }
 
         cwd = repo_path or "."
-        inspect = subprocess.run(
-            [docker_binary, "image", "inspect", self._image],
-            capture_output=True,
-            text=True,
-            cwd=cwd,
-            check=False,
-        )
+        try:
+            inspect = subprocess.run(
+                [docker_binary, "image", "inspect", self._image],
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+                check=False,
+            )
+        except (OSError, subprocess.SubprocessError) as exc:
+            return {
+                "passed": False,
+                "returncode": 127,
+                "stdout": "",
+                "stderr": f"docker unavailable: {exc}",
+                "runner": "docker",
+                "timeout_seconds": timeout_seconds,
+                "failure_kind": "docker_unavailable",
+                "retryable": False,
+            }
         failure_kind: str | None = None
         if inspect.returncode != 0:
             failure_kind = "image_missing"

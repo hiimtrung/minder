@@ -84,10 +84,15 @@ def create_memory_handlers(
         return await memory_tools.minder_memory_list(owner_id=owner_id)
 
     async def minder_memory_delete(
-        *, user=None, principal: Principal | None = None, memory_id: str
+        *,
+        user=None,
+        principal: Principal | None = None,
+        memory_id: str,
+    ) -> dict[str, bool]:  # noqa: ANN001
         owner_id = extract_owner_id(principal=principal, user=user)
         return await memory_tools.minder_memory_delete(memory_id, owner_id=owner_id)
 
+    return {
         "minder_memory_store": minder_memory_store,
         "minder_memory_recall": minder_memory_recall,
         "minder_memory_list": minder_memory_list,

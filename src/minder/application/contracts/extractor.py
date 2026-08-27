@@ -5,19 +5,22 @@ import uuid
 from typing import Literal
 from minder.domain.models import Contract
 
+ContractKind = Literal["http_route", "dto_schema", "grpc_method", "event_schema", "db_model"]
+
 
 class ContractExtractor:
     """Extracts API Routes, DTO Schemas, gRPC/Protobuf definitions from source code."""
 
-    _ROUTE_PATTERNS = {
+    _ROUTE_PATTERNS: dict[str, list[re.Pattern[str]]] = {
         "python": [re.compile(r"""@(?:router|app)\.(get|post|put|delete|patch|options|head)\s*\(\s*["']([^"']+)["']""", re.IGNORECASE)],
         "typescript": [re.compile(r"""(?:router|app)\.(get|post|put|delete|patch|options|head)\s*\(\s*["']([^"']+)["']""", re.IGNORECASE)],
         "javascript": [re.compile(r"""(?:router|app)\.(get|post|put|delete|patch|options|head)\s*\(\s*["']([^"']+)["']""", re.IGNORECASE)],
-        "go": [re.compile(r"""\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\s*\(\s*["']([^"']+)["']""")],
-        "java": [re.compile(r"""@(Get|Post|Put|Delete|Patch)Mapping\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']""", re.IGNORECASE)],
+        "go": [re.compile(r"""\.(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\s*\(\s*["']([^"']+)["']""", re.IGNORECASE)],
+        "rust": [re.compile(r"""#\[(?:get|post|put|delete|patch)\s*\(\s*["']([^"']+)["']\s*\)\]""", re.IGNORECASE)],
+        "java": [re.compile(r"""@(?:GetMapping|PostMapping|PutMapping|DeleteMapping|PatchMapping|RequestMapping)\s*\(\s*(?:value\s*=\s*)?["']([^"']+)["']""", re.IGNORECASE)],
     }
 
-    _SCHEMA_PATTERNS = {
+    _SCHEMA_PATTERNS: dict[str, list[tuple[re.Pattern[str], ContractKind]]] = {
         "python": [
             (re.compile(r"^class\s+([A-Za-z0-9_]+)\s*\((?:BaseModel|TypedDict|object)?\)\s*:", re.MULTILINE), "dto_schema"),
         ],

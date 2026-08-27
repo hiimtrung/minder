@@ -1,6 +1,5 @@
 import unittest
-from src.minder.chunking.code_splitter import CodeSplitter, CodeChunk
-
+from minder.chunking.code_splitter import CodeSplitter
 class TestCodeSplitter(unittest.TestCase):
     def setUp(self):
         self.splitter = CodeSplitter()

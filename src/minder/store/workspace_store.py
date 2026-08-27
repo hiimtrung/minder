@@ -4,9 +4,8 @@ import asyncio
 import json
 import sqlite3
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Literal
 
 from minder.domain.models import Contract, Repository, Workspace
 

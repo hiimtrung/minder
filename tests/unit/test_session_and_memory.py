@@ -3,8 +3,8 @@ import uuid
 import tempfile
 import os
 import time
-from src.minder.domain.models import Workspace, SessionState, Memory
-from src.minder.store.workspace_store import WorkspaceSqliteStore
+from minder.domain.models import SessionState
+from minder.store.workspace_store import WorkspaceSqliteStore
 
 class TestSessionAndMemory(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):

@@ -1,7 +1,6 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from src.minder.llm.openai_compatible import OpenAICompatibleLLM
-
+from minder.llm.openai_compatible import OpenAICompatibleLLM
 class TestOpenAICompatibleLLM(unittest.TestCase):
     def test_init_config(self):
         llm = OpenAICompatibleLLM(

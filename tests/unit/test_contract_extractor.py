@@ -1,7 +1,6 @@
 import unittest
 import uuid
-from src.minder.application.contracts.extractor import ContractExtractor
-
+from minder.application.contracts.extractor import ContractExtractor
 class TestContractExtractor(unittest.TestCase):
     def setUp(self):
         self.extractor = ContractExtractor()

@@ -99,7 +99,12 @@ class MemoryService:
                 "recall_summary": "",
             }
         )
-        return list(result.get("final_memories", []))
+        final = list(result.get("final_memories", []))
+        summary = str(result.get("recall_summary", ""))
+        for item in final:
+            if "recall_summary" not in item:
+                item["recall_summary"] = summary or item.get("hit_summary", "")
+        return final
 
     async def _recall_candidates(
         self,
@@ -373,31 +378,30 @@ class MemoryService:
         }
 
     async def minder_memory_delete(
-        self, memory_id: str, *, owner_id: uuid.UUID | None = None
+        self,
+        memory_id: str,
+        owner_id: uuid.UUID | None = None,
     ) -> dict[str, bool]:
         target_uuid = uuid.UUID(memory_id)
-        if owner_id is not None:
-            existing = await self._store.get_skill_by_id(target_uuid)
-            if existing is None or not is_memory_record(existing):
-                raise ValueError(f"Memory not found: {memory_id}")
-            existing_owner = getattr(existing, "owner_id", None)
-            if existing_owner is not None and str(existing_owner) != str(owner_id):
-                raise ValueError(f"Access denied: you do not own memory {memory_id}")
+        existing = await self._store.get_skill_by_id(target_uuid)
+        if existing is None or not is_memory_record(existing):
+            raise ValueError(f"Memory not found: {memory_id}")
+        existing_owner = getattr(existing, "owner_id", None)
+        if existing_owner is not None and str(existing_owner) != str(owner_id):
+            raise ValueError(f"Access denied: you do not own memory {memory_id}")
         await self._store.delete_skill(target_uuid)
-
-        # Record persistent audit event
         try:
             await self._store.create_audit_log(
                 actor_type="system",
                 actor_id="minder",
                 event_type="skill.deleted",
                 resource_type="skill",
-                resource_id=memory_id,
+                resource_id=str(target_uuid),
                 outcome="success",
+                audit_metadata={"memory_id": memory_id},
             )
         except Exception:
             pass
-
         return {"deleted": True}
 
     async def minder_memory_compact(

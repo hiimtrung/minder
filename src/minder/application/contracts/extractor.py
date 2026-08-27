@@ -5,8 +5,6 @@ import uuid
 from typing import Literal
 from minder.domain.models import Contract
 
-ContractKind = Literal["http_route", "dto_schema", "grpc_method", "event_schema", "db_model"]
-
 
 class ContractExtractor:
     """Extracts API Routes, DTO Schemas, gRPC/Protobuf definitions from source code."""
